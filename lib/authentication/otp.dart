@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
-import 'package:premium_force_main/home/homepage.dart';
+import 'package:premium_force_main/home/home.dart';
 
 class OTPVerificationPage extends StatefulWidget {
   final String phone;
@@ -151,7 +151,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                   String otp = _otpController.text;
                   debugPrint('OTP Entered: $otp');
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const Homepage()),
+                    MaterialPageRoute(builder: (context) => Home()),
                   );
                 },
               ),

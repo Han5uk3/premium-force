@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/borderedcontainer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
+import 'package:premium_force_main/common_widgets/premuimfleetcard.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -11,13 +13,121 @@ class Homepage extends StatefulWidget {
 }
 
 class _HomepageState extends State<Homepage> {
+  List cardItems = [
+    {
+      "brand": "Audi",
+      "name": "A4",
+      "passengerCount": "2",
+      "image":
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtt985QVNzHFbPZ4cvt2tQfmVsmSa9drlimw&s",
+    },
+    {
+      "brand": "mercedes-benz",
+      "name": "c220",
+      "passengerCount": "2",
+      "image":
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtt985QVNzHFbPZ4cvt2tQfmVsmSa9drlimw&s",
+    },
+    {
+      "brand": "bmw",
+      "name": "i3",
+      "passengerCount": "2",
+      "image":
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtt985QVNzHFbPZ4cvt2tQfmVsmSa9drlimw&s",
+    },
+  ];
   bool isEnglish = true;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Column(
-        children: [_buildAppbar(context), _buildBookService(context)],
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildAppbar(context),
+            _buildBookService(context),
+            _buildPremiumFleet(context),
+            _buildRecentBookings(context),
+            Container(
+              height: 80,
+              color: Color(0xff292929).withValues(alpha: 0.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentBookings(BuildContext context) {
+    return Container(
+      height: 250,
+      color: const Color(0xff292929).withValues(alpha: 0.6),
+      width: MediaQuery.of(context).size.width,
+      padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
+      child: Column(
+        spacing: 8,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            "Recent Bookings",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          Bookingcard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumFleet(BuildContext context) {
+    return Container(
+      height: 230,
+      color: Colors.black,
+      width: MediaQuery.of(context).size.width,
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 24, right: 24),
+            child: Text(
+              "Premium Fleet",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          SizedBox(height: 8),
+          SizedBox(
+            height: 150,
+            child: ListView.builder(
+              itemCount: cardItems.length,
+              scrollDirection: Axis.horizontal,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    left: index == 0 ? 24 : 6,
+                    right: index == cardItems.length - 1 ? 24 : 6,
+                  ),
+                  child: Premuimfleetcard(
+                    brand: cardItems[index]["brand"],
+                    name: cardItems[index]["name"],
+                    passengerCount: cardItems[index]["passengerCount"],
+                    image: cardItems[index]["image"],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

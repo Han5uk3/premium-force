@@ -27,7 +27,8 @@ class PremiumButton extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: gradient ??
+          colors:
+              gradient ??
               [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
         ),
         boxShadow: [
