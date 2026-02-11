@@ -36,6 +36,48 @@ class _HomepageState extends State<Homepage> {
           "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtt985QVNzHFbPZ4cvt2tQfmVsmSa9drlimw&s",
     },
   ];
+    List bookingItems = [
+    {
+      "status": "c",
+      "type": "Airport Arrival",
+      "pickup": "King Khalid International Airport",
+      "dropoff": "City Center, Riyadh",
+      "date": "13 Feb",
+      "time": "12:30",
+      "ride": "Luxury",
+      "brand": "Mercedes-Benz",
+    },
+    {
+      "status": "p",
+      "type": "Airport Departure",
+      "pickup": "King Khalid International Airport",
+      "dropoff": "City Center, Riyadh",
+      "date": "14 Feb",
+      "time": "12:30",
+      "ride": "Luxury",
+      "brand": "BMW",
+    },
+    {
+      "status": "x",
+      "type": "Chauffeur",
+      "pickup": "City Center, Riyadh",
+      "dropoff": "Hotel Al Faisaliah",
+      "date": "14 Feb",
+      "time": "09:00",
+      "ride": "Luxury",
+      "brand": "Audi",
+    },
+    {
+      "status": "x",
+      "type": "Chauffeur",
+      "pickup": "City Center, Riyadh",
+      "dropoff": "Hotel Al Faisaliah",
+      "date": "14 Feb",
+      "time": "09:00",
+      "ride": "Luxury",
+      "brand": "Rolls-Royce",
+    },
+  ];
   bool isEnglish = true;
   @override
   Widget build(BuildContext context) {
@@ -48,7 +90,7 @@ class _HomepageState extends State<Homepage> {
             _buildAppbar(context),
             _buildBookService(context),
             _buildPremiumFleet(context),
-            _buildRecentBookings(context),
+            Flexible(child: _buildRecentBookings(context)),
             Container(
               height: 80,
               color: Color(0xff292929).withValues(alpha: 0.6),
@@ -61,7 +103,6 @@ class _HomepageState extends State<Homepage> {
 
   Widget _buildRecentBookings(BuildContext context) {
     return Container(
-      height: 250,
       color: const Color(0xff292929).withValues(alpha: 0.6),
       width: MediaQuery.of(context).size.width,
       padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
@@ -78,7 +119,29 @@ class _HomepageState extends State<Homepage> {
               color: Colors.white,
             ),
           ),
-          Bookingcard(),
+          Flexible(
+            child: ListView.builder(
+              itemCount: bookingItems.length,
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              physics: NeverScrollableScrollPhysics(),
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Bookingcard(
+                    status: bookingItems[index]["status"],
+                    type: bookingItems[index]["type"],
+                    pickup: bookingItems[index]["pickup"],
+                    dropoff: bookingItems[index]["dropoff"],
+                    date: bookingItems[index]["date"],
+                    time: bookingItems[index]["time"],
+                    ride: bookingItems[index]["ride"],
+                    brand: bookingItems[index]["brand"],
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );

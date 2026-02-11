@@ -38,7 +38,7 @@ class BottomNavBar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 MenuIcon(
-                  icon: Icons.home_filled,
+                  icon: Icons.home_outlined,
                   label: "Home",
                   isSelected: selectedIndex == 0,
                   onTap: () => onIndexChanged(0),
@@ -170,7 +170,7 @@ class _MenuIconState extends State<MenuIcon>
                     widget.icon,
                     key: ValueKey(widget.isSelected),
                     color: widget.isSelected ? Colors.black : Colors.white,
-                    size: 26,
+                    size: 20,
                   ),
                 ),
                 ClipRect(
@@ -184,15 +184,15 @@ class _MenuIconState extends State<MenuIcon>
                             child: FadeTransition(
                               opacity: _fadeAnimation,
                               child: Padding(
-                                padding: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.only(left: 3),
                                 child: Text(
                                   widget.label,
                                   maxLines: 1,
                                   overflow: TextOverflow.clip,
                                   style: const TextStyle(
                                     color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w900,
                                   ),
                                 ),
                               ),

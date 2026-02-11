@@ -26,10 +26,10 @@ class _HomeState extends State<Home> {
   }
 
   void _onNavTapped(int index) {
-    _pageController.animateToPage(
+    _pageController.jumpToPage(
       index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      // duration: const Duration(milliseconds: 300),
+      // curve: Curves.easeInOut,
     );
   }
 
