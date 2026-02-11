@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/common_widgets/bottomnavbar.dart';
 import 'package:premium_force_main/home/homepage.dart';
+import 'package:premium_force_main/profile/profile.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -40,8 +41,9 @@ class _HomeState extends State<Home> {
       backgroundColor: Colors.transparent,
       body: PageView(
         controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
         onPageChanged: _onPageChanged,
-        children: [Homepage(), Placeholder(), Placeholder()],
+        children: [Homepage(), Placeholder(), ProfilePage()],
       ),
       resizeToAvoidBottomInset: true,
       bottomNavigationBar: BottomNavBar(

@@ -19,7 +19,7 @@ class BottomNavBar extends StatelessWidget {
       child: ClipRRect(
         borderRadius: const BorderRadius.all(Radius.circular(16)),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          filter: ImageFilter.blur(sigmaX: 3.5, sigmaY: 3.5),
           child: Container(
             padding: const EdgeInsets.only(
               top: 12,
@@ -51,7 +51,7 @@ class BottomNavBar extends StatelessWidget {
                 ),
                 MenuIcon(
                   icon: Icons.account_circle_outlined,
-                  label: "Profile",
+                  label: "Account",
                   isSelected: selectedIndex == 2,
                   onTap: () => onIndexChanged(2),
                 ),
