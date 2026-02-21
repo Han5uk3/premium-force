@@ -13,6 +13,11 @@ class PremiumTextField extends StatelessWidget {
   final double fontsize;
   final bool needCountryCode;
   final FormFieldValidator<String>? validator;
+  final int? maxLength;
+  final bool enabled;
+  final VoidCallback? onTap;
+  final bool readOnly;
+  final int maxLines;
   const PremiumTextField({
     super.key,
     this.needTitle = true,
@@ -26,6 +31,11 @@ class PremiumTextField extends StatelessWidget {
     this.needCountryCode = false,
     this.validator,
     this.fontsize = 16,
+    this.maxLength,
+    this.enabled = true,
+    this.onTap,
+    this.readOnly = false,
+    this.maxLines = 1,
   });
 
   @override
@@ -45,45 +55,65 @@ class PremiumTextField extends StatelessWidget {
               )
             : const SizedBox.shrink(),
         needTitle ? const SizedBox(height: 8) : const SizedBox.shrink(),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF0D0A08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF1A1410), width: 1),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 20),
-              if (needCountryCode)
-                const Text(
-                  '(+966)   ',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D0A08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1A1410), width: 1),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                if (needCountryCode)
+                  const Text(
+                    '(+966)   ',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
-                ),
-              Expanded(
-                child: TextFormField(
-                  validator: validator,
-                  inputFormatters: [LengthLimitingTextInputFormatter(9)],
-                  controller: controller,
-                  keyboardType: keyboardType,
-                  style: TextStyle(color: Colors.white, fontSize: fontsize),
-                  decoration: InputDecoration(
-                    hintText: hintText,
-                    hintStyle: TextStyle(
-                      color: Colors.white.withAlpha(180),
+                if (prefixIcon != null) ...[
+                  prefixIcon!,
+                  const SizedBox(width: 12),
+                ],
+                Expanded(
+                  child: TextFormField(
+                    validator: validator,
+                    inputFormatters: maxLength != null
+                        ? [LengthLimitingTextInputFormatter(maxLength)]
+                        : [],
+                    controller: controller,
+                    keyboardType: keyboardType,
+                    obscureText: obscureText,
+                    enabled: enabled,
+                    readOnly: readOnly,
+                    maxLines: maxLines,
+                    onTap: onTap,
+                    style: TextStyle(
+                      color: enabled
+                          ? Colors.white
+                          : Colors.white.withAlpha(120),
                       fontSize: fontsize,
                     ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 18),
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      hintStyle: TextStyle(
+                        color: Colors.white.withAlpha(180),
+                        fontSize: fontsize,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 18),
+                      suffixIcon: suffixIcon,
+                    ),
+                    cursorColor: Colors.white,
                   ),
-                  cursorColor: Colors.white,
                 ),
-              ),
-              const SizedBox(width: 20),
-            ],
+                const SizedBox(width: 20),
+              ],
+            ),
           ),
         ),
       ],

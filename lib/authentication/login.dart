@@ -96,6 +96,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                         keyboardType: TextInputType.phone,
                         needTitle: true,
                         obscureText: false,
+                        maxLength: 9,
                       ),
 
                       const SizedBox(height: 24),

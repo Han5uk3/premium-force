@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
-import 'package:premium_force_main/home/home.dart';
+import 'package:premium_force_main/authentication/signup.dart';
+import 'package:premium_force_main/utils/smooth_navigation.dart';
 
 class OTPVerificationPage extends StatefulWidget {
   final String phone;
@@ -185,9 +186,11 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                   }
                   String otp = _otpController.text;
                   debugPrint('OTP Entered: $otp');
-                  Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (context) => Home()));
+                  Navigator.of(context).push(
+                    SmoothNavigation.route(
+                      SignUpPage(phoneNumber: widget.phone),
+                    ),
+                  );
                 },
               ),
             ],
