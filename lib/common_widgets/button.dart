@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/common_widgets/premiumloader.dart';
 
 class PremiumButton extends StatelessWidget {
   const PremiumButton({
@@ -6,6 +7,7 @@ class PremiumButton extends StatelessWidget {
     required this.text,
     required this.onTap,
     required this.fontsize,
+    required this.showLoader,
     this.borderRadius,
     this.textColor,
     this.gradient,
@@ -16,6 +18,7 @@ class PremiumButton extends StatelessWidget {
   final double fontsize;
   final double? borderRadius;
   final Color? textColor;
+  final bool showLoader;
   final List<Color>? gradient;
 
   @override
@@ -48,14 +51,16 @@ class PremiumButton extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(borderRadius ?? 12),
           child: Center(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: textColor ?? Colors.black,
-                fontSize: fontsize,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            child: showLoader
+                ? PremiumLoader(size: 28, color: Colors.black)
+                : Text(
+                    text,
+                    style: TextStyle(
+                      color: textColor ?? Colors.black,
+                      fontSize: fontsize,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
           ),
         ),
       ),

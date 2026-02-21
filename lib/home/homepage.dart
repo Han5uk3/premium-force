@@ -518,6 +518,7 @@ class _HomepageState extends State<Homepage> {
                       width: 90,
                       height: 26,
                       child: PremiumButton(
+                        showLoader: false,
                         borderRadius: 18,
                         textColor: Colors.white,
                         text: loc.bookNow,
@@ -627,6 +628,7 @@ class _HomepageState extends State<Homepage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: PremiumButton(
+                        showLoader: false,
                         borderRadius: 12,
                         text: loc.continueText,
                         onTap: () {

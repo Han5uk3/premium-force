@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:premium_force_main/authentication/otp.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/checkbox.dart';
+import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
@@ -18,13 +19,44 @@ final _formKey = GlobalKey<FormState>();
 class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  bool _isAgreed = true;
+  bool _isAgreed = false;
+  OverlayEntry? _overlayEntry;
+  bool _isLoading = false;
 
   @override
   void dispose() {
+    _overlayEntry?.remove();
     _mobileController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  void _showCustomSnackBar(String message) {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: AnimatedSnackBar(
+            message: message,
+            type: "E",
+            onDismissed: () {
+              if (mounted) {
+                _overlayEntry?.remove();
+                _overlayEntry = null;
+              }
+            },
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
   }
 
   @override
@@ -100,7 +132,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                         )!.enterMobileNumber,
                         needCountryCode: true,
                         fontsize: 16,
-                        
+
                         keyboardType: TextInputType.phone,
                         needTitle: true,
                         obscureText: false,
@@ -110,30 +142,6 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                       const SizedBox(height: 24),
 
                       // Continue Button
-                      PremiumButton(
-                        fontsize: 18,
-                        text: AppLocalizations.of(context)!.continueText,
-                        onTap: () {
-                          if (_formKey.currentState!.validate() && _isAgreed) {
-                            Navigator.of(context).push(
-                              SmoothNavigation.route(
-                                OTPVerificationPage(
-                                  phone: "+966${_mobileController.text.trim()}",
-                                ),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                backgroundColor: Colors.red,
-                                content: Text(
-                                  'Please agree to the terms and conditions and privacy policy.',
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
                       const SizedBox(height: 20),
                       // Terms and Conditions
                       Row(
@@ -199,6 +207,31 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                             ),
                           ),
                         ],
+                      ),
+                      SizedBox(height: 25),
+                      PremiumButton(
+                        showLoader: _isLoading,
+                        fontsize: 18,
+                        text: AppLocalizations.of(context)!.continueText,
+                        onTap: () {
+                          if (_formKey.currentState!.validate() && _isAgreed) {
+                            // setState(() {
+                            //   _isLoading = !_isLoading;
+                            // });
+                            Navigator.of(context).push(
+                              SmoothNavigation.route(
+                                OTPVerificationPage(
+                                  countryCode: '+966',
+                                  phoneNumber: _mobileController.text.trim(),
+                                ),
+                              ),
+                            );
+                          } else if (_isAgreed == false) {
+                            _showCustomSnackBar(
+                              'Please agree to the terms and conditions and privacy policy.',
+                            );
+                          }
+                        },
                       ),
                     ],
                   ),

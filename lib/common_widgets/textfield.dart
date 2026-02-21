@@ -40,86 +40,119 @@ class PremiumTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        needTitle
-            ? Text(
+    return FormField<String>(
+      initialValue: controller.text,
+      validator: validator != null ? (_) => validator!(controller.text) : null,
+      builder: (FormFieldState<String> fieldState) {
+        final hasError = fieldState.hasError && fieldState.errorText != null;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+
+            if (needTitle) ...[
+              Text(
                 title,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: fontsize,
                   fontWeight: FontWeight.w400,
                 ),
-              )
-            : const SizedBox.shrink(),
-        needTitle ? const SizedBox(height: 8) : const SizedBox.shrink(),
-        GestureDetector(
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D0A08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF1A1410), width: 1),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 20),
-                if (needCountryCode)
-                  const Text(
-                    '(+966)   ',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                if (prefixIcon != null) ...[
-                  prefixIcon!,
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: TextFormField(
-                    validator: validator,
-                    inputFormatters: [
-                      if (maxLength != null)
-                        LengthLimitingTextInputFormatter(maxLength),
-                      if (needCountryCode)
-                        FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    controller: controller,
-                    keyboardType: keyboardType,
-                    obscureText: obscureText,
-                    enabled: enabled,
-                    readOnly: readOnly,
-                    maxLines: maxLines,
-                    onTap: onTap,
-                    style: TextStyle(
-                      color: enabled
-                          ? Colors.white
-                          : Colors.white.withAlpha(120),
-                      fontSize: fontsize,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: hintText,
-                      hintStyle: TextStyle(
-                        color: Colors.white.withAlpha(180),
-                        fontSize: fontsize,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 18),
-                      suffixIcon: suffixIcon,
-                    ),
-                    cursorColor: Colors.white,
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            // ── Styled input container ─────────────────────────
+            GestureDetector(
+              onTap: onTap,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D0A08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: hasError
+                        ? const Color(0xFFCF6679)
+                        : const Color(0xFF1A1410),
+                    width: 1,
                   ),
                 ),
-                const SizedBox(width: 20),
-              ],
+                child: Row(
+                  children: [
+                    const SizedBox(width: 20),
+                    if (needCountryCode)
+                      const Text(
+                        '(+966)   ',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    if (prefixIcon != null) ...[
+                      prefixIcon!,
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: TextFormField(
+                        // Validation is handled by the outer FormField;
+                        // we skip it here so no error text renders inside.
+                        inputFormatters: [
+                          if (maxLength != null)
+                            LengthLimitingTextInputFormatter(maxLength),
+                          if (needCountryCode)
+                            FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        controller: controller,
+                        keyboardType: keyboardType,
+                        obscureText: obscureText,
+                        enabled: enabled,
+                        readOnly: readOnly,
+                        maxLines: maxLines,
+                        onTap: onTap,
+                        style: TextStyle(
+                          color: enabled
+                              ? Colors.white
+                              : Colors.white.withAlpha(120),
+                          fontSize: fontsize,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: hintText,
+                          hintStyle: TextStyle(
+                            color: Colors.white.withAlpha(180),
+                            fontSize: fontsize,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 18,
+                          ),
+                          suffixIcon: suffixIcon,
+                        ),
+                        cursorColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+
+            // ── Error text below the container ─────────────────
+            if (hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(
+                  fieldState.errorText!,
+                  style: const TextStyle(
+                    color: Color(0xFFCF6679),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
