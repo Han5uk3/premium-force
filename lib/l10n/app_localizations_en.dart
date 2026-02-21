@@ -133,4 +133,112 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chooseCity => 'Choose City';
+
+  @override
+  String get chooseProfilePicture => 'Choose Profile Picture';
+
+  @override
+  String get camera => 'Camera';
+
+  @override
+  String get gallery => 'Gallery';
+
+  @override
+  String get name => 'Name';
+
+  @override
+  String get email => 'Email';
+
+  @override
+  String get location => 'Location';
+
+  @override
+  String get specialId => 'Special ID';
+
+  @override
+  String get phoneNumber => 'Phone Number';
+
+  @override
+  String get submit => 'Submit';
+
+  @override
+  String get tapToSelectYourLocation => 'Tap to select your location';
+
+  @override
+  String get pleaseEnterYourName => 'Please enter your name';
+
+  @override
+  String get pleaseAddAProfilePicture => 'Please add a profile picture';
+
+  @override
+  String get pleaseSelectYourLocation => 'Please select your location';
+
+  @override
+  String get completeYourProfileToGetStarted =>
+      'Complete Your Profile To Get Started';
+
+  @override
+  String get tapToAddPhoto => 'Tap to add photo';
+
+  @override
+  String get fullName => 'Full Name';
+
+  @override
+  String get enterYourFullName => 'Enter your full name';
+
+  @override
+  String get emailAddress => 'Email Address';
+
+  @override
+  String get enterYourEmailAddress => 'Enter your email address';
+
+  @override
+  String get pleaseEnterYourEmail => 'Please enter your email';
+
+  @override
+  String get nameMustBeAtLeast2Characters =>
+      'Name must be at least 2 characters';
+
+  @override
+  String get pleaseEnterAValidEmail => 'Please enter a valid email';
+
+  @override
+  String get specialidoptional => 'Special ID (Optional)';
+
+  @override
+  String get enterSpecialIdIFAvailable => 'Enter Special ID if available';
+
+  @override
+  String get createAccount => 'Create Account';
+
+  @override
+  String get signIn => 'Sign In';
+
+  @override
+  String get mobileNumber => 'Mobile Number';
+
+  @override
+  String get enterMobileNumber => 'Enter mobile number';
+
+  @override
+  String get pleaseEnterYourMobileNumber => 'Please enter your mobile number';
+
+  @override
+  String get pleaseEnterValidMobileNumber => 'Please enter valid mobile number';
+
+  @override
+  String get byContinuingYouAgreeToOur => 'By continuing, you agree to our';
+
+  @override
+  String get and => 'and';
+
+  @override
+  String get privacyPolicy => 'Privacy Policy';
+
+  @override
+  String get selectLocation => 'Select Location';
+
+  @override
+  String get pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy =>
+      'Please agree to the terms and conditions and privacy policy.';
 }

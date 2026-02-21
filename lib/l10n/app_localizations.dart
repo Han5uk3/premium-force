@@ -349,6 +349,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose City'**
   String get chooseCity;
+
+  /// No description provided for @chooseProfilePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Profile Picture'**
+  String get chooseProfilePicture;
+
+  /// No description provided for @camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get camera;
+
+  /// No description provided for @gallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery'**
+  String get gallery;
+
+  /// No description provided for @name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get name;
+
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @location.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get location;
+
+  /// No description provided for @specialId.
+  ///
+  /// In en, this message translates to:
+  /// **'Special ID'**
+  String get specialId;
+
+  /// No description provided for @phoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number'**
+  String get phoneNumber;
+
+  /// No description provided for @submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get submit;
+
+  /// No description provided for @tapToSelectYourLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select your location'**
+  String get tapToSelectYourLocation;
+
+  /// No description provided for @pleaseEnterYourName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your name'**
+  String get pleaseEnterYourName;
+
+  /// No description provided for @pleaseAddAProfilePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Please add a profile picture'**
+  String get pleaseAddAProfilePicture;
+
+  /// No description provided for @pleaseSelectYourLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select your location'**
+  String get pleaseSelectYourLocation;
+
+  /// No description provided for @completeYourProfileToGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete Your Profile To Get Started'**
+  String get completeYourProfileToGetStarted;
+
+  /// No description provided for @tapToAddPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add photo'**
+  String get tapToAddPhoto;
+
+  /// No description provided for @fullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get fullName;
+
+  /// No description provided for @enterYourFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your full name'**
+  String get enterYourFullName;
+
+  /// No description provided for @emailAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Email Address'**
+  String get emailAddress;
+
+  /// No description provided for @enterYourEmailAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email address'**
+  String get enterYourEmailAddress;
+
+  /// No description provided for @pleaseEnterYourEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your email'**
+  String get pleaseEnterYourEmail;
+
+  /// No description provided for @nameMustBeAtLeast2Characters.
+  ///
+  /// In en, this message translates to:
+  /// **'Name must be at least 2 characters'**
+  String get nameMustBeAtLeast2Characters;
+
+  /// No description provided for @pleaseEnterAValidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid email'**
+  String get pleaseEnterAValidEmail;
+
+  /// No description provided for @specialidoptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Special ID (Optional)'**
+  String get specialidoptional;
+
+  /// No description provided for @enterSpecialIdIFAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Special ID if available'**
+  String get enterSpecialIdIFAvailable;
+
+  /// No description provided for @createAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get createAccount;
+
+  /// No description provided for @signIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get signIn;
+
+  /// No description provided for @mobileNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Number'**
+  String get mobileNumber;
+
+  /// No description provided for @enterMobileNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter mobile number'**
+  String get enterMobileNumber;
+
+  /// No description provided for @pleaseEnterYourMobileNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your mobile number'**
+  String get pleaseEnterYourMobileNumber;
+
+  /// No description provided for @pleaseEnterValidMobileNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter valid mobile number'**
+  String get pleaseEnterValidMobileNumber;
+
+  /// No description provided for @byContinuingYouAgreeToOur.
+  ///
+  /// In en, this message translates to:
+  /// **'By continuing, you agree to our'**
+  String get byContinuingYouAgreeToOur;
+
+  /// No description provided for @and.
+  ///
+  /// In en, this message translates to:
+  /// **'and'**
+  String get and;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @selectLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Location'**
+  String get selectLocation;
+
+  /// No description provided for @pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Please agree to the terms and conditions and privacy policy.'**
+  String get pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy;
 }
 
 class _AppLocalizationsDelegate

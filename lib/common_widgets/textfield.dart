@@ -82,9 +82,12 @@ class PremiumTextField extends StatelessWidget {
                 Expanded(
                   child: TextFormField(
                     validator: validator,
-                    inputFormatters: maxLength != null
-                        ? [LengthLimitingTextInputFormatter(maxLength)]
-                        : [],
+                    inputFormatters: [
+                      if (maxLength != null)
+                        LengthLimitingTextInputFormatter(maxLength),
+                      if (needCountryCode)
+                        FilteringTextInputFormatter.digitsOnly,
+                    ],
                     controller: controller,
                     keyboardType: keyboardType,
                     obscureText: obscureText,

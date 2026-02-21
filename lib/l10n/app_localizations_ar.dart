@@ -133,4 +133,111 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get chooseCity => 'اختر المدينة';
+
+  @override
+  String get chooseProfilePicture => 'اختر صورة الملف الشخصي';
+
+  @override
+  String get camera => 'الكاميرا';
+
+  @override
+  String get gallery => 'المعرض';
+
+  @override
+  String get name => 'الاسم';
+
+  @override
+  String get email => 'البريد الإلكتروني';
+
+  @override
+  String get location => 'الموقع';
+
+  @override
+  String get specialId => 'الرقم المميز';
+
+  @override
+  String get phoneNumber => 'رقم الهاتف';
+
+  @override
+  String get submit => 'إرسال';
+
+  @override
+  String get tapToSelectYourLocation => 'اضغط لاختيار موقعك';
+
+  @override
+  String get pleaseEnterYourName => 'يرجى إدخال اسمك';
+
+  @override
+  String get pleaseAddAProfilePicture => 'يرجى إضافة صورة للملف الشخصي';
+
+  @override
+  String get pleaseSelectYourLocation => 'يرجى اختيار موقعك';
+
+  @override
+  String get completeYourProfileToGetStarted => 'أكمل ملفك الشخصي للبدء';
+
+  @override
+  String get tapToAddPhoto => 'اضغط لإضافة صورة';
+
+  @override
+  String get fullName => 'الاسم الكامل';
+
+  @override
+  String get enterYourFullName => 'أدخل اسمك الكامل';
+
+  @override
+  String get emailAddress => 'عنوان البريد الإلكتروني';
+
+  @override
+  String get enterYourEmailAddress => 'أدخل عنوان بريدك الإلكتروني';
+
+  @override
+  String get pleaseEnterYourEmail => 'يرجى إدخال بريدك الإلكتروني';
+
+  @override
+  String get nameMustBeAtLeast2Characters =>
+      'يجب أن يكون الاسم مكونًا من حرفين على الأقل';
+
+  @override
+  String get pleaseEnterAValidEmail => 'يرجى إدخال بريد إلكتروني صالح';
+
+  @override
+  String get specialidoptional => 'الرقم المميز (اختياري)';
+
+  @override
+  String get enterSpecialIdIFAvailable => 'أدخل الرقم المميز إذا كان متوفرًا';
+
+  @override
+  String get createAccount => 'إنشاء حساب';
+
+  @override
+  String get signIn => 'تسجيل الدخول';
+
+  @override
+  String get mobileNumber => 'رقم الجوال';
+
+  @override
+  String get enterMobileNumber => 'أدخل رقم الجوال';
+
+  @override
+  String get pleaseEnterYourMobileNumber => 'يرجى إدخال رقم الجوال';
+
+  @override
+  String get pleaseEnterValidMobileNumber => 'يرجى إدخال رقم جوال صحيح';
+
+  @override
+  String get byContinuingYouAgreeToOur => 'بالمتابعة، فإنك توافق على';
+
+  @override
+  String get and => 'و';
+
+  @override
+  String get privacyPolicy => 'سياسة الخصوصية';
+
+  @override
+  String get selectLocation => 'اختر الموقع';
+
+  @override
+  String get pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy =>
+      'يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية.';
 }

@@ -5,6 +5,7 @@ import 'package:premium_force_main/authentication/location_picker.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/home/home.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -56,6 +57,7 @@ class _SignUpPageState extends State<SignUpPage>
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
+    final loc = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -85,8 +87,8 @@ class _SignUpPageState extends State<SignUpPage>
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Choose Profile Picture',
+                  Text(
+                    loc.chooseProfilePicture,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -99,7 +101,7 @@ class _SignUpPageState extends State<SignUpPage>
                     children: [
                       _buildImageSourceOption(
                         icon: Icons.camera_alt_rounded,
-                        label: 'Camera',
+                        label: loc.camera,
                         onTap: () async {
                           Navigator.pop(context);
                           final XFile? image = await picker.pickImage(
@@ -117,7 +119,7 @@ class _SignUpPageState extends State<SignUpPage>
                       ),
                       _buildImageSourceOption(
                         icon: Icons.photo_library_rounded,
-                        label: 'Gallery',
+                        label: loc.gallery,
                         onTap: () async {
                           Navigator.pop(context);
                           final XFile? image = await picker.pickImage(
@@ -211,8 +213,8 @@ class _SignUpPageState extends State<SignUpPage>
 
     if (_profileImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add a profile picture'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.pleaseAddAProfilePicture),
           backgroundColor: Colors.red,
         ),
       );
@@ -221,8 +223,8 @@ class _SignUpPageState extends State<SignUpPage>
 
     if (_locationController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select your location'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.pleaseSelectYourLocation),
           backgroundColor: Colors.red,
         ),
       );
@@ -264,28 +266,6 @@ class _SignUpPageState extends State<SignUpPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 16),
-
-                  // Title
-                  const Text(
-                    'CREATE ACCOUNT',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Complete your profile to get started',
-                    style: TextStyle(
-                      color: Colors.white.withAlpha(140),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-
                   const SizedBox(height: 32),
 
                   // Profile Picture
@@ -386,7 +366,7 @@ class _SignUpPageState extends State<SignUpPage>
                   const SizedBox(height: 8),
                   Center(
                     child: Text(
-                      'Tap to add photo',
+                      AppLocalizations.of(context)!.tapToAddPhoto,
                       style: TextStyle(
                         color: Colors.white.withAlpha(100),
                         fontSize: 12,
@@ -399,9 +379,9 @@ class _SignUpPageState extends State<SignUpPage>
 
                   // Name field
                   PremiumTextField(
-                    title: 'Full Name',
+                    title: AppLocalizations.of(context)!.fullName,
                     controller: _nameController,
-                    hintText: 'Enter your full name',
+                    hintText: AppLocalizations.of(context)!.enterYourFullName,
                     fontsize: 15,
                     keyboardType: TextInputType.name,
                     needTitle: true,
@@ -424,10 +404,14 @@ class _SignUpPageState extends State<SignUpPage>
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter your name';
+                        return AppLocalizations.of(
+                          context,
+                        )!.pleaseEnterYourName;
                       }
                       if (value.length < 2) {
-                        return 'Name must be at least 2 characters';
+                        return AppLocalizations.of(
+                          context,
+                        )!.nameMustBeAtLeast2Characters;
                       }
                       return null;
                     },
@@ -437,7 +421,7 @@ class _SignUpPageState extends State<SignUpPage>
 
                   // Phone number (display only)
                   PremiumTextField(
-                    title: 'Phone Number',
+                    title: AppLocalizations.of(context)!.phoneNumber,
                     controller: _phoneController,
                     hintText: widget.phoneNumber,
                     fontsize: 15,
@@ -467,9 +451,11 @@ class _SignUpPageState extends State<SignUpPage>
 
                   // Email field
                   PremiumTextField(
-                    title: 'Email',
+                    title: AppLocalizations.of(context)!.emailAddress,
                     controller: _emailController,
-                    hintText: 'Enter your email address',
+                    hintText: AppLocalizations.of(
+                      context,
+                    )!.enterYourEmailAddress,
                     fontsize: 15,
                     keyboardType: TextInputType.emailAddress,
                     needTitle: true,
@@ -492,12 +478,16 @@ class _SignUpPageState extends State<SignUpPage>
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
+                        return AppLocalizations.of(
+                          context,
+                        )!.pleaseEnterYourEmail;
                       }
                       if (!RegExp(
                         r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                       ).hasMatch(value)) {
-                        return 'Please enter a valid email';
+                        return AppLocalizations.of(
+                          context,
+                        )!.pleaseEnterAValidEmail;
                       }
                       return null;
                     },
@@ -512,9 +502,11 @@ class _SignUpPageState extends State<SignUpPage>
 
                   // Special ID (optional)
                   PremiumTextField(
-                    title: 'Special ID (optional)',
+                    title: AppLocalizations.of(context)!.specialidoptional,
                     controller: _specialIdController,
-                    hintText: 'Enter special ID if available',
+                    hintText: AppLocalizations.of(
+                      context,
+                    )!.enterSpecialIdIFAvailable,
                     fontsize: 15,
                     needTitle: true,
                     obscureText: false,
@@ -541,7 +533,7 @@ class _SignUpPageState extends State<SignUpPage>
                   // Sign Up button
                   PremiumButton(
                     fontsize: 18,
-                    text: 'Sign Up',
+                    text: AppLocalizations.of(context)!.createAccount,
                     onTap: _handleSignUp,
                   ),
 
@@ -560,8 +552,8 @@ class _SignUpPageState extends State<SignUpPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          'Location',
+        Text(
+          AppLocalizations.of(context)!.location,
           style: TextStyle(
             color: Colors.white,
             fontSize: 15,
@@ -601,7 +593,7 @@ class _SignUpPageState extends State<SignUpPage>
                 Expanded(
                   child: Text(
                     _locationController.text.isEmpty
-                        ? 'Tap to select your location'
+                        ? AppLocalizations.of(context)!.tapToSelectYourLocation
                         : _locationController.text,
                     style: TextStyle(
                       color: _locationController.text.isEmpty
@@ -651,11 +643,12 @@ class _SignUpPageState extends State<SignUpPage>
         ),
         child: AppBar(
           centerTitle: true,
-          title: const Text(
-            'Sign Up',
+          title: Text(
+            AppLocalizations.of(context)!.createAccount,
             style: TextStyle(
               fontSize: 20,
               color: Colors.white,
+              fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
             ),
           ),

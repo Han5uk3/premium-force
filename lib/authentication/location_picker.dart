@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class LocationPickerPage extends StatefulWidget {
   const LocationPickerPage({super.key});
@@ -652,10 +653,11 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         ),
         child: AppBar(
           centerTitle: true,
-          title: const Text(
-            'Select Location',
+          title:  Text(
+           AppLocalizations.of(context)!.selectLocation,
             style: TextStyle(
               fontSize: 20,
+              fontWeight: FontWeight.bold,
               color: Colors.white,
               letterSpacing: 0.5,
             ),

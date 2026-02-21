@@ -3,6 +3,7 @@ import 'package:premium_force_main/authentication/otp.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/checkbox.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 
 class PremiumForceLoginPage extends StatefulWidget {
@@ -67,8 +68,8 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                     children: [
                       const SizedBox(height: 40),
                       // Sign In Title
-                      const Text(
-                        'SIGN IN',
+                      Text(
+                        AppLocalizations.of(context)!.signIn,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 28,
@@ -79,20 +80,27 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                       const SizedBox(height: 32),
 
                       PremiumTextField(
-                        title: "Mobile Number",
+                        title: AppLocalizations.of(context)!.mobileNumber,
                         validator: (value) {
                           if (value!.isEmpty) {
-                            return 'Please enter your mobile number';
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseEnterYourMobileNumber;
                           }
                           if (value.length < 9) {
-                            return 'Please enter valid mobile number';
+                            return AppLocalizations.of(
+                              context,
+                            )!.pleaseEnterValidMobileNumber;
                           }
                           return null;
                         },
                         controller: _mobileController,
-                        hintText: "Enter mobile number",
+                        hintText: AppLocalizations.of(
+                          context,
+                        )!.enterMobileNumber,
                         needCountryCode: true,
                         fontsize: 16,
+                        
                         keyboardType: TextInputType.phone,
                         needTitle: true,
                         obscureText: false,
@@ -104,7 +112,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                       // Continue Button
                       PremiumButton(
                         fontsize: 18,
-                        text: "Continue",
+                        text: AppLocalizations.of(context)!.continueText,
                         onTap: () {
                           if (_formKey.currentState!.validate() && _isAgreed) {
                             Navigator.of(context).push(

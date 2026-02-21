@@ -53,7 +53,7 @@ class PremiumButton extends StatelessWidget {
               style: TextStyle(
                 color: textColor ?? Colors.black,
                 fontSize: fontsize,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
