@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/bookings/bookings_page.dart';
 import 'package:premium_force_main/common_widgets/bottomnavbar.dart';
 import 'package:premium_force_main/home/homepage.dart';
-import 'package:premium_force_main/profile/profile.dart';
+import 'package:premium_force_main/account/account.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -43,7 +44,7 @@ class _HomeState extends State<Home> {
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         onPageChanged: _onPageChanged,
-        children: [Homepage(), Placeholder(), ProfilePage()],
+        children: [Homepage(), BookingsPage(), AccountPage()],
       ),
       resizeToAvoidBottomInset: true,
       bottomNavigationBar: BottomNavBar(

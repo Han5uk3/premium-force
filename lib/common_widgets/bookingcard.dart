@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class Bookingcard extends StatelessWidget {
   final String status;
@@ -23,6 +24,7 @@ class Bookingcard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       padding: EdgeInsets.all(1),
       decoration: BoxDecoration(
@@ -54,7 +56,7 @@ class Bookingcard extends StatelessWidget {
                     color: Colors.white,
                   ),
                 ),
-                buildContainerText(status, false, getStatusText(status)),
+                buildContainerText(true, false, loc),
               ],
             ),
 
@@ -65,11 +67,7 @@ class Bookingcard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      buildContainerText(
-                        "pickup",
-                        true,
-                        getStatusText("pickup"),
-                      ),
+                      buildContainerText(true, true, loc),
                       SizedBox(height: 8),
                       Text(
                         maxLines: 2,
@@ -97,11 +95,7 @@ class Bookingcard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      buildContainerText(
-                        "dropoff",
-                        true,
-                        getStatusText("dropoff"),
-                      ),
+                      buildContainerText(false, true, loc),
                       SizedBox(height: 8),
                       Text(
                         maxLines: 2,
@@ -197,7 +191,7 @@ class Bookingcard extends StatelessWidget {
     );
   }
 
-  Widget buildContainerText(String status, bool isGrey, String text) {
+  Widget buildContainerText(bool isPickup, bool isGrey, AppLocalizations loc) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -205,7 +199,11 @@ class Bookingcard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        text,
+        isGrey
+            ? isPickup
+                  ? loc.pickup
+                  : loc.dropoff
+            : getStatusText(status, loc),
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
@@ -215,30 +213,28 @@ class Bookingcard extends StatelessWidget {
     );
   }
 
-  String getStatusText(String status) {
+  String getStatusText(String status, AppLocalizations loc) {
     switch (status) {
       case "Completed":
       case "C":
       case "c":
-        return "Completed";
+        return loc.completed;
       case "Pending":
       case "P":
       case "p":
-        return "Pending";
+        return loc.pending;
       case "Cancelled":
       case "X":
       case "x":
-        return "Cancelled";
-      case "pickup":
-      case "Pickup":
-      case "PICKUP":
-        return "Pickup";
-      case "dropoff":
-      case "Dropoff":
-      case "DROPOFF":
-        return "Dropoff";
+        return loc.cancelled;
+      case "q":
+      case "Q":
+        return loc.pickup;
+      case "w":
+      case "W":
+        return loc.dropoff;
       default:
-        return "Unknown";
+        return loc.unknown;
     }
   }
 

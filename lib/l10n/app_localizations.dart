@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_ar.dart';
 import 'app_localizations_en.dart';
 
 // ignore_for_file: type=lint
@@ -92,13 +93,262 @@ abstract class AppLocalizations {
       ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('en')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('ar'),
+    Locale('en'),
+  ];
 
-  /// The conventional newborn programmer greeting
+  /// No description provided for @manageProfile.
   ///
   /// In en, this message translates to:
-  /// **'Hello World!'**
-  String get helloWorld;
+  /// **'Manage Profile'**
+  String get manageProfile;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @termsAndConditions.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms and Conditions'**
+  String get termsAndConditions;
+
+  /// No description provided for @logout.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout'**
+  String get logout;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account'**
+  String get deleteAccount;
+
+  /// No description provided for @on.
+  ///
+  /// In en, this message translates to:
+  /// **'ON'**
+  String get on;
+
+  /// No description provided for @off.
+  ///
+  /// In en, this message translates to:
+  /// **'OFF'**
+  String get off;
+
+  /// No description provided for @account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// No description provided for @home.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get home;
+
+  /// No description provided for @bookings.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookings'**
+  String get bookings;
+
+  /// No description provided for @recentBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Bookings'**
+  String get recentBookings;
+
+  /// No description provided for @premiumFleet.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium Fleet'**
+  String get premiumFleet;
+
+  /// No description provided for @bookServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Book Services'**
+  String get bookServices;
+
+  /// No description provided for @airportArrival.
+  ///
+  /// In en, this message translates to:
+  /// **'Airport Arrival'**
+  String get airportArrival;
+
+  /// No description provided for @airportDeparture.
+  ///
+  /// In en, this message translates to:
+  /// **'Airport Departure'**
+  String get airportDeparture;
+
+  /// No description provided for @chauffeurService.
+  ///
+  /// In en, this message translates to:
+  /// **'Chauffeur Service'**
+  String get chauffeurService;
+
+  /// No description provided for @luxury.
+  ///
+  /// In en, this message translates to:
+  /// **'Luxury'**
+  String get luxury;
+
+  /// No description provided for @city.
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get city;
+
+  /// No description provided for @business.
+  ///
+  /// In en, this message translates to:
+  /// **'Business'**
+  String get business;
+
+  /// No description provided for @sedan.
+  ///
+  /// In en, this message translates to:
+  /// **'Sedan'**
+  String get sedan;
+
+  /// No description provided for @suv.
+  ///
+  /// In en, this message translates to:
+  /// **'SUV'**
+  String get suv;
+
+  /// No description provided for @convertible.
+  ///
+  /// In en, this message translates to:
+  /// **'Convertible'**
+  String get convertible;
+
+  /// No description provided for @coupe.
+  ///
+  /// In en, this message translates to:
+  /// **'Coupe'**
+  String get coupe;
+
+  /// No description provided for @sports.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports'**
+  String get sports;
+
+  /// No description provided for @premium.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium'**
+  String get premium;
+
+  /// No description provided for @standard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get standard;
+
+  /// No description provided for @economy.
+  ///
+  /// In en, this message translates to:
+  /// **'Economy'**
+  String get economy;
+
+  /// No description provided for @welcomeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome Back'**
+  String get welcomeBack;
+
+  /// No description provided for @luxuryAirportTransfers.
+  ///
+  /// In en, this message translates to:
+  /// **'Luxury Airport Transfers'**
+  String get luxuryAirportTransfers;
+
+  /// No description provided for @inSaudiArabia.
+  ///
+  /// In en, this message translates to:
+  /// **'In Saudi Arabia'**
+  String get inSaudiArabia;
+
+  /// No description provided for @bookNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Book Now'**
+  String get bookNow;
+
+  /// No description provided for @passenger.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger'**
+  String get passenger;
+
+  /// No description provided for @pickup.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup'**
+  String get pickup;
+
+  /// No description provided for @dropoff.
+  ///
+  /// In en, this message translates to:
+  /// **'Dropoff'**
+  String get dropoff;
+
+  /// No description provided for @completed.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get completed;
+
+  /// No description provided for @cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get cancelled;
+
+  /// No description provided for @pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pending;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
+
+  /// No description provided for @ongoing.
+  ///
+  /// In en, this message translates to:
+  /// **'Ongoing'**
+  String get ongoing;
+
+  /// No description provided for @upcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming'**
+  String get upcoming;
+
+  /// No description provided for @continueText.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueText;
+
+  /// No description provided for @chooseCity.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose City'**
+  String get chooseCity;
 }
 
 class _AppLocalizationsDelegate
@@ -112,7 +362,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en'].contains(locale.languageCode);
+      <String>['ar', 'en'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -121,6 +371,8 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'ar':
+      return AppLocalizationsAr();
     case 'en':
       return AppLocalizationsEn();
   }

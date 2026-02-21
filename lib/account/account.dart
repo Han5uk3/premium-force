@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+class AccountPage extends StatefulWidget {
+  const AccountPage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<AccountPage> createState() => _AccountPageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _AccountPageState extends State<AccountPage> {
   bool notificationActive = false;
   @override
   Widget build(BuildContext context) {
+
+    final loc = AppLocalizations.of(context)!;
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -27,34 +30,43 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: buidAppBar(context),
+        appBar: buidAppBar(context, loc),
         body: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             children: [
               ProfileTile(
-                title: "Manage Profile",
+                loc: loc,
+                title: loc.manageProfile,
                 icon: Icons.person,
                 isSvg: true,
                 svgPath: "assets/icons/person.svg",
               ),
               ProfileTile(
+                loc: loc,
                 isNotification: true,
 
-                title: "Notifications",
+                title: loc.notifications,
                 icon: Icons.notifications,
               ),
               ProfileTile(
+                loc: loc,
                 isSvg: true,
-                title: "Terms and Conditions",
+                title: loc.termsAndConditions,
                 icon: Icons.file_copy_outlined,
                 svgPath: "assets/icons/terms_and_conditions.svg",
               ),
-              ProfileTile(isLogout: true, title: "Logout", icon: Icons.logout),
               ProfileTile(
+                loc: loc,
+                isLogout: true,
+                title: loc.logout,
+                icon: Icons.logout,
+              ),
+              ProfileTile(
+                loc: loc,
                 isDelete: true,
 
-                title: "Delete Account",
+                title: loc.deleteAccount,
                 icon: Icons.delete,
 
                 isLast: true,
@@ -66,7 +78,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  PreferredSizeWidget buidAppBar(BuildContext context) {
+  PreferredSizeWidget buidAppBar(BuildContext context, AppLocalizations loc) {
     return PreferredSize(
       preferredSize: Size.fromHeight(kToolbarHeight),
       child: Container(
@@ -74,14 +86,15 @@ class _ProfilePageState extends State<ProfilePage> {
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(150), Colors.transparent],
+            colors: [Colors.black.withAlpha(100), Colors.transparent],
           ),
         ),
         child: AppBar(
           centerTitle: true,
           title: Text(
-            "Account",
+            loc.account,
             style: TextStyle(
+              fontWeight: FontWeight.bold,
               fontSize: 20,
               color: Colors.white,
               letterSpacing: 0.5,
@@ -95,6 +108,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget ProfileTile({
+    required AppLocalizations loc,
     required String title,
     required IconData icon,
     bool isSvg = false,
@@ -171,7 +185,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ],
                               ),
                               child: Text(
-                                notificationActive ? "ON" : "OFF",
+                                notificationActive ? loc.on : loc.off,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,

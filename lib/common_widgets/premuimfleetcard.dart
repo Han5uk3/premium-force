@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class Premuimfleetcard extends StatelessWidget {
   const Premuimfleetcard({
@@ -19,7 +20,8 @@ class Premuimfleetcard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageProvider = CachedNetworkImageProvider(image);
+    final loc = AppLocalizations.of(context)!;
+    final imageProvider = "assets/images/bmwdummy.jpg";
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -31,7 +33,7 @@ class Premuimfleetcard extends StatelessWidget {
           children: [
             // Base image
             Image(
-              image: imageProvider,
+              image: AssetImage(imageProvider),
               fit: BoxFit.cover,
               width: 240,
               height: 160,
@@ -57,7 +59,7 @@ class Premuimfleetcard extends StatelessWidget {
                       child: ImageFiltered(
                         imageFilter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                         child: Image(
-                          image: imageProvider,
+                          image: AssetImage(imageProvider),
                           fit: BoxFit.cover,
                           width: 240,
                           height: 160,
@@ -94,7 +96,7 @@ class Premuimfleetcard extends StatelessWidget {
                                 size: 16,
                               ),
                               Text(
-                                "Passenger: $passengerCount",
+                                "${loc.passenger}: $passengerCount",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.white54,
@@ -132,7 +134,7 @@ class Premuimfleetcard extends StatelessWidget {
                         child: ImageFiltered(
                           imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                           child: Image(
-                            image: imageProvider,
+                            image: AssetImage(imageProvider),
                             fit: BoxFit.cover,
                             width: 240,
                             height: 160,

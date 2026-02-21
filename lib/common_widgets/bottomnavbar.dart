@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -14,8 +15,9 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
-      margin: const EdgeInsets.only(left: 12, right: 12, bottom: 12),
+      margin: const EdgeInsets.only(left: 18, right: 18, bottom: 22),
       child: ClipRRect(
         borderRadius: const BorderRadius.all(Radius.circular(16)),
         child: BackdropFilter(
@@ -39,19 +41,19 @@ class BottomNavBar extends StatelessWidget {
               children: [
                 MenuIcon(
                   icon: Icons.home_outlined,
-                  label: "Home",
+                  label: loc.home,
                   isSelected: selectedIndex == 0,
                   onTap: () => onIndexChanged(0),
                 ),
                 MenuIcon(
                   icon: Icons.calendar_today_outlined,
-                  label: "Bookings",
+                  label: loc.bookings,
                   isSelected: selectedIndex == 1,
                   onTap: () => onIndexChanged(1),
                 ),
                 MenuIcon(
                   icon: Icons.account_circle_outlined,
-                  label: "Account",
+                  label: loc.account,
                   isSelected: selectedIndex == 2,
                   onTap: () => onIndexChanged(2),
                 ),
