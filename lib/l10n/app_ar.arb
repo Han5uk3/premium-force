@@ -9,6 +9,7 @@
   "account": "الحساب",
   "home": "الرئيسية",
   "bookings": "الحجوزات",
+  "newBooking": "حجز جديد",
   "recentBookings": "الحجوزات الأخيرة",
   "premiumFleet": "الأسطول الفاخر",
   "bookServices": "حجز الخدمات",
@@ -75,5 +76,9 @@
   "and": "و",
   "privacyPolicy": "سياسة الخصوصية",
   "selectLocation": "اختر الموقع",
-  "pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy": "يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية."
+  "pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy": "يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية.",
+  "tripInfo": "معلومات الرحلة",
+  "preferences": "التفضيلات",
+  "serviceType": "نوع الخدمة",
+  "tellUsAboutYourJourney": "أخبرنا عن رحلتك"
 }

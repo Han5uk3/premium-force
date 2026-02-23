@@ -158,6 +158,12 @@ abstract class AppLocalizations {
   /// **'Bookings'**
   String get bookings;
 
+  /// No description provided for @newBooking.
+  ///
+  /// In en, this message translates to:
+  /// **'New Booking'**
+  String get newBooking;
+
   /// No description provided for @recentBookings.
   ///
   /// In en, this message translates to:
@@ -205,6 +211,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'City'**
   String get city;
+
+  /// No description provided for @airport.
+  ///
+  /// In en, this message translates to:
+  /// **'Airport'**
+  String get airport;
+
+  /// No description provided for @terminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal'**
+  String get terminal;
+
+  /// No description provided for @riyadh.
+  ///
+  /// In en, this message translates to:
+  /// **'Riyadh'**
+  String get riyadh;
+
+  /// No description provided for @jeddah.
+  ///
+  /// In en, this message translates to:
+  /// **'Jeddah'**
+  String get jeddah;
+
+  /// No description provided for @dammam.
+  ///
+  /// In en, this message translates to:
+  /// **'Dammam'**
+  String get dammam;
 
   /// No description provided for @business.
   ///
@@ -559,6 +595,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please agree to the terms and conditions and privacy policy.'**
   String get pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy;
+
+  /// No description provided for @tripInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Trip Info'**
+  String get tripInfo;
+
+  /// No description provided for @preferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferences'**
+  String get preferences;
+
+  /// No description provided for @serviceType.
+  ///
+  /// In en, this message translates to:
+  /// **'Service Type'**
+  String get serviceType;
+
+  /// No description provided for @tellUsAboutYourJourney.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell Us About Your Journey'**
+  String get tellUsAboutYourJourney;
 }
 
 class _AppLocalizationsDelegate

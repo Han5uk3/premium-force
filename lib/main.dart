@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:premium_force_main/bloc/auth/auth_bloc.dart';
-import 'package:premium_force_main/bloc/user/user_bloc.dart';
+import 'package:premium_force_main/authentication/location_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:premium_force_main/providers/auth_provider.dart';
+import 'package:premium_force_main/providers/user_provider.dart';
+import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
-import 'package:premium_force_main/splashscreen/splashscreen.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -40,10 +41,10 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiProvider(
       providers: [
-        BlocProvider<AuthBloc>(create: (_) => AuthBloc()),
-        BlocProvider<UserBloc>(create: (_) => UserBloc()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
       child: MaterialApp(
         title: "Premium Force",
@@ -56,7 +57,9 @@ class _MainAppState extends State<MainApp> {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
-        home: SplashScreen(),
+        home:LocationPickerPage(),
+        //  Home(),
+        // SplashScreen(),
       ),
     );
   }

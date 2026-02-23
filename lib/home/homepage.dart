@@ -6,6 +6,7 @@ import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premuimfleetcard.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/main.dart';
+import 'package:premium_force_main/ride_booking/new_booking.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -265,7 +266,7 @@ class _HomepageState extends State<Homepage> {
             children: [
               GestureDetector(
                 onTap: () {
-                  showCitySelectionBottomSheet(context, loc);
+                  showCitySelectionBottomSheet(context, loc, 0);
                 },
                 child: PremiumContainer(
                   height: 120,
@@ -303,7 +304,7 @@ class _HomepageState extends State<Homepage> {
               ),
               GestureDetector(
                 onTap: () {
-                  showCitySelectionBottomSheet(context, loc);
+                  showCitySelectionBottomSheet(context, loc, 1);
                 },
                 child: PremiumContainer(
                   height: 120,
@@ -341,7 +342,7 @@ class _HomepageState extends State<Homepage> {
               ),
               GestureDetector(
                 onTap: () {
-                  showCitySelectionBottomSheet(context, loc);
+                  showCitySelectionBottomSheet(context, loc, 2);
                 },
                 child: PremiumContainer(
                   height: 120,
@@ -539,6 +540,7 @@ class _HomepageState extends State<Homepage> {
   void showCitySelectionBottomSheet(
     BuildContext context,
     AppLocalizations loc,
+    int catcode,
   ) {
     bool isEnglish = Localizations.localeOf(context).languageCode == 'en';
     int selectedCityIndex = 0; // default to Riyadh
@@ -632,7 +634,14 @@ class _HomepageState extends State<Homepage> {
                         borderRadius: 12,
                         text: loc.continueText,
                         onTap: () {
-                          Navigator.pop(context);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => NewBooking(
+                                catcode: catcode,
+                                citycode: selectedCityIndex,
+                              ),
+                            ),
+                          );
                         },
                         fontsize: 14,
                       ),

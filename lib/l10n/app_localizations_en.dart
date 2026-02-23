@@ -39,6 +39,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookings => 'Bookings';
 
   @override
+  String get newBooking => 'New Booking';
+
+  @override
   String get recentBookings => 'Recent Bookings';
 
   @override
@@ -61,6 +64,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get city => 'City';
+
+  @override
+  String get airport => 'Airport';
+
+  @override
+  String get terminal => 'Terminal';
+
+  @override
+  String get riyadh => 'Riyadh';
+
+  @override
+  String get jeddah => 'Jeddah';
+
+  @override
+  String get dammam => 'Dammam';
 
   @override
   String get business => 'Business';
@@ -241,4 +259,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy =>
       'Please agree to the terms and conditions and privacy policy.';
+
+  @override
+  String get tripInfo => 'Trip Info';
+
+  @override
+  String get preferences => 'Preferences';
+
+  @override
+  String get serviceType => 'Service Type';
+
+  @override
+  String get tellUsAboutYourJourney => 'Tell Us About Your Journey';
 }

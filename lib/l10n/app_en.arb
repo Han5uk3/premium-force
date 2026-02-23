@@ -9,6 +9,7 @@
   "account": "Account",
   "home": "Home",
   "bookings": "Bookings",
+  "newBooking": "New Booking",
   "recentBookings": "Recent Bookings",
   "premiumFleet": "Premium Fleet",
   "bookServices": "Book Services",
@@ -17,6 +18,11 @@
   "chauffeurService": "Chauffeur Service",
   "luxury": "Luxury",
   "city": "City",
+  "airport": "Airport",
+  "terminal": "Terminal",
+  "riyadh": "Riyadh",
+  "jeddah": "Jeddah",
+  "dammam": "Dammam",
   "business": "Business",
   "sedan": "Sedan",
   "suv": "SUV",
@@ -76,6 +82,9 @@
   "and": "and",
   "privacyPolicy": "Privacy Policy",
   "selectLocation": "Select Location",
-  "pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy": "Please agree to the terms and conditions and privacy policy."
-
+  "pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy": "Please agree to the terms and conditions and privacy policy.",
+  "tripInfo": "Trip Info",
+  "preferences": "Preferences",
+  "serviceType": "Service Type",
+  "tellUsAboutYourJourney": "Tell Us About Your Journey"
 }

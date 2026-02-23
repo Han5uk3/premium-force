@@ -39,6 +39,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bookings => 'الحجوزات';
 
   @override
+  String get newBooking => 'حجز جديد';
+
+  @override
   String get recentBookings => 'الحجوزات الأخيرة';
 
   @override
@@ -61,6 +64,21 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get city => 'مدينة';
+
+  @override
+  String get airport => 'Airport';
+
+  @override
+  String get terminal => 'Terminal';
+
+  @override
+  String get riyadh => 'Riyadh';
+
+  @override
+  String get jeddah => 'Jeddah';
+
+  @override
+  String get dammam => 'Dammam';
 
   @override
   String get business => 'أعمال';
@@ -240,4 +258,16 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy =>
       'يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية.';
+
+  @override
+  String get tripInfo => 'معلومات الرحلة';
+
+  @override
+  String get preferences => 'التفضيلات';
+
+  @override
+  String get serviceType => 'نوع الخدمة';
+
+  @override
+  String get tellUsAboutYourJourney => 'أخبرنا عن رحلتك';
 }
