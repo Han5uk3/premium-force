@@ -66,19 +66,19 @@ class AppLocalizationsAr extends AppLocalizations {
   String get city => 'مدينة';
 
   @override
-  String get airport => 'Airport';
+  String get airport => 'المطار';
 
   @override
-  String get terminal => 'Terminal';
+  String get terminal => 'صالة';
 
   @override
-  String get riyadh => 'Riyadh';
+  String get riyadh => 'الرياض';
 
   @override
-  String get jeddah => 'Jeddah';
+  String get jeddah => 'جدة';
 
   @override
-  String get dammam => 'Dammam';
+  String get dammam => 'الدمام';
 
   @override
   String get business => 'أعمال';
