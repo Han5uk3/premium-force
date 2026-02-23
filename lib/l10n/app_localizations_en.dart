@@ -271,4 +271,111 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tellUsAboutYourJourney => 'Tell Us About Your Journey';
+
+  @override
+  String get enterFlightNumber => 'Enter Flight Number';
+
+  @override
+  String get flightNumber => 'Flight Number';
+
+  @override
+  String get arrivalDateAndTime => 'Arrival Date and Time';
+
+  @override
+  String get departureDateAndTime => 'Departure Date and Time';
+
+  @override
+  String get pickupDateAndTime => 'Pickup Date and Time';
+
+  @override
+  String get pickupLocation => 'Pickup Location';
+
+  @override
+  String get dropLocation => 'Drop Location';
+
+  @override
+  String get tapToSelectAPickupLocation => 'Tap to select a pickup location';
+
+  @override
+  String get tapToSelectADropLocation => 'Tap to select a drop location';
+
+  @override
+  String get terminal1 => 'Terminal 1';
+
+  @override
+  String get terminal2 => 'Terminal 2';
+
+  @override
+  String get terminal3 => 'Terminal 3';
+
+  @override
+  String get terminal4 => 'Terminal 4';
+
+  @override
+  String get terminal5 => 'Terminal 5';
+
+  @override
+  String get hajjTerminal => 'Hajj Terminal';
+
+  @override
+  String get northTerminal => 'North Terminal';
+
+  @override
+  String get southTerminal => 'South Terminal';
+
+  @override
+  String get passengerTerminal => 'Passenger Terminal';
+
+  @override
+  String get aramcoTerminal => 'Aramco Terminal';
+
+  @override
+  String get royalTerminal => 'Royal Terminal';
+
+  @override
+  String get flightNumberIsRequired => 'Flight number is required';
+
+  @override
+  String get pickupLocationIsRequired => 'Pickup location is required';
+
+  @override
+  String get dropLocationIsRequired => 'Drop location is required';
+
+  @override
+  String get kingKhalidInternationalAirport =>
+      'King Khalid International Airport';
+
+  @override
+  String get kingFahadInternationalAirport =>
+      'King Fahad International Airport';
+
+  @override
+  String get kingAbdulazizInternationalAirport =>
+      'King Abdulaziz International Airport';
+
+  @override
+  String get pickupDateAndTimeIsRequired => 'Pickup date and time are required';
+
+  @override
+  String get dateAndTimeIsRequired => 'Date and time are required';
+
+  @override
+  String get previouslySelectedTimeClearedAsItIsInThePast =>
+      'Previously selected time cleared as it is in the past';
+
+  @override
+  String get selectDate => 'Select Date';
+
+  @override
+  String get pleaseSelectADateFirst => 'Please select a date first';
+
+  @override
+  String get selectTime => 'Select Time';
+
+  @override
+  String get cannotSelectPastTimeForToday =>
+      'Cannot select past time for today';
+
+  @override
+  String get done => 'Done';
 }

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:premium_force_main/authentication/location_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/providers/user_provider.dart';
 import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:premium_force_main/firebase_options.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
@@ -57,8 +55,7 @@ class _MainAppState extends State<MainApp> {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
-        home:LocationPickerPage(),
-        //  Home(),
+        home: Home(),
         // SplashScreen(),
       ),
     );

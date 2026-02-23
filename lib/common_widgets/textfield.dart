@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:premium_force_main/storage/helpers.dart';
 
 class PremiumTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -18,6 +19,11 @@ class PremiumTextField extends StatelessWidget {
   final VoidCallback? onTap;
   final bool readOnly;
   final int maxLines;
+  final bool needBorder;
+  final double borderRadius;
+  final bool blackbg;
+  final bool needAutoCapitalize;
+  final FontWeight titleFontWeight;
   const PremiumTextField({
     super.key,
     this.needTitle = true,
@@ -36,6 +42,11 @@ class PremiumTextField extends StatelessWidget {
     this.onTap,
     this.readOnly = false,
     this.maxLines = 1,
+    this.borderRadius = 12,
+    this.needBorder = false,
+    this.blackbg = false,
+    this.needAutoCapitalize = false,
+    this.titleFontWeight = FontWeight.w400,
   });
 
   @override
@@ -50,14 +61,13 @@ class PremiumTextField extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-
             if (needTitle) ...[
               Text(
                 title,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: fontsize,
-                  fontWeight: FontWeight.w400,
+                  fontWeight: titleFontWeight,
                 ),
               ),
               const SizedBox(height: 8),
@@ -68,11 +78,13 @@ class PremiumTextField extends StatelessWidget {
               onTap: onTap,
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D0A08),
-                  borderRadius: BorderRadius.circular(12),
+                  color: blackbg ? Colors.black : const Color(0xFF1A1410),
+                  borderRadius: BorderRadius.circular(borderRadius),
                   border: Border.all(
                     color: hasError
                         ? const Color(0xFFCF6679)
+                        : needBorder
+                        ? Colors.grey.shade800
                         : const Color(0xFF1A1410),
                     width: 1,
                   ),
@@ -95,9 +107,13 @@ class PremiumTextField extends StatelessWidget {
                     ],
                     Expanded(
                       child: TextFormField(
+                        textCapitalization: needAutoCapitalize
+                            ? TextCapitalization.characters
+                            : TextCapitalization.none,
                         // Validation is handled by the outer FormField;
                         // we skip it here so no error text renders inside.
                         inputFormatters: [
+                          if (needAutoCapitalize) UpperCaseTextFormatter(),
                           if (maxLength != null)
                             LengthLimitingTextInputFormatter(maxLength),
                           if (needCountryCode)

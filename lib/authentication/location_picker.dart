@@ -6,7 +6,15 @@ import 'package:geocoding/geocoding.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class LocationPickerPage extends StatefulWidget {
-  const LocationPickerPage({super.key});
+  final double? initialLat;
+  final double? initialLng;
+  final bool needCurrentLocationButton;
+  const LocationPickerPage({
+    super.key,
+    this.initialLat,
+    this.initialLng,
+    this.needCurrentLocationButton = true,
+  });
 
   @override
   State<LocationPickerPage> createState() => _LocationPickerPageState();
@@ -17,12 +25,21 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
-  LatLng _selectedLocation = const LatLng(24.7136, 46.6753); // Riyadh default
+  late LatLng _selectedLocation;
   String _selectedAddress = '';
   bool _isLoading = false;
   bool _isSearching = false;
   List<Map<String, dynamic>> _searchResults = [];
   Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLocation = LatLng(
+      widget.initialLat ?? 24.7136,
+      widget.initialLng ?? 46.6753,
+    );
+  }
 
   @override
   void dispose() {
@@ -67,7 +84,11 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     setState(() => _isSearching = true);
 
     try {
-      List<Location> locations = await locationFromAddress(query);
+      String searchQuery = query;
+      if (!searchQuery.toLowerCase().contains('saudi')) {
+        searchQuery = '$query, Saudi Arabia';
+      }
+      List<Location> locations = await locationFromAddress(searchQuery);
       List<Map<String, dynamic>> results = [];
 
       for (var location in locations.take(5)) {
@@ -514,63 +535,65 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                         ],
 
                         // Use current location button
-                        GestureDetector(
-                          onTap: _isLoading ? null : _useCurrentLocation,
-                          child: Container(
-                            width: double.infinity,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0D0A08),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFF49280B),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                if (_isLoading)
-                                  const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Color(0xFFE4A46B),
-                                    ),
-                                  )
-                                else
-                                  ShaderMask(
-                                    shaderCallback: (Rect bounds) {
-                                      return const LinearGradient(
-                                        colors: [
-                                          Color(0xFF49280B),
-                                          Color(0xFFE4A46B),
-                                          Color(0xFF60350F),
-                                        ],
-                                      ).createShader(bounds);
-                                    },
-                                    child: const Icon(
-                                      Icons.my_location,
-                                      color: Colors.white,
-                                      size: 20,
+                        widget.needCurrentLocationButton
+                            ? GestureDetector(
+                                onTap: _isLoading ? null : _useCurrentLocation,
+                                child: Container(
+                                  width: double.infinity,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0D0A08),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFF49280B),
+                                      width: 1,
                                     ),
                                   ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  _isLoading
-                                      ? 'Getting location...'
-                                      : 'Use Current Location',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (_isLoading)
+                                        const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFFE4A46B),
+                                          ),
+                                        )
+                                      else
+                                        ShaderMask(
+                                          shaderCallback: (Rect bounds) {
+                                            return const LinearGradient(
+                                              colors: [
+                                                Color(0xFF49280B),
+                                                Color(0xFFE4A46B),
+                                                Color(0xFF60350F),
+                                              ],
+                                            ).createShader(bounds);
+                                          },
+                                          child: const Icon(
+                                            Icons.my_location,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        _isLoading
+                                            ? 'Getting location...'
+                                            : 'Use Current Location',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
+                              )
+                            : SizedBox.shrink(),
 
                         const SizedBox(height: 12),
 
@@ -653,8 +676,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         ),
         child: AppBar(
           centerTitle: true,
-          title:  Text(
-           AppLocalizations.of(context)!.selectLocation,
+          title: Text(
+            AppLocalizations.of(context)!.selectLocation,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,

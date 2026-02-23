@@ -619,6 +619,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tell Us About Your Journey'**
   String get tellUsAboutYourJourney;
+
+  /// No description provided for @enterFlightNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Flight Number'**
+  String get enterFlightNumber;
+
+  /// No description provided for @flightNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Flight Number'**
+  String get flightNumber;
+
+  /// No description provided for @arrivalDateAndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrival Date and Time'**
+  String get arrivalDateAndTime;
+
+  /// No description provided for @departureDateAndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Departure Date and Time'**
+  String get departureDateAndTime;
+
+  /// No description provided for @pickupDateAndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup Date and Time'**
+  String get pickupDateAndTime;
+
+  /// No description provided for @pickupLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup Location'**
+  String get pickupLocation;
+
+  /// No description provided for @dropLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop Location'**
+  String get dropLocation;
+
+  /// No description provided for @tapToSelectAPickupLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select a pickup location'**
+  String get tapToSelectAPickupLocation;
+
+  /// No description provided for @tapToSelectADropLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select a drop location'**
+  String get tapToSelectADropLocation;
+
+  /// No description provided for @terminal1.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal 1'**
+  String get terminal1;
+
+  /// No description provided for @terminal2.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal 2'**
+  String get terminal2;
+
+  /// No description provided for @terminal3.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal 3'**
+  String get terminal3;
+
+  /// No description provided for @terminal4.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal 4'**
+  String get terminal4;
+
+  /// No description provided for @terminal5.
+  ///
+  /// In en, this message translates to:
+  /// **'Terminal 5'**
+  String get terminal5;
+
+  /// No description provided for @hajjTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Hajj Terminal'**
+  String get hajjTerminal;
+
+  /// No description provided for @northTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'North Terminal'**
+  String get northTerminal;
+
+  /// No description provided for @southTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'South Terminal'**
+  String get southTerminal;
+
+  /// No description provided for @passengerTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger Terminal'**
+  String get passengerTerminal;
+
+  /// No description provided for @aramcoTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Aramco Terminal'**
+  String get aramcoTerminal;
+
+  /// No description provided for @royalTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'Royal Terminal'**
+  String get royalTerminal;
+
+  /// No description provided for @flightNumberIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Flight number is required'**
+  String get flightNumberIsRequired;
+
+  /// No description provided for @pickupLocationIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup location is required'**
+  String get pickupLocationIsRequired;
+
+  /// No description provided for @dropLocationIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop location is required'**
+  String get dropLocationIsRequired;
+
+  /// No description provided for @kingKhalidInternationalAirport.
+  ///
+  /// In en, this message translates to:
+  /// **'King Khalid International Airport'**
+  String get kingKhalidInternationalAirport;
+
+  /// No description provided for @kingFahadInternationalAirport.
+  ///
+  /// In en, this message translates to:
+  /// **'King Fahad International Airport'**
+  String get kingFahadInternationalAirport;
+
+  /// No description provided for @kingAbdulazizInternationalAirport.
+  ///
+  /// In en, this message translates to:
+  /// **'King Abdulaziz International Airport'**
+  String get kingAbdulazizInternationalAirport;
+
+  /// No description provided for @pickupDateAndTimeIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup date and time are required'**
+  String get pickupDateAndTimeIsRequired;
+
+  /// No description provided for @dateAndTimeIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Date and time are required'**
+  String get dateAndTimeIsRequired;
+
+  /// No description provided for @previouslySelectedTimeClearedAsItIsInThePast.
+  ///
+  /// In en, this message translates to:
+  /// **'Previously selected time cleared as it is in the past'**
+  String get previouslySelectedTimeClearedAsItIsInThePast;
+
+  /// No description provided for @selectDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Date'**
+  String get selectDate;
+
+  /// No description provided for @pleaseSelectADateFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a date first'**
+  String get pleaseSelectADateFirst;
+
+  /// No description provided for @selectTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Time'**
+  String get selectTime;
+
+  /// No description provided for @cannotSelectPastTimeForToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot select past time for today'**
+  String get cannotSelectPastTimeForToday;
+
+  /// No description provided for @done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
 }
 
 class _AppLocalizationsDelegate

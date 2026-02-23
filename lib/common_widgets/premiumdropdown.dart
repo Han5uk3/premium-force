@@ -50,6 +50,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
           const SizedBox(height: 8),
         ],
         Container(
+          height: 60,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.black,

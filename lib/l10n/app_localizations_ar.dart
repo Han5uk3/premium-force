@@ -270,4 +270,108 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tellUsAboutYourJourney => 'أخبرنا عن رحلتك';
+
+  @override
+  String get enterFlightNumber => 'أدخل رقم الرحلة';
+
+  @override
+  String get flightNumber => 'رقم الرحلة';
+
+  @override
+  String get arrivalDateAndTime => 'تاريخ ووقت الوصول';
+
+  @override
+  String get departureDateAndTime => 'تاريخ ووقت المغادرة';
+
+  @override
+  String get pickupDateAndTime => 'تاريخ ووقت الاستلام';
+
+  @override
+  String get pickupLocation => 'موقع الاستلام';
+
+  @override
+  String get dropLocation => 'موقع التوصيل';
+
+  @override
+  String get tapToSelectAPickupLocation => 'اضغط لاختيار موقع الاستلام';
+
+  @override
+  String get tapToSelectADropLocation => 'اضغط لاختيار موقع التوصيل';
+
+  @override
+  String get terminal1 => 'صالة ١';
+
+  @override
+  String get terminal2 => 'صالة ٢';
+
+  @override
+  String get terminal3 => 'صالة ٣';
+
+  @override
+  String get terminal4 => 'صالة ٤';
+
+  @override
+  String get terminal5 => 'صالة ٥';
+
+  @override
+  String get hajjTerminal => 'صالة الحج';
+
+  @override
+  String get northTerminal => 'الصالة الشمالية';
+
+  @override
+  String get southTerminal => 'الصالة الجنوبية';
+
+  @override
+  String get passengerTerminal => 'صالة الركاب';
+
+  @override
+  String get aramcoTerminal => 'صالة أرامكو';
+
+  @override
+  String get royalTerminal => 'الصالة الملكية';
+
+  @override
+  String get flightNumberIsRequired => 'رقم الرحلة مطلوب';
+
+  @override
+  String get pickupLocationIsRequired => 'موقع الاستلام مطلوب';
+
+  @override
+  String get dropLocationIsRequired => 'موقع التوصيل مطلوب';
+
+  @override
+  String get kingKhalidInternationalAirport => 'مطار الملك خالد الدولي';
+
+  @override
+  String get kingFahadInternationalAirport => 'مطار الملك فهد الدولي';
+
+  @override
+  String get kingAbdulazizInternationalAirport => 'مطار الملك عبدالعزيز الدولي';
+
+  @override
+  String get pickupDateAndTimeIsRequired => 'تاريخ ووقت الاستلام مطلوبان';
+
+  @override
+  String get dateAndTimeIsRequired => 'التاريخ والوقت مطلوبان';
+
+  @override
+  String get previouslySelectedTimeClearedAsItIsInThePast =>
+      'تم مسح الوقت المحدد مسبقًا لأنه في الماضي';
+
+  @override
+  String get selectDate => 'اختر التاريخ';
+
+  @override
+  String get pleaseSelectADateFirst => 'يرجى اختيار التاريخ أولاً';
+
+  @override
+  String get selectTime => 'اختر الوقت';
+
+  @override
+  String get cannotSelectPastTimeForToday =>
+      'لا يمكن اختيار وقت في الماضي لليوم';
+
+  @override
+  String get done => 'تم';
 }
