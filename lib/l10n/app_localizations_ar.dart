@@ -385,7 +385,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get choosePreferredBrand => 'اختر الماركة المفضلة';
 
   @override
-  String get specialRequests => 'Special Requests';
+  String get specialRequests => 'طلبات خاصة';
 
   @override
   String get done => 'تم';
@@ -415,69 +415,69 @@ class AppLocalizationsAr extends AppLocalizations {
   String get model3 => 'موديل ٣';
 
   @override
-  String get providePassengerInfo => 'Provide Passenger Info';
+  String get providePassengerInfo => 'تقديم بيانات الراكب';
 
   @override
-  String get numberOfPassengers => 'No. of Passengers';
+  String get numberOfPassengers => 'عدد الركاب';
 
   @override
   String get passengerNameAtleastOne =>
-      'Passenger Name (Atleast one separated by commas)';
+      'اسم الراكب (على الأقل واحد مفصول بفواصل)';
 
   @override
-  String get passengerName => 'Passenger Name';
+  String get passengerName => 'اسم الراكب';
 
   @override
   String get pleaseEnterAtleastOnepassengerName =>
-      'Please enter atleast one passenger name';
+      'يرجى إدخال اسم راكب واحد على الأقل';
 
   @override
-  String get pleaseEnterAMobileNumber => 'Please enter a mobile number';
+  String get pleaseEnterAMobileNumber => 'يرجى إدخال رقم الجوال';
 
   @override
-  String get pleaseEnterAPassengerName => 'Please enter a passenger name';
+  String get pleaseEnterAPassengerName => 'يرجى إدخال اسم الراكب';
 
   @override
-  String get reviewAndConfirm => 'Review and Confirm';
+  String get reviewAndConfirm => 'مراجعة وتأكيد';
 
   @override
-  String get reviewAndConfirmYourRequest => 'Review and Confirm Your Request';
+  String get reviewAndConfirmYourRequest => 'مراجعة وتأكيد طلبك';
 
   @override
   String get search => 'بحث';
 
   @override
-  String get service => 'Service';
+  String get service => 'الخدمة';
 
   @override
-  String get passengers => 'Passengers';
+  String get passengers => 'الركاب';
 
   @override
-  String get notAssigned => 'Not Assigned';
+  String get notAssigned => 'غير معين';
 
   @override
-  String get chauffeur => 'Chauffeur';
+  String get chauffeur => 'سائق';
 
   @override
-  String get totalDistance => 'Total Distance';
+  String get totalDistance => 'إجمالي المسافة';
 
   @override
-  String get total => 'Total';
+  String get total => 'المجموع';
 
   @override
-  String get vat => 'VAT (15%)';
+  String get vat => 'ضريبة القيمة المضافة (١٥٪)';
 
   @override
-  String get paymentSummary => 'Payment Summary';
+  String get paymentSummary => 'ملخص الدفع';
 
   @override
-  String get km => 'KM';
+  String get km => 'كم';
 
   @override
-  String get charge => 'Charge';
+  String get charge => 'الرسوم';
 
   @override
-  String get bookService => 'Book Service';
+  String get bookService => 'حجز الخدمة';
 
   @override
   String get pickupTimeCannotBeAfterDepartureTime =>
