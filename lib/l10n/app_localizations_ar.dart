@@ -373,5 +373,113 @@ class AppLocalizationsAr extends AppLocalizations {
       'لا يمكن اختيار وقت في الماضي لليوم';
 
   @override
+  String get chooseYouPreferredVehicle => 'اختر سيارتك المفضلة';
+
+  @override
+  String get chauffeurredClass => 'فئة السائق';
+
+  @override
+  String get preferredModel => 'الطراز المفضل';
+
+  @override
+  String get choosePreferredBrand => 'اختر الماركة المفضلة';
+
+  @override
+  String get specialRequests => 'Special Requests';
+
+  @override
   String get done => 'تم';
+
+  @override
+  String get luxurySedan => 'سيدان فاخرة';
+
+  @override
+  String get luxurySuv => 'دفع رباعي فاخرة';
+
+  @override
+  String get luxuryCoupe => 'كوبيه فاخرة';
+
+  @override
+  String get luxurySports => 'رياضية فاخرة';
+
+  @override
+  String get luxuryConvertible => 'مكشوفة فاخرة';
+
+  @override
+  String get model1 => 'موديل ١';
+
+  @override
+  String get model2 => 'موديل ٢';
+
+  @override
+  String get model3 => 'موديل ٣';
+
+  @override
+  String get providePassengerInfo => 'Provide Passenger Info';
+
+  @override
+  String get numberOfPassengers => 'No. of Passengers';
+
+  @override
+  String get passengerNameAtleastOne =>
+      'Passenger Name (Atleast one separated by commas)';
+
+  @override
+  String get passengerName => 'Passenger Name';
+
+  @override
+  String get pleaseEnterAtleastOnepassengerName =>
+      'Please enter atleast one passenger name';
+
+  @override
+  String get pleaseEnterAMobileNumber => 'Please enter a mobile number';
+
+  @override
+  String get pleaseEnterAPassengerName => 'Please enter a passenger name';
+
+  @override
+  String get reviewAndConfirm => 'Review and Confirm';
+
+  @override
+  String get reviewAndConfirmYourRequest => 'Review and Confirm Your Request';
+
+  @override
+  String get search => 'بحث';
+
+  @override
+  String get service => 'Service';
+
+  @override
+  String get passengers => 'Passengers';
+
+  @override
+  String get notAssigned => 'Not Assigned';
+
+  @override
+  String get chauffeur => 'Chauffeur';
+
+  @override
+  String get totalDistance => 'Total Distance';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get vat => 'VAT (15%)';
+
+  @override
+  String get paymentSummary => 'Payment Summary';
+
+  @override
+  String get km => 'KM';
+
+  @override
+  String get charge => 'Charge';
+
+  @override
+  String get bookService => 'Book Service';
+
+  @override
+  String get pickupTimeCannotBeAfterDepartureTime =>
+      'وقت الاستلام لا يمكن أن يكون بعد وقت المغادرة';
 }

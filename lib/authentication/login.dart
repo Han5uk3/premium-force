@@ -6,6 +6,7 @@ import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
+import 'package:country_picker/country_picker.dart';
 
 class PremiumForceLoginPage extends StatefulWidget {
   const PremiumForceLoginPage({super.key});
@@ -22,6 +23,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
   bool _isAgreed = false;
   OverlayEntry? _overlayEntry;
   bool _isLoading = false;
+  String _selectedCountryCode = '966';
 
   @override
   void dispose() {
@@ -130,13 +132,110 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                         hintText: AppLocalizations.of(
                           context,
                         )!.enterMobileNumber,
-                        needCountryCode: true,
                         fontsize: 16,
 
                         keyboardType: TextInputType.phone,
                         needTitle: true,
                         obscureText: false,
-                        maxLength: 9,
+                        prefixIcon: GestureDetector(
+                          onTap: () {
+                            showCountryPicker(
+                              context: context,
+                              showPhoneCode: true,
+                              customFlagBuilder: (context) =>
+                                  const SizedBox.shrink(),
+                              countryListTheme: CountryListThemeData(
+                                backgroundColor: const Color(0xFF141313),
+                                textStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                                searchTextStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(30),
+                                  topRight: Radius.circular(30),
+                                ),
+                                inputDecoration: InputDecoration(
+                                  hintText: AppLocalizations.of(
+                                    context,
+                                  )!.search, // Need to make sure AppLocalizations has search, if not we use a fallback or simply 'Search'. Let's see if search is there. If not, maybe use 'Search'
+                                  // fallback:
+                                  // hintText: 'Search',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white.withAlpha(180),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.search,
+                                    color: Colors.white,
+                                  ),
+                                  filled: true,
+                                  fillColor: const Color(0xFF1A1410),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade800,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade800,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE4A46B),
+                                    ),
+                                  ),
+                                ),
+                                bottomSheetHeight:
+                                    MediaQuery.of(context).size.height * 0.75,
+                              ),
+                              onSelect: (Country country) {
+                                setState(() {
+                                  _selectedCountryCode = country.phoneCode;
+                                });
+                              },
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Colors.transparent,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '+$_selectedCountryCode',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Colors.white,
+                                ),
+                                Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  height: 24,
+                                  width: 1,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
 
                       const SizedBox(height: 24),
@@ -221,7 +320,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                             Navigator.of(context).push(
                               SmoothNavigation.route(
                                 OTPVerificationPage(
-                                  countryCode: '+966',
+                                  countryCode: '+$_selectedCountryCode',
                                   phoneNumber: _mobileController.text.trim(),
                                 ),
                               ),

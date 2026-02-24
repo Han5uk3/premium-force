@@ -818,11 +818,221 @@ abstract class AppLocalizations {
   /// **'Cannot select past time for today'**
   String get cannotSelectPastTimeForToday;
 
+  /// No description provided for @chooseYouPreferredVehicle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose you preferred vehicle'**
+  String get chooseYouPreferredVehicle;
+
+  /// No description provided for @chauffeurredClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Chauffeurred Class'**
+  String get chauffeurredClass;
+
+  /// No description provided for @preferredModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred Model'**
+  String get preferredModel;
+
+  /// No description provided for @choosePreferredBrand.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Preferred Brand'**
+  String get choosePreferredBrand;
+
+  /// No description provided for @specialRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Special Requests'**
+  String get specialRequests;
+
   /// No description provided for @done.
   ///
   /// In en, this message translates to:
   /// **'Done'**
   String get done;
+
+  /// No description provided for @luxurySedan.
+  ///
+  /// In en, this message translates to:
+  /// **'Luxury Sedan'**
+  String get luxurySedan;
+
+  /// No description provided for @luxurySuv.
+  ///
+  /// In en, this message translates to:
+  /// **'Luxury SUV'**
+  String get luxurySuv;
+
+  /// No description provided for @luxuryCoupe.
+  ///
+  /// In en, this message translates to:
+  /// **'Luxury Coupe'**
+  String get luxuryCoupe;
+
+  /// No description provided for @luxurySports.
+  ///
+  /// In en, this message translates to:
+  /// **'Luxury Sports'**
+  String get luxurySports;
+
+  /// No description provided for @luxuryConvertible.
+  ///
+  /// In en, this message translates to:
+  /// **'Luxury Convertible'**
+  String get luxuryConvertible;
+
+  /// No description provided for @model1.
+  ///
+  /// In en, this message translates to:
+  /// **'Model 1'**
+  String get model1;
+
+  /// No description provided for @model2.
+  ///
+  /// In en, this message translates to:
+  /// **'Model 2'**
+  String get model2;
+
+  /// No description provided for @model3.
+  ///
+  /// In en, this message translates to:
+  /// **'Model 3'**
+  String get model3;
+
+  /// No description provided for @providePassengerInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Provide Passenger Info'**
+  String get providePassengerInfo;
+
+  /// No description provided for @numberOfPassengers.
+  ///
+  /// In en, this message translates to:
+  /// **'No. of Passengers'**
+  String get numberOfPassengers;
+
+  /// No description provided for @passengerNameAtleastOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger Name (Atleast one separated by commas)'**
+  String get passengerNameAtleastOne;
+
+  /// No description provided for @passengerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Passenger Name'**
+  String get passengerName;
+
+  /// No description provided for @pleaseEnterAtleastOnepassengerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter atleast one passenger name'**
+  String get pleaseEnterAtleastOnepassengerName;
+
+  /// No description provided for @pleaseEnterAMobileNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a mobile number'**
+  String get pleaseEnterAMobileNumber;
+
+  /// No description provided for @pleaseEnterAPassengerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a passenger name'**
+  String get pleaseEnterAPassengerName;
+
+  /// No description provided for @reviewAndConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Review and Confirm'**
+  String get reviewAndConfirm;
+
+  /// No description provided for @reviewAndConfirmYourRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Review and Confirm Your Request'**
+  String get reviewAndConfirmYourRequest;
+
+  /// No description provided for @search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
+
+  /// No description provided for @service.
+  ///
+  /// In en, this message translates to:
+  /// **'Service'**
+  String get service;
+
+  /// No description provided for @passengers.
+  ///
+  /// In en, this message translates to:
+  /// **'Passengers'**
+  String get passengers;
+
+  /// No description provided for @notAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Assigned'**
+  String get notAssigned;
+
+  /// No description provided for @chauffeur.
+  ///
+  /// In en, this message translates to:
+  /// **'Chauffeur'**
+  String get chauffeur;
+
+  /// No description provided for @totalDistance.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Distance'**
+  String get totalDistance;
+
+  /// No description provided for @total.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get total;
+
+  /// No description provided for @vat.
+  ///
+  /// In en, this message translates to:
+  /// **'VAT (15%)'**
+  String get vat;
+
+  /// No description provided for @paymentSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Summary'**
+  String get paymentSummary;
+
+  /// No description provided for @km.
+  ///
+  /// In en, this message translates to:
+  /// **'KM'**
+  String get km;
+
+  /// No description provided for @charge.
+  ///
+  /// In en, this message translates to:
+  /// **'Charge'**
+  String get charge;
+
+  /// No description provided for @bookService.
+  ///
+  /// In en, this message translates to:
+  /// **'Book Service'**
+  String get bookService;
+
+  /// No description provided for @pickupTimeCannotBeAfterDepartureTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup time cannot be after departure time'**
+  String get pickupTimeCannotBeAfterDepartureTime;
 }
 
 class _AppLocalizationsDelegate

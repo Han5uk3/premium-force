@@ -12,9 +12,8 @@ class PremiumTextField extends StatelessWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final double fontsize;
-  final bool needCountryCode;
+  final bool isPhoneNumber;
   final FormFieldValidator<String>? validator;
-  final int? maxLength;
   final bool enabled;
   final VoidCallback? onTap;
   final bool readOnly;
@@ -24,6 +23,7 @@ class PremiumTextField extends StatelessWidget {
   final bool blackbg;
   final bool needAutoCapitalize;
   final FontWeight titleFontWeight;
+  final Widget? suffix;
   const PremiumTextField({
     super.key,
     this.needTitle = true,
@@ -34,10 +34,9 @@ class PremiumTextField extends StatelessWidget {
     this.obscureText = false,
     this.prefixIcon,
     this.suffixIcon,
-    this.needCountryCode = false,
+    this.isPhoneNumber = false,
     this.validator,
     this.fontsize = 16,
-    this.maxLength,
     this.enabled = true,
     this.onTap,
     this.readOnly = false,
@@ -47,6 +46,7 @@ class PremiumTextField extends StatelessWidget {
     this.blackbg = false,
     this.needAutoCapitalize = false,
     this.titleFontWeight = FontWeight.w400,
+    this.suffix,
   });
 
   @override
@@ -90,19 +90,17 @@ class PremiumTextField extends StatelessWidget {
                   ),
                 ),
                 child: Row(
+                  crossAxisAlignment: maxLines > 1
+                      ? CrossAxisAlignment.start
+                      : CrossAxisAlignment.center,
                   children: [
                     const SizedBox(width: 20),
-                    if (needCountryCode)
-                      const Text(
-                        '(+966)   ',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
+
                     if (prefixIcon != null) ...[
-                      prefixIcon!,
+                      Padding(
+                        padding: EdgeInsets.only(top: maxLines > 1 ? 14.0 : 0),
+                        child: prefixIcon!,
+                      ),
                       const SizedBox(width: 12),
                     ],
                     Expanded(
@@ -114,9 +112,8 @@ class PremiumTextField extends StatelessWidget {
                         // we skip it here so no error text renders inside.
                         inputFormatters: [
                           if (needAutoCapitalize) UpperCaseTextFormatter(),
-                          if (maxLength != null)
-                            LengthLimitingTextInputFormatter(maxLength),
-                          if (needCountryCode)
+                     
+                          if (isPhoneNumber)
                             FilteringTextInputFormatter.digitsOnly,
                         ],
                         controller: controller,
@@ -133,6 +130,7 @@ class PremiumTextField extends StatelessWidget {
                           fontSize: fontsize,
                         ),
                         decoration: InputDecoration(
+                          suffix: suffix,
                           hintText: hintText,
                           hintStyle: TextStyle(
                             color: Colors.white.withAlpha(180),
@@ -142,12 +140,20 @@ class PremiumTextField extends StatelessWidget {
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 18,
                           ),
-                          suffixIcon: suffixIcon,
+                          suffixIcon: maxLines > 1 ? null : suffixIcon,
                         ),
                         cursorColor: Colors.white,
                       ),
                     ),
-                    const SizedBox(width: 20),
+                    if (maxLines > 1 && suffixIcon != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(top: 14),
+                        child: suffixIcon!,
+                      ),
+                      const SizedBox(width: 16),
+                    ] else ...[
+                      const SizedBox(width: 20),
+                    ],
                   ],
                 ),
               ),
