@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:premium_force_main/authentication/otp.dart';
+import 'package:premium_force_main/authentication/signup.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/checkbox.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
+import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:country_picker/country_picker.dart';
 
@@ -61,6 +66,46 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
     Overlay.of(context).insert(_overlayEntry!);
   }
 
+  /// Handle Google Sign-In button tap.
+  Future<void> _handleGoogleSignIn() async {
+    if (!_isAgreed) {
+      _showCustomSnackBar(
+        'Please agree to the terms and conditions and privacy policy.',
+      );
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.signInWithGoogle();
+
+    if (!mounted) return;
+
+    if (authProvider.status == AuthStatus.authenticated) {
+      // Existing user — go to home
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => Home()),
+        (route) => false,
+      );
+    } else if (authProvider.status == AuthStatus.otpVerified) {
+      // New user — go to signup with pre-filled data
+      final googleResult = authProvider.googleResult;
+      Navigator.of(context).push(
+        SmoothNavigation.route(
+          SignUpPage(
+            countryCode: '+$_selectedCountryCode',
+            phoneNumber: '',
+            googleEmail: googleResult?.email,
+            googleDisplayName: googleResult?.displayName,
+            googlePhotoUrl: googleResult?.photoUrl,
+          ),
+        ),
+      );
+    } else if (authProvider.status == AuthStatus.failure &&
+        authProvider.errorMessage != null) {
+      _showCustomSnackBar(authProvider.errorMessage!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,247 +142,373 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 40),
-                      // Sign In Title
-                      Text(
-                        AppLocalizations.of(context)!.signIn,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 40),
+                        // Sign In Title
+                        Text(
+                          AppLocalizations.of(context)!.signIn,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.2,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 32),
+                        const SizedBox(height: 32),
 
-                      PremiumTextField(
-                        title: AppLocalizations.of(context)!.mobileNumber,
-                        validator: (value) {
-                          if (value!.isEmpty) {
-                            return AppLocalizations.of(
-                              context,
-                            )!.pleaseEnterYourMobileNumber;
-                          }
-                          if (value.length < 9) {
-                            return AppLocalizations.of(
-                              context,
-                            )!.pleaseEnterValidMobileNumber;
-                          }
-                          return null;
-                        },
-                        controller: _mobileController,
-                        hintText: AppLocalizations.of(
-                          context,
-                        )!.enterMobileNumber,
-                        fontsize: 16,
-
-                        keyboardType: TextInputType.phone,
-                        needTitle: true,
-                        obscureText: false,
-                        prefixIcon: GestureDetector(
-                          onTap: () {
-                            showCountryPicker(
-                              context: context,
-                              showPhoneCode: true,
-                              customFlagBuilder: (context) =>
-                                  const SizedBox.shrink(),
-                              countryListTheme: CountryListThemeData(
-                                backgroundColor: const Color(0xFF141313),
-                                textStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                                searchTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(30),
-                                  topRight: Radius.circular(30),
-                                ),
-                                inputDecoration: InputDecoration(
-                                  hintText: AppLocalizations.of(
-                                    context,
-                                  )!.search, // Need to make sure AppLocalizations has search, if not we use a fallback or simply 'Search'. Let's see if search is there. If not, maybe use 'Search'
-                                  // fallback:
-                                  // hintText: 'Search',
-                                  hintStyle: TextStyle(
-                                    color: Colors.white.withAlpha(180),
-                                  ),
-                                  prefixIcon: const Icon(
-                                    Icons.search,
-                                    color: Colors.white,
-                                  ),
-                                  filled: true,
-                                  fillColor: const Color(0xFF1A1410),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: Colors.grey.shade800,
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: Colors.grey.shade800,
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE4A46B),
-                                    ),
-                                  ),
-                                ),
-                                bottomSheetHeight:
-                                    MediaQuery.of(context).size.height * 0.75,
-                              ),
-                              onSelect: (Country country) {
-                                setState(() {
-                                  _selectedCountryCode = country.phoneCode;
-                                });
-                              },
-                            );
+                        PremiumTextField(
+                          title: AppLocalizations.of(context)!.mobileNumber,
+                          validator: (value) {
+                            if (value!.isEmpty) {
+                              return AppLocalizations.of(
+                                context,
+                              )!.pleaseEnterYourMobileNumber;
+                            }
+                            if (value.length < 9) {
+                              return AppLocalizations.of(
+                                context,
+                              )!.pleaseEnterValidMobileNumber;
+                            }
+                            return null;
                           },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: const BoxDecoration(
-                              color: Colors.transparent,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '+$_selectedCountryCode',
-                                  style: const TextStyle(
+                          controller: _mobileController,
+                          hintText: AppLocalizations.of(
+                            context,
+                          )!.enterMobileNumber,
+                          fontsize: 16,
+
+                          keyboardType: TextInputType.phone,
+                          needTitle: true,
+                          obscureText: false,
+                          prefixIcon: GestureDetector(
+                            onTap: () {
+                              showCountryPicker(
+                                context: context,
+                                showPhoneCode: true,
+                                customFlagBuilder: (context) =>
+                                    const SizedBox.shrink(),
+                                countryListTheme: CountryListThemeData(
+                                  backgroundColor: const Color(0xFF141313),
+                                  textStyle: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
                                   ),
-                                ),
-                                const Icon(
-                                  Icons.arrow_drop_down,
-                                  color: Colors.white,
-                                ),
-                                Container(
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 8,
+                                  searchTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
                                   ),
-                                  height: 24,
-                                  width: 1,
-                                  color: Colors.grey,
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(30),
+                                    topRight: Radius.circular(30),
+                                  ),
+                                  inputDecoration: InputDecoration(
+                                    hintText: AppLocalizations.of(
+                                      context,
+                                    )!.search,
+                                    hintStyle: TextStyle(
+                                      color: Colors.white.withAlpha(180),
+                                    ),
+                                    prefixIcon: const Icon(
+                                      Icons.search,
+                                      color: Colors.white,
+                                    ),
+                                    filled: true,
+                                    fillColor: const Color(0xFF1A1410),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: Colors.grey.shade800,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: Colors.grey.shade800,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFFE4A46B),
+                                      ),
+                                    ),
+                                  ),
+                                  bottomSheetHeight:
+                                      MediaQuery.of(context).size.height * 0.75,
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Continue Button
-                      const SizedBox(height: 20),
-                      // Terms and Conditions
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          PremiumCheckbox(
-                            ontap: () {
-                              setState(() {
-                                _isAgreed = !_isAgreed;
-                              });
+                                onSelect: (Country country) {
+                                  setState(() {
+                                    _selectedCountryCode = country.phoneCode;
+                                  });
+                                },
+                              );
                             },
-                            isAgreed: _isAgreed,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                style: TextStyle(
-                                  color: Color(0xFFB0B0B0),
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: Colors.transparent,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  TextSpan(
-                                    text:
-                                        'By Clicking continue button you agree to our ',
-                                    style: TextStyle(
+                                  Text(
+                                    '+$_selectedCountryCode',
+                                    style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      decoration: TextDecoration.none,
+                                      fontSize: 16,
                                     ),
                                   ),
-                                  TextSpan(
-                                    text: 'Terms and Conditions',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      decoration: TextDecoration.none,
-                                    ),
+                                  const Icon(
+                                    Icons.arrow_drop_down,
+                                    color: Colors.white,
                                   ),
-                                  TextSpan(
-                                    text: ' and ',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      decoration: TextDecoration.none,
+                                  Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 8,
                                     ),
-                                  ),
-                                  TextSpan(
-                                    text: 'Privacy Policy',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      decoration: TextDecoration.none,
-                                    ),
+                                    height: 24,
+                                    width: 1,
+                                    color: Colors.grey,
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                      SizedBox(height: 25),
-                      PremiumButton(
-                        showLoader: _isLoading,
-                        fontsize: 18,
-                        text: AppLocalizations.of(context)!.continueText,
-                        onTap: () {
-                          if (_formKey.currentState!.validate() && _isAgreed) {
-                            // setState(() {
-                            //   _isLoading = !_isLoading;
-                            // });
-                            Navigator.of(context).push(
-                              SmoothNavigation.route(
-                                OTPVerificationPage(
-                                  countryCode: '+$_selectedCountryCode',
-                                  phoneNumber: _mobileController.text.trim(),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Continue Button
+                        const SizedBox(height: 20),
+                        // Terms and Conditions
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            PremiumCheckbox(
+                              ontap: () {
+                                setState(() {
+                                  _isAgreed = !_isAgreed;
+                                });
+                              },
+                              isAgreed: _isAgreed,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    color: Color(0xFFB0B0B0),
+                                    fontSize: 13,
+                                    height: 1.4,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text:
+                                          'By Clicking continue button you agree to our ',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'Terms and Conditions',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: ' and ',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'Privacy Policy',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 25),
+                        PremiumButton(
+                          showLoader: _isLoading,
+                          fontsize: 18,
+                          text: AppLocalizations.of(context)!.continueText,
+                          onTap: () {
+                            if (_formKey.currentState!.validate() &&
+                                _isAgreed) {
+                              Navigator.of(context).push(
+                                SmoothNavigation.route(
+                                  OTPVerificationPage(
+                                    countryCode: '+$_selectedCountryCode',
+                                    phoneNumber: _mobileController.text.trim(),
+                                  ),
+                                ),
+                              );
+                            } else if (_isAgreed == false) {
+                              _showCustomSnackBar(
+                                'Please agree to the terms and conditions and privacy policy.',
+                              );
+                            }
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ── OR divider ─────────────────────────────────
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.white.withAlpha(60),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(
+                                'OR',
+                                style: TextStyle(
+                                  color: Colors.white.withAlpha(150),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.white.withAlpha(60),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ── Google Sign-In button ──────────────────────
+                        Consumer<AuthProvider>(
+                          builder: (context, authProvider, _) {
+                            return _GoogleSignInButton(
+                              isLoading: authProvider.isGoogleLoading,
+                              onTap: _handleGoogleSignIn,
                             );
-                          } else if (_isAgreed == false) {
-                            _showCustomSnackBar(
-                              'Please agree to the terms and conditions and privacy policy.',
-                            );
-                          }
-                        },
-                      ),
-                    ],
+                          },
+                        ),
+
+                        const SizedBox(height: 32),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A styled Google Sign-In button that matches the app's dark premium theme.
+class _GoogleSignInButton extends StatelessWidget {
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const _GoogleSignInButton({required this.isLoading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withAlpha(40), width: 1),
+        color: const Color(0xFF0D0A08),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLoading ? null : onTap,
+          borderRadius: BorderRadius.circular(12),
+          splashColor: Colors.white.withAlpha(20),
+          highlightColor: Colors.white.withAlpha(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isLoading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFFE4A46B),
+                      ),
+                    ),
+                  )
+                else ...[
+                  SvgPicture.asset(
+                    'assets/icons/google_logo.svg',
+                    width: 24,
+                    height: 24,
+                  ),
+                  const SizedBox(width: 14),
+                  const Text(
+                    'Continue with Google',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

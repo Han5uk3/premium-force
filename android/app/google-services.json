@@ -12,7 +12,20 @@
           "package_name": "com.brandbik.premiumforce"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "265361809546-l7frcki7argtjttarntrgbaqvmj7c5o9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.brandbik.premiumforce",
+            "certificate_hash": "46381fc477ca0b166660a3c3f63e8c1053357202"
+          }
+        },
+        {
+          "client_id": "265361809546-rqr3th8836vq6ochnlk32h6vmfe5a9ha.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyB6gi_QKb398OgyqB9pTtLVvltijJVppBg"
@@ -20,7 +33,20 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "265361809546-2db1fc42111enhg4tivodb7v0u52lf45.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "265361809546-8ucet0uausd5aacl6nsatt9b5inbchf8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.brandbik.premiumforce",
+                "app_store_id": "6759467571"
+              }
+            }
+          ]
         }
       }
     }

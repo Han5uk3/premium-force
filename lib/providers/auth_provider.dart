@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/models/user.dart';
+import 'package:premium_force_main/services/google_sign_in_service.dart';
+import 'package:premium_force_main/services/notification_service.dart';
+import 'package:premium_force_main/storage/user_local_storage.dart';
 
 enum AuthStatus {
   initial,
@@ -180,11 +183,12 @@ class AuthProvider extends ChangeNotifier {
         final userData = result['user'] ?? result['data'] ?? result;
         _user = UserModel.fromJson(userData as Map<String, dynamic>);
         _status = AuthStatus.authenticated;
+        notifyListeners();
       } else {
         _status = AuthStatus.failure;
         _errorMessage = result['message'] as String? ?? 'Signup failed';
+        notifyListeners();
       }
-      notifyListeners();
     } catch (e) {
       debugPrint('Submit SignUp error: $e');
       _status = AuthStatus.failure;
@@ -193,16 +197,114 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Google Sign-In
+  // ---------------------------------------------------------------------------
+
+  bool _isGoogleLoading = false;
+  bool get isGoogleLoading => _isGoogleLoading;
+
+  /// The Google sign-in result, stored temporarily so the signup page can
+  /// pre-fill fields if this is a new user.
+  GoogleSignInResult? _googleResult;
+  GoogleSignInResult? get googleResult => _googleResult;
+
+  /// Sign in with Google.
+  ///
+  /// Flow:
+  /// 1. Native Google Sign-In (account picker → ID token)
+  /// 2. Send ID token to Node.js backend (`POST /auth/google`)
+  /// 3. Backend verifies token, creates or retrieves the user from MongoDB.
+  /// 4. If user exists → authenticated. If new → otpVerified (go to signup).
+  Future<void> signInWithGoogle() async {
+    _isGoogleLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await GoogleSignInService.instance.signIn();
+      if (result == null) {
+        // User cancelled
+        _isGoogleLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      _googleResult = result;
+
+      // Debug print the full ID token
+      debugPrint('🔐 Google Sign-In │ ID Token:');
+      debugPrint('🔐 Google Sign-In │ ${result.idToken}');
+      debugPrint('🔐 Google Sign-In │ Email: ${result.email}');
+      debugPrint('🔐 Google Sign-In │ Display Name: ${result.displayName}');
+
+      if (result.idToken == null) {
+        _status = AuthStatus.failure;
+        _errorMessage = 'Failed to get ID token from Google.';
+        _isGoogleLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Send only idToken to backend
+      final response = await _api.googleAuth(idToken: result.idToken!);
+
+      debugPrint('🔐 Google Sign-In │ Backend response: $response');
+
+      if (response['success'] == true) {
+        final isNewUser = response['isNewUser'] as bool? ?? false;
+
+        if (isNewUser) {
+          // New user — let them go to signup to fill remaining fields
+          _status = AuthStatus.otpVerified;
+        } else {
+          // Existing user — fully authenticated
+          final userData = response['user'] ?? response['data'];
+          if (userData is Map<String, dynamic>) {
+            _user = UserModel.fromJson(userData);
+            await UserLocalStorage.saveUser(_user!);
+          }
+
+          final token = response['token'] as String?;
+          if (token != null) {
+            await UserLocalStorage.saveToken(token);
+          }
+
+          _status = AuthStatus.authenticated;
+        }
+      } else {
+        _status = AuthStatus.failure;
+        _errorMessage =
+            response['message'] as String? ?? 'Google sign-in failed';
+      }
+    } catch (e) {
+      debugPrint('Google Sign-In error: $e');
+      _status = AuthStatus.failure;
+      _errorMessage = 'Google sign-in failed. Please try again.';
+    }
+
+    _isGoogleLoading = false;
+    notifyListeners();
+  }
+
   /// Sign the user out.
   Future<void> logout() async {
     _status = AuthStatus.loading;
     notifyListeners();
 
     try {
+      // Delete the FCM token so this device stops receiving notifications
+      // for the signed-out user.
+      await NotificationService.instance.deleteToken();
+
+      // Sign out of Google as well
+      await GoogleSignInService.instance.signOut();
+
       _cancelResendTimer();
       _user = null;
       _phoneNumber = null;
       _errorMessage = null;
+      _googleResult = null;
       _resendCountdown = 0;
       _status = AuthStatus.unauthenticated;
       notifyListeners();

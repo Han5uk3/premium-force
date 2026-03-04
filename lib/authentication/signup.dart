@@ -15,10 +15,16 @@ import 'package:premium_force_main/utils/smooth_navigation.dart';
 class SignUpPage extends StatefulWidget {
   final String countryCode;
   final String phoneNumber;
+  final String? googleEmail;
+  final String? googleDisplayName;
+  final String? googlePhotoUrl;
   const SignUpPage({
     super.key,
     required this.countryCode,
     required this.phoneNumber,
+    this.googleEmail,
+    this.googleDisplayName,
+    this.googlePhotoUrl,
   });
 
   @override
@@ -45,6 +51,15 @@ class _SignUpPageState extends State<SignUpPage>
   void initState() {
     super.initState();
     _phoneController.text = widget.phoneNumber;
+
+    // Pre-fill from Google Sign-In data if available
+    if (widget.googleDisplayName != null) {
+      _nameController.text = widget.googleDisplayName!;
+    }
+    if (widget.googleEmail != null) {
+      _emailController.text = widget.googleEmail!;
+    }
+
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),

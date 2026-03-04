@@ -107,4 +107,26 @@ class UserLocalStorage {
     final user = getUser();
     return user?.uid;
   }
+
+  // ---------------------------------------------------------------------------
+  // FCM Token
+  // ---------------------------------------------------------------------------
+
+  static const String _fcmTokenKey = 'fcm_token';
+
+  /// Persist the FCM registration token.
+  static Future<void> saveFcmToken(String token) async {
+    await _box.put(_fcmTokenKey, token);
+    debugPrint('💾 FCM token saved');
+  }
+
+  /// Retrieve the stored FCM token, or `null` if never saved.
+  static String? getFcmToken() {
+    return _box.get(_fcmTokenKey) as String?;
+  }
+
+  /// Clear the stored FCM token (e.g. on logout / token rotation).
+  static Future<void> clearFcmToken() async {
+    await _box.delete(_fcmTokenKey);
+  }
 }

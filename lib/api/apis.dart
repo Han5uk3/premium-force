@@ -104,6 +104,34 @@ class ApiService {
   }
 
   // ---------------------------------------------------------------------------
+  // Auth - Google Sign-In
+  // ---------------------------------------------------------------------------
+
+  /// Authenticate with Google.
+  ///
+  /// Sends the Google [idToken] along with platform type to the backend.
+  /// The endpoint lives at `/auth/google` (outside the `/api` prefix).
+  Future<Map<String, dynamic>> googleAuth({required String idToken}) async {
+    try {
+      final data = {'idToken': idToken};
+
+      debugPrint('🔐 Google Auth │ Sending data: $data');
+
+      final response = await _dio.post(
+        'http://54.252.191.113:5000/auth/google',
+        data: data,
+      );
+
+      debugPrint('🔐 Google Auth │ Response: ${response.data}');
+
+      return _success(response);
+    } catch (e) {
+      debugPrint('🔐 Google Auth │ Error: $e');
+      return _handleError(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // User Profile
   // ---------------------------------------------------------------------------
 
@@ -245,6 +273,31 @@ class ApiService {
     try {
       final response = await _dio.delete(
         '/users/$id',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FCM / Push Notifications
+  // ---------------------------------------------------------------------------
+
+  /// Register or update the [fcmToken] for the user identified by [userId].
+  ///
+  /// Call this after login / signup once you have both a valid user id and an
+  /// FCM token.
+  Future<Map<String, dynamic>> registerFcmToken({
+    required String userId,
+    required String fcmToken,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/users/$userId/fcm-token',
+        data: {'fcmToken': fcmToken},
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
