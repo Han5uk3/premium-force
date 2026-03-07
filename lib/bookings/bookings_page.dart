@@ -80,23 +80,17 @@ class _BookingsPageState extends State<BookingsPage>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  Center(
-                    child: Text(
-                      loc.upcoming,
-                      style: TextStyle(color: Colors.white),
-                    ),
+                  _buildEmptyState(
+                    loc.noUpcomingBookings,
+                    loc.onceYouBookItWillAppearHere,
                   ),
-                  Center(
-                    child: Text(
-                      loc.completed,
-                      style: TextStyle(color: Colors.white),
-                    ),
+                  _buildEmptyState(
+                    loc.noOngoingBookings,
+                    loc.onceYouBookItWillAppearHere,
                   ),
-                  Center(
-                    child: Text(
-                      loc.completed,
-                      style: TextStyle(color: Colors.white),
-                    ),
+                  _buildEmptyState(
+                    loc.noCompletedBookings,
+                    loc.onceYouBookItWillAppearHere,
                   ),
                 ],
               ),
@@ -133,6 +127,45 @@ class _BookingsPageState extends State<BookingsPage>
           backgroundColor: Colors.transparent,
           automaticallyImplyLeading: false,
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF49280B),
+                  Color(0xFFE4A46B),
+                  Color(0xFF60350F),
+                ],
+              ).createShader(bounds);
+            },
+            child: const Icon(
+              Icons.calendar_month_outlined,
+              size: 80,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 60),
+        ],
       ),
     );
   }

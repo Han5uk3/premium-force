@@ -18,10 +18,30 @@ class Premuimfleetcard extends StatelessWidget {
   final String passengerCount;
   final String brand;
 
+  bool _isDarkLogo(String brandName) {
+    final lowerBrand = brandName.toLowerCase();
+    const darkLogos = [
+      'audi',
+      'rolls-royce',
+      'mini',
+      'lexus',
+      'tesla',
+      'maserati',
+      'maybach',
+      'jeep',
+      'bentley',
+      'aston-martin',
+      'honda',
+      'hyundai',
+      'nissan',
+    ];
+    return darkLogos.contains(lowerBrand);
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final imageProvider = "assets/images/bmwdummy.jpg";
+    final imageProvider = image;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -32,8 +52,8 @@ class Premuimfleetcard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             // Base image
-            Image(
-              image: AssetImage(imageProvider),
+            CachedNetworkImage(
+              imageUrl: imageProvider,
               fit: BoxFit.cover,
               width: 240,
               height: 160,
@@ -58,8 +78,8 @@ class Premuimfleetcard extends StatelessWidget {
                       height: 160,
                       child: ImageFiltered(
                         imageFilter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                        child: Image(
-                          image: AssetImage(imageProvider),
+                        child: CachedNetworkImage(
+                          imageUrl: imageProvider,
                           fit: BoxFit.cover,
                           width: 240,
                           height: 160,
@@ -68,7 +88,16 @@ class Premuimfleetcard extends StatelessWidget {
                     ),
                     // Tinted overlay
                     Container(
-                      color: Color.fromARGB(255, 213, 132, 61).withAlpha(80),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color.fromARGB(255, 213, 132, 61).withAlpha(130),
+                            Colors.transparent,
+                          ],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                        ),
+                      ),
                     ),
                     // Text content
                     Padding(
@@ -133,8 +162,8 @@ class Premuimfleetcard extends StatelessWidget {
                         height: 160,
                         child: ImageFiltered(
                           imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                          child: Image(
-                            image: AssetImage(imageProvider),
+                          child: CachedNetworkImage(
+                            imageUrl: imageProvider,
                             fit: BoxFit.cover,
                             width: 240,
                             height: 160,
@@ -143,7 +172,9 @@ class Premuimfleetcard extends StatelessWidget {
                       ),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(20),
+                          color: _isDarkLogo(brand)
+                              ? Colors.white.withAlpha(128)
+                              : Colors.black.withAlpha(128),
                         ),
                         padding: const EdgeInsets.all(4.0),
                         child: CachedNetworkImage(

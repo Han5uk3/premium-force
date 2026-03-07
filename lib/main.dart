@@ -4,13 +4,13 @@ import 'package:premium_force_main/splashscreen/splashscreen.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/providers/user_provider.dart';
-import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:premium_force_main/firebase_options.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Global navigator key – allows navigating from outside a widget tree
 /// (e.g. when the user taps a push notification).
@@ -18,6 +18,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await UserLocalStorage.init();
 

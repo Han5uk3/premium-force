@@ -212,7 +212,7 @@ class Bookingcard extends StatelessWidget {
                       ),
                       SizedBox(width: 5),
                       Text(
-                        "$ride - $brand",
+                        "$ride",
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

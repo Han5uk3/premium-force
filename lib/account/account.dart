@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:premium_force_main/common_widgets/button.dart';
+import 'package:provider/provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/account/manage_profile.dart';
+import 'package:premium_force_main/account/terms_and_conditions.dart';
+import 'package:premium_force_main/providers/auth_provider.dart';
+import 'package:premium_force_main/authentication/login.dart';
+import 'package:premium_force_main/utils/smooth_navigation.dart';
+import 'package:premium_force_main/storage/user_local_storage.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -10,10 +18,9 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  bool notificationActive = false;
+  bool notificationActive = UserLocalStorage.getNotificationStatus();
   @override
   Widget build(BuildContext context) {
-
     final loc = AppLocalizations.of(context)!;
     return Container(
       decoration: const BoxDecoration(
@@ -35,12 +42,22 @@ class _AccountPageState extends State<AccountPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             children: [
-              ProfileTile(
-                loc: loc,
-                title: loc.manageProfile,
-                icon: Icons.person,
-                isSvg: true,
-                svgPath: "assets/icons/person.svg",
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ManageProfilePage(),
+                    ),
+                  );
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  title: loc.manageProfile,
+                  icon: Icons.person,
+                  isSvg: true,
+                  svgPath: "assets/icons/person.svg",
+                ),
               ),
               ProfileTile(
                 loc: loc,
@@ -49,27 +66,45 @@ class _AccountPageState extends State<AccountPage> {
                 title: loc.notifications,
                 icon: Icons.notifications,
               ),
-              ProfileTile(
-                loc: loc,
-                isSvg: true,
-                title: loc.termsAndConditions,
-                icon: Icons.file_copy_outlined,
-                svgPath: "assets/icons/terms_and_conditions.svg",
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TermsAndConditionsPage(),
+                    ),
+                  );
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  isSvg: true,
+                  title: loc.termsAndConditions,
+                  icon: Icons.file_copy_outlined,
+                  svgPath: "assets/icons/terms_and_conditions.svg",
+                ),
               ),
-              ProfileTile(
-                loc: loc,
-                isLogout: true,
-                title: loc.logout,
-                icon: Icons.logout,
+              GestureDetector(
+                onTap: () {
+                  _showLogoutBottomSheet(context, loc);
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  isLogout: true,
+                  title: loc.logout,
+                  icon: Icons.logout,
+                ),
               ),
-              ProfileTile(
-                loc: loc,
-                isDelete: true,
-
-                title: loc.deleteAccount,
-                icon: Icons.delete,
-
-                isLast: true,
+              GestureDetector(
+                onTap: () {
+                  _showDeleteAccountBottomSheet(context, loc);
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  isDelete: true,
+                  title: loc.deleteAccount,
+                  icon: Icons.delete,
+                  isLast: true,
+                ),
               ),
             ],
           ),
@@ -150,6 +185,9 @@ class _AccountPageState extends State<AccountPage> {
                       setState(() {
                         notificationActive = !notificationActive;
                       });
+                      UserLocalStorage.saveNotificationStatus(
+                        notificationActive,
+                      );
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -218,6 +256,263 @@ class _AccountPageState extends State<AccountPage> {
                   )
           : null,
       title: Text(title, style: TextStyle(color: Colors.white)),
+    );
+  }
+
+  void _showLogoutBottomSheet(BuildContext context, AppLocalizations loc) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E1105),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ShaderMask(
+              //   shaderCallback: (Rect bounds) {
+              //     return const LinearGradient(
+              //       begin: Alignment.centerLeft,
+              //       end: Alignment.centerRight,
+              //       colors: [
+              //         Color(0xFF49280B),
+              //         Color(0xFFE4A46B),
+              //         Color(0xFF60350F),
+              //       ],
+              //     ).createShader(bounds);
+              //   },
+              //   child: const Icon(Icons.logout, color: Colors.white, size: 50),
+              // ),
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: 24,
+                  bottom: 12,
+                  left: 24,
+                  right: 24,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        loc.logout,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(sheetContext),
+                      child: Icon(Icons.close, color: Colors.white, size: 24),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white, thickness: 1),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  loc.logoutConfirm,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  loc.loginAgainMessage,
+                  textAlign: TextAlign.start,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 80),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(sheetContext),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade600),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            loc.cancel,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: PremiumButton(
+                        onTap: () async {
+                          final authProvider = context.read<AuthProvider>();
+                          Navigator.pop(sheetContext); // Close bottom sheet
+                          await authProvider.logout();
+                          if (context.mounted) {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              SmoothNavigation.route(
+                                const PremiumForceLoginPage(),
+                              ),
+                              (route) => false,
+                            );
+                          }
+                        },
+                        text: loc.logout,
+                        fontsize: 16,
+                        showLoader: false,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteAccountBottomSheet(
+    BuildContext context,
+    AppLocalizations loc,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E1105),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: 24,
+                  bottom: 12,
+                  left: 24,
+                  right: 24,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        loc.deleteAccount,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(sheetContext),
+                      child: Icon(Icons.close, color: Colors.white, size: 24),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white, thickness: 1),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  loc.deleteAccountConfirm,
+                  textAlign: TextAlign.start,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  loc.deleteAccountMessage,
+                  textAlign: TextAlign.start,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 80),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(sheetContext),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade600),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            loc.cancel,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: PremiumButton(
+                        text: loc.deleteAccount,
+                        onTap: () async {
+                          final authProvider = context.read<AuthProvider>();
+                          Navigator.pop(sheetContext); // Close bottom sheet
+                          await authProvider.deleteAccount();
+                          if (context.mounted) {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              SmoothNavigation.route(
+                                const PremiumForceLoginPage(),
+                              ),
+                              (route) => false,
+                            );
+                          }
+                        },
+                        fontsize: 16,
+                        showLoader: false,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -31,6 +31,7 @@ dependencies:
   pinput: ^6.0.2
   provider: ^6.1.5+1
   record: ^6.2.0
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -41,6 +42,7 @@ flutter:
   generate: true
   uses-material-design: true
   assets:
+    - .env
     - assets/
     - assets/images/
     - assets/applogo/

@@ -1028,11 +1028,161 @@ abstract class AppLocalizations {
   /// **'Book Service'**
   String get bookService;
 
+  /// No description provided for @logoutConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to log out?'**
+  String get logoutConfirm;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @loginAgainMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You will have to login again next time you open the app.'**
+  String get loginAgainMessage;
+
+  /// No description provided for @deleteAccountConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete your account?'**
+  String get deleteAccountConfirm;
+
+  /// No description provided for @deleteAccountMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone and all your data will be cleared.'**
+  String get deleteAccountMessage;
+
   /// No description provided for @pickupTimeCannotBeAfterDepartureTime.
   ///
   /// In en, this message translates to:
   /// **'Pickup time cannot be after departure time'**
   String get pickupTimeCannotBeAfterDepartureTime;
+
+  /// No description provided for @noRecentBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'No recent bookings'**
+  String get noRecentBookings;
+
+  /// No description provided for @noUpcomingBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'No upcoming bookings'**
+  String get noUpcomingBookings;
+
+  /// No description provided for @noOngoingBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'No ongoing bookings'**
+  String get noOngoingBookings;
+
+  /// No description provided for @noCompletedBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed bookings'**
+  String get noCompletedBookings;
+
+  /// No description provided for @onceYouBookItWillAppearHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Once you book a service, it will appear here.'**
+  String get onceYouBookItWillAppearHere;
+
+  /// No description provided for @termsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'These terms and conditions outline the rules and regulations for the use of the Premium Force application, a luxury chauffeur booking service operating in the Kingdom of Saudi Arabia.\n\nBy accessing this app, we assume you accept these terms and conditions. Do not continue to use Premium Force if you do not agree to take all of the terms and conditions stated on this page.\n'**
+  String get termsIntro;
+
+  /// No description provided for @termsSection1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'1. App Services & Bookings'**
+  String get termsSection1Title;
+
+  /// No description provided for @termsSection1Content.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium Force connects users with luxury chauffeur services within Saudi Arabia. All bookings are subject to availability, and we reserve the right to decline or cancel bookings under specific circumstances outlined in our policies.'**
+  String get termsSection1Content;
+
+  /// No description provided for @termsSection2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'2. User Responsibilities'**
+  String get termsSection2Title;
+
+  /// No description provided for @termsSection2Content.
+  ///
+  /// In en, this message translates to:
+  /// **'You are specifically restricted from all of the following:\n• using this app in any way that impacts user access or disrupts the chauffeur services;\n• using this app contrary to the applicable laws and regulations of the Kingdom of Saudi Arabia;\n• behaving inappropriately towards our chauffeurs or damaging the provided luxury vehicles.'**
+  String get termsSection2Content;
+
+  /// No description provided for @termsSection3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Payments & Cancellations'**
+  String get termsSection3Title;
+
+  /// No description provided for @termsSection3Content.
+  ///
+  /// In en, this message translates to:
+  /// **'All payments for chauffeur services must be made through the approved methods within the app. Cancellation policies apply to all bookings. Late cancellations or no-shows may incur charges as detailed during the booking process.'**
+  String get termsSection3Content;
+
+  /// No description provided for @termsSection4Title.
+  ///
+  /// In en, this message translates to:
+  /// **'4. Privacy'**
+  String get termsSection4Title;
+
+  /// No description provided for @termsSection4Content.
+  ///
+  /// In en, this message translates to:
+  /// **'Please read our Privacy Policy. Your use of the Application signifies your continuing consent to our Privacy Policy regarding the collection and use of your personal and location data necessary for the chauffeur service.'**
+  String get termsSection4Content;
+
+  /// No description provided for @termsSection5Title.
+  ///
+  /// In en, this message translates to:
+  /// **'5. Disclaimer of Warranties'**
+  String get termsSection5Title;
+
+  /// No description provided for @termsSection5Content.
+  ///
+  /// In en, this message translates to:
+  /// **'This app is provided \"as is,\" and Premium Force expresses no representations or warranties related to the continuous availability of the app or specific chauffeurs.'**
+  String get termsSection5Content;
+
+  /// No description provided for @termsSection6Title.
+  ///
+  /// In en, this message translates to:
+  /// **'6. Governing Law & Jurisdiction'**
+  String get termsSection6Title;
+
+  /// No description provided for @termsSection6Content.
+  ///
+  /// In en, this message translates to:
+  /// **'These Terms will be governed by and interpreted in accordance with the laws of the Kingdom of Saudi Arabia, and you submit to the exclusive jurisdiction of the courts located in Saudi Arabia for the resolution of any disputes.'**
+  String get termsSection6Content;
+
+  /// No description provided for @termsSection7Title.
+  ///
+  /// In en, this message translates to:
+  /// **'7. Changes and Amendments'**
+  String get termsSection7Title;
+
+  /// No description provided for @termsSection7Content.
+  ///
+  /// In en, this message translates to:
+  /// **'We reserve the right to modify these terms or policies relating to the app or services at any time. Continued use of the app after any such changes shall constitute your consent to such changes.'**
+  String get termsSection7Content;
 }
 
 class _AppLocalizationsDelegate

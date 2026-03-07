@@ -2,35 +2,22 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
-import 'package:premium_force_main/authentication/location_picker.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
-import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
-import 'package:premium_force_main/utils/smooth_navigation.dart';
+import 'package:provider/provider.dart';
 
-class SignUpPage extends StatefulWidget {
-  final String countryCode;
-  final String phoneNumber;
-  final String? googleEmail;
-  final String? googleDisplayName;
-  final String? googlePhotoUrl;
-  const SignUpPage({
-    super.key,
-    required this.countryCode,
-    required this.phoneNumber,
-    this.googleEmail,
-    this.googleDisplayName,
-    this.googlePhotoUrl,
-  });
+class ManageProfilePage extends StatefulWidget {
+  const ManageProfilePage({super.key});
 
   @override
-  State<SignUpPage> createState() => _SignUpPageState();
+  State<ManageProfilePage> createState() => _ManageProfilePageState();
 }
 
-class _SignUpPageState extends State<SignUpPage>
+class _ManageProfilePageState extends State<ManageProfilePage>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
@@ -49,14 +36,16 @@ class _SignUpPageState extends State<SignUpPage>
   @override
   void initState() {
     super.initState();
-    _phoneController.text = widget.phoneNumber;
 
-    // Pre-fill from Google Sign-In data if available
-    if (widget.googleDisplayName != null) {
-      _nameController.text = widget.googleDisplayName!;
-    }
-    if (widget.googleEmail != null) {
-      _emailController.text = widget.googleEmail!;
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user != null) {
+      _nameController.text = user.username;
+      _emailController.text = user.email;
+      _phoneController.text = '${user.countryCode} ${user.phoneNumber}';
+      _locationController.text = user.location ?? '';
+      _specialIdController.text = user.specialId ?? '';
+      _latitude = user.lat;
+      _longitude = user.long;
     }
 
     _animController = AnimationController(
@@ -103,7 +92,6 @@ class _SignUpPageState extends State<SignUpPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Handle bar
                   Container(
                     width: 40,
                     height: 4,
@@ -222,52 +210,20 @@ class _SignUpPageState extends State<SignUpPage>
     );
   }
 
-  Future<void> _openLocationPicker() async {
-    final result = await Navigator.of(
-      context,
-    ).push(SmoothNavigation.route(const LocationPickerPage()));
-
-    if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        _locationController.text = result['address'] ?? '';
-        _latitude = result['lat'] as double?;
-        _longitude = result['lng'] as double?;
-      });
-    }
-  }
-
-  Future<void> _handleSignUp() async {
+  Future<void> _handleUpdateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_profileImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.pleaseAddAProfilePicture),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (_locationController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.pleaseSelectYourLocation),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user == null) return;
 
     setState(() => _isLoading = true);
 
     final token = UserLocalStorage.getToken();
 
-    final result = await ApiService().createUser(
+    final result = await ApiService().updateUser(
+      id: user.uid,
       username: _nameController.text.trim(),
       email: _emailController.text.trim(),
-      countryCode: widget.countryCode,
-      phoneNumber: widget.phoneNumber,
       location: _locationController.text.trim(),
       lat: _latitude,
       long: _longitude,
@@ -280,44 +236,21 @@ class _SignUpPageState extends State<SignUpPage>
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      // Save only userId + phoneNumber to local storage
-      final userData =
-          (result['user'] ?? result['data']) as Map<String, dynamic>?;
-      if (userData != null) {
-        final uid = (userData['_id'] ?? userData['id'] ?? '') as String;
-        await UserLocalStorage.saveUserCredentials(
-          userId: uid,
-          phoneNumber: widget.phoneNumber,
-        );
-
-        // Persist the full user data locally
-        await UserLocalStorage.saveUserData(userData);
-      }
-
-      // Save tokens if returned
-      final accessToken = result['accessToken'] as String?;
-      final refreshToken = result['refreshToken'] as String?;
-      if (accessToken != null && refreshToken != null) {
-        await UserLocalStorage.saveTokens(
-          accessToken: accessToken,
-          refreshToken: refreshToken,
-        );
-      } else {
-        final singleToken = result['token'] as String?;
-        if (singleToken != null) {
-          await UserLocalStorage.saveToken(singleToken);
-        }
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Profile updated successfully!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // Fetch user again to sync with provider
+      await Provider.of<AuthProvider>(context, listen: false).fetchUser();
 
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => Home()),
-        (route) => false,
-      );
+      Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message'] as String? ?? 'Signup failed'),
+          content: Text(result['message'] as String? ?? 'Update failed'),
           backgroundColor: Colors.red,
         ),
       );
@@ -326,6 +259,8 @@ class _SignUpPageState extends State<SignUpPage>
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<AuthProvider>(context).user;
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -397,24 +332,21 @@ class _SignUpPageState extends State<SignUpPage>
                                                 fit: BoxFit.cover,
                                               ),
                                             )
-                                          : Center(
-                                              child: ShaderMask(
-                                                shaderCallback: (Rect bounds) {
-                                                  return const LinearGradient(
-                                                    colors: [
-                                                      Color(0xFF49280B),
-                                                      Color(0xFFE4A46B),
-                                                      Color(0xFF60350F),
-                                                    ],
-                                                  ).createShader(bounds);
-                                                },
-                                                child: const Icon(
-                                                  Icons.person_rounded,
-                                                  color: Colors.white,
-                                                  size: 48,
-                                                ),
+                                          : (user?.profileImageUrl != null &&
+                                                user!
+                                                    .profileImageUrl!
+                                                    .isNotEmpty)
+                                          ? ClipOval(
+                                              child: Image.network(
+                                                user.profileImageUrl!,
+                                                width: 112,
+                                                height: 112,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) =>
+                                                    _buildPlaceholderIcon(),
                                               ),
-                                            ),
+                                            )
+                                          : _buildPlaceholderIcon(),
                                     ),
                                   ),
                                 ),
@@ -515,7 +447,7 @@ class _SignUpPageState extends State<SignUpPage>
                         PremiumTextField(
                           title: AppLocalizations.of(context)!.phoneNumber,
                           controller: _phoneController,
-                          hintText: widget.phoneNumber,
+                          hintText: "",
                           fontsize: 15,
                           needTitle: true,
                           obscureText: false,
@@ -552,6 +484,8 @@ class _SignUpPageState extends State<SignUpPage>
                           keyboardType: TextInputType.emailAddress,
                           needTitle: true,
                           obscureText: false,
+                          enabled: false,
+                          readOnly: true,
                           prefixIcon: ShaderMask(
                             shaderCallback: (Rect bounds) {
                               return const LinearGradient(
@@ -568,29 +502,13 @@ class _SignUpPageState extends State<SignUpPage>
                               size: 20,
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return AppLocalizations.of(
-                                context,
-                              )!.pleaseEnterYourEmail;
-                            }
-                            if (!RegExp(
-                              r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                            ).hasMatch(value)) {
-                              return AppLocalizations.of(
-                                context,
-                              )!.pleaseEnterAValidEmail;
-                            }
-                            return null;
-                          },
                         ),
 
                         const SizedBox(height: 20),
 
                         // Location field (tap to open location picker)
-                        _buildLocationField(),
-
-                        const SizedBox(height: 20),
+                        // _buildLocationField(),
+                        // const SizedBox(height: 20),
 
                         // Special ID (optional)
                         PremiumTextField(
@@ -624,12 +542,12 @@ class _SignUpPageState extends State<SignUpPage>
 
                         const SizedBox(height: 36),
 
-                        // Sign Up button
+                        // Save Changes button
                         PremiumButton(
                           showLoader: _isLoading,
                           fontsize: 18,
-                          text: AppLocalizations.of(context)!.createAccount,
-                          onTap: _isLoading ? () {} : _handleSignUp,
+                          text: "Save Changes",
+                          onTap: _isLoading ? () {} : _handleUpdateProfile,
                         ),
 
                         const SizedBox(height: 40),
@@ -648,86 +566,16 @@ class _SignUpPageState extends State<SignUpPage>
     );
   }
 
-  Widget _buildLocationField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          AppLocalizations.of(context)!.location,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _openLocationPicker,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D0A08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF1A1410), width: 1),
-            ),
-            child: Row(
-              children: [
-                ShaderMask(
-                  shaderCallback: (Rect bounds) {
-                    return const LinearGradient(
-                      colors: [
-                        Color(0xFF49280B),
-                        Color(0xFFE4A46B),
-                        Color(0xFF60350F),
-                      ],
-                    ).createShader(bounds);
-                  },
-                  child: const Icon(
-                    Icons.location_on_outlined,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _locationController.text.isEmpty
-                        ? AppLocalizations.of(context)!.tapToSelectYourLocation
-                        : _locationController.text,
-                    style: TextStyle(
-                      color: _locationController.text.isEmpty
-                          ? Colors.white.withAlpha(180)
-                          : Colors.white,
-                      fontSize: 15,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ShaderMask(
-                  shaderCallback: (Rect bounds) {
-                    return const LinearGradient(
-                      colors: [
-                        Color(0xFF49280B),
-                        Color(0xFFE4A46B),
-                        Color(0xFF60350F),
-                      ],
-                    ).createShader(bounds);
-                  },
-                  child: const Icon(
-                    Icons.arrow_forward_ios,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+  Widget _buildPlaceholderIcon() {
+    return Center(
+      child: ShaderMask(
+        shaderCallback: (Rect bounds) {
+          return const LinearGradient(
+            colors: [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
+          ).createShader(bounds);
+        },
+        child: const Icon(Icons.person_rounded, color: Colors.white, size: 48),
+      ),
     );
   }
 
@@ -745,7 +593,7 @@ class _SignUpPageState extends State<SignUpPage>
         child: AppBar(
           centerTitle: true,
           title: Text(
-            AppLocalizations.of(context)!.createAccount,
+            AppLocalizations.of(context)!.manageProfile,
             style: TextStyle(
               fontSize: 20,
               color: Colors.white,

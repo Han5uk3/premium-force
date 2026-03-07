@@ -20,7 +20,18 @@ enum AuthStatus {
 
 /// Provider that manages the full authentication lifecycle.
 ///
-/// Uses [ApiService] to communicate with the AWS backend.
+/// Uses [ApiService] to communicate with the backend.
+///
+/// **Storage strategy**: Only `userId` and `phoneNumber` are stored locally
+/// in Hive. Full user data is fetched from the backend via
+/// `GET /api/users/:id` when needed (e.g. on app launch, after login).
+///
+/// OTP Flow:
+/// 1. `requestOtp()` → calls `POST /api/otp/send-otp`
+/// 2. `verifyOtp()`  → calls `POST /api/otp/verify-otp`
+///    - If response contains `user` → existing user → [AuthStatus.authenticated]
+///    - If response does NOT contain `user` → new user → [AuthStatus.otpVerified]
+/// 3. For new users, `submitSignUp()` creates the profile and navigates to Home.
 class AuthProvider extends ChangeNotifier {
   static const int resendDuration = 60; // seconds
 
@@ -41,6 +52,9 @@ class AuthProvider extends ChangeNotifier {
 
   int _resendCountdown = 0;
   int get resendCountdown => _resendCountdown;
+
+  bool _isOtpLoading = false;
+  bool get isOtpLoading => _isOtpLoading;
 
   // ---------------------------------------------------------------------------
   // Timer helpers
@@ -72,64 +86,273 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // Provider methods (former Events)
+  // Fetch user from backend
+  // ---------------------------------------------------------------------------
+
+  /// Fetch the full user profile from the backend using [userId].
+  ///
+  /// Calls `GET /api/users/:id`. Returns the [UserModel] on success,
+  /// or `null` if the user was not found.
+  Future<UserModel?> fetchUser({String? userId}) async {
+    final id = userId ?? UserLocalStorage.getUserId();
+    if (id == null || id.isEmpty) return null;
+
+    final token = UserLocalStorage.getToken();
+    final result = await _api.getUserById(id: id, token: token);
+
+    if (result != null) {
+      _user = result;
+      notifyListeners();
+      debugPrint('✅ Fetched user from backend: ${result.username}');
+    } else {
+      debugPrint('⚠️ Failed to fetch user by id: $id');
+    }
+
+    return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Auth Check (for splash screen)
   // ---------------------------------------------------------------------------
 
   /// Check whether the user is already logged in (e.g. on app start).
+  ///
+  /// Reads userId + token from Hive. If they exist, fetches full user
+  /// data from the backend and sets [AuthStatus.authenticated].
   Future<void> checkAuth() async {
     _status = AuthStatus.loading;
     notifyListeners();
 
     try {
-      // TODO: Check stored token / session.
-      _status = AuthStatus.unauthenticated;
+      final storedUserId = UserLocalStorage.getUserId();
+      final storedToken = UserLocalStorage.getToken();
+
+      if (storedUserId != null && storedToken != null) {
+        // First try to load from local storage
+        final localData = UserLocalStorage.getUserData();
+        if (localData != null) {
+          _user = UserModel.fromJson(localData);
+          _status = AuthStatus.authenticated;
+          notifyListeners();
+
+          // Fetch full user data from backend asynchronously to update local cache
+          fetchUser(userId: storedUserId)
+              .then((fetchedUser) async {
+                if (fetchedUser != null) {
+                  _user = fetchedUser;
+                  await UserLocalStorage.saveUserData(fetchedUser.toJson());
+                  notifyListeners();
+                }
+              })
+              .catchError((e) {
+                debugPrint('checkAuth background fetch failed: $e');
+              });
+        } else {
+          // If missing in local storage, get user details from backend using getbyid (via fetchUser)
+          final fetchedUser = await fetchUser(userId: storedUserId);
+          if (fetchedUser != null) {
+            _user = fetchedUser;
+            await UserLocalStorage.saveUserData(fetchedUser.toJson());
+            _status = AuthStatus.authenticated;
+          } else {
+            // Fallback user just in case the API fetch fails, to keep user logged in as requested
+            _user = UserModel(
+              uid: storedUserId,
+              username: "User",
+              email: "",
+              countryCode: "",
+              phoneNumber: UserLocalStorage.getPhoneNumber() ?? "",
+              createdAt: DateTime.now(),
+            );
+            _status = AuthStatus.authenticated;
+          }
+        }
+      } else {
+        _status = AuthStatus.unauthenticated;
+      }
       notifyListeners();
     } catch (e) {
       debugPrint('Check Auth error: $e');
-      _status = AuthStatus.failure;
-      _errorMessage = e.toString();
+      _status = AuthStatus.unauthenticated;
       notifyListeners();
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // OTP - Send
+  // ---------------------------------------------------------------------------
+
   /// Send an OTP to the provided phone number.
-  Future<void> requestOtp({
+  ///
+  /// Calls `POST /api/otp/send-otp`.
+  /// Returns `true` if the OTP was sent successfully, `false` otherwise.
+  Future<bool> requestOtp({
     required String countryCode,
     required String phoneNumber,
   }) async {
-    // TODO: BYPASS — SMS service not implemented yet.
-    // Uncomment the API call below when ready.
-    // final result = await _api.sendOtp(
-    //   countryCode: countryCode,
-    //   phoneNumber: phoneNumber,
-    // );
-
-    _startResendTimer();
-    _status = AuthStatus.otpSent;
-    _phoneNumber = phoneNumber;
+    _isOtpLoading = true;
+    _errorMessage = null;
     notifyListeners();
+
+    try {
+      final result = await _api.sendOtp(
+        countryCode: countryCode,
+        phoneNumber: phoneNumber,
+      );
+
+      _isOtpLoading = false;
+
+      if (result['success'] == true) {
+        _startResendTimer();
+        _status = AuthStatus.otpSent;
+        _phoneNumber = phoneNumber;
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = result['message'] as String? ?? 'Failed to send OTP';
+        _status = AuthStatus.failure;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Request OTP error: $e');
+      _isOtpLoading = false;
+      _errorMessage = 'Failed to send OTP. Please try again.';
+      _status = AuthStatus.failure;
+      notifyListeners();
+      return false;
+    }
   }
 
+  // ---------------------------------------------------------------------------
+  // OTP - Verify
+  // ---------------------------------------------------------------------------
+
   /// Verify the OTP entered by the user.
+  ///
+  /// Calls `POST /api/otp/verify-otp`.
+  ///
+  /// Backend response contains:
+  /// - `accessToken`, `refreshToken`
+  /// - `user` object (only if the phone number belongs to an existing user)
+  ///
+  /// If `user` exists in the response:
+  ///   → Save userId + phoneNumber + tokens to Hive
+  ///   → [AuthStatus.authenticated]
+  /// If `user` is absent/null:
+  ///   → Save tokens to Hive → [AuthStatus.otpVerified] (navigate to signup)
   Future<void> verifyOtp({
     required String otp,
     required String countryCode,
     required String phoneNumber,
   }) async {
-    // TODO: BYPASS — SMS service not implemented yet.
-    // Uncomment the API call below when ready.
-    // final result = await _api.verifyOtp(
-    //   countryCode: countryCode,
-    //   phoneNumber: phoneNumber,
-    //   otp: otp,
-    // );
-
-    _cancelResendTimer();
-    _status = AuthStatus.otpVerified;
-    _phoneNumber = phoneNumber;
-    _resendCountdown = 0;
+    _isOtpLoading = true;
+    _errorMessage = null;
     notifyListeners();
+
+    try {
+      final result = await _api.verifyOtp(
+        countryCode: countryCode,
+        phoneNumber: phoneNumber,
+        otp: otp,
+      );
+
+      _isOtpLoading = false;
+      _cancelResendTimer();
+
+      if (result['success'] == true) {
+        final accessToken = result['accessToken'] as String?;
+        final refreshToken = result['refreshToken'] as String?;
+
+        final isRegistered = accessToken != null && accessToken.isNotEmpty;
+
+        if (isRegistered) {
+          // --- Save tokens ---
+          if (refreshToken != null) {
+            await UserLocalStorage.saveTokens(
+              accessToken: accessToken,
+              refreshToken: refreshToken,
+            );
+          } else {
+            await UserLocalStorage.saveToken(accessToken);
+          }
+
+          // --- Check if user exists ---
+          final userData = result['user'];
+          if (userData != null && userData is Map<String, dynamic>) {
+            // Existing user → save only userId + phoneNumber
+            _user = UserModel.fromJson(userData);
+            final uid = userData['_id'] ?? userData['id'] ?? '';
+            final phone = userData['phoneNumber'] ?? phoneNumber;
+
+            await UserLocalStorage.saveUserCredentials(
+              userId: uid as String,
+              phoneNumber: phone as String,
+            );
+
+            // Persist the full user data locally
+            await UserLocalStorage.saveUserData(userData);
+          }
+
+          _status = AuthStatus.authenticated;
+          _phoneNumber = phoneNumber;
+          _resendCountdown = 0;
+          debugPrint('✅ Existing user logged in: ${_user?.username ?? ''}');
+        } else {
+          // New user → navigate to signup
+          _status = AuthStatus.otpVerified;
+          _phoneNumber = phoneNumber;
+          _resendCountdown = 0;
+          debugPrint('🆕 New user — redirecting to signup');
+        }
+
+        notifyListeners();
+      } else {
+        // Check if this is a "user not found" scenario — OTP was valid but
+        // no account exists yet. Treat as new user → go to signup.
+        final message = (result['message'] as String? ?? '').toLowerCase();
+        if (message.contains('not found') ||
+            message.contains('not registered') ||
+            message.contains('register first') ||
+            message.contains('not exist')) {
+          // Save tokens if the backend returned them even on "failure"
+          final accessToken = result['accessToken'] as String?;
+          final refreshToken = result['refreshToken'] as String?;
+          if (accessToken != null && refreshToken != null) {
+            await UserLocalStorage.saveTokens(
+              accessToken: accessToken,
+              refreshToken: refreshToken,
+            );
+          } else if (accessToken != null) {
+            await UserLocalStorage.saveToken(accessToken);
+          }
+
+          _status = AuthStatus.otpVerified;
+          _phoneNumber = phoneNumber;
+          _resendCountdown = 0;
+          debugPrint(
+            '🆕 New user (backend: "$message") — redirecting to signup',
+          );
+          notifyListeners();
+        } else {
+          _errorMessage =
+              result['message'] as String? ?? 'OTP verification failed';
+          _status = AuthStatus.failure;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Verify OTP error: $e');
+      _isOtpLoading = false;
+      _errorMessage = 'Verification failed. Please try again.';
+      _status = AuthStatus.failure;
+      notifyListeners();
+    }
   }
+
+  // ---------------------------------------------------------------------------
+  // OTP - Resend
+  // ---------------------------------------------------------------------------
 
   /// Resend the OTP and restart the cooldown timer.
   Future<void> requestOtpResend({
@@ -138,18 +361,22 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     if (_resendCountdown > 0) return;
 
-    // TODO: BYPASS — SMS service not implemented yet.
-    // Uncomment the API call below when ready.
-    // final result = await _api.sendOtp(
-    //   countryCode: countryCode,
-    //   phoneNumber: phoneNumber,
-    // );
+    final result = await _api.sendOtp(
+      countryCode: countryCode,
+      phoneNumber: phoneNumber,
+    );
 
-    _startResendTimer();
-    _status = AuthStatus.otpSent;
-    _phoneNumber = phoneNumber;
-    notifyListeners();
+    if (result['success'] == true) {
+      _startResendTimer();
+      _status = AuthStatus.otpSent;
+      _phoneNumber = phoneNumber;
+      notifyListeners();
+    }
   }
+
+  // ---------------------------------------------------------------------------
+  // Signup
+  // ---------------------------------------------------------------------------
 
   /// Create the user profile after signup form submission.
   Future<void> submitSignUp({
@@ -167,6 +394,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final token = UserLocalStorage.getToken();
       final result = await _api.createUser(
         username: username,
         email: email,
@@ -177,11 +405,37 @@ class AuthProvider extends ChangeNotifier {
         long: long,
         profileImage: profileImage,
         specialId: specialId,
+        token: token,
       );
 
       if (result['success'] == true) {
+        // --- Save tokens ---
+        final accessToken = result['accessToken'] as String?;
+        final refreshToken = result['refreshToken'] as String?;
+
+        if (accessToken != null && refreshToken != null) {
+          await UserLocalStorage.saveTokens(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          );
+        } else if (accessToken != null) {
+          await UserLocalStorage.saveToken(accessToken);
+        }
+
         final userData = result['user'] ?? result['data'] ?? result;
-        _user = UserModel.fromJson(userData as Map<String, dynamic>);
+        if (userData is Map<String, dynamic>) {
+          _user = UserModel.fromJson(userData);
+          final uid = userData['_id'] ?? userData['id'] ?? '';
+
+          await UserLocalStorage.saveUserCredentials(
+            userId: uid as String,
+            phoneNumber: phoneNumber,
+          );
+
+          // Persist the full user data locally
+          await UserLocalStorage.saveUserData(userData);
+        }
+
         _status = AuthStatus.authenticated;
         notifyListeners();
       } else {
@@ -194,6 +448,41 @@ class AuthProvider extends ChangeNotifier {
       _status = AuthStatus.failure;
       _errorMessage = e.toString();
       notifyListeners();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Token Refresh
+  // ---------------------------------------------------------------------------
+
+  /// Refresh the access token using the stored refresh token.
+  Future<bool> refreshToken() async {
+    final storedRefreshToken = UserLocalStorage.getRefreshToken();
+    if (storedRefreshToken == null) return false;
+
+    try {
+      final result = await _api.refreshAccessToken(
+        refreshToken: storedRefreshToken,
+      );
+
+      if (result['success'] == true) {
+        final newAccess = result['accessToken'] as String?;
+        final newRefresh = result['refreshToken'] as String?;
+
+        if (newAccess != null && newRefresh != null) {
+          await UserLocalStorage.saveTokens(
+            accessToken: newAccess,
+            refreshToken: newRefresh,
+          );
+        } else if (newAccess != null) {
+          await UserLocalStorage.saveToken(newAccess);
+        }
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Token refresh error: $e');
+      return false;
     }
   }
 
@@ -232,7 +521,6 @@ class AuthProvider extends ChangeNotifier {
 
       _googleResult = result;
 
-      // Debug print the full ID token
       debugPrint('🔐 Google Sign-In │ ID Token:');
       debugPrint('🔐 Google Sign-In │ ${result.idToken}');
       debugPrint('🔐 Google Sign-In │ Email: ${result.email}');
@@ -262,7 +550,16 @@ class AuthProvider extends ChangeNotifier {
           final userData = response['user'] ?? response['data'];
           if (userData is Map<String, dynamic>) {
             _user = UserModel.fromJson(userData);
-            await UserLocalStorage.saveUser(_user!);
+            final uid = userData['_id'] ?? userData['id'] ?? '';
+            final phone = userData['phoneNumber'] ?? '';
+
+            await UserLocalStorage.saveUserCredentials(
+              userId: uid as String,
+              phoneNumber: phone as String,
+            );
+
+            // Persist the full user data locally
+            await UserLocalStorage.saveUserData(userData);
           }
 
           final token = response['token'] as String?;
@@ -287,6 +584,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------------------------------------------------------------------------
+  // Logout
+  // ---------------------------------------------------------------------------
+
   /// Sign the user out.
   Future<void> logout() async {
     _status = AuthStatus.loading;
@@ -300,6 +601,9 @@ class AuthProvider extends ChangeNotifier {
       // Sign out of Google as well
       await GoogleSignInService.instance.signOut();
 
+      // Clear local storage
+      await UserLocalStorage.clearUser();
+
       _cancelResendTimer();
       _user = null;
       _phoneNumber = null;
@@ -310,6 +614,48 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Logout error: $e');
+      _status = AuthStatus.failure;
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
+  }
+  // ---------------------------------------------------------------------------
+  // Delete Account
+  // ---------------------------------------------------------------------------
+
+  /// Delete the user account.
+  Future<void> deleteAccount() async {
+    _status = AuthStatus.loading;
+    notifyListeners();
+
+    try {
+      final id = UserLocalStorage.getUserId();
+      final token = UserLocalStorage.getToken();
+
+      if (id != null) {
+        // Delete user on the backend
+        await _api.deleteUser(id: id, token: token);
+      }
+
+      // Delete the FCM token so this device stops receiving notifications
+      await NotificationService.instance.deleteToken();
+
+      // Sign out of Google as well
+      await GoogleSignInService.instance.signOut();
+
+      // Clear local storage
+      await UserLocalStorage.clearUser();
+
+      _cancelResendTimer();
+      _user = null;
+      _phoneNumber = null;
+      _errorMessage = null;
+      _googleResult = null;
+      _resendCountdown = 0;
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Delete Account error: $e');
       _status = AuthStatus.failure;
       _errorMessage = e.toString();
       notifyListeners();

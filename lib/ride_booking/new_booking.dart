@@ -10,7 +10,13 @@ import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/authentication/location_picker.dart';
 import 'package:premium_force_main/ride_booking/voice_note_dialog.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:premium_force_main/models/booking_request_model.dart';
+import 'package:premium_force_main/models/car_model.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -24,6 +30,8 @@ class NewBooking extends StatefulWidget {
 class _NewBookingState extends State<NewBooking> {
   late int _selectedCatCode;
   late int _selectedCityCode;
+
+  bool _isCalculatingDistance = false;
 
   double _totalDistance = 50.0;
 
@@ -39,8 +47,8 @@ class _NewBookingState extends State<NewBooking> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedVehicleClass = "Luxury Sedan";
-  String? _selectedVehicleBrand = "Brand 1";
-  String? _selectedVehicleModel = "Model 1";
+  String? _selectedVehicleBrand = "Mercedes";
+  String? _selectedVehicleModel = "S-Class S450";
   String? _numberOfPassengers = "1";
   DateTime? _selectedPickupDate;
   TimeOfDay? _selectedPickupTime;
@@ -60,6 +68,39 @@ class _NewBookingState extends State<NewBooking> {
   int _selectedTerminalCode = 0;
   OverlayEntry? _overlayEntry;
   String _selectedPassengerCountryCode = '966';
+
+  double get _calculatedCharge {
+    final selectedCar = availableCars.firstWhere(
+      (c) =>
+          c.className == _selectedVehicleClass &&
+          c.brand == _selectedVehicleBrand &&
+          c.modelName == _selectedVehicleModel,
+      orElse: () => availableCars.first,
+    );
+    final distance = selectedCar.distance > 0 ? selectedCar.distance : 1;
+    return (_totalDistance / distance) * selectedCar.price;
+  }
+
+  bool _isDarkLogo(String brandName) {
+    final lowerBrand = brandName.toLowerCase();
+    const darkLogos = [
+      'audi',
+      'rolls-royce',
+      'mini',
+      'lexus',
+      'tesla',
+      'maserati',
+      'maybach',
+      'jeep',
+      'bentley',
+      'aston-martin',
+      'honda',
+      'hyundai',
+      'nissan',
+      'lucid',
+    ];
+    return darkLogos.contains(lowerBrand);
+  }
 
   List<String> _getTerminals(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -99,6 +140,66 @@ class _NewBookingState extends State<NewBooking> {
     flightNumberController.dispose();
     specialRequestsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _calculateActualDistance() async {
+    String originStr = "";
+    String destStr = "";
+
+    String airportQuery;
+    if (_selectedCityCode == 1) {
+      airportQuery = "King Fahd International Airport, Dammam, Saudi Arabia";
+    } else if (_selectedCityCode == 2) {
+      airportQuery =
+          "King Abdulaziz International Airport, Jeddah, Saudi Arabia";
+    } else {
+      airportQuery = "King Khalid International Airport, Riyadh, Saudi Arabia";
+    }
+
+    if (_selectedCatCode == 0) {
+      // Airport Arrival
+      originStr = airportQuery;
+      destStr = "${_dropLat ?? 0},${_dropLng ?? 0}";
+    } else if (_selectedCatCode == 1) {
+      // Airport Departure
+      originStr = "${_pickupLat ?? 0},${_pickupLng ?? 0}";
+      destStr = airportQuery;
+    } else {
+      // Chauffeur
+      originStr = "${_pickupLat ?? 0},${_pickupLng ?? 0}";
+      destStr = "${_dropLat ?? 0},${_dropLng ?? 0}";
+    }
+
+    if (originStr.contains("0.0,0.0") || destStr.contains("0.0,0.0")) return;
+
+    try {
+      final dio = Dio();
+      const String apiKey =
+          "AIzaSyCMz7AHUHfw1BV6MTtWS2zwvLPk3XsnpGk"; // Extracted from AndroidManifest
+
+      final String encodedOrigin = Uri.encodeComponent(originStr);
+      final String encodedDest = Uri.encodeComponent(destStr);
+
+      final url =
+          "https://maps.googleapis.com/maps/api/directions/json?origin=$encodedOrigin&destination=$encodedDest&key=$apiKey";
+
+      final response = await dio.get(url);
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data['status'] == 'OK' && (data['routes'] as List).isNotEmpty) {
+          final legs = data['routes'][0]['legs'];
+          if (legs != null && legs.isNotEmpty) {
+            final distanceMeters = legs[0]['distance']['value'];
+            setState(() {
+              _totalDistance = distanceMeters / 1000.0;
+              print("Distance: $_totalDistance");
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Distance calculation error: \$e");
+    }
   }
 
   void _showCustomSnackBar(String message, String type) {
@@ -187,7 +288,6 @@ class _NewBookingState extends State<NewBooking> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              buildStepper(context),
               SizedBox(height: 16),
               AnimatedSize(
                 duration: const Duration(milliseconds: 300),
@@ -252,69 +352,137 @@ class _NewBookingState extends State<NewBooking> {
                   text: showReviewAndConfirm
                       ? loc.bookService
                       : loc.continueText,
-                  onTap: () {
-                    if (showTripInfo) {
-                      if (_tripInfoFormKey.currentState?.validate() ?? false) {
-                        if (_selectedCatCode == 1 &&
-                            _selectedDate != null &&
-                            _selectedTime != null &&
-                            _selectedPickupDate != null &&
-                            _selectedPickupTime != null) {
-                          final depDateTime = DateTime(
-                            _selectedDate!.year,
-                            _selectedDate!.month,
-                            _selectedDate!.day,
-                            _selectedTime!.hour,
-                            _selectedTime!.minute,
-                          );
-                          final pickDateTime = DateTime(
-                            _selectedPickupDate!.year,
-                            _selectedPickupDate!.month,
-                            _selectedPickupDate!.day,
-                            _selectedPickupTime!.hour,
-                            _selectedPickupTime!.minute,
-                          );
+                  onTap: _isCalculatingDistance
+                      ? () {}
+                      : () async {
+                          if (showTripInfo) {
+                            if (_tripInfoFormKey.currentState?.validate() ??
+                                false) {
+                              if (_selectedCatCode == 1 &&
+                                  _selectedDate != null &&
+                                  _selectedTime != null &&
+                                  _selectedPickupDate != null &&
+                                  _selectedPickupTime != null) {
+                                final depDateTime = DateTime(
+                                  _selectedDate!.year,
+                                  _selectedDate!.month,
+                                  _selectedDate!.day,
+                                  _selectedTime!.hour,
+                                  _selectedTime!.minute,
+                                );
+                                final pickDateTime = DateTime(
+                                  _selectedPickupDate!.year,
+                                  _selectedPickupDate!.month,
+                                  _selectedPickupDate!.day,
+                                  _selectedPickupTime!.hour,
+                                  _selectedPickupTime!.minute,
+                                );
 
-                          if (pickDateTime.isAfter(depDateTime)) {
-                            _showCustomSnackBar(
-                              loc.pickupTimeCannotBeAfterDepartureTime,
-                              'E',
+                                if (pickDateTime.isAfter(depDateTime)) {
+                                  _showCustomSnackBar(
+                                    loc.pickupTimeCannotBeAfterDepartureTime,
+                                    'E',
+                                  );
+                                  return;
+                                }
+                              }
+                              setState(() {
+                                showPreferances = true;
+                                showTripInfo = false;
+                                showPassenger = false;
+                                showReviewAndConfirm = false;
+                              });
+                            }
+                          } else if (showPreferances) {
+                            if (_preferencesFormKey.currentState?.validate() ??
+                                false) {
+                              setState(() {
+                                showPassenger = true;
+                                showTripInfo = false;
+                                showPreferances = false;
+                                showReviewAndConfirm = false;
+                              });
+                            }
+                          } else if (showPassenger) {
+                            if (_passengerFormKey.currentState?.validate() ??
+                                false) {
+                              setState(() {
+                                _isCalculatingDistance = true;
+                              });
+                              await _calculateActualDistance();
+                              setState(() {
+                                showReviewAndConfirm = true;
+                                showTripInfo = false;
+                                showPreferances = false;
+                                showPassenger = false;
+                                _isCalculatingDistance = false;
+                              });
+                            }
+                          } else if (showReviewAndConfirm) {
+                            String getIsoDateTime(DateTime? d, TimeOfDay? t) {
+                              if (d == null || t == null) return "";
+                              return DateTime(
+                                d.year,
+                                d.month,
+                                d.day,
+                                t.hour,
+                                t.minute,
+                              ).toUtc().toIso8601String();
+                            }
+
+                            BookingRequestModel
+                            requestModel = BookingRequestModel(
+                              category: _getServiceName(
+                                context,
+                                _selectedCatCode,
+                              ),
+                              city: _getCityName(context, _selectedCityCode),
+                              airport: _getTerminals(
+                                context,
+                              )[_selectedTerminalCode],
+                              arrival: getIsoDateTime(
+                                _selectedDate,
+                                _selectedTime,
+                              ),
+                              pickupLat: _pickupLat?.toString(),
+                              pickupLong: _pickupLng?.toString(),
+                              dropOffLat: _dropLat?.toString(),
+                              dropOffLong: _dropLng?.toString(),
+                              dropOffAddress: _dropAddress ?? _pickupAddress,
+                              carclass: _selectedVehicleClass,
+                              carbrand: _selectedVehicleBrand,
+                              carmodel: _selectedVehicleModel,
+                              specialRequestText:
+                                  specialRequestsController.text,
+                              specialRequestAudio:
+                                  _specialRequestsVoiceNotePath != null
+                                  ? File(_specialRequestsVoiceNotePath!)
+                                  : null,
+                              passengerCount: _numberOfPassengers,
+                              passengerNames: jsonEncode([
+                                _passengerNameController.text,
+                              ]),
+                              passengerMobile:
+                                  "+$_selectedPassengerCountryCode ${_mobileNumberController.text}",
+                              distance:
+                                  "${_totalDistance.toStringAsFixed(2)} km",
+                              charge:
+                                  "${(_calculatedCharge * 1.15).toStringAsFixed(2)}",
+                              bookingStatus: "pending",
+                              paymentStatus: "false",
                             );
-                            return;
+
+                            print(
+                              "=========== BOOKING REQUEST MODEL START ===========",
+                            );
+                            print(requestModel.toString());
+                            print(
+                              "=========== BOOKING REQUEST MODEL END ===========",
+                            );
                           }
-                        }
-                        setState(() {
-                          showPreferances = true;
-                          showTripInfo = false;
-                          showPassenger = false;
-                          showReviewAndConfirm = false;
-                        });
-                      }
-                    } else if (showPreferances) {
-                      if (_preferencesFormKey.currentState?.validate() ??
-                          false) {
-                        setState(() {
-                          showPassenger = true;
-                          showTripInfo = false;
-                          showPreferances = false;
-                          showReviewAndConfirm = false;
-                        });
-                      }
-                    } else if (showPassenger) {
-                      if (_passengerFormKey.currentState?.validate() ?? false) {
-                        setState(() {
-                          showReviewAndConfirm = true;
-                          showTripInfo = false;
-                          showPreferances = false;
-                          showPassenger = false;
-                        });
-                      }
-                    } else if (showReviewAndConfirm) {
-                      // Handle booking submission
-                    }
-                  },
+                        },
                   fontsize: 16,
-                  showLoader: false,
+                  showLoader: _isCalculatingDistance,
                 ),
               ),
               SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 32),
@@ -353,22 +521,63 @@ class _NewBookingState extends State<NewBooking> {
           ),
         ),
         SizedBox(height: 16),
+
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Bookingcard(
-            isFromReviewAndConfirm: true,
-            status: "",
-            type: "Airport Arrival",
-            pickup: "city centre, riyadh",
-            dropoff: "airport",
-            date: "2024-01-01",
-            time: "10:00",
-            ride: "sedan",
-            brand: "mercedes-amg",
+          child: Builder(
+            builder: (context) {
+              String getDisplayDate() {
+                if (_selectedCatCode == 0) {
+                  return _selectedDate != null
+                      ? DateFormat("yyyy-MM-dd").format(_selectedDate!)
+                      : "";
+                } else {
+                  return _selectedPickupDate != null
+                      ? DateFormat("yyyy-MM-dd").format(_selectedPickupDate!)
+                      : "";
+                }
+              }
+
+              String getDisplayTime() {
+                if (_selectedCatCode == 0) {
+                  return _selectedTime != null
+                      ? _selectedTime!.format(context)
+                      : "";
+                } else {
+                  return _selectedPickupTime != null
+                      ? _selectedPickupTime!.format(context)
+                      : "";
+                }
+              }
+
+              String getPickup() {
+                if (_selectedCatCode == 0) {
+                  return _getTerminals(context)[_selectedTerminalCode];
+                }
+                return _pickupAddress ?? "";
+              }
+
+              String getDropoff() {
+                if (_selectedCatCode == 1) {
+                  return _getTerminals(context)[_selectedTerminalCode];
+                }
+                return _dropAddress ?? "";
+              }
+
+              return Bookingcard(
+                isFromReviewAndConfirm: true,
+                status: "",
+                type: _getServiceName(context, _selectedCatCode),
+                pickup: getPickup(),
+                dropoff: getDropoff(),
+                date: getDisplayDate(),
+                time: getDisplayTime(),
+                ride: _selectedVehicleClass ?? "",
+                brand: _selectedVehicleBrand ?? "",
+              );
+            },
           ),
         ),
-        SizedBox(height: 20),
-        buildVehiclePreview(context, loc),
         SizedBox(height: 20),
         buildPaymentSummary(context, loc),
       ],
@@ -426,6 +635,7 @@ class _NewBookingState extends State<NewBooking> {
                   ],
                 ),
                 SizedBox(height: 8),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -443,7 +653,7 @@ class _NewBookingState extends State<NewBooking> {
                       children: [
                         RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " ${(_totalDistance * 50).toStringAsFixed(2)}",
+                          " ${_calculatedCharge.toStringAsFixed(2)}",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -472,7 +682,7 @@ class _NewBookingState extends State<NewBooking> {
                       children: [
                         RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " ${(_totalDistance * 50 * 0.15).toStringAsFixed(2)}",
+                          " ${(_calculatedCharge * 0.15).toStringAsFixed(2)}",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -503,7 +713,7 @@ class _NewBookingState extends State<NewBooking> {
                       children: [
                         RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " ${(_totalDistance * 50 + _totalDistance * 50 * 0.15).toStringAsFixed(2)}",
+                          " ${(_calculatedCharge * 1.15).toStringAsFixed(2)}",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -723,8 +933,6 @@ class _NewBookingState extends State<NewBooking> {
           SizedBox(height: 16),
           buildVehicleModelSelector(context, loc),
           SizedBox(height: 16),
-          buildVehiclePreview(context, loc),
-          SizedBox(height: 16),
           buildSpecialRequests(context, loc),
         ],
       ),
@@ -820,6 +1028,31 @@ class _NewBookingState extends State<NewBooking> {
                   _selectedVehicleClass = classes.entries
                       .firstWhere((e) => e.value == value)
                       .key;
+
+                  final availableBrands = availableCars
+                      .where((c) => c.className == _selectedVehicleClass)
+                      .map((c) => c.brand)
+                      .toSet()
+                      .toList();
+
+                  if (availableBrands.isNotEmpty) {
+                    _selectedVehicleBrand = availableBrands.first;
+
+                    final availableModels = availableCars
+                        .where(
+                          (c) =>
+                              c.className == _selectedVehicleClass &&
+                              c.brand == _selectedVehicleBrand,
+                        )
+                        .map((c) => c.modelName)
+                        .toList();
+                    _selectedVehicleModel = availableModels.isNotEmpty
+                        ? availableModels.first
+                        : null;
+                  } else {
+                    _selectedVehicleBrand = null;
+                    _selectedVehicleModel = null;
+                  }
                 });
               }
             },
@@ -832,7 +1065,14 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildVehicleBrandSelector(BuildContext context, AppLocalizations loc) {
-    final List<String> brands = ["Brand 1", "Brand 2", "Brand 3"];
+    final List<String> brands = availableCars
+        .where((c) => c.className == _selectedVehicleClass)
+        .map((c) => c.brand)
+        .toSet()
+        .toList();
+
+    if (brands.isEmpty) return const SizedBox();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -855,6 +1095,19 @@ class _NewBookingState extends State<NewBooking> {
                   onTap: () {
                     setState(() {
                       _selectedVehicleBrand = brand;
+
+                      final availableModels = availableCars
+                          .where(
+                            (c) =>
+                                c.className == _selectedVehicleClass &&
+                                c.brand == _selectedVehicleBrand,
+                          )
+                          .map((c) => c.modelName)
+                          .toList();
+                      if (availableModels.isNotEmpty &&
+                          !availableModels.contains(_selectedVehicleModel)) {
+                        _selectedVehicleModel = availableModels.first;
+                      }
                     });
                   },
                   child: Container(
@@ -875,10 +1128,30 @@ class _NewBookingState extends State<NewBooking> {
                     ),
                     child: Stack(
                       children: [
-                        Center(
-                          child: Text(
-                            brand,
-                            style: const TextStyle(color: Colors.white),
+                        Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: _isDarkLogo(brand)
+                                ? Colors.white.withAlpha(200)
+                                : Colors.transparent,
+                          ),
+                          padding: const EdgeInsets.all(12.0),
+                          child: CachedNetworkImage(
+                            imageUrl:
+                                "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/thumb/${brand.toLowerCase().replaceAll(' ', '-')}.png",
+                            fit: BoxFit.contain,
+                            errorWidget: (context, url, error) => Text(
+                              brand,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _isDarkLogo(brand)
+                                    ? Colors.black
+                                    : Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
                         if (isSelected)
@@ -904,61 +1177,34 @@ class _NewBookingState extends State<NewBooking> {
     );
   }
 
-  Map<String, String> _getVehicleModels(AppLocalizations loc) {
-    return {
-      "Model 1": loc.model1,
-      "Model 2": loc.model2,
-      "Model 3": loc.model3,
-    };
-  }
-
   Widget buildVehicleModelSelector(BuildContext context, AppLocalizations loc) {
-    final models = _getVehicleModels(loc);
+    final List<String> models = availableCars
+        .where(
+          (c) =>
+              c.className == _selectedVehicleClass &&
+              c.brand == _selectedVehicleBrand,
+        )
+        .map((c) => c.modelName)
+        .toList();
+
+    if (models.isEmpty) return const SizedBox();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: PremiumDropDown(
-        value: _selectedVehicleModel != null
-            ? models[_selectedVehicleModel]
+        value:
+            _selectedVehicleModel != null &&
+                models.contains(_selectedVehicleModel)
+            ? _selectedVehicleModel
             : null,
         title: loc.preferredModel,
-        items: models.values.toList(),
+        items: models,
         onChanged: (value) {
           if (value != null) {
             setState(() {
-              _selectedVehicleModel = models.entries
-                  .firstWhere((e) => e.value == value)
-                  .key;
+              _selectedVehicleModel = value;
             });
           }
         },
-      ),
-    );
-  }
-
-  Widget buildVehiclePreview(BuildContext context, AppLocalizations loc) {
-    return Padding(
-      padding: EdgeInsetsGeometry.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: MediaQuery.of(context).size.height * 0.35,
-            width: MediaQuery.of(context).size.width,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          SizedBox(height: 16),
-          Text(
-            "Mercedes-Benz S450",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1765,7 +2011,7 @@ class _NewBookingState extends State<NewBooking> {
   PreferredSizeWidget buidAppBar(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     return PreferredSize(
-      preferredSize: Size.fromHeight(kToolbarHeight),
+      preferredSize: Size.fromHeight(kToolbarHeight + 76),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -1815,6 +2061,10 @@ class _NewBookingState extends State<NewBooking> {
                 Navigator.pop(context);
               }
             },
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(76),
+            child: buildStepper(context),
           ),
         ),
       ),

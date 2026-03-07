@@ -484,6 +484,93 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookService => 'Book Service';
 
   @override
+  String get logoutConfirm => 'Are you sure you want to log out?';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get loginAgainMessage =>
+      'You will have to login again next time you open the app.';
+
+  @override
+  String get deleteAccountConfirm =>
+      'Are you sure you want to delete your account?';
+
+  @override
+  String get deleteAccountMessage =>
+      'This action cannot be undone and all your data will be cleared.';
+
+  @override
   String get pickupTimeCannotBeAfterDepartureTime =>
       'Pickup time cannot be after departure time';
+
+  @override
+  String get noRecentBookings => 'No recent bookings';
+
+  @override
+  String get noUpcomingBookings => 'No upcoming bookings';
+
+  @override
+  String get noOngoingBookings => 'No ongoing bookings';
+
+  @override
+  String get noCompletedBookings => 'No completed bookings';
+
+  @override
+  String get onceYouBookItWillAppearHere =>
+      'Once you book a service, it will appear here.';
+
+  @override
+  String get termsIntro =>
+      'These terms and conditions outline the rules and regulations for the use of the Premium Force application, a luxury chauffeur booking service operating in the Kingdom of Saudi Arabia.\n\nBy accessing this app, we assume you accept these terms and conditions. Do not continue to use Premium Force if you do not agree to take all of the terms and conditions stated on this page.\n';
+
+  @override
+  String get termsSection1Title => '1. App Services & Bookings';
+
+  @override
+  String get termsSection1Content =>
+      'Premium Force connects users with luxury chauffeur services within Saudi Arabia. All bookings are subject to availability, and we reserve the right to decline or cancel bookings under specific circumstances outlined in our policies.';
+
+  @override
+  String get termsSection2Title => '2. User Responsibilities';
+
+  @override
+  String get termsSection2Content =>
+      'You are specifically restricted from all of the following:\n• using this app in any way that impacts user access or disrupts the chauffeur services;\n• using this app contrary to the applicable laws and regulations of the Kingdom of Saudi Arabia;\n• behaving inappropriately towards our chauffeurs or damaging the provided luxury vehicles.';
+
+  @override
+  String get termsSection3Title => '3. Payments & Cancellations';
+
+  @override
+  String get termsSection3Content =>
+      'All payments for chauffeur services must be made through the approved methods within the app. Cancellation policies apply to all bookings. Late cancellations or no-shows may incur charges as detailed during the booking process.';
+
+  @override
+  String get termsSection4Title => '4. Privacy';
+
+  @override
+  String get termsSection4Content =>
+      'Please read our Privacy Policy. Your use of the Application signifies your continuing consent to our Privacy Policy regarding the collection and use of your personal and location data necessary for the chauffeur service.';
+
+  @override
+  String get termsSection5Title => '5. Disclaimer of Warranties';
+
+  @override
+  String get termsSection5Content =>
+      'This app is provided \"as is,\" and Premium Force expresses no representations or warranties related to the continuous availability of the app or specific chauffeurs.';
+
+  @override
+  String get termsSection6Title => '6. Governing Law & Jurisdiction';
+
+  @override
+  String get termsSection6Content =>
+      'These Terms will be governed by and interpreted in accordance with the laws of the Kingdom of Saudi Arabia, and you submit to the exclusive jurisdiction of the courts located in Saudi Arabia for the resolution of any disputes.';
+
+  @override
+  String get termsSection7Title => '7. Changes and Amendments';
+
+  @override
+  String get termsSection7Content =>
+      'We reserve the right to modify these terms or policies relating to the app or services at any time. Continued use of the app after any such changes shall constitute your consent to such changes.';
 }
