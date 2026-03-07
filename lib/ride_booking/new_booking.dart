@@ -270,6 +270,22 @@ class _NewBookingState extends State<NewBooking> {
     return 0;
   }
 
+  Map<String, double> _getAirportCoordinates() {
+    // Returns airport coordinates based on selected city code
+    switch (_selectedCityCode) {
+      case 1:
+        // Dammam - King Fahd International Airport
+        return {'lat': 26.1604, 'lng': 50.1508};
+      case 2:
+        // Jeddah - King Abdulaziz International Airport
+        return {'lat': 21.5433, 'lng': 39.1564};
+      case 0:
+      default:
+        // Riyadh - King Khalid International Airport
+        return {'lat': 24.9575, 'lng': 46.6982};
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -430,6 +446,38 @@ class _NewBookingState extends State<NewBooking> {
                               ).toUtc().toIso8601String();
                             }
 
+                            // Get airport coordinates
+                            final airportCoords = _getAirportCoordinates();
+                            double? finalPickupLat;
+                            double? finalPickupLng;
+                            double? finalDropOffLat;
+                            double? finalDropOffLng;
+                            String? finalDropOffAddress;
+
+                            // Assign coordinates based on booking type
+                            if (_selectedCatCode == 0) {
+                              // Airport Arrival: pickup is airport, dropoff is selected location
+                              finalPickupLat = airportCoords['lat'];
+                              finalPickupLng = airportCoords['lng'];
+                              finalDropOffLat = _dropLat;
+                              finalDropOffLng = _dropLng;
+                              finalDropOffAddress = _dropAddress;
+                            } else if (_selectedCatCode == 1) {
+                              // Airport Departure: pickup is selected location, dropoff is airport
+                              finalPickupLat = _pickupLat;
+                              finalPickupLng = _pickupLng;
+                              finalDropOffLat = airportCoords['lat'];
+                              finalDropOffLng = airportCoords['lng'];
+                              finalDropOffAddress = _getTerminals(context)[_selectedTerminalCode];
+                            } else {
+                              // Chauffeur Service: both are selected locations
+                              finalPickupLat = _pickupLat;
+                              finalPickupLng = _pickupLng;
+                              finalDropOffLat = _dropLat;
+                              finalDropOffLng = _dropLng;
+                              finalDropOffAddress = _dropAddress;
+                            }
+
                             BookingRequestModel
                             requestModel = BookingRequestModel(
                               category: _getServiceName(
@@ -444,11 +492,11 @@ class _NewBookingState extends State<NewBooking> {
                                 _selectedDate,
                                 _selectedTime,
                               ),
-                              pickupLat: _pickupLat?.toString(),
-                              pickupLong: _pickupLng?.toString(),
-                              dropOffLat: _dropLat?.toString(),
-                              dropOffLong: _dropLng?.toString(),
-                              dropOffAddress: _dropAddress ?? _pickupAddress,
+                              pickupLat: finalPickupLat?.toString(),
+                              pickupLong: finalPickupLng?.toString(),
+                              dropOffLat: finalDropOffLat?.toString(),
+                              dropOffLong: finalDropOffLng?.toString(),
+                              dropOffAddress: finalDropOffAddress ?? _pickupAddress,
                               carclass: _selectedVehicleClass,
                               carbrand: _selectedVehicleBrand,
                               carmodel: _selectedVehicleModel,
