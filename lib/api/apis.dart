@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/user.dart';
+import 'package:premium_force_main/storage/user_local_storage.dart';
 
 /// Centralised API service for the Premium Force app.
 ///
@@ -18,8 +19,8 @@ class ApiService {
   // Configuration
   // ---------------------------------------------------------------------------
 
-  /// Base URL of the AWS backend.
-  static const String _baseUrl = 'http://54.252.191.113:5000/api';
+  static const String _baseUrl =
+      'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api';
 
   // ---------------------------------------------------------------------------
   // Singleton + Dio instance
@@ -54,6 +55,69 @@ class ApiService {
         ),
       );
     }
+
+    // ── Token Refresh Interceptor ──────────────
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onError: (DioException e, ErrorInterceptorHandler handler) async {
+          // Check if error is 401 Unauthorized
+          if (e.response?.statusCode == 401) {
+            final refreshToken = UserLocalStorage.getRefreshToken();
+
+            if (refreshToken != null) {
+              debugPrint(
+                '🔄 API │ Access token expired. Attempting refresh...',
+              );
+              try {
+                // Use a separate Dio instance to avoid interceptor loops
+                final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
+                final refreshResponse = await refreshDio.post(
+                  '/otp/refresh-token',
+                  data: {'refreshToken': refreshToken},
+                );
+
+                if (refreshResponse.statusCode == 200 &&
+                    refreshResponse.data['success'] == true) {
+                  final newAccessToken = refreshResponse.data['accessToken'];
+                  final newRefreshToken = refreshResponse.data['refreshToken'];
+
+                  // Save new tokens
+                  if (newRefreshToken != null) {
+                    await UserLocalStorage.saveTokens(
+                      accessToken: newAccessToken,
+                      refreshToken: newRefreshToken,
+                    );
+                  } else {
+                    await UserLocalStorage.saveToken(newAccessToken);
+                  }
+
+                  debugPrint(
+                    '✅ API │ Token refreshed successfully. Retrying request...',
+                  );
+
+                  // Update the authorization header
+                  final requestOptions = e.requestOptions;
+                  requestOptions.headers['Authorization'] =
+                      'Bearer $newAccessToken';
+
+                  // Retry the original request with the new token
+                  final retryResponse = await _dio.fetch(requestOptions);
+                  return handler.resolve(retryResponse);
+                }
+              } catch (refreshErr) {
+                // Refresh failed (e.g. refresh token is also invalid)
+                debugPrint('❌ API │ Token refresh failed: $refreshErr');
+                // You could optionally trigger a full logout here
+                // UserLocalStorage.clearUser();
+                // AuthProvider().checkAuth(); // To reset state
+              }
+            }
+          }
+          // If not 401 or refresh failed, pass the error along
+          return handler.next(e);
+        },
+      ),
+    );
   }
 
   /// Attach a Bearer token for authenticated requests.
@@ -68,11 +132,16 @@ class ApiService {
   Future<Map<String, dynamic>> sendOtp({
     required String countryCode,
     required String phoneNumber,
+    String purpose = 'login',
   }) async {
     try {
       final response = await _dio.post(
-        '/auth/send-otp',
-        data: {'countryCode': countryCode, 'phoneNumber': phoneNumber},
+        '/otp/send-otp',
+        data: {
+          'countryCode': countryCode,
+          'phoneNumber': phoneNumber,
+          'purpose': purpose,
+        },
       );
       return _success(response);
     } catch (e) {
@@ -81,21 +150,40 @@ class ApiService {
   }
 
   /// Verify the [otp] for the given [phoneNumber].
+  ///
+  /// On success the backend returns:
+  /// - `accessToken` / `refreshToken`
+  /// - `user` (if the user already exists in DB)
   Future<Map<String, dynamic>> verifyOtp({
     required String countryCode,
     required String phoneNumber,
     required String otp,
-    String? sessionId,
+    String purpose = 'login',
   }) async {
     try {
       final response = await _dio.post(
-        '/auth/verify-otp',
+        '/otp/verify-otp',
         data: {
           'countryCode': countryCode,
           'phoneNumber': phoneNumber,
           'otp': otp,
-          if (sessionId != null) 'sessionId': sessionId,
+          'purpose': purpose,
         },
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Refresh the access token using a valid [refreshToken].
+  Future<Map<String, dynamic>> refreshAccessToken({
+    required String refreshToken,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/otp/refresh-token',
+        data: {'refreshToken': refreshToken},
       );
       return _success(response);
     } catch (e) {
@@ -118,7 +206,7 @@ class ApiService {
       debugPrint('🔐 Google Auth │ Sending data: $data');
 
       final response = await _dio.post(
-        'http://54.252.191.113:5000/auth/google',
+        'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/auth/google',
         data: data,
       );
 

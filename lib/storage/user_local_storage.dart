@@ -2,22 +2,23 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:premium_force_main/models/user.dart';
 
-/// Local storage service using Hive for persisting user data.
+/// Local storage service using Hive for persisting minimal user credentials.
 ///
-/// Stores the [UserModel] as a JSON map so no TypeAdapter / code-gen is needed.
+/// Only stores **userId**, **phoneNumber**, and auth tokens locally.
+/// Full user data is fetched from the backend via `GET /api/users/:id`
+/// whenever needed.
 ///
 /// Usage:
 /// ```dart
 /// // Initialize once (in main.dart)
 /// await UserLocalStorage.init();
 ///
-/// // Save user
-/// await UserLocalStorage.saveUser(user);
+/// // Save credentials after login
+/// await UserLocalStorage.saveUserCredentials(userId: '...', phoneNumber: '...');
 ///
-/// // Read user
-/// final user = UserLocalStorage.getUser();
+/// // Read stored id / phone
+/// final uid = UserLocalStorage.getUserId();
 ///
 /// // Check if logged in
 /// if (UserLocalStorage.isLoggedIn) { ... }
@@ -27,8 +28,15 @@ import 'package:premium_force_main/models/user.dart';
 /// ```
 class UserLocalStorage {
   static const String _boxName = 'user_box';
-  static const String _userKey = 'current_user';
+
+  // Keys
+  static const String _userIdKey = 'user_id';
+  static const String _phoneNumberKey = 'phone_number';
   static const String _tokenKey = 'auth_token';
+  static const String _refreshTokenKey = 'refresh_token';
+  static const String _fcmTokenKey = 'fcm_token';
+  static const String _userDataKey = 'user_data';
+  static const String _notificationStatusKey = 'notification_status';
 
   static late Box<dynamic> _box;
 
@@ -44,75 +52,117 @@ class UserLocalStorage {
   }
 
   // ---------------------------------------------------------------------------
-  // User CRUD
+  // User Credentials (minimal — only id + phone)
   // ---------------------------------------------------------------------------
 
-  /// Persist the current user.
-  static Future<void> saveUser(UserModel user) async {
-    await _box.put(_userKey, jsonEncode(user.toJson()));
-    debugPrint('💾 User saved: ${user.username}');
+  /// Save only the userId and phoneNumber after a successful login/signup.
+  static Future<void> saveUserCredentials({
+    required String userId,
+    required String phoneNumber,
+  }) async {
+    await _box.put(_userIdKey, userId);
+    await _box.put(_phoneNumberKey, phoneNumber);
+    debugPrint('💾 User credentials saved: id=$userId, phone=$phoneNumber');
   }
 
-  /// Retrieve the current user, or `null` if not logged in.
-  static UserModel? getUser() {
-    final raw = _box.get(_userKey);
-    if (raw == null) return null;
-    try {
-      final map = jsonDecode(raw as String) as Map<String, dynamic>;
-      return UserModel.fromJson(map);
-    } catch (e) {
-      debugPrint('💾 Error reading user: $e');
-      return null;
-    }
+  /// Retrieve the stored userId, or `null` if not logged in.
+  static String? getUserId() {
+    return _box.get(_userIdKey) as String?;
   }
 
-  /// Update specific fields of the stored user.
-  static Future<void> updateUser(UserModel Function(UserModel) updater) async {
-    final current = getUser();
-    if (current == null) return;
-    final updated = updater(current);
-    await saveUser(updated);
+  /// Retrieve the stored phone number, or `null`.
+  static String? getPhoneNumber() {
+    return _box.get(_phoneNumberKey) as String?;
   }
 
-  /// Remove the stored user (logout).
+  /// Remove all stored user data (logout).
   static Future<void> clearUser() async {
-    await _box.delete(_userKey);
+    await _box.delete(_userIdKey);
+    await _box.delete(_phoneNumberKey);
     await _box.delete(_tokenKey);
+    await _box.delete(_refreshTokenKey);
+    await _box.delete(_userDataKey);
     debugPrint('💾 User data cleared');
   }
 
   // ---------------------------------------------------------------------------
-  // Auth Token
+  // Full User Data (JSON)
   // ---------------------------------------------------------------------------
 
-  /// Persist the JWT / auth token.
+  /// Persist the full user profile as a JSON string.
+  ///
+  /// Call this after a successful login (verifyOtp with user data) or after
+  /// registration (createUser returns the new user object).
+  static Future<void> saveUserData(Map<String, dynamic> userData) async {
+    final jsonString = jsonEncode(userData);
+    await _box.put(_userDataKey, jsonString);
+    debugPrint('💾 Full user data saved locally');
+  }
+
+  /// Retrieve the stored user data as a JSON map, or `null` if not stored.
+  static Map<String, dynamic>? getUserData() {
+    final raw = _box.get(_userDataKey) as String?;
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('⚠️ Failed to decode stored user data: $e');
+      return null;
+    }
+  }
+
+  /// Remove only the cached user data (keeps credentials & tokens intact).
+  static Future<void> clearUserData() async {
+    await _box.delete(_userDataKey);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Auth Tokens (access + refresh)
+  // ---------------------------------------------------------------------------
+
+  /// Persist the access token (JWT).
   static Future<void> saveToken(String token) async {
     await _box.put(_tokenKey, token);
   }
 
-  /// Retrieve the stored token, or `null`.
+  /// Retrieve the stored access token, or `null`.
   static String? getToken() {
     return _box.get(_tokenKey) as String?;
+  }
+
+  /// Persist the refresh token.
+  static Future<void> saveRefreshToken(String token) async {
+    await _box.put(_refreshTokenKey, token);
+  }
+
+  /// Retrieve the stored refresh token, or `null`.
+  static String? getRefreshToken() {
+    return _box.get(_refreshTokenKey) as String?;
+  }
+
+  /// Save both tokens at once (convenience method after login/verify).
+  static Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    await _box.put(_tokenKey, accessToken);
+    await _box.put(_refreshTokenKey, refreshToken);
+    debugPrint('💾 Tokens saved');
   }
 
   // ---------------------------------------------------------------------------
   // Convenience
   // ---------------------------------------------------------------------------
 
-  /// Whether a user is currently persisted (i.e. logged in).
-  static bool get isLoggedIn => _box.containsKey(_userKey);
+  /// Whether a user is currently logged in (userId is stored).
+  static bool get isLoggedIn => _box.containsKey(_userIdKey);
 
-  /// Quick access to the user's UID without deserializing everything.
-  static String? get userId {
-    final user = getUser();
-    return user?.uid;
-  }
+  /// Alias for [getUserId] — for backward compatibility.
+  static String? get userId => getUserId();
 
   // ---------------------------------------------------------------------------
   // FCM Token
   // ---------------------------------------------------------------------------
-
-  static const String _fcmTokenKey = 'fcm_token';
 
   /// Persist the FCM registration token.
   static Future<void> saveFcmToken(String token) async {
@@ -128,5 +178,19 @@ class UserLocalStorage {
   /// Clear the stored FCM token (e.g. on logout / token rotation).
   static Future<void> clearFcmToken() async {
     await _box.delete(_fcmTokenKey);
+  }
+
+  // ---------------------------------------------------------------------------
+  // User Preferences
+  // ---------------------------------------------------------------------------
+
+  /// Persist the notification active status.
+  static Future<void> saveNotificationStatus(bool status) async {
+    await _box.put(_notificationStatusKey, status);
+  }
+
+  /// Retrieve the notification status, defaults to true.
+  static bool getNotificationStatus() {
+    return _box.get(_notificationStatusKey, defaultValue: true) as bool;
   }
 }

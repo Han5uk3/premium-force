@@ -1,19 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:premium_force_main/authentication/login.dart';
+import 'package:premium_force_main/home/home.dart';
+import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    Future.delayed(Duration(seconds: 3), () {
-      if (!context.mounted) return;
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Defer so the widget tree finishes building before AuthProvider
+    // calls notifyListeners().
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateAfterSplash();
+    });
+  }
+
+  Future<void> _navigateAfterSplash() async {
+    // Show splash for at least 3 seconds while checking auth in parallel
+    final authCheck = context.read<AuthProvider>().checkAuth();
+    await Future.wait([authCheck, Future.delayed(const Duration(seconds: 3))]);
+
+    if (!mounted) return;
+
+    final authProvider = context.read<AuthProvider>();
+
+    if (authProvider.status == AuthStatus.authenticated &&
+        authProvider.user != null) {
+      // User is logged in and data was fetched → go to Home
+      debugPrint('💾 User already logged in — skipping login');
+      Navigator.pushReplacement(context, SmoothNavigation.route(Home()));
+    } else {
+      // Not logged in or fetch failed → go to Login
       Navigator.pushReplacement(
         context,
         SmoothNavigation.route(const PremiumForceLoginPage()),
       );
-    });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [

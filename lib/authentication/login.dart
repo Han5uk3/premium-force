@@ -356,17 +356,36 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                           showLoader: _isLoading,
                           fontsize: 18,
                           text: AppLocalizations.of(context)!.continueText,
-                          onTap: () {
+                          onTap: () async {
                             if (_formKey.currentState!.validate() &&
                                 _isAgreed) {
-                              Navigator.of(context).push(
-                                SmoothNavigation.route(
-                                  OTPVerificationPage(
-                                    countryCode: '+$_selectedCountryCode',
-                                    phoneNumber: _mobileController.text.trim(),
-                                  ),
-                                ),
+                              setState(() => _isLoading = true);
+
+                              final authProvider = context.read<AuthProvider>();
+                              final success = await authProvider.requestOtp(
+                                countryCode: '+$_selectedCountryCode',
+                                phoneNumber: _mobileController.text.trim(),
                               );
+
+                              if (!mounted) return;
+                              setState(() => _isLoading = false);
+
+                              if (success) {
+                                Navigator.of(context).push(
+                                  SmoothNavigation.route(
+                                    OTPVerificationPage(
+                                      countryCode: '+$_selectedCountryCode',
+                                      phoneNumber: _mobileController.text
+                                          .trim(),
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                _showCustomSnackBar(
+                                  authProvider.errorMessage ??
+                                      'Failed to send OTP. Please try again.',
+                                );
+                              }
                             } else if (_isAgreed == false) {
                               _showCustomSnackBar(
                                 'Please agree to the terms and conditions and privacy policy.',

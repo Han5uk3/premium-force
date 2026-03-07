@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/borderedcontainer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premuimfleetcard.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/main.dart';
 import 'package:premium_force_main/ride_booking/new_booking.dart';
+import 'package:provider/provider.dart';
+import 'package:premium_force_main/providers/auth_provider.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -18,27 +19,26 @@ class Homepage extends StatefulWidget {
 class _HomepageState extends State<Homepage> {
   List cardItems = [
     {
-      "brand": "bmw",
-      "name": "735",
-      "passengerCount": "2",
-      "image":
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtt985QVNzHFbPZ4cvt2tQfmVsmSa9drlimw&s",
-    },
-    {
       "brand": "Audi",
       "name": "A4",
       "passengerCount": "2",
-      "image":
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtt985QVNzHFbPZ4cvt2tQfmVsmSa9drlimw&s",
+      "image": "https://wallpapercave.com/wp/wp7401750.jpg",
     },
     {
-      "brand": "mercedes-benz",
-      "name": "c220",
+      "brand": "Mercedes-Benz",
+      "name": "C220",
+      "passengerCount": "2",
+      "image": "https://4kwallpapers.com/images/walls/thumbs_3t/7449.jpg",
+    },
+    {
+      "brand": "BMW",
+      "name": "735i",
       "passengerCount": "2",
       "image":
-          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtt985QVNzHFbPZ4cvt2tQfmVsmSa9drlimw&s",
+          "https://www.hdwallpapers.in/thumbs/2017/2017_bmw_7_series_black_ice_edition-t2.jpg",
     },
   ];
+  /*
   List bookingItems = [
     {
       "status": "c",
@@ -124,6 +124,7 @@ class _HomepageState extends State<Homepage> {
       "brand": "رولز رويس",
     },
   ];
+  */
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +140,7 @@ class _HomepageState extends State<Homepage> {
             _buildPremiumFleet(context, loc),
             Flexible(child: _buildRecentBookings(context, loc)),
             Container(
-              height: 80,
+              height: 130,
               color: Color(0xff292929).withValues(alpha: 0.6),
             ),
           ],
@@ -166,6 +167,7 @@ class _HomepageState extends State<Homepage> {
               color: Colors.white,
             ),
           ),
+          /*
           Flexible(
             child: ListView.builder(
               itemCount: bookingItems.length,
@@ -187,6 +189,38 @@ class _HomepageState extends State<Homepage> {
                   ),
                 );
               },
+            ),
+          ),
+          */
+          SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.black.withAlpha(80),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.withAlpha(20)),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.history_rounded,
+                    size: 42,
+                    color: Colors.grey.withAlpha(120),
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    loc.noRecentBookings,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.withAlpha(200),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -243,6 +277,7 @@ class _HomepageState extends State<Homepage> {
   }
 
   Widget _buildBookService(BuildContext context, AppLocalizations loc) {
+    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
     return Container(
       height: 200,
       color: Color(0xFF401F02),
@@ -283,9 +318,12 @@ class _HomepageState extends State<Homepage> {
                         SizedBox(
                           height: 40,
                           width: 40,
-                          child: SvgPicture.asset(
-                            'assets/icons/arrival.svg',
-                            fit: BoxFit.fill,
+                          child: Transform.scale(
+                            scaleX: isArabic ? -1 : 1,
+                            child: SvgPicture.asset(
+                              'assets/icons/arrival.svg',
+                              fit: BoxFit.fill,
+                            ),
                           ),
                         ),
                         SizedBox(height: 8),
@@ -321,9 +359,12 @@ class _HomepageState extends State<Homepage> {
                         SizedBox(
                           height: 40,
                           width: 40,
-                          child: SvgPicture.asset(
-                            'assets/icons/departure.svg',
-                            fit: BoxFit.fill,
+                          child: Transform.scale(
+                            scaleX: isArabic ? -1 : 1,
+                            child: SvgPicture.asset(
+                              'assets/icons/departure.svg',
+                              fit: BoxFit.fill,
+                            ),
                           ),
                         ),
                         SizedBox(height: 8),
@@ -359,9 +400,12 @@ class _HomepageState extends State<Homepage> {
                         SizedBox(
                           height: 40,
                           width: 40,
-                          child: SvgPicture.asset(
-                            'assets/icons/chauffeur.svg',
-                            fit: BoxFit.fill,
+                          child: Transform.scale(
+                            scaleX: isArabic ? 1 : -1,
+                            child: SvgPicture.asset(
+                              'assets/icons/chauffeur.svg',
+                              fit: BoxFit.fill,
+                            ),
                           ),
                         ),
                         SizedBox(height: 8),
@@ -405,29 +449,68 @@ class _HomepageState extends State<Homepage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    loc.welcomeBack,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      loc.welcomeBack,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  Text(
-                    "Ahamed",
-                    style: TextStyle(
-                      fontSize: 35,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        String name =
+                            Provider.of<AuthProvider>(context).user?.username ??
+                            "User";
+                        final style = const TextStyle(
+                          fontSize: 35,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        );
+
+                        String fittedName = name;
+                        final textPainter = TextPainter(
+                          text: TextSpan(text: fittedName, style: style),
+                          maxLines: 1,
+                          textDirection: Directionality.of(context),
+                        )..layout(maxWidth: double.infinity);
+
+                        if (textPainter.width > constraints.maxWidth) {
+                          List<String> words = name.trim().split(
+                            RegExp(r'\s+'),
+                          );
+                          while (words.length > 1) {
+                            words.removeLast();
+                            fittedName = words.join(' ');
+                            textPainter.text = TextSpan(
+                              text: fittedName,
+                              style: style,
+                            );
+                            textPainter.layout(maxWidth: double.infinity);
+                            if (textPainter.width <= constraints.maxWidth) {
+                              break;
+                            }
+                          }
+                        }
+
+                        return Text(
+                          fittedName,
+                          style: style,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 16),
               CircleAvatar(
                 radius: 16,
                 child: Material(

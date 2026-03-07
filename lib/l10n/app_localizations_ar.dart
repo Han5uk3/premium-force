@@ -480,6 +480,91 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bookService => 'حجز الخدمة';
 
   @override
+  String get logoutConfirm => 'هل أنت متأكد من تسجيل الخروج؟';
+
+  @override
+  String get cancel => 'إلغاء';
+
+  @override
+  String get loginAgainMessage =>
+      'سيتعين عليك تسجيل الدخول مرة أخرى في المرة القادمة التي تفتح فيها التطبيق.';
+
+  @override
+  String get deleteAccountConfirm => 'هل أنت متأكد من حذف حسابك؟';
+
+  @override
+  String get deleteAccountMessage =>
+      'لا يمكن التراجع عن هذا الإجراء وسيتم مسح جميع بياناتك.';
+
+  @override
   String get pickupTimeCannotBeAfterDepartureTime =>
       'وقت الاستلام لا يمكن أن يكون بعد وقت المغادرة';
+
+  @override
+  String get noRecentBookings => 'لا توجد حجوزات سابقة';
+
+  @override
+  String get noUpcomingBookings => 'لا توجد حجوزات قادمة';
+
+  @override
+  String get noOngoingBookings => 'لا توجد حجوزات جارية';
+
+  @override
+  String get noCompletedBookings => 'لا توجد حجوزات مكتملة';
+
+  @override
+  String get onceYouBookItWillAppearHere => 'بمجرد حجز خدمة، ستظهر هنا.';
+
+  @override
+  String get termsIntro =>
+      'تحدد هذه الشروط والأحكام قواعد ولوائح استخدام تطبيق بريميوم فورس، وهي خدمة حجز سائق خاص فاخرة تعمل في المملكة العربية السعودية.\n\nمن خلال الوصول إلى هذا التطبيق، نفترض أنك تقبل هذه الشروط والأحكام. لا تستمر في استخدام بريميوم فورس إذا كنت لا توافق على أخذ جميع الشروط والأحكام المذكورة في هذه الصفحة.\n';
+
+  @override
+  String get termsSection1Title => '١. خدمات التطبيق والحجوزات';
+
+  @override
+  String get termsSection1Content =>
+      'يربط بريميوم فورس المستخدمين بخدمات سائق خاص فاخرة داخل المملكة العربية السعودية. تخضع جميع الحجوزات للتوافر، ونحتفظ بالحق في رفض أو إلغاء الحجوزات في ظل ظروف معينة موضحة في سياساتنا.';
+
+  @override
+  String get termsSection2Title => '٢. مسؤوليات المستخدم';
+
+  @override
+  String get termsSection2Content =>
+      'أنت ممنوع على وجه التحديد من كل ما يلي:\n• استخدام هذا التطبيق بأي طريقة تؤثر على وصول المستخدم أو تعطل خدمات السائق؛\n• استخدام هذا التطبيق بشكل مخالف للقوانين واللوائح المعمول بها في المملكة العربية السعودية؛\n• التصرف بشكل غير لائق تجاه سائقينا أو الإضرار بالمركبات الفاخرة المقدمة.';
+
+  @override
+  String get termsSection3Title => '٣. المدفوعات والإلغاء';
+
+  @override
+  String get termsSection3Content =>
+      'يجب إجراء جميع المدفوعات لخدمات السائق الخاص من خلال الطرق المعتمدة داخل التطبيق. تسري سياسات الإلغاء على جميع الحجوزات. قد يترتب على الإلغاء المتأخر أو عدم الحضور رسوم كما هو مفصل أثناء عملية الحجز.';
+
+  @override
+  String get termsSection4Title => '٤. الخصوصية';
+
+  @override
+  String get termsSection4Content =>
+      'يرجى قراءة سياسة الخصوصية الخاصة بنا. يعني استخدامك للتطبيق موافقتك المستمرة على سياسة الخصوصية الخاصة بنا فيما يتعلق بجمع واستخدام بياناتك الشخصية والمكانية اللازمة لخدمة السائق الخاص.';
+
+  @override
+  String get termsSection5Title => '٥. إخلاء المسؤولية عن الضمانات';
+
+  @override
+  String get termsSection5Content =>
+      'يتم توفير هذا التطبيق \"كما هو\"، ولا تقدم بريميوم فورس أي إقرارات أو ضمانات تتعلق بالتوافر المستمر للتطبيق أو سائقين محددين.';
+
+  @override
+  String get termsSection6Title => '٦. القانون الحاكم والولاية القضائية';
+
+  @override
+  String get termsSection6Content =>
+      'ستخضع هذه الشروط وتفسر وفقًا لقوانين المملكة العربية السعودية، وتخضع للولاية القضائية الحصرية للمحاكم الموجودة في المملكة العربية السعودية لحل أي نزاعات.';
+
+  @override
+  String get termsSection7Title => '٧. التغييرات والتعديلات';
+
+  @override
+  String get termsSection7Content =>
+      'نحتفظ بالحق في تعديل هذه الشروط أو السياسات المتعلقة بالتطبيق أو الخدمات في أي وقت. يشكل استمرارك في استخدام التطبيق بعد أي تغييرات من هذا القبيل موافقتك على هذه التغييرات.';
 }

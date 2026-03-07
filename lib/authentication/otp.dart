@@ -5,6 +5,7 @@ import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/authentication/signup.dart';
+import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 
 class OTPVerificationPage extends StatefulWidget {
@@ -24,6 +25,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
   final TextEditingController _otpController = TextEditingController();
   final FocusNode _otpFocusNode = FocusNode();
   OverlayEntry? _overlayEntry;
+  bool _isVerifying = false;
 
   @override
   void dispose() {
@@ -66,6 +68,49 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     final m = (seconds ~/ 60).toString().padLeft(2, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+
+  /// Handle OTP verification and navigate based on result.
+  Future<void> _handleVerify() async {
+    if (_otpController.text.length != 6) {
+      _showCustomSnackBar("Please enter a valid OTP");
+      return;
+    }
+
+    setState(() => _isVerifying = true);
+
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.verifyOtp(
+      otp: _otpController.text,
+      countryCode: widget.countryCode,
+      phoneNumber: widget.phoneNumber,
+    );
+
+    if (!mounted) return;
+    setState(() => _isVerifying = false);
+
+    if (authProvider.status == AuthStatus.authenticated) {
+      // ── Existing user → go straight to Home ──
+      debugPrint('✅ Existing user — navigating to Home');
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => Home()),
+        (route) => false,
+      );
+    } else if (authProvider.status == AuthStatus.otpVerified) {
+      // ── New user → go to SignUp ──
+      debugPrint('🆕 New user — navigating to SignUp');
+      Navigator.of(context).push(
+        SmoothNavigation.route(
+          SignUpPage(
+            countryCode: widget.countryCode,
+            phoneNumber: widget.phoneNumber,
+          ),
+        ),
+      );
+    } else if (authProvider.status == AuthStatus.failure &&
+        authProvider.errorMessage != null) {
+      _showCustomSnackBar(authProvider.errorMessage!);
+    }
   }
 
   @override
@@ -239,38 +284,10 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
               // Verify Button
               PremiumButton(
-                showLoader: false,
+                showLoader: _isVerifying,
                 fontsize: 18,
                 text: "Verify",
-                onTap: () async {
-                  if (_otpController.text.length != 6) {
-                    _showCustomSnackBar("Please enter a valid OTP");
-                    return;
-                  }
-                  String otp = _otpController.text;
-                  debugPrint('OTP Entered: $otp');
-                  await context.read<AuthProvider>().verifyOtp(
-                    otp: otp,
-                    countryCode: widget.countryCode,
-                    phoneNumber: widget.phoneNumber,
-                  );
-
-                  if (!context.mounted) return;
-                  final authProvider = context.read<AuthProvider>();
-                  if (authProvider.status == AuthStatus.otpVerified) {
-                    Navigator.of(context).push(
-                      SmoothNavigation.route(
-                        SignUpPage(
-                          countryCode: widget.countryCode,
-                          phoneNumber: widget.phoneNumber,
-                        ),
-                      ),
-                    );
-                  } else if (authProvider.status == AuthStatus.failure &&
-                      authProvider.errorMessage != null) {
-                    _showCustomSnackBar(authProvider.errorMessage!);
-                  }
-                },
+                onTap: _isVerifying ? () {} : _handleVerify,
               ),
             ],
           ),
