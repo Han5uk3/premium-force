@@ -51,3 +51,6 @@ android/key.properties
 
 # Env files
 .env
+
+# Postman Collections
+assets/PremiumForce.postman_collection_13_03_2026

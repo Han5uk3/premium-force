@@ -9,7 +9,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:premium_force_main/firebase_options.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/storage/notification_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+
+
+import 'package:premium_force_main/notifications/notification_screen.dart';
 
 
 /// Global navigator key – allows navigating from outside a widget tree
@@ -21,6 +25,7 @@ void main() async {
  
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await UserLocalStorage.init();
+  await NotificationStorage.init();
 
   // Initialise push notifications
   await NotificationService.instance.init();
@@ -35,12 +40,11 @@ void main() async {
 /// when the app is launched from a terminated-state notification).
 void _handleNotificationTap(RemoteMessage message) {
   debugPrint('🔔 Notification tapped │ data: ${message.data}');
-  // TODO: implement navigation based on message.data payload.
-  // Example:
-  //   final type = message.data['type'];
-  //   if (type == 'booking_update') {
-  //     navigatorKey.currentState?.pushNamed('/bookings');
-  //   }
+  
+  // Navigate to the notifications screen
+  navigatorKey.currentState?.push(
+    MaterialPageRoute(builder: (context) => const NotificationScreen()),
+  );
 }
 
 class MainApp extends StatefulWidget {

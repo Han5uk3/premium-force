@@ -5,7 +5,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/storage/notification_storage.dart';
+import 'package:premium_force_main/models/notification_model.dart';
+import 'package:uuid/uuid.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Top-level background handler (must be a top-level / static function)
@@ -15,10 +19,25 @@ import 'package:premium_force_main/storage/user_local_storage.dart';
 /// or in the background.  Keep this as lightweight as possible – no UI work.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Firebase is already initialised by the time this is called, but
-  // FlutterLocalNotifications may not be; initialise it here if you need to
-  // show a notification from a data-only message in the background.
+  // Ensure Firebase is initialized (though usually it is)
+  await Firebase.initializeApp();
+  
+  // Initialize Hive for the background isolate
+  await Hive.initFlutter();
+  await NotificationStorage.init();
+
   debugPrint('🔔 FCM [background] │ ${message.messageId}');
+  
+  if (message.notification != null) {
+    final notification = AppNotification(
+      id: message.messageId ?? const Uuid().v4(),
+      title: message.notification!.title ?? 'No Title',
+      body: message.notification!.body ?? '',
+      timestamp: DateTime.now(),
+      data: message.data,
+    );
+    await NotificationStorage.saveNotification(notification);
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -182,6 +201,16 @@ class NotificationService {
     debugPrint('🔔 FCM [foreground] │ ${message.notification?.title}');
     final notification = message.notification;
     if (notification == null) return;
+
+    // Save notification to local storage
+    final appNotification = AppNotification(
+      id: message.messageId ?? const Uuid().v4(),
+      title: notification.title ?? 'No Title',
+      body: notification.body ?? '',
+      timestamp: DateTime.now(),
+      data: message.data,
+    );
+    await NotificationStorage.saveNotification(appNotification);
 
     await _localPlugin.show(
       // Use hashCode so successive notifications don't overwrite each other

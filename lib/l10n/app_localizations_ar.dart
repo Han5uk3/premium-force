@@ -226,6 +226,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get enterSpecialIdIFAvailable => 'أدخل الرقم المميز إذا كان متوفرًا';
 
   @override
+  String get enterYourSpecialId => 'أدخل رقمك المميز';
+
+  @override
+  String get pleaseEnterYourSpecialId => 'يرجى إدخال رقمك المميز';
+
+  @override
+  String get iAmACorporateEmployee => 'هل أنت موظف شركة؟';
+
+  @override
   String get createAccount => 'إنشاء حساب';
 
   @override
@@ -499,6 +508,10 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get pickupTimeCannotBeAfterDepartureTime =>
       'وقت الاستلام لا يمكن أن يكون بعد وقت المغادرة';
+
+  @override
+  String get pickupTimeAtLeast4HoursBeforeDeparture =>
+      'يجب أن يكون وقت الاستلام قبل 4 ساعات على الأقل من وقت المغادرة';
 
   @override
   String get noRecentBookings => 'لا توجد حجوزات سابقة';

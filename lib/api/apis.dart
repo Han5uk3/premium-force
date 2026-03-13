@@ -20,7 +20,7 @@ class ApiService {
   // ---------------------------------------------------------------------------
 
   static const String _baseUrl =
-      'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api';
+      'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api/';
 
   // ---------------------------------------------------------------------------
   // Singleton + Dio instance
@@ -273,7 +273,7 @@ class ApiService {
   Future<Map<String, dynamic>> getAllUsers({String? token}) async {
     try {
       final response = await _dio.get(
-        '/users',
+        'users',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -361,6 +361,143 @@ class ApiService {
     try {
       final response = await _dio.delete(
         '/users/$id',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Check if a user with the given [email] exists in the database.
+  ///
+  /// Calls `GET /users/check-email?email=...`
+  /// Returns success=true if email exists, success=false if it doesn't.
+  Future<Map<String, dynamic>> checkEmailExists({required String email}) async {
+    try {
+      final response = await _dio.get(
+        '/users/check-email',
+        queryParameters: {'email': email},
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Car Data (Categories, Brands, Cars)
+  // ---------------------------------------------------------------------------
+
+  /// Fetch all car categories from the backend.
+  ///
+  /// Calls `GET /api/categories`
+  /// Returns a list of categories with their details.
+  Future<Map<String, dynamic>> getCategories({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'categories',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch all car brands from the backend.
+  ///
+  /// Calls `GET /api/brands`
+  /// Returns a list of brands with their details.
+  Future<Map<String, dynamic>> getBrands({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'brands',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch all cars from the backend.
+  ///
+  /// Calls `GET /api/cars`
+  /// Returns a list of available cars with their details.
+  Future<Map<String, dynamic>> getCars({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'cars',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Location Data (Cities, Airports, Terminals)
+  // ---------------------------------------------------------------------------
+
+  /// Fetch all cities from the backend.
+  ///
+  /// Calls `GET /api/cities`
+  Future<Map<String, dynamic>> getCities({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'cities',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch all airports from the backend.
+  ///
+  /// Calls `GET /api/airports`
+  Future<Map<String, dynamic>> getAirports({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'airports',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch all terminals from the backend.
+  ///
+  /// Calls `GET /api/terminals`
+  Future<Map<String, dynamic>> getTerminals({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'terminals',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Banners
+  // ---------------------------------------------------------------------------
+
+  /// Fetch all active banners from the backend for the homepage.
+  ///
+  /// Calls `GET /api/banners`
+  /// Returns a list of banners with their details.
+  Future<Map<String, dynamic>> getBanners({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'banners',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);

@@ -9,6 +9,7 @@ import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/authentication/login.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/notifications/notification_screen.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -59,12 +60,21 @@ class _AccountPageState extends State<AccountPage> {
                   svgPath: "assets/icons/person.svg",
                 ),
               ),
-              ProfileTile(
-                loc: loc,
-                isNotification: true,
-
-                title: loc.notifications,
-                icon: Icons.notifications,
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationScreen(),
+                    ),
+                  );
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  isNotification: true,
+                  title: loc.notifications,
+                  icon: Icons.notifications,
+                ),
               ),
               GestureDetector(
                 onTap: () {

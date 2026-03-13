@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/notifications/notification_screen.dart';
+import 'package:premium_force_main/storage/notification_storage.dart';
+import 'package:premium_force_main/models/notification_model.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:premium_force_main/common_widgets/borderedcontainer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
@@ -8,6 +12,10 @@ import 'package:premium_force_main/main.dart';
 import 'package:premium_force_main/ride_booking/new_booking.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
+import 'package:premium_force_main/api/apis.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
+import 'package:premium_force_main/common_widgets/infinite_scroll_banner.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -38,6 +46,83 @@ class _HomepageState extends State<Homepage> {
           "https://www.hdwallpapers.in/thumbs/2017/2017_bmw_7_series_black_ice_edition-t2.jpg",
     },
   ];
+
+  List<Map<String, dynamic>> _apiCities = [];
+  List<Map<String, dynamic>> _apiAirports = [];
+  List<Map<String, dynamic>> _apiTerminals = [];
+  bool _isLoadingLocations = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocationData();
+  }
+
+  Future<void> _fetchLocationData() async {
+    if (mounted) setState(() => _isLoadingLocations = true);
+    try {
+      final api = ApiService();
+
+      // Fetch everything in parallel for a smoother experience later
+      final results =
+          await Future.wait([
+            api.getCities(),
+            api.getAirports(),
+            api.getTerminals(),
+          ]).catchError((e) {
+            debugPrint('Error fetching location data: $e');
+            return <Map<String, dynamic>>[{}, {}, {}];
+          });
+
+      if (mounted) {
+        setState(() {
+          // Process Cities
+          if (results[0]['success'] == true) {
+            _apiCities = rawDataToList(
+              results[0]['data'] ?? results[0]['cities'],
+            );
+          }
+
+          // Process Airports
+          if (results[1]['success'] == true) {
+            _apiAirports = rawDataToList(
+              results[1]['data'] ?? results[1]['airports'],
+            );
+          }
+
+          // Process Terminals
+          if (results[2]['success'] == true) {
+            _apiTerminals = rawDataToList(
+              results[2]['data'] ?? results[2]['terminals'],
+            );
+          }
+        });
+
+        if (kDebugMode) {
+          debugPrint(
+            '🌐 API │ Location Data Loaded - Cities: ${_apiCities.length}, Airports: ${_apiAirports.length}, Terminals: ${_apiTerminals.length}',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('General error in _fetchLocationData: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingLocations = false);
+    }
+  }
+
+  List<Map<String, dynamic>> rawDataToList(dynamic rawData) {
+    if (rawData is List) {
+      return rawData
+          .map((item) {
+            if (item is Map) return Map<String, dynamic>.from(item);
+            return <String, dynamic>{};
+          })
+          .where((m) => m.isNotEmpty)
+          .toList();
+    }
+    return [];
+  }
   /*
   List bookingItems = [
     {
@@ -511,6 +596,59 @@ class _HomepageState extends State<Homepage> {
                 ),
               ),
               const SizedBox(width: 16),
+              ValueListenableBuilder<List<AppNotification>>(
+                valueListenable: NotificationStorage.notificationsView,
+                builder: (context, notifications, child) {
+                  final unreadCount = notifications
+                      .where((n) => !n.isRead)
+                      .length;
+                  return Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.notifications_none_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.redAccent,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              unreadCount > 9 ? '9+' : '$unreadCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
               CircleAvatar(
                 radius: 16,
                 child: Material(
@@ -543,78 +681,7 @@ class _HomepageState extends State<Homepage> {
             ],
           ),
           SizedBox(height: 8),
-          Container(
-            height: 140,
-            width: MediaQuery.of(context).size.width,
-            decoration: BoxDecoration(
-              color: Colors.black,
-              image: DecorationImage(
-                image: AssetImage('assets/images/banner.png'),
-                fit: BoxFit.cover,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Container(
-              height: 140,
-              width: MediaQuery.of(context).size.width,
-              padding: EdgeInsets.only(left: 16, right: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    const Color(0xFF49280B).withAlpha(200),
-                    const Color(0xFF49280B).withAlpha(180),
-                    const Color(0xFF49280B).withAlpha(150),
-
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    loc.luxuryAirportTransfers,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    loc.inSaudiArabia,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  IgnorePointer(
-                    ignoring: true,
-                    child: SizedBox(
-                      width: 90,
-                      height: 26,
-                      child: PremiumButton(
-                        showLoader: false,
-                        borderRadius: 18,
-                        textColor: Colors.white,
-                        text: loc.bookNow,
-                        onTap: () {},
-                        fontsize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const InfiniteScrollBanner(),
         ],
       ),
     );
@@ -671,44 +738,84 @@ class _HomepageState extends State<Homepage> {
                     const SizedBox(height: 2),
                     const Divider(color: Colors.grey, thickness: 1),
                     const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 24,
-                        right: 24,
-                        top: 24,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildCityTile(
-                            isEnglish: isEnglish,
-                            isSelected: selectedCityIndex == 0,
-                            nameEn: "Riyadh",
-                            nameAr: "الرياض",
-                            image: "assets/images/riyadh.png",
-                            onTap: () => setState(() => selectedCityIndex = 0),
+                    _isLoadingLocations // Changed from _isLoadingCities
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40),
+                              child: PremiumLoader(color: Color(0xFFE4A46B)),
+                            ),
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 24,
+                            ),
+                            child: _apiCities.isEmpty
+                                ? Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 20,
+                                      ),
+                                      child: Text(
+                                        isEnglish
+                                            ? "No cities available"
+                                            : "لا توجد مدن متاحة",
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return Wrap(
+                                        spacing: 12,
+                                        runSpacing: 12,
+                                        children: _apiCities.asMap().entries.map((
+                                          entry,
+                                        ) {
+                                          final index = entry.key;
+                                          final city = entry.value;
+                                          final String cityName =
+                                              city['cityName'] ?? 'Unknown';
+
+                                          // API image handling - the 'image' field is a Map containing 'url'
+                                          String? imageUrl;
+                                          if (city['image'] != null) {
+                                            if (city['image'] is String) {
+                                              imageUrl = city['image'];
+                                            } else if (city['image'] is Map &&
+                                                city['image']['url'] != null) {
+                                              imageUrl = city['image']['url'];
+                                            }
+                                          }
+
+                                          final String displayImage =
+                                              imageUrl ??
+                                              'assets/images/riyadh.png';
+
+                                          return SizedBox(
+                                            width:
+                                                (constraints.maxWidth - 24) /
+                                                3, // 3 columns
+                                            child: _buildCityTile(
+                                              isEnglish: isEnglish,
+                                              isSelected:
+                                                  selectedCityIndex == index,
+                                              nameEn: cityName,
+                                              nameAr: cityName,
+                                              image: displayImage,
+                                              isApiImage: imageUrl != null,
+                                              onTap: () => setState(
+                                                () => selectedCityIndex = index,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      );
+                                    },
+                                  ),
                           ),
-                          const SizedBox(width: 8),
-                          _buildCityTile(
-                            isEnglish: isEnglish,
-                            isSelected: selectedCityIndex == 1,
-                            nameEn: "Dammam",
-                            nameAr: "الدمام",
-                            image: "assets/images/dammam.png",
-                            onTap: () => setState(() => selectedCityIndex = 1),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildCityTile(
-                            isEnglish: isEnglish,
-                            isSelected: selectedCityIndex == 2,
-                            nameEn: "Jeddah",
-                            nameAr: "جدة",
-                            image: "assets/images/jeddah.png",
-                            onTap: () => setState(() => selectedCityIndex = 2),
-                          ),
-                        ],
-                      ),
-                    ),
                     const SizedBox(height: 48),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -722,6 +829,9 @@ class _HomepageState extends State<Homepage> {
                               builder: (context) => NewBooking(
                                 catcode: catcode,
                                 citycode: selectedCityIndex,
+                                preloadedCities: _apiCities,
+                                preloadedAirports: _apiAirports,
+                                preloadedTerminals: _apiTerminals,
                               ),
                             ),
                           );
@@ -745,23 +855,64 @@ class _HomepageState extends State<Homepage> {
     required String nameEn,
     required String nameAr,
     required String image,
+    bool isApiImage = false,
     required VoidCallback onTap,
   }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 125,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected ? const Color(0xFFE4A46B) : Colors.transparent,
-              width: 2,
-            ),
-            image: DecorationImage(image: AssetImage(image), fit: BoxFit.cover),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 125,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFE4A46B) : Colors.transparent,
+            width: 2,
           ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
           child: Stack(
             children: [
+              // Image Layer
+              Positioned.fill(
+                child: isApiImage
+                    ? CachedNetworkImage(
+                        imageUrl: image,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.black26,
+                          child: const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: PremiumLoader(color: Color(0xFFE4A46B)),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => const Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                        ),
+                      )
+                    : Image.asset(image, fit: BoxFit.cover),
+              ),
+              // Gradient Overlay for text readability
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withAlpha(20),
+                        Colors.black.withAlpha(150),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Content Layer
               Align(
                 alignment: isEnglish
                     ? Alignment.bottomLeft

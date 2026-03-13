@@ -10,6 +10,7 @@ import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
+import 'package:country_picker/country_picker.dart';
 
 class SignUpPage extends StatefulWidget {
   final String countryCode;
@@ -17,6 +18,8 @@ class SignUpPage extends StatefulWidget {
   final String? googleEmail;
   final String? googleDisplayName;
   final String? googlePhotoUrl;
+  final String? appleEmail;
+  final String? appleDisplayName;
   const SignUpPage({
     super.key,
     required this.countryCode,
@@ -24,6 +27,8 @@ class SignUpPage extends StatefulWidget {
     this.googleEmail,
     this.googleDisplayName,
     this.googlePhotoUrl,
+    this.appleEmail,
+    this.appleDisplayName,
   });
 
   @override
@@ -43,20 +48,41 @@ class _SignUpPageState extends State<SignUpPage>
   double? _latitude;
   double? _longitude;
   bool _isLoading = false;
+  bool _isCorporateEmployee = false; // New: track corporate employee checkbox
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
+
+  // Country code management
+  String _selectedCountryCode = '966'; // Default to Saudi Arabia
+  bool _isGoogleSignUp = false; // Track if this is from Google Sign-In
 
   @override
   void initState() {
     super.initState();
+
+    // Determine if this is from social sign-in (Google or Apple)
+    _isGoogleSignUp =
+        (widget.googleEmail != null && widget.googleEmail!.isNotEmpty) ||
+        (widget.appleEmail != null && widget.appleEmail!.isNotEmpty);
+
+    // Set initial country code
+    _selectedCountryCode = widget.countryCode.replaceAll('+', '');
+
     _phoneController.text = widget.phoneNumber;
 
-    // Pre-fill from Google Sign-In data if available
-    if (widget.googleDisplayName != null) {
+    // Pre-fill from sign-in data (Google or Apple)
+    if (widget.googleDisplayName != null &&
+        widget.googleDisplayName!.isNotEmpty) {
       _nameController.text = widget.googleDisplayName!;
+    } else if (widget.appleDisplayName != null &&
+        widget.appleDisplayName!.isNotEmpty) {
+      _nameController.text = widget.appleDisplayName!;
     }
-    if (widget.googleEmail != null) {
+
+    if (widget.googleEmail != null && widget.googleEmail!.isNotEmpty) {
       _emailController.text = widget.googleEmail!;
+    } else if (widget.appleEmail != null && widget.appleEmail!.isNotEmpty) {
+      _emailController.text = widget.appleEmail!;
     }
 
     _animController = AnimationController(
@@ -262,17 +288,24 @@ class _SignUpPageState extends State<SignUpPage>
     setState(() => _isLoading = true);
 
     final token = UserLocalStorage.getToken();
+    final phoneNumber = _phoneController.text.trim();
+    final countryCode = '+$_selectedCountryCode';
+
+    // Only include special ID if corporate employee is checked
+    final specialId = _isCorporateEmployee
+        ? _specialIdController.text.trim()
+        : '';
 
     final result = await ApiService().createUser(
       username: _nameController.text.trim(),
       email: _emailController.text.trim(),
-      countryCode: widget.countryCode,
-      phoneNumber: widget.phoneNumber,
+      countryCode: countryCode,
+      phoneNumber: phoneNumber,
       location: _locationController.text.trim(),
       lat: _latitude,
       long: _longitude,
       profileImage: _profileImage,
-      specialId: _specialIdController.text.trim(),
+      specialId: specialId.isEmpty ? null : specialId,
       token: token,
     );
 
@@ -287,7 +320,7 @@ class _SignUpPageState extends State<SignUpPage>
         final uid = (userData['_id'] ?? userData['id'] ?? '') as String;
         await UserLocalStorage.saveUserCredentials(
           userId: uid,
-          phoneNumber: widget.phoneNumber,
+          phoneNumber: phoneNumber,
         );
 
         // Persist the full user data locally
@@ -511,37 +544,110 @@ class _SignUpPageState extends State<SignUpPage>
 
                         const SizedBox(height: 20),
 
-                        // Phone number (display only)
+                        // Phone number (editable with country code picker)
                         PremiumTextField(
                           title: AppLocalizations.of(context)!.phoneNumber,
                           controller: _phoneController,
-                          hintText: widget.phoneNumber,
+                          hintText: AppLocalizations.of(
+                            context,
+                          )!.enterMobileNumber,
                           fontsize: 15,
+                          keyboardType: TextInputType.phone,
                           needTitle: true,
                           obscureText: false,
-                          enabled: false,
-                          readOnly: true,
-                          prefixIcon: ShaderMask(
-                            shaderCallback: (Rect bounds) {
-                              return const LinearGradient(
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
-                                ],
-                              ).createShader(bounds);
+                          prefixIcon: GestureDetector(
+                            onTap: () {
+                              showCountryPicker(
+                                context: context,
+                                showPhoneCode: true,
+                                customFlagBuilder: (context) =>
+                                    const SizedBox.shrink(),
+                                countryListTheme: CountryListThemeData(
+                                  backgroundColor: const Color(0xFF141313),
+                                  textStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                  searchTextStyle: const TextStyle(
+                                    color: Colors.white,
+                                  ),
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(30),
+                                    topRight: Radius.circular(30),
+                                  ),
+                                  inputDecoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: const Color(0xFF0D0A08),
+                                    hintStyle: const TextStyle(
+                                      color: Colors.white54,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF1A1410),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                onSelect: (Country country) {
+                                  setState(() {
+                                    _selectedCountryCode = country.phoneCode;
+                                  });
+                                },
+                              );
                             },
-                            child: const Icon(
-                              Icons.phone_outlined,
-                              color: Colors.white,
-                              size: 20,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: Colors.transparent,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '+$_selectedCountryCode',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.arrow_drop_down,
+                                    color: Colors.white,
+                                  ),
+                                  Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    height: 24,
+                                    width: 1,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return AppLocalizations.of(
+                                context,
+                              )!.pleaseEnterYourMobileNumber;
+                            }
+                            if (value.length < 9) {
+                              return AppLocalizations.of(
+                                context,
+                              )!.pleaseEnterValidMobileNumber;
+                            }
+                            return null;
+                          },
                         ),
 
                         const SizedBox(height: 20),
 
-                        // Email field
+                        // Email field (non-editable if from Google Sign-In, editable otherwise)
                         PremiumTextField(
                           title: AppLocalizations.of(context)!.emailAddress,
                           controller: _emailController,
@@ -552,6 +658,10 @@ class _SignUpPageState extends State<SignUpPage>
                           keyboardType: TextInputType.emailAddress,
                           needTitle: true,
                           obscureText: false,
+                          enabled:
+                              !_isGoogleSignUp, // Disable if from Google Sign-In
+                          readOnly:
+                              _isGoogleSignUp, // Read-only if from Google Sign-In
                           prefixIcon: ShaderMask(
                             shaderCallback: (Rect bounds) {
                               return const LinearGradient(
@@ -592,35 +702,114 @@ class _SignUpPageState extends State<SignUpPage>
 
                         const SizedBox(height: 20),
 
-                        // Special ID (optional)
-                        PremiumTextField(
-                          title: AppLocalizations.of(
-                            context,
-                          )!.specialidoptional,
-                          controller: _specialIdController,
-                          hintText: AppLocalizations.of(
-                            context,
-                          )!.enterSpecialIdIFAvailable,
-                          fontsize: 15,
-                          needTitle: true,
-                          obscureText: false,
-                          prefixIcon: ShaderMask(
-                            shaderCallback: (Rect bounds) {
-                              return const LinearGradient(
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
-                                ],
-                              ).createShader(bounds);
-                            },
-                            child: const Icon(
-                              Icons.badge_outlined,
-                              color: Colors.white,
-                              size: 20,
+                        // Corporate Employee Checkbox
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.white.withAlpha(60),
+                              width: 1,
                             ),
+                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFF0D0A08),
+                          ),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _isCorporateEmployee =
+                                        !_isCorporateEmployee;
+                                  });
+                                },
+                                child: Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: _isCorporateEmployee
+                                          ? const Color(0xFFE4A46B)
+                                          : Colors.white.withAlpha(100),
+                                      width: 2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: _isCorporateEmployee
+                                        ? const Color(0xFFE4A46B)
+                                        : Colors.transparent,
+                                  ),
+                                  child: _isCorporateEmployee
+                                      ? const Icon(
+                                          Icons.check,
+                                          size: 14,
+                                          color: Color(0xFF0D0A08),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  AppLocalizations.of(context)!
+                                      .iAmACorporateEmployee,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+
+                        const SizedBox(height: 20),
+
+                        // Special ID Field (shown only if corporate employee is checked)
+                        if (_isCorporateEmployee)
+                          Column(
+                            children: [
+                              PremiumTextField(
+                                title: AppLocalizations.of(context)!.specialId,
+                                controller: _specialIdController,
+                                hintText: AppLocalizations.of(
+                                  context,
+                                )!.enterYourSpecialId,
+                                fontsize: 15,
+                                needTitle: true,
+                                obscureText: false,
+                                prefixIcon: ShaderMask(
+                                  shaderCallback: (Rect bounds) {
+                                    return const LinearGradient(
+                                      colors: [
+                                        Color(0xFF49280B),
+                                        Color(0xFFE4A46B),
+                                        Color(0xFF60350F),
+                                      ],
+                                    ).createShader(bounds);
+                                  },
+                                  child: const Icon(
+                                    Icons.badge_outlined,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                validator: (value) {
+                                  // Only validate if corporate employee is checked and field is visible
+                                  if (_isCorporateEmployee &&
+                                      (value == null || value.isEmpty)) {
+                                    return AppLocalizations.of(
+                                      context,
+                                    )!.pleaseEnterYourSpecialId;
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+                          ),
 
                         const SizedBox(height: 36),
 

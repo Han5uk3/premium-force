@@ -16,12 +16,25 @@ import 'package:dio/dio.dart';
 import 'package:premium_force_main/models/booking_request_model.dart';
 import 'package:premium_force_main/models/car_model.dart';
 import 'package:country_picker/country_picker.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:premium_force_main/api/apis.dart';
+import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:flutter/foundation.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
   final int citycode;
-  const NewBooking({super.key, required this.catcode, required this.citycode});
+  final List<Map<String, dynamic>>? preloadedCities;
+  final List<Map<String, dynamic>>? preloadedAirports;
+  final List<Map<String, dynamic>>? preloadedTerminals;
+
+  const NewBooking({
+    super.key,
+    required this.catcode,
+    required this.citycode,
+    this.preloadedCities,
+    this.preloadedAirports,
+    this.preloadedTerminals,
+  });
 
   @override
   State<NewBooking> createState() => _NewBookingState();
@@ -32,8 +45,18 @@ class _NewBookingState extends State<NewBooking> {
   late int _selectedCityCode;
 
   bool _isCalculatingDistance = false;
+  bool _isLoadingCarData = true;
 
   double _totalDistance = 50.0;
+
+  // Fetched car data from the backend
+  List<Map<String, dynamic>> _categories = [];
+  List<Map<String, dynamic>> _brands = [];
+  List<CarModel> _cars = [];
+  List<Map<String, dynamic>> _apiCities = [];
+  List<Map<String, dynamic>> _apiAirports = [];
+  List<Map<String, dynamic>> _apiTerminals = [];
+  Map<String, String> _brandIcons = {}; // Added this
 
   final _tripInfoFormKey = GlobalKey<FormState>();
   final _preferencesFormKey = GlobalKey<FormState>();
@@ -66,65 +89,21 @@ class _NewBookingState extends State<NewBooking> {
   TextEditingController _mobileNumberController = TextEditingController();
   String? _specialRequestsVoiceNotePath;
   int _selectedTerminalCode = 0;
+  int _selectedAirportCode = 0;
   OverlayEntry? _overlayEntry;
   String _selectedPassengerCountryCode = '966';
 
   double get _calculatedCharge {
-    final selectedCar = availableCars.firstWhere(
+    final carsList = _cars.isNotEmpty ? _cars : availableCars;
+    final selectedCar = carsList.firstWhere(
       (c) =>
           c.className == _selectedVehicleClass &&
           c.brand == _selectedVehicleBrand &&
           c.modelName == _selectedVehicleModel,
-      orElse: () => availableCars.first,
+      orElse: () => carsList.first,
     );
     final distance = selectedCar.distance > 0 ? selectedCar.distance : 1;
     return (_totalDistance / distance) * selectedCar.price;
-  }
-
-  bool _isDarkLogo(String brandName) {
-    final lowerBrand = brandName.toLowerCase();
-    const darkLogos = [
-      'audi',
-      'rolls-royce',
-      'mini',
-      'lexus',
-      'tesla',
-      'maserati',
-      'maybach',
-      'jeep',
-      'bentley',
-      'aston-martin',
-      'honda',
-      'hyundai',
-      'nissan',
-      'lucid',
-    ];
-    return darkLogos.contains(lowerBrand);
-  }
-
-  List<String> _getTerminals(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    if (_selectedCityCode == 1) {
-      // Dammam
-      return [loc.passengerTerminal, loc.aramcoTerminal, loc.royalTerminal];
-    } else if (_selectedCityCode == 2) {
-      // Jeddah
-      return [
-        loc.terminal1,
-        loc.hajjTerminal,
-        loc.northTerminal,
-        loc.southTerminal,
-      ];
-    } else {
-      // Riyadh
-      return [
-        loc.terminal1,
-        loc.terminal2,
-        loc.terminal3,
-        loc.terminal4,
-        loc.terminal5,
-      ];
-    }
   }
 
   @override
@@ -132,6 +111,266 @@ class _NewBookingState extends State<NewBooking> {
     super.initState();
     _selectedCatCode = widget.catcode;
     _selectedCityCode = widget.citycode;
+
+    // Use preloaded data from widget if available
+    _apiCities = widget.preloadedCities ?? [];
+    _apiAirports = widget.preloadedAirports ?? [];
+    _apiTerminals = widget.preloadedTerminals ?? [];
+
+    _loadCarData();
+  }
+
+  /// Load car data (categories, brands, cars) from the backend API.
+  Future<void> _loadCarData() async {
+    try {
+      final api = ApiService();
+      final token = UserLocalStorage.getToken();
+
+      // Optimize: Only fetch what we don't already have preloaded
+      final List<Future<Map<String, dynamic>>> futures = [
+        api.getCategories(token: token),
+        api.getBrands(token: token),
+        api.getCars(token: token),
+      ];
+
+      // If we don't have cities/airports/terminals preloaded, add them to the queue
+      if (_apiCities.isEmpty) {
+        futures.add(api.getCities());
+      } else {
+        futures.add(Future.value({'success': true, 'data': _apiCities}));
+      }
+
+      if (_apiAirports.isEmpty) {
+        futures.add(api.getAirports());
+      } else {
+        futures.add(Future.value({'success': true, 'data': _apiAirports}));
+      }
+
+      if (_apiTerminals.isEmpty) {
+        futures.add(api.getTerminals());
+      } else {
+        futures.add(Future.value({'success': true, 'data': _apiTerminals}));
+      }
+
+      // Fetch results in parallel
+      final results = await Future.wait(futures).catchError((e) {
+        debugPrint('Error in Future.wait: $e');
+        return <Map<String, dynamic>>[{}, {}, {}, {}, {}, {}];
+      });
+
+      final categoriesResult = results[0];
+      final brandsResult = results[1];
+      final carsResult = results[2];
+      final citiesResult = results[3];
+      final airportsResult = results[4];
+      final terminalsResult = results[5];
+
+      if (kDebugMode) {
+        debugPrint('🌐 API │ Cities: $citiesResult');
+        debugPrint('🌐 API │ Airports: $airportsResult');
+        debugPrint('🌐 API │ Terminals: $terminalsResult');
+      }
+
+      if (mounted) {
+        setState(() {
+          // Process categories from API
+          if (categoriesResult['success'] == true) {
+            final categoriesData =
+                categoriesResult['data'] ?? categoriesResult['categories'];
+            if (categoriesData is List) {
+              _categories = List<Map<String, dynamic>>.from(
+                categoriesData.map(
+                  (c) => c is Map<String, dynamic>
+                      ? c
+                      : {'id': c, 'name': c.toString()},
+                ),
+              );
+            }
+          }
+
+          // Process brands from API
+          if (brandsResult['success'] == true) {
+            final brandsData =
+                brandsResult['data'] ??
+                brandsResult['brands'] ??
+                brandsResult['payload'];
+            if (brandsData is List) {
+              _brands = List<Map<String, dynamic>>.from(
+                brandsData.map(
+                  (b) => b is Map<String, dynamic>
+                      ? b
+                      : {'id': b, 'name': b.toString()},
+                ),
+              );
+
+              // Map brand name to its icon URL
+              _brandIcons = {
+                for (var b in _brands)
+                  if (b['brandName'] != null)
+                    b['brandName'].toString().trim(): b['brandIcon'] ?? '',
+              };
+            }
+          }
+
+          // Process cars - convert to CarModel
+          // API cars have structure: {_id, carName, brand, model, category, numberOfPassengers, minimumChargeDistance, minCharge, carImage}
+          if (carsResult['success'] == true) {
+            final carsData = carsResult['data'] ?? carsResult['cars'];
+            if (carsData is List) {
+              _cars = carsData
+                  .map((car) {
+                    if (car is CarModel) {
+                      return car;
+                    } else if (car is Map<String, dynamic>) {
+                      // Extract and normalize category field
+                      // API returns 'category' field like "Luxury SUV"
+                      final apiCategory =
+                          (car['category'] ?? car['className'] ?? 'Unknown')
+                              .toString()
+                              .trim();
+
+                      // Image path handling - API can return a String or a Map with 'url'
+                      String? carImage;
+                      final rawImage =
+                          car['image'] ?? car['imagePath'] ?? car['carImage'];
+                      if (rawImage is String) {
+                        carImage = rawImage;
+                      } else if (rawImage is Map && rawImage['url'] != null) {
+                        carImage = rawImage['url'];
+                      }
+                      carImage ??= 'assets/images/bmwdummy.jpg';
+
+                      return CarModel(
+                        id: car['_id'] ?? car['id'] ?? '',
+                        className: apiCategory,
+                        brand: (car['brand'] ?? car['carbrand'] ?? 'Unknown')
+                            .toString()
+                            .trim(),
+                        modelName:
+                            (car['model'] ?? car['carmodel'] ?? 'Unknown')
+                                .toString()
+                                .trim(),
+                        imagePath: carImage,
+                        price: _parseDouble(
+                          car['price'] ?? car['minCharge'] ?? 0,
+                        ),
+                        distance: _parseDouble(
+                          car['distance'] ?? car['minimumChargeDistance'] ?? 10,
+                        ),
+                        maxPassengers: _parseInt(
+                          car['numberOfPassengers'] ??
+                              car['maxPassengers'] ??
+                              4,
+                        ),
+                      );
+                    }
+                    return null;
+                  })
+                  .whereType<CarModel>()
+                  .toList();
+            }
+          }
+
+          // Process cities from API
+          if (citiesResult['success'] == true) {
+            final citiesData =
+                citiesResult['data'] ??
+                citiesResult['cities'] ??
+                citiesResult['payload'];
+            if (citiesData is List) {
+              _apiCities = rawDataToList(citiesData);
+              debugPrint('🌐 API │ Cities Loaded: ${_apiCities.length}');
+
+              if (_apiCities.isNotEmpty &&
+                  _selectedCityCode >= _apiCities.length) {
+                _selectedCityCode = 0;
+              }
+            }
+          }
+
+          // Process airports from API
+          if (airportsResult['success'] == true) {
+            final airportsData =
+                airportsResult['data'] ??
+                airportsResult['airports'] ??
+                airportsResult['payload'];
+            if (airportsData is List) {
+              _apiAirports = rawDataToList(airportsData);
+              debugPrint('🌐 API │ Airports Loaded: ${_apiAirports.length}');
+            }
+          }
+
+          // Process terminals from API
+          if (terminalsResult['success'] == true) {
+            final terminalsData =
+                terminalsResult['data'] ??
+                terminalsResult['terminals'] ??
+                terminalsResult['payload'];
+            if (terminalsData is List) {
+              _apiTerminals = rawDataToList(terminalsData);
+              debugPrint('🌐 API │ Terminals Loaded: ${_apiTerminals.length}');
+            }
+          }
+
+          _isLoadingCarData = false;
+
+          // Set default values if cars were loaded
+          if (_cars.isNotEmpty) {
+            final firstCar = _cars.first;
+            // Set to first car's category (which comes from API)
+            _selectedVehicleClass = firstCar.className;
+            _selectedVehicleBrand = firstCar.brand;
+            _selectedVehicleModel = firstCar.modelName;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading car data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingCarData = false;
+        });
+      }
+    }
+  }
+
+  /// Helper to parse double values from API responses
+  double _parseDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  /// Helper to parse int values from API responses
+  int _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    if (value is double) return value.toInt();
+    return 0;
+  }
+
+  /// Get the list of cars to use (fetched or fallback to hardcoded)
+  List<CarModel> get _carsList => _cars.isNotEmpty ? _cars : availableCars;
+
+  /// Get available brands for a given car class
+  List<String> _getAvailableBrands(String? className) {
+    if (className == null) return [];
+    return _carsList
+        .where((c) => c.className == className)
+        .map((c) => c.brand)
+        .toSet()
+        .toList();
+  }
+
+  /// Get available models for a given class and brand
+  List<String> _getAvailableModels(String? className, String? brand) {
+    if (className == null || brand == null) return [];
+    return _carsList
+        .where((c) => c.className == className && c.brand == brand)
+        .map((c) => c.modelName)
+        .toSet() // Ensure uniqueness
+        .toList();
   }
 
   @override
@@ -244,6 +483,9 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   String _getCityName(BuildContext context, int code) {
+    if (_apiCities.isNotEmpty && code < _apiCities.length) {
+      return _apiCities[code]['cityName'].toString();
+    }
     final loc = AppLocalizations.of(context)!;
     switch (code) {
       case 1:
@@ -263,15 +505,34 @@ class _NewBookingState extends State<NewBooking> {
     return 0;
   }
 
-  int _getCityCode(BuildContext context, String name) {
-    final loc = AppLocalizations.of(context)!;
-    if (name == loc.dammam) return 1;
-    if (name == loc.jeddah) return 2;
-    return 0;
-  }
-
   Map<String, double> _getAirportCoordinates() {
-    // Returns airport coordinates based on selected city code
+    // Try to find the airport from API data first
+    if (_apiAirports.isNotEmpty) {
+      final availableAirports = _getAvailableAirports(context);
+      if (availableAirports.isNotEmpty) {
+        final selectedAirportName =
+            availableAirports[_selectedAirportCode < availableAirports.length
+                ? _selectedAirportCode
+                : 0];
+        try {
+          final airport = _apiAirports.firstWhere(
+            (a) => a['airportName'] == selectedAirportName,
+            orElse: () => _apiAirports.first,
+          );
+          if (airport.containsKey('lat') && airport.containsKey('long')) {
+            final latitude = _parseDouble(airport['lat']);
+            final longitude = _parseDouble(airport['long']);
+            if (latitude != 0 && longitude != 0) {
+              return {'lat': latitude, 'lng': longitude};
+            }
+          }
+        } catch (e) {
+          debugPrint('Error getting airport coordinates from API: $e');
+        }
+      }
+    }
+
+    // Fallback Returns airport coordinates based on selected city code
     switch (_selectedCityCode) {
       case 1:
         // Dammam - King Fahd International Airport
@@ -394,9 +655,13 @@ class _NewBookingState extends State<NewBooking> {
                                   _selectedPickupTime!.minute,
                                 );
 
-                                if (pickDateTime.isAfter(depDateTime)) {
+                                if (pickDateTime.isAfter(
+                                  depDateTime.subtract(
+                                    const Duration(hours: 4),
+                                  ),
+                                )) {
                                   _showCustomSnackBar(
-                                    loc.pickupTimeCannotBeAfterDepartureTime,
+                                    loc.pickupTimeAtLeast4HoursBeforeDeparture,
                                     'E',
                                   );
                                   return;
@@ -464,11 +729,14 @@ class _NewBookingState extends State<NewBooking> {
                               finalDropOffAddress = _dropAddress;
                             } else if (_selectedCatCode == 1) {
                               // Airport Departure: pickup is selected location, dropoff is airport
-                              finalPickupLat = _pickupLat;
-                              finalPickupLng = _pickupLng;
-                              finalDropOffLat = airportCoords['lat'];
-                              finalDropOffLng = airportCoords['lng'];
-                              finalDropOffAddress = _getTerminals(context)[_selectedTerminalCode];
+                              // But user specifically asked to pass airport long/lat as pickup long/lat
+                              finalPickupLat = airportCoords['lat'];
+                              finalPickupLng = airportCoords['lng'];
+                              finalDropOffLat = _pickupLat;
+                              finalDropOffLng = _pickupLng;
+                              finalDropOffAddress = _getSelectedTerminalName(
+                                context,
+                              );
                             } else {
                               // Chauffeur Service: both are selected locations
                               finalPickupLat = _pickupLat;
@@ -485,9 +753,10 @@ class _NewBookingState extends State<NewBooking> {
                                 _selectedCatCode,
                               ),
                               city: _getCityName(context, _selectedCityCode),
-                              airport: _getTerminals(
-                                context,
-                              )[_selectedTerminalCode],
+                              airport: _getSelectedTerminalName(context),
+                              cityID: _getSelectedCityId(),
+                              airportID: _getSelectedAirportId(),
+                              terminalID: _getSelectedTerminalId(),
                               arrival: getIsoDateTime(
                                 _selectedDate,
                                 _selectedTime,
@@ -496,7 +765,8 @@ class _NewBookingState extends State<NewBooking> {
                               pickupLong: finalPickupLng?.toString(),
                               dropOffLat: finalDropOffLat?.toString(),
                               dropOffLong: finalDropOffLng?.toString(),
-                              dropOffAddress: finalDropOffAddress ?? _pickupAddress,
+                              dropOffAddress:
+                                  finalDropOffAddress ?? _pickupAddress,
                               carclass: _selectedVehicleClass,
                               carbrand: _selectedVehicleBrand,
                               carmodel: _selectedVehicleModel,
@@ -506,7 +776,7 @@ class _NewBookingState extends State<NewBooking> {
                                   _specialRequestsVoiceNotePath != null
                                   ? File(_specialRequestsVoiceNotePath!)
                                   : null,
-                              passengerCount: _numberOfPassengers,
+                              passengerCount: _numberOfPassengers.toString(),
                               passengerNames: jsonEncode([
                                 _passengerNameController.text,
                               ]),
@@ -600,14 +870,14 @@ class _NewBookingState extends State<NewBooking> {
 
               String getPickup() {
                 if (_selectedCatCode == 0) {
-                  return _getTerminals(context)[_selectedTerminalCode];
+                  return _getSelectedTerminalName(context) ?? "";
                 }
                 return _pickupAddress ?? "";
               }
 
               String getDropoff() {
                 if (_selectedCatCode == 1) {
-                  return _getTerminals(context)[_selectedTerminalCode];
+                  return _getSelectedTerminalName(context) ?? "";
                 }
                 return _dropAddress ?? "";
               }
@@ -981,6 +1251,8 @@ class _NewBookingState extends State<NewBooking> {
           SizedBox(height: 16),
           buildVehicleModelSelector(context, loc),
           SizedBox(height: 16),
+          buildCarImageDisplay(context, loc),
+          SizedBox(height: 16),
           buildSpecialRequests(context, loc),
         ],
       ),
@@ -1059,41 +1331,52 @@ class _NewBookingState extends State<NewBooking> {
     };
   }
 
+  /// Get available vehicle classes from loaded car data
+  List<String> _getAvailableVehicleClasses() {
+    // If we have API data, get unique categories from cars
+    if (_cars.isNotEmpty) {
+      return _cars.map((c) => c.className).toSet().toList()..sort();
+    }
+    // Fallback to hardcoded classes if no API data
+    return _getVehicleClasses(AppLocalizations.of(context)!).keys.toList();
+  }
+
   Widget buildVehicleClassSelector(BuildContext context, AppLocalizations loc) {
-    final classes = _getVehicleClasses(loc);
+    // Get available classes from API or fallback to hardcoded
+    final availableClasses = _getAvailableVehicleClasses();
+
+    // Ensure the selected value is in the available classes, otherwise use first
+    String? validSelectedClass = _selectedVehicleClass;
+    if (validSelectedClass != null &&
+        !availableClasses.contains(validSelectedClass)) {
+      validSelectedClass = availableClasses.isNotEmpty
+          ? availableClasses.first
+          : null;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PremiumDropDown(
-            value: _selectedVehicleClass != null
-                ? classes[_selectedVehicleClass]
-                : null,
+            value: validSelectedClass,
             onChanged: (value) {
               if (value != null) {
                 setState(() {
-                  _selectedVehicleClass = classes.entries
-                      .firstWhere((e) => e.value == value)
-                      .key;
+                  _selectedVehicleClass = value;
 
-                  final availableBrands = availableCars
-                      .where((c) => c.className == _selectedVehicleClass)
-                      .map((c) => c.brand)
-                      .toSet()
-                      .toList();
+                  final availableBrands = _getAvailableBrands(
+                    _selectedVehicleClass,
+                  );
 
                   if (availableBrands.isNotEmpty) {
                     _selectedVehicleBrand = availableBrands.first;
 
-                    final availableModels = availableCars
-                        .where(
-                          (c) =>
-                              c.className == _selectedVehicleClass &&
-                              c.brand == _selectedVehicleBrand,
-                        )
-                        .map((c) => c.modelName)
-                        .toList();
+                    final availableModels = _getAvailableModels(
+                      _selectedVehicleClass,
+                      _selectedVehicleBrand,
+                    );
                     _selectedVehicleModel = availableModels.isNotEmpty
                         ? availableModels.first
                         : null;
@@ -1105,7 +1388,7 @@ class _NewBookingState extends State<NewBooking> {
               }
             },
             title: loc.chauffeurredClass,
-            items: classes.values.toList(),
+            items: availableClasses,
           ),
         ],
       ),
@@ -1113,127 +1396,46 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildVehicleBrandSelector(BuildContext context, AppLocalizations loc) {
-    final List<String> brands = availableCars
-        .where((c) => c.className == _selectedVehicleClass)
-        .map((c) => c.brand)
-        .toSet()
-        .toList();
+    final List<String> brands = _getAvailableBrands(_selectedVehicleClass);
 
     if (brands.isEmpty) return const SizedBox();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            loc.choosePreferredBrand,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: brands.length,
-              itemBuilder: (context, index) {
-                final brand = brands[index];
-                final isSelected = _selectedVehicleBrand == brand;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedVehicleBrand = brand;
+      child: PremiumDropDown(
+        title: loc.choosePreferredBrand,
+        items: brands,
+        value:
+            _selectedVehicleBrand != null &&
+                brands.contains(_selectedVehicleBrand)
+            ? _selectedVehicleBrand
+            : null,
+        itemImages: _brandIcons,
+        onChanged: (value) {
+          if (value != null) {
+            setState(() {
+              _selectedVehicleBrand = value;
 
-                      final availableModels = availableCars
-                          .where(
-                            (c) =>
-                                c.className == _selectedVehicleClass &&
-                                c.brand == _selectedVehicleBrand,
-                          )
-                          .map((c) => c.modelName)
-                          .toList();
-                      if (availableModels.isNotEmpty &&
-                          !availableModels.contains(_selectedVehicleModel)) {
-                        _selectedVehicleModel = availableModels.first;
-                      }
-                    });
-                  },
-                  child: Container(
-                    margin: EdgeInsetsDirectional.only(
-                      end: index != brands.length - 1 ? 8 : 0,
-                    ),
-                    height: 100,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.grey.shade900 : Colors.black,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xffE4A46B)
-                            : Colors.white24,
-                        width: isSelected ? 2 : 1,
-                      ),
-                    ),
-                    child: Stack(
-                      children: [
-                        Container(
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: _isDarkLogo(brand)
-                                ? Colors.white.withAlpha(200)
-                                : Colors.transparent,
-                          ),
-                          padding: const EdgeInsets.all(12.0),
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/thumb/${brand.toLowerCase().replaceAll(' ', '-')}.png",
-                            fit: BoxFit.contain,
-                            errorWidget: (context, url, error) => Text(
-                              brand,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: _isDarkLogo(brand)
-                                    ? Colors.black
-                                    : Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (isSelected)
-                          Positioned.directional(
-                            textDirection: Directionality.of(context),
-                            top: 8,
-                            end: 8,
-                            child: const Icon(
-                              Icons.check_circle,
-                              color: Color(0xffE4A46B),
-                              size: 20,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+              final availableModels = _getAvailableModels(
+                _selectedVehicleClass,
+                _selectedVehicleBrand,
+              );
+              if (availableModels.isNotEmpty &&
+                  !availableModels.contains(_selectedVehicleModel)) {
+                _selectedVehicleModel = availableModels.first;
+              }
+            });
+          }
+        },
       ),
     );
   }
 
   Widget buildVehicleModelSelector(BuildContext context, AppLocalizations loc) {
-    final List<String> models = availableCars
-        .where(
-          (c) =>
-              c.className == _selectedVehicleClass &&
-              c.brand == _selectedVehicleBrand,
-        )
-        .map((c) => c.modelName)
-        .toList();
+    final List<String> models = _getAvailableModels(
+      _selectedVehicleClass,
+      _selectedVehicleBrand,
+    );
 
     if (models.isEmpty) return const SizedBox();
     return Padding(
@@ -1253,6 +1455,68 @@ class _NewBookingState extends State<NewBooking> {
             });
           }
         },
+      ),
+    );
+  }
+
+  Widget buildCarImageDisplay(BuildContext context, AppLocalizations loc) {
+    final carsList = _cars.isNotEmpty ? _cars : availableCars;
+
+    // Find the selected car
+    CarModel? selectedCar;
+    try {
+      selectedCar = carsList.firstWhere(
+        (c) =>
+            c.className == _selectedVehicleClass &&
+            c.brand == _selectedVehicleBrand &&
+            c.modelName == _selectedVehicleModel,
+      );
+    } catch (e) {
+      return const SizedBox();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Car Image
+          Container(
+            width: double.infinity,
+            height: 340,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.grey.shade800,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                selectedCar.imagePath,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(
+                    child: Icon(
+                      Icons.car_rental,
+                      color: Colors.grey.shade600,
+                      size: 64,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          // Car Model Name
+          Text(
+            _selectedVehicleModel ?? '',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.start,
+          ),
+        ],
       ),
     );
   }
@@ -1311,12 +1575,15 @@ class _NewBookingState extends State<NewBooking> {
               onChanged: (val) {
                 if (val != null) {
                   setState(() {
-                    _selectedCityCode = _getCityCode(context, val);
+                    _selectedCityCode = _getAvailableCityNames(
+                      context,
+                    ).indexOf(val);
+                    _selectedAirportCode = 0;
                     _selectedTerminalCode = 0;
                   });
                 }
               },
-              items: [loc.riyadh, loc.jeddah, loc.dammam],
+              items: _getAvailableCityNames(context),
             ),
           ),
           SizedBox(height: 16),
@@ -1359,6 +1626,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildArrivalSection(BuildContext context, AppLocalizations loc) {
+    final terminals = _getAvailableTerminals(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1368,15 +1636,19 @@ class _NewBookingState extends State<NewBooking> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: PremiumDropDown(
             title: loc.terminal,
-            value: _getTerminals(context)[_selectedTerminalCode],
+            value: terminals.isNotEmpty
+                ? (_selectedTerminalCode < terminals.length
+                      ? terminals[_selectedTerminalCode]
+                      : terminals.first)
+                : "",
             onChanged: (val) {
               if (val != null) {
                 setState(() {
-                  _selectedTerminalCode = _getTerminals(context).indexOf(val);
+                  _selectedTerminalCode = terminals.indexOf(val);
                 });
               }
             },
-            items: _getTerminals(context),
+            items: terminals,
           ),
         ),
         SizedBox(height: 16),
@@ -1409,6 +1681,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildDepartureSection(BuildContext context, AppLocalizations loc) {
+    final terminals = _getAvailableTerminals(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1420,15 +1693,19 @@ class _NewBookingState extends State<NewBooking> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: PremiumDropDown(
             title: loc.terminal,
-            value: _getTerminals(context)[_selectedTerminalCode],
+            value: terminals.isNotEmpty
+                ? (_selectedTerminalCode < terminals.length
+                      ? terminals[_selectedTerminalCode]
+                      : terminals.first)
+                : "",
             onChanged: (val) {
               if (val != null) {
                 setState(() {
-                  _selectedTerminalCode = _getTerminals(context).indexOf(val);
+                  _selectedTerminalCode = terminals.indexOf(val);
                 });
               }
             },
-            items: _getTerminals(context),
+            items: terminals,
           ),
         ),
         SizedBox(height: 16),
@@ -1615,55 +1892,25 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildAirportName(BuildContext context, AppLocalizations loc) {
-    String airportName = "King Khalid International Airport";
-    if (_selectedCityCode == 1) {
-      airportName = "King Fahd International Airport";
-    } else if (_selectedCityCode == 2) {
-      airportName = "King Abdulaziz International Airport";
-    }
-
+    final airports = _getAvailableAirports(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        spacing: 5,
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            loc.airport,
-            style: TextStyle(color: Colors.white, fontSize: 14),
-          ),
-          Container(
-            height: 60,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white24),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade900,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Text(
-                      airportName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: PremiumDropDown(
+        title: loc.airport,
+        value: airports.isNotEmpty
+            ? (_selectedAirportCode < airports.length
+                  ? airports[_selectedAirportCode]
+                  : airports.first)
+            : "",
+        onChanged: (val) {
+          if (val != null) {
+            setState(() {
+              _selectedAirportCode = airports.indexOf(val);
+              _selectedTerminalCode = 0;
+            });
+          }
+        },
+        items: airports,
       ),
     );
   }
@@ -2200,5 +2447,168 @@ class _NewBookingState extends State<NewBooking> {
         ),
       ),
     );
+  }
+
+  /// Get simplified list of city names for dropdowns
+  List<String> _getAvailableCityNames(BuildContext context) {
+    if (_apiCities.isNotEmpty) {
+      return _apiCities.map((c) => c['cityName'].toString()).toSet().toList();
+    }
+    return [];
+  }
+
+  /// Get airports based on selected city (using cityID from _apiCities)
+  List<String> _getAvailableAirports(BuildContext context) {
+    if (_apiCities.isNotEmpty && _apiAirports.isNotEmpty) {
+      try {
+        if (_selectedCityCode < _apiCities.length) {
+          final city = _apiCities[_selectedCityCode];
+          final cityId = (city['_id'] ?? city['id'])?.toString();
+
+          final filtered = _apiAirports
+              .where((a) {
+                var aCityId = a['cityID'] ?? a['cityId'] ?? a['city_id'];
+                if (aCityId is Map) {
+                  aCityId = aCityId['_id'] ?? aCityId['id'];
+                }
+                final aCityIdStr = aCityId?.toString();
+                return aCityIdStr != null && aCityIdStr == cityId;
+              })
+              .map((a) => a['airportName'].toString())
+              .toSet()
+              .toList();
+
+          if (filtered.isNotEmpty) return filtered;
+        }
+      } catch (e) {
+        debugPrint('Error filtering airports: $e');
+      }
+    }
+    return [];
+  }
+
+  /// Get terminals based on selected airport
+  List<String> _getAvailableTerminals(BuildContext context) {
+    if (_apiAirports.isNotEmpty && _apiTerminals.isNotEmpty) {
+      try {
+        final airportNames = _getAvailableAirports(context);
+        if (airportNames.isNotEmpty) {
+          // Find the selected airport object to get its ID
+          final selectedAirportName =
+              airportNames[_selectedAirportCode < airportNames.length
+                  ? _selectedAirportCode
+                  : 0];
+
+          final airport = _apiAirports.firstWhere(
+            (a) => a['airportName']?.toString() == selectedAirportName,
+            orElse: () => _apiAirports.firstWhere(
+              (a) => true, // Just to have a fallback if names don't match
+              orElse: () => {},
+            ),
+          );
+
+          if (airport.isNotEmpty) {
+            final airportId = (airport['_id'] ?? airport['id'])?.toString();
+
+            final filtered = _apiTerminals
+                .where((t) {
+                  var tAirportId =
+                      t['airportID'] ?? t['airportId'] ?? t['airport_id'];
+                  if (tAirportId is Map) {
+                    tAirportId = tAirportId['_id'] ?? tAirportId['id'];
+                  }
+                  final tAirportIdStr = tAirportId?.toString();
+                  return tAirportIdStr != null && tAirportIdStr == airportId;
+                })
+                .map((t) => t['terminalName'].toString())
+                .toSet()
+                .toList();
+
+            if (filtered.isNotEmpty) return filtered;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error filtering terminals: $e');
+      }
+    }
+    return [];
+  }
+
+  String? _getSelectedTerminalName(BuildContext context) {
+    final terminals = _getAvailableTerminals(context);
+    if (terminals.isNotEmpty) {
+      return terminals[_selectedTerminalCode < terminals.length
+          ? _selectedTerminalCode
+          : 0];
+    }
+    return "";
+  }
+
+  String? _getSelectedCityId() {
+    if (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length) {
+      final city = _apiCities[_selectedCityCode];
+      return (city['_id'] ?? city['id'])?.toString();
+    }
+    return null;
+  }
+
+  String? _getSelectedAirportId() {
+    if (_apiAirports.isNotEmpty) {
+      final airportNames = _getAvailableAirports(context);
+      if (airportNames.isNotEmpty) {
+        final selectedAirportName =
+            airportNames[_selectedAirportCode < airportNames.length
+                ? _selectedAirportCode
+                : 0];
+        try {
+          final airport = _apiAirports.firstWhere(
+            (a) => a['airportName']?.toString() == selectedAirportName,
+            orElse: () => {},
+          );
+          return (airport['_id'] ?? airport['id'])?.toString();
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+
+  String? _getSelectedTerminalId() {
+    if (_apiTerminals.isNotEmpty) {
+      final terminalNames = _getAvailableTerminals(context);
+      if (terminalNames.isNotEmpty) {
+        final selectedTerminalName =
+            terminalNames[_selectedTerminalCode < terminalNames.length
+                ? _selectedTerminalCode
+                : 0];
+        try {
+          final terminal = _apiTerminals.firstWhere(
+            (t) => t['terminalName']?.toString() == selectedTerminalName,
+            orElse: () => {},
+          );
+          return (terminal['_id'] ?? terminal['id'])?.toString();
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Helper to safely convert dynamic raw data from API to a list of maps
+  List<Map<String, dynamic>> rawDataToList(dynamic rawData) {
+    if (rawData is List) {
+      return rawData
+          .map((item) {
+            if (item is Map) {
+              return Map<String, dynamic>.from(item);
+            }
+            return <String, dynamic>{};
+          })
+          .where((m) => m.isNotEmpty)
+          .toList();
+    }
+    return [];
   }
 }

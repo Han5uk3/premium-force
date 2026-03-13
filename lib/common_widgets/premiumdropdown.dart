@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class PremiumDropDown extends StatefulWidget {
@@ -6,6 +7,7 @@ class PremiumDropDown extends StatefulWidget {
   final String? value;
   final ValueChanged<String?>? onChanged;
   final String? hint;
+  final Map<String, String>? itemImages;
 
   const PremiumDropDown({
     super.key,
@@ -14,6 +16,7 @@ class PremiumDropDown extends StatefulWidget {
     this.value,
     this.onChanged,
     this.hint,
+    this.itemImages,
   });
 
   @override
@@ -67,15 +70,15 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
                     )
                   : null,
               isExpanded: true,
-              dropdownColor: Colors.black, // dropdown menu background
+              dropdownColor: Colors.black,
               icon: const Icon(
                 Icons.arrow_drop_down,
                 color: Colors.white,
-              ), // white icon
+              ),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
-              ), // white texts
+              ),
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedValue = newValue;
@@ -84,12 +87,38 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
                   widget.onChanged!(newValue);
                 }
               },
+              selectedItemBuilder: (BuildContext context) {
+                return widget.items.map<Widget>((String item) {
+                  final imageUrl = widget.itemImages?[item];
+                  return Row(
+                    children: [
+                      if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                        _buildThumbnail(imageUrl),
+                        const SizedBox(width: 12),
+                      ],
+                      Text(
+                        item,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  );
+                }).toList();
+              },
               items: widget.items.map((String item) {
+                final imageUrl = widget.itemImages?[item];
                 return DropdownMenuItem<String>(
                   value: item,
-                  child: Text(
-                    item,
-                    style: const TextStyle(color: Colors.white),
+                  child: Row(
+                    children: [
+                      if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                        _buildThumbnail(imageUrl),
+                        const SizedBox(width: 12),
+                      ],
+                      Text(
+                        item,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
                   ),
                 );
               }).toList(),
@@ -97,6 +126,30 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildThumbnail(String imageUrl) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.contain,
+        placeholder: (context, url) => Container(
+          color: Colors.grey.shade800,
+        ),
+        errorWidget: (context, url, error) => const Icon(
+          Icons.directions_car,
+          size: 20,
+          color: Colors.black,
+        ),
+      ),
     );
   }
 }

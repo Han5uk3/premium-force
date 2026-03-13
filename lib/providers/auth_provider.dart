@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/models/user.dart';
+import 'package:premium_force_main/services/apple_sign_in_service.dart';
 import 'package:premium_force_main/services/google_sign_in_service.dart';
 import 'package:premium_force_main/services/notification_service.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
@@ -501,16 +502,17 @@ class AuthProvider extends ChangeNotifier {
   /// Sign in with Google.
   ///
   /// Flow:
-  /// 1. Native Google Sign-In (account picker → ID token)
-  /// 2. Send ID token to Node.js backend (`POST /auth/google`)
-  /// 3. Backend verifies token, creates or retrieves the user from MongoDB.
-  /// 4. If user exists → authenticated. If new → otpVerified (go to signup).
+  /// 1. Native Google Sign-In (account picker → email, displayName, photoUrl, idToken)
+  /// 2. Check if email exists in backend using `GET /users/check-email?email=...`
+  /// 3. If email exists → fetch user data and authenticate → [AuthStatus.authenticated]
+  /// 4. If email doesn't exist → navigate to signup with pre-filled data → [AuthStatus.otpVerified]
   Future<void> signInWithGoogle() async {
     _isGoogleLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
+      // Step 1: Get Google credentials
       final result = await GoogleSignInService.instance.signIn();
       if (result == null) {
         // User cancelled
@@ -521,58 +523,68 @@ class AuthProvider extends ChangeNotifier {
 
       _googleResult = result;
 
-      debugPrint('🔐 Google Sign-In │ ID Token:');
-      debugPrint('🔐 Google Sign-In │ ${result.idToken}');
       debugPrint('🔐 Google Sign-In │ Email: ${result.email}');
       debugPrint('🔐 Google Sign-In │ Display Name: ${result.displayName}');
+      debugPrint(
+        '🔐 Google Sign-In │ ID Token present: ${result.idToken != null}',
+      );
 
-      if (result.idToken == null) {
-        _status = AuthStatus.failure;
-        _errorMessage = 'Failed to get ID token from Google.';
-        _isGoogleLoading = false;
-        notifyListeners();
-        return;
-      }
+      // Step 2: Check if email exists in backend
+      final emailCheckResponse = await _api.checkEmailExists(
+        email: result.email,
+      );
+      debugPrint(
+        '🔐 Google Sign-In │ Email check response: $emailCheckResponse',
+      );
 
-      // Send only idToken to backend
-      final response = await _api.googleAuth(idToken: result.idToken!);
+      final emailExists =
+          emailCheckResponse['success'] == true &&
+          (emailCheckResponse['exists'] == true ||
+              emailCheckResponse['data'] != null);
 
-      debugPrint('🔐 Google Sign-In │ Backend response: $response');
+      if (emailExists) {
+        // Step 3a: Email exists → Fetch full user data
+        debugPrint('🔐 Google Sign-In │ Email exists. Fetching user data...');
 
-      if (response['success'] == true) {
-        final isNewUser = response['isNewUser'] as bool? ?? false;
+        // Try to get user data from the response or by email
+        final userData =
+            emailCheckResponse['user'] ?? emailCheckResponse['data'];
 
-        if (isNewUser) {
-          // New user — let them go to signup to fill remaining fields
-          _status = AuthStatus.otpVerified;
-        } else {
-          // Existing user — fully authenticated
-          final userData = response['user'] ?? response['data'];
-          if (userData is Map<String, dynamic>) {
-            _user = UserModel.fromJson(userData);
-            final uid = userData['_id'] ?? userData['id'] ?? '';
-            final phone = userData['phoneNumber'] ?? '';
+        if (userData is Map<String, dynamic>) {
+          _user = UserModel.fromJson(userData);
+          final uid = userData['_id'] ?? userData['id'] ?? '';
+          final phone = userData['phoneNumber'] ?? '';
 
-            await UserLocalStorage.saveUserCredentials(
-              userId: uid as String,
-              phoneNumber: phone as String,
-            );
+          await UserLocalStorage.saveUserCredentials(
+            userId: uid as String,
+            phoneNumber: phone as String,
+          );
 
-            // Persist the full user data locally
-            await UserLocalStorage.saveUserData(userData);
-          }
+          // Persist the full user data locally
+          await UserLocalStorage.saveUserData(userData);
 
-          final token = response['token'] as String?;
-          if (token != null) {
+          // If there's a token in response, save it
+          final token = userData['token'] ?? emailCheckResponse['token'];
+          if (token is String && token.isNotEmpty) {
             await UserLocalStorage.saveToken(token);
           }
 
           _status = AuthStatus.authenticated;
+          debugPrint(
+            '✅ Google Sign-In │ Existing user authenticated: ${_user?.username}',
+          );
+        } else {
+          // Email exists but we couldn't get user data from response
+          // This shouldn't happen in normal flow but treating as new user
+          _status = AuthStatus.otpVerified;
+          debugPrint(
+            '⚠️ Google Sign-In │ Email exists but no user data. Going to signup.',
+          );
         }
       } else {
-        _status = AuthStatus.failure;
-        _errorMessage =
-            response['message'] as String? ?? 'Google sign-in failed';
+        // Step 3b: Email doesn't exist → Navigate to signup
+        _status = AuthStatus.otpVerified;
+        debugPrint('🆕 Google Sign-In │ New user email. Going to signup.');
       }
     } catch (e) {
       debugPrint('Google Sign-In error: $e');
@@ -581,6 +593,116 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _isGoogleLoading = false;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Apple Sign-In
+  // ---------------------------------------------------------------------------
+
+  bool _isAppleLoading = false;
+  bool get isAppleLoading => _isAppleLoading;
+
+  /// The Apple sign-in result, stored temporarily so the signup page can
+  /// pre-fill fields if this is a new user.
+  AppleSignInResult? _appleResult;
+  AppleSignInResult? get appleResult => _appleResult;
+
+  /// Sign in with Apple.
+  ///
+  /// Flow:
+  /// 1. Native Apple Sign-In (show Apple sign-in sheet → email, displayName, userId, idToken)
+  /// 2. Check if email exists in backend using `GET /users/check-email?email=...`
+  /// 3. If email exists → fetch user data and authenticate → [AuthStatus.authenticated]
+  /// 4. If email doesn't exist → navigate to signup with pre-filled data → [AuthStatus.otpVerified]
+  Future<void> signInWithApple() async {
+    _isAppleLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // Step 1: Get Apple credentials
+      final result = await AppleSignInService.instance.signIn();
+      if (result == null) {
+        // User cancelled
+        _isAppleLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      _appleResult = result;
+
+      debugPrint('🍎 Apple Sign-In │ User ID: ${result.userId}');
+      debugPrint('🍎 Apple Sign-In │ Email: ${result.email}');
+      debugPrint('🍎 Apple Sign-In │ Display Name: ${result.displayName}');
+      debugPrint(
+        '🍎 Apple Sign-In │ ID Token present: ${result.idToken != null}',
+      );
+
+      // Step 2: Check if email exists in backend
+      final emailCheckResponse = await _api.checkEmailExists(
+        email: result.email,
+      );
+      debugPrint(
+        '🍎 Apple Sign-In │ Email check response: $emailCheckResponse',
+      );
+
+      final emailExists =
+          emailCheckResponse['success'] == true &&
+          (emailCheckResponse['exists'] == true ||
+              emailCheckResponse['data'] != null);
+
+      if (emailExists) {
+        // Step 3a: Email exists → Fetch full user data
+        debugPrint('🍎 Apple Sign-In │ Email exists. Fetching user data...');
+
+        // Try to get user data from the response or by email
+        final userData =
+            emailCheckResponse['user'] ?? emailCheckResponse['data'];
+
+        if (userData is Map<String, dynamic>) {
+          _user = UserModel.fromJson(userData);
+          final uid = userData['_id'] ?? userData['id'] ?? '';
+          final phone = userData['phoneNumber'] ?? '';
+
+          await UserLocalStorage.saveUserCredentials(
+            userId: uid as String,
+            phoneNumber: phone as String,
+          );
+
+          // Persist the full user data locally
+          await UserLocalStorage.saveUserData(userData);
+
+          // If there's a token in response, save it
+          final token = userData['token'] ?? emailCheckResponse['token'];
+          if (token is String && token.isNotEmpty) {
+            await UserLocalStorage.saveToken(token);
+          }
+
+          _status = AuthStatus.authenticated;
+          debugPrint(
+            '✅ Apple Sign-In │ Existing user authenticated: ${_user?.username}',
+          );
+        } else {
+          // Email exists but we couldn't get user data from response
+          // This shouldn't happen in normal flow but treating as new user
+          _status = AuthStatus.otpVerified;
+          debugPrint(
+            '⚠️ Apple Sign-In │ Email exists but no user data. Going to signup.',
+          );
+        }
+      } else {
+        // Step 3b: Email doesn't exist → Navigate to signup
+        _status = AuthStatus.otpVerified;
+        debugPrint('🆕 Apple Sign-In │ New user email. Going to signup.');
+      }
+    } catch (e) {
+      debugPrint('Apple Sign-In error: $e');
+      _status = AuthStatus.failure;
+      _errorMessage = 'Apple sign-in failed. Please try again.';
+    }
+
+    _isAppleLoading = false;
     notifyListeners();
   }
 
@@ -609,6 +731,7 @@ class AuthProvider extends ChangeNotifier {
       _phoneNumber = null;
       _errorMessage = null;
       _googleResult = null;
+      _appleResult = null;
       _resendCountdown = 0;
       _status = AuthStatus.unauthenticated;
       notifyListeners();

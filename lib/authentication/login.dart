@@ -106,6 +106,45 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
     }
   }
 
+  /// Handle Apple Sign-In button tap.
+  Future<void> _handleAppleSignIn() async {
+    if (!_isAgreed) {
+      _showCustomSnackBar(
+        'Please agree to the terms and conditions and privacy policy.',
+      );
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.signInWithApple();
+
+    if (!mounted) return;
+
+    if (authProvider.status == AuthStatus.authenticated) {
+      // Existing user — go to home
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => Home()),
+        (route) => false,
+      );
+    } else if (authProvider.status == AuthStatus.otpVerified) {
+      // New user — go to signup with pre-filled data
+      final appleResult = authProvider.appleResult;
+      Navigator.of(context).push(
+        SmoothNavigation.route(
+          SignUpPage(
+            countryCode: '+$_selectedCountryCode',
+            phoneNumber: '',
+            appleEmail: appleResult?.email,
+            appleDisplayName: appleResult?.displayName,
+          ),
+        ),
+      );
+    } else if (authProvider.status == AuthStatus.failure &&
+        authProvider.errorMessage != null) {
+      _showCustomSnackBar(authProvider.errorMessage!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -454,6 +493,18 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                           },
                         ),
 
+                        const SizedBox(height: 12),
+
+                        // ── Apple Sign-In button ───────────────────────
+                        Consumer<AuthProvider>(
+                          builder: (context, authProvider, _) {
+                            return _AppleSignInButton(
+                              isLoading: authProvider.isAppleLoading,
+                              onTap: _handleAppleSignIn,
+                            );
+                          },
+                        ),
+
                         const SizedBox(height: 32),
                       ],
                     ),
@@ -517,6 +568,68 @@ class _GoogleSignInButton extends StatelessWidget {
                   const SizedBox(width: 14),
                   const Text(
                     'Continue with Google',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A styled Apple Sign-In button that matches the app's dark premium theme.
+class _AppleSignInButton extends StatelessWidget {
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const _AppleSignInButton({required this.isLoading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withAlpha(40), width: 1),
+        color: const Color(0xFF0D0A08),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLoading ? null : onTap,
+          borderRadius: BorderRadius.circular(12),
+          splashColor: Colors.white.withAlpha(20),
+          highlightColor: Colors.white.withAlpha(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isLoading)
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFFE4A46B),
+                      ),
+                    ),
+                  )
+                else ...[
+                  const Icon(Icons.apple, color: Colors.white, size: 24),
+                  const SizedBox(width: 14),
+                  const Text(
+                    'Continue with Apple',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,

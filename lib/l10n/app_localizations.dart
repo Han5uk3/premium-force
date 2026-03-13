@@ -530,6 +530,24 @@ abstract class AppLocalizations {
   /// **'Enter Special ID if available'**
   String get enterSpecialIdIFAvailable;
 
+  /// No description provided for @enterYourSpecialId.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your special ID'**
+  String get enterYourSpecialId;
+
+  /// No description provided for @pleaseEnterYourSpecialId.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your special ID'**
+  String get pleaseEnterYourSpecialId;
+
+  /// No description provided for @iAmACorporateEmployee.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you a corporate employee?'**
+  String get iAmACorporateEmployee;
+
   /// No description provided for @createAccount.
   ///
   /// In en, this message translates to:
@@ -1063,6 +1081,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pickup time cannot be after departure time'**
   String get pickupTimeCannotBeAfterDepartureTime;
+
+  /// No description provided for @pickupTimeAtLeast4HoursBeforeDeparture.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup time must be at least 4 hours before departure time'**
+  String get pickupTimeAtLeast4HoursBeforeDeparture;
 
   /// No description provided for @noRecentBookings.
   ///

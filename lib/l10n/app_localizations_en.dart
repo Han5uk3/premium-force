@@ -227,6 +227,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterSpecialIdIFAvailable => 'Enter Special ID if available';
 
   @override
+  String get enterYourSpecialId => 'Enter your special ID';
+
+  @override
+  String get pleaseEnterYourSpecialId => 'Please enter your special ID';
+
+  @override
+  String get iAmACorporateEmployee => 'Are you a corporate employee?';
+
+  @override
   String get createAccount => 'Create Account';
 
   @override
@@ -504,6 +513,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pickupTimeCannotBeAfterDepartureTime =>
       'Pickup time cannot be after departure time';
+
+  @override
+  String get pickupTimeAtLeast4HoursBeforeDeparture =>
+      'Pickup time must be at least 4 hours before departure time';
 
   @override
   String get noRecentBookings => 'No recent bookings';
