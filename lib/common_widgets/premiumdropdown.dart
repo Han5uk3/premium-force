@@ -71,14 +71,8 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
                   : null,
               isExpanded: true,
               dropdownColor: Colors.black,
-              icon: const Icon(
-                Icons.arrow_drop_down,
-                color: Colors.white,
-              ),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+              style: const TextStyle(color: Colors.white, fontSize: 16),
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedValue = newValue;
@@ -96,10 +90,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
                         _buildThumbnail(imageUrl),
                         const SizedBox(width: 12),
                       ],
-                      Text(
-                        item,
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                      Text(item, style: const TextStyle(color: Colors.white)),
                     ],
                   );
                 }).toList();
@@ -114,10 +105,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
                         _buildThumbnail(imageUrl),
                         const SizedBox(width: 12),
                       ],
-                      Text(
-                        item,
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                      Text(item, style: const TextStyle(color: Colors.white)),
                     ],
                   ),
                 );
@@ -134,21 +122,16 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(4),
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         fit: BoxFit.contain,
-        placeholder: (context, url) => Container(
-          color: Colors.grey.shade800,
-        ),
-        errorWidget: (context, url, error) => const Icon(
-          Icons.directions_car,
-          size: 20,
-          color: Colors.black,
-        ),
+        placeholder: (context, url) => Container(color: Colors.grey.shade800),
+        errorWidget: (context, url, error) =>
+            const Icon(Icons.directions_car, size: 20, color: Colors.black),
       ),
     );
   }

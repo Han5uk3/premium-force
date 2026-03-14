@@ -24,8 +24,8 @@ class GoogleSignInService {
   // iOS Client ID:
   static const String _iosClientId =
       '265361809546-8ucet0uausd5aacl6nsatt9b5inbchf8.apps.googleusercontent.com';
-  static const String _androidClientId =
-      '265361809546-l7frcki7argtjttarntrgbaqvmj7c5o9.apps.googleusercontent.com';
+  // static const String _androidClientId =
+  //     '265361809546-l7frcki7argtjttarntrgbaqvmj7c5o9.apps.googleusercontent.com';
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],

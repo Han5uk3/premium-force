@@ -45,12 +45,10 @@ class _NewBookingState extends State<NewBooking> {
   late int _selectedCityCode;
 
   bool _isCalculatingDistance = false;
-  bool _isLoadingCarData = true;
 
   double _totalDistance = 50.0;
 
   // Fetched car data from the backend
-  List<Map<String, dynamic>> _categories = [];
   List<Map<String, dynamic>> _brands = [];
   List<CarModel> _cars = [];
   List<Map<String, dynamic>> _apiCities = [];
@@ -158,7 +156,6 @@ class _NewBookingState extends State<NewBooking> {
         return <Map<String, dynamic>>[{}, {}, {}, {}, {}, {}];
       });
 
-      final categoriesResult = results[0];
       final brandsResult = results[1];
       final carsResult = results[2];
       final citiesResult = results[3];
@@ -173,21 +170,6 @@ class _NewBookingState extends State<NewBooking> {
 
       if (mounted) {
         setState(() {
-          // Process categories from API
-          if (categoriesResult['success'] == true) {
-            final categoriesData =
-                categoriesResult['data'] ?? categoriesResult['categories'];
-            if (categoriesData is List) {
-              _categories = List<Map<String, dynamic>>.from(
-                categoriesData.map(
-                  (c) => c is Map<String, dynamic>
-                      ? c
-                      : {'id': c, 'name': c.toString()},
-                ),
-              );
-            }
-          }
-
           // Process brands from API
           if (brandsResult['success'] == true) {
             final brandsData =
@@ -312,8 +294,6 @@ class _NewBookingState extends State<NewBooking> {
             }
           }
 
-          _isLoadingCarData = false;
-
           // Set default values if cars were loaded
           if (_cars.isNotEmpty) {
             final firstCar = _cars.first;
@@ -326,11 +306,6 @@ class _NewBookingState extends State<NewBooking> {
       }
     } catch (e) {
       debugPrint('Error loading car data: $e');
-      if (mounted) {
-        setState(() {
-          _isLoadingCarData = false;
-        });
-      }
     }
   }
 
