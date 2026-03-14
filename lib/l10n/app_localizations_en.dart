@@ -171,10 +171,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get location => 'Location';
 
   @override
-  String get specialId => 'Special ID';
+  String get promoCode => 'Promo Code';
+
+  @override
+  String get saveChanges => 'Save Changes';
 
   @override
   String get phoneNumber => 'Phone Number';
+
+  @override
+  String get pleaseEnterYourPromoCode => 'Please enter your promo code';
+
+  @override
+  String get enterYourPromoCode => 'Enter your promo code';
 
   @override
   String get submit => 'Submit';

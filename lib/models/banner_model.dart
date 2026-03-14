@@ -18,11 +18,26 @@ class BannerModel {
 
   /// Factory constructor to create a BannerModel from JSON.
   factory BannerModel.fromJson(Map<String, dynamic> json) {
+    String imageUrl = json['imageUrl'] ?? json['image'] ?? '';
+
+    // Modernize relative paths if they don't start with http/https
+    if (imageUrl.isNotEmpty &&
+        !imageUrl.startsWith('http') &&
+        !imageUrl.startsWith('assets/')) {
+      const String host =
+          'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000';
+      if (imageUrl.startsWith('/')) {
+        imageUrl = '$host$imageUrl';
+      } else {
+        imageUrl = '$host/$imageUrl';
+      }
+    }
+
     return BannerModel(
       id: json['_id'] ?? json['id'] ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
-      imageUrl: json['imageUrl'] ?? json['image'] ?? '',
+      imageUrl: imageUrl,
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())

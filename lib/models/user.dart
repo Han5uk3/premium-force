@@ -56,11 +56,25 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     // ── Profile image ──────────────────────────────────────
     String? imageUrl;
-    final profileRaw = json['profileImage'];
+    final profileRaw = json['profileImage'] ?? json['profileImageUrl'];
     if (profileRaw is String) {
       imageUrl = profileRaw;
     } else if (profileRaw is Map<String, dynamic>) {
       imageUrl = profileRaw['url'] as String?;
+    }
+
+    // Modernize relative paths if they don't start with http/https
+    if (imageUrl != null &&
+        imageUrl.isNotEmpty &&
+        !imageUrl.startsWith('http')) {
+      // Backend images are usually in /uploads or relative to root
+      const String host =
+          'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000';
+      if (imageUrl.startsWith('/')) {
+        imageUrl = '$host$imageUrl';
+      } else {
+        imageUrl = '$host/$imageUrl';
+      }
     }
 
     // ── Location ───────────────────────────────────────────

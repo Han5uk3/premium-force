@@ -70,49 +70,106 @@ class _HomepageState extends State<Homepage> {
             api.getAirports(),
             api.getTerminals(),
           ]).catchError((e) {
-            debugPrint('Error fetching location data: $e');
+            debugPrint('❌ Error fetching location data: $e');
             return <Map<String, dynamic>>[{}, {}, {}];
           });
 
       if (mounted) {
         setState(() {
-          // Process Cities
-          if (results[0]['success'] == true) {
-            _apiCities = rawDataToList(
-              results[0]['data'] ?? results[0]['cities'],
-            );
+          // Helper to extract list data from various response formats
+          List<Map<String, dynamic>> extractListData(
+            Map<String, dynamic> response,
+            List<String> possibleKeys,
+          ) {
+            if (response['success'] != true) {
+              if (kDebugMode) {
+                debugPrint(
+                  '🌐 API │ Response not successful: ${response['message'] ?? 'Unknown error'}',
+                );
+              }
+              return [];
+            }
+
+            // Try each possible key
+            for (String key in possibleKeys) {
+              if (response.containsKey(key)) {
+                dynamic data = response[key];
+                if (kDebugMode) {
+                  debugPrint('🌐 API │ Found data in key "$key": $data');
+                }
+                return rawDataToList(data);
+              }
+            }
+
+            // If none of the known keys work, search for any array in the response
+            if (kDebugMode) {
+              debugPrint(
+                '🌐 API │ No known keys found. Available keys: ${response.keys.toList()}',
+              );
+              debugPrint('🌐 API │ Full response: $response');
+            }
+
+            for (MapEntry<String, dynamic> entry in response.entries) {
+              if (entry.value is List) {
+                if (kDebugMode) {
+                  debugPrint('🌐 API │ Found array in key "${entry.key}"');
+                }
+                return rawDataToList(entry.value);
+              }
+            }
+
+            return [];
           }
+
+          // Process Cities
+          _apiCities = extractListData(results[0], [
+            'cities',
+            'data',
+            'result',
+          ]);
 
           // Process Airports
-          if (results[1]['success'] == true) {
-            _apiAirports = rawDataToList(
-              results[1]['data'] ?? results[1]['airports'],
-            );
-          }
+          _apiAirports = extractListData(results[1], [
+            'airports',
+            'data',
+            'result',
+          ]);
 
           // Process Terminals
-          if (results[2]['success'] == true) {
-            _apiTerminals = rawDataToList(
-              results[2]['data'] ?? results[2]['terminals'],
-            );
-          }
+          _apiTerminals = extractListData(results[2], [
+            'terminals',
+            'data',
+            'result',
+          ]);
         });
 
         if (kDebugMode) {
           debugPrint(
-            '🌐 API │ Location Data Loaded - Cities: ${_apiCities.length}, Airports: ${_apiAirports.length}, Terminals: ${_apiTerminals.length}',
+            '✅ 🌐 API │ Location Data Loaded - Cities: ${_apiCities.length}, Airports: ${_apiAirports.length}, Terminals: ${_apiTerminals.length}',
           );
+          if (_apiCities.isNotEmpty) {
+            debugPrint('🌐 API │ Sample city: ${_apiCities.first}');
+          }
         }
       }
     } catch (e) {
-      debugPrint('General error in _fetchLocationData: $e');
+      debugPrint('❌ General error in _fetchLocationData: $e');
     } finally {
       if (mounted) setState(() => _isLoadingLocations = false);
     }
   }
 
   List<Map<String, dynamic>> rawDataToList(dynamic rawData) {
+    if (rawData == null) {
+      if (kDebugMode) debugPrint('🌐 API │ rawDataToList received null data');
+      return [];
+    }
+
     if (rawData is List) {
+      if (kDebugMode)
+        debugPrint(
+          '🌐 API │ rawDataToList processing list with ${rawData.length} items',
+        );
       return rawData
           .map((item) {
             if (item is Map) return Map<String, dynamic>.from(item);
@@ -121,6 +178,11 @@ class _HomepageState extends State<Homepage> {
           .where((m) => m.isNotEmpty)
           .toList();
     }
+
+    if (kDebugMode)
+      debugPrint(
+        '🌐 API │ rawDataToList received non-list data: ${rawData.runtimeType}',
+      );
     return [];
   }
   /*
@@ -788,6 +850,18 @@ class _HomepageState extends State<Homepage> {
                                                 city['image']['url'] != null) {
                                               imageUrl = city['image']['url'];
                                             }
+                                          }
+
+                                          // Modernize relative paths
+                                          if (imageUrl != null &&
+                                              imageUrl.isNotEmpty &&
+                                              !imageUrl.startsWith('http') &&
+                                              !imageUrl.startsWith('assets/')) {
+                                            const String host =
+                                                'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000';
+                                            imageUrl = imageUrl.startsWith('/')
+                                                ? '$host$imageUrl'
+                                                : '$host/$imageUrl';
                                           }
 
                                           final String displayImage =

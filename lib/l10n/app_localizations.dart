@@ -422,17 +422,35 @@ abstract class AppLocalizations {
   /// **'Location'**
   String get location;
 
-  /// No description provided for @specialId.
+  /// No description provided for @promoCode.
   ///
   /// In en, this message translates to:
-  /// **'Special ID'**
-  String get specialId;
+  /// **'Promo Code'**
+  String get promoCode;
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Changes'**
+  String get saveChanges;
 
   /// No description provided for @phoneNumber.
   ///
   /// In en, this message translates to:
   /// **'Phone Number'**
   String get phoneNumber;
+
+  /// No description provided for @pleaseEnterYourPromoCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your promo code'**
+  String get pleaseEnterYourPromoCode;
+
+  /// No description provided for @enterYourPromoCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your promo code'**
+  String get enterYourPromoCode;
 
   /// No description provided for @submit.
   ///

@@ -20,11 +20,11 @@ class ApiService {
   // ---------------------------------------------------------------------------
 
   static const String _baseUrl =
-      'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api/';
+      'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api';
 
   // ---------------------------------------------------------------------------
   // Singleton + Dio instance
-  // ---------------------------------------------------------------------------
+  // --------http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api/-------------------------------------------------------------------
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;

@@ -9,6 +9,7 @@ import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ManageProfilePage extends StatefulWidget {
   const ManageProfilePage({super.key});
@@ -29,6 +30,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   File? _profileImage;
   double? _latitude;
   double? _longitude;
+  bool _isCorporateEmployee = false;
   bool _isLoading = false;
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
@@ -46,6 +48,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       _specialIdController.text = user.specialId ?? '';
       _latitude = user.lat;
       _longitude = user.long;
+      _isCorporateEmployee = user.specialId != null && user.specialId!.isNotEmpty;
     }
 
     _animController = AnimationController(
@@ -228,7 +231,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       lat: _latitude,
       long: _longitude,
       profileImage: _profileImage,
-      specialId: _specialIdController.text.trim(),
+      specialId: _isCorporateEmployee ? _specialIdController.text.trim() : "",
       token: token,
     );
 
@@ -337,12 +340,18 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                                     .profileImageUrl!
                                                     .isNotEmpty)
                                           ? ClipOval(
-                                              child: Image.network(
-                                                user.profileImageUrl!,
+                                              child: CachedNetworkImage(
+                                                imageUrl: user.profileImageUrl!,
                                                 width: 112,
                                                 height: 112,
                                                 fit: BoxFit.cover,
-                                                errorBuilder: (_, __, ___) =>
+                                                placeholder: (context, url) =>
+                                                    const Center(
+                                                  child: PremiumLoader(
+                                                      color: Color(0xFFE4A46B)),
+                                                ),
+                                                errorWidget: (context, url,
+                                                        error) =>
                                                     _buildPlaceholderIcon(),
                                               ),
                                             )
@@ -510,35 +519,110 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                         // _buildLocationField(),
                         // const SizedBox(height: 20),
 
-                        // Special ID (optional)
-                        PremiumTextField(
-                          title: AppLocalizations.of(
-                            context,
-                          )!.specialidoptional,
-                          controller: _specialIdController,
-                          hintText: AppLocalizations.of(
-                            context,
-                          )!.enterSpecialIdIFAvailable,
-                          fontsize: 15,
-                          needTitle: true,
-                          obscureText: false,
-                          prefixIcon: ShaderMask(
-                            shaderCallback: (Rect bounds) {
-                              return const LinearGradient(
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
-                                ],
-                              ).createShader(bounds);
-                            },
-                            child: const Icon(
-                              Icons.badge_outlined,
-                              color: Colors.white,
-                              size: 20,
+                        // Corporate Employee Toggle
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.white.withAlpha(60),
+                              width: 1,
                             ),
+                            borderRadius: BorderRadius.circular(12),
+                            color: const Color(0xFF0D0A08),
+                          ),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _isCorporateEmployee =
+                                        !_isCorporateEmployee;
+                                  });
+                                },
+                                child: Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: _isCorporateEmployee
+                                          ? const Color(0xFFE4A46B)
+                                          : Colors.white.withAlpha(100),
+                                      width: 2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: _isCorporateEmployee
+                                        ? const Color(0xFFE4A46B)
+                                        : Colors.transparent,
+                                  ),
+                                  child: _isCorporateEmployee
+                                      ? const Icon(
+                                          Icons.check,
+                                          size: 14,
+                                          color: Color(0xFF0D0A08),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  AppLocalizations.of(context)!
+                                      .iAmACorporateEmployee,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+
+                        if (_isCorporateEmployee) ...[
+                          const SizedBox(height: 20),
+                          // Special ID (optional)
+                          PremiumTextField(
+                            title: AppLocalizations.of(
+                              context,
+                            )!.promoCode,
+                            controller: _specialIdController,
+                            hintText: AppLocalizations.of(
+                              context,
+                            )!.enterYourPromoCode,
+                            fontsize: 15,
+                            needTitle: true,
+                            obscureText: false,
+                            prefixIcon: ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return const LinearGradient(
+                                  colors: [
+                                    Color(0xFF49280B),
+                                    Color(0xFFE4A46B),
+                                    Color(0xFF60350F),
+                                  ],
+                                ).createShader(bounds);
+                              },
+                              child: const Icon(
+                                Icons.badge_outlined,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (_isCorporateEmployee &&
+                                  (value == null || value.isEmpty)) {
+                                return AppLocalizations.of(
+                                  context,
+                                )!.pleaseEnterYourPromoCode;
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
 
                         const SizedBox(height: 36),
 
@@ -546,7 +630,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                         PremiumButton(
                           showLoader: _isLoading,
                           fontsize: 18,
-                          text: "Save Changes",
+                          text: AppLocalizations.of(  context)!.saveChanges,
                           onTap: _isLoading ? () {} : _handleUpdateProfile,
                         ),
 

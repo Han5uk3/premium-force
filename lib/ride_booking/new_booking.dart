@@ -220,6 +220,19 @@ class _NewBookingState extends State<NewBooking> {
                       } else if (rawImage is Map && rawImage['url'] != null) {
                         carImage = rawImage['url'];
                       }
+
+                      // Modernize relative paths
+                      if (carImage != null &&
+                          carImage.isNotEmpty &&
+                          !carImage.startsWith('http') &&
+                          !carImage.startsWith('assets/')) {
+                        const String host =
+                            'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000';
+                        carImage = carImage.startsWith('/')
+                            ? '$host$carImage'
+                            : '$host/$carImage';
+                      }
+
                       carImage ??= 'assets/images/bmwdummy.jpg';
 
                       return CarModel(

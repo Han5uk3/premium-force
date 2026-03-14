@@ -772,11 +772,11 @@ class _SignUpPageState extends State<SignUpPage>
                           Column(
                             children: [
                               PremiumTextField(
-                                title: AppLocalizations.of(context)!.specialId,
+                                title: AppLocalizations.of(context)!.promoCode,
                                 controller: _specialIdController,
                                 hintText: AppLocalizations.of(
                                   context,
-                                )!.enterYourSpecialId,
+                                )!.enterYourPromoCode,
                                 fontsize: 15,
                                 needTitle: true,
                                 obscureText: false,
@@ -802,7 +802,7 @@ class _SignUpPageState extends State<SignUpPage>
                                       (value == null || value.isEmpty)) {
                                     return AppLocalizations.of(
                                       context,
-                                    )!.pleaseEnterYourSpecialId;
+                                    )!.pleaseEnterYourPromoCode;
                                   }
                                   return null;
                                 },
