@@ -51,3 +51,4 @@ flutter:
     - assets/applogo/
     - assets/flags/
     - assets/icons/
+    - lib/.env

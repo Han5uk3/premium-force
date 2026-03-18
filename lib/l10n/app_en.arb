@@ -188,5 +188,8 @@
   "termsSection6Title": "6. Governing Law & Jurisdiction",
   "termsSection6Content": "These Terms will be governed by and interpreted in accordance with the laws of the Kingdom of Saudi Arabia, and you submit to the exclusive jurisdiction of the courts located in Saudi Arabia for the resolution of any disputes.",
   "termsSection7Title": "7. Changes and Amendments",
-  "termsSection7Content": "We reserve the right to modify these terms or policies relating to the app or services at any time. Continued use of the app after any such changes shall constitute your consent to such changes."
+  "termsSection7Content": "We reserve the right to modify these terms or policies relating to the app or services at any time. Continued use of the app after any such changes shall constitute your consent to such changes.",
+  "bookingConfirmed": "Booking confirmed successfully!",
+  "bookingFailed": "Booking failed. Please try again.",
+  "somethingWentWrong": "Something went wrong. Please try again."
 }

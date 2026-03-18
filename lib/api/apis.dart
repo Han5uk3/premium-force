@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/user.dart';
+import 'package:premium_force_main/models/booking_request_model.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 
 /// Centralised API service for the Premium Force app.
@@ -20,7 +21,7 @@ class ApiService {
   // ---------------------------------------------------------------------------
 
   static const String _baseUrl =
-      'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api';
+      'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api/';
 
   // ---------------------------------------------------------------------------
   // Singleton + Dio instance
@@ -136,7 +137,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        '/otp/send-otp',
+        'otp/send-otp',
         data: {
           'countryCode': countryCode,
           'phoneNumber': phoneNumber,
@@ -162,7 +163,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        '/otp/verify-otp',
+        'otp/verify-otp',
         data: {
           'countryCode': countryCode,
           'phoneNumber': phoneNumber,
@@ -182,7 +183,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        '/otp/refresh-token',
+        'otp/refresh-token',
         data: {'refreshToken': refreshToken},
       );
       return _success(response);
@@ -259,7 +260,7 @@ class ApiService {
       });
 
       final response = await _dio.post(
-        '/users',
+        'users',
         data: formData,
         options: token != null ? _authOptions(token) : null,
       );
@@ -288,7 +289,7 @@ class ApiService {
   Future<UserModel?> getUserById({required String id, String? token}) async {
     try {
       final response = await _dio.get(
-        '/users/$id',
+        'users/$id',
         options: token != null ? _authOptions(token) : null,
       );
       final data = _success(response);
@@ -343,7 +344,7 @@ class ApiService {
       }
 
       final response = await _dio.put(
-        '/users/$id',
+        'users/$id',
         data: FormData.fromMap(fields),
         options: token != null ? _authOptions(token) : null,
       );
@@ -360,7 +361,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.delete(
-        '/users/$id',
+        'users/$id',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -376,7 +377,7 @@ class ApiService {
   Future<Map<String, dynamic>> checkEmailExists({required String email}) async {
     try {
       final response = await _dio.get(
-        '/users/check-email',
+        'users/check-email',
         queryParameters: {'email': email},
       );
       return _success(response);
@@ -521,8 +522,59 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        '/users/$userId/fcm-token',
+        'users/$userId/fcm-token',
         data: {'fcmToken': fcmToken},
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bookings
+  // ---------------------------------------------------------------------------
+
+  /// Create a new booking.
+  ///
+  /// Calls `POST /api/bookings`
+  Future<Map<String, dynamic>> createBooking({
+    required BookingRequestModel booking,
+    String? token,
+  }) async {
+    try {
+      final fields = booking.toMap();
+
+      // Handle files separately for FormData
+      if (booking.specialRequestAudio != null) {
+        fields['specialRequestAudio'] = await MultipartFile.fromFile(
+          booking.specialRequestAudio!.path,
+          filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
+        );
+      }
+      if (booking.carimage != null) {
+        fields['carimage'] = await MultipartFile.fromFile(
+          booking.carimage!.path,
+          filename: 'car_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+      }
+
+      final formData = FormData.fromMap(fields);
+
+      if (kDebugMode) {
+        debugPrint('🚀 🌐 API │ FINAL FORM DATA:');
+        for (var element in formData.fields) {
+          debugPrint('   📁 ${element.key}: ${element.value}');
+        }
+        for (var element in formData.files) {
+          debugPrint('   📄 ${element.key}: ${element.value.filename}');
+        }
+      }
+
+      final response = await _dio.post(
+        'bookings/',
+        data: formData,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);

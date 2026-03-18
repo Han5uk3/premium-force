@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/models/payment_model.dart';
+import 'package:premium_force_main/utils/paytabs_config.dart';
 
 /// Payment service wrapper for Paytabs bridge
 /// This service handles all payment transactions with Paytabs
@@ -12,10 +13,10 @@ class PaymentService {
 
   PaymentService._internal();
 
-  // Configuration - Update these with your Paytabs credentials
-  static const String serverKey = 'YOUR_SERVER_KEY';
-  static const String clientKey = 'YOUR_CLIENT_KEY';
-  static const String merchantEmail = 'merchant@example.com';
+  // Configuration - Now using PaytabsConfig (loaded from .env)
+  static String get serverKey => PaytabsConfig.serverKey;
+  static String get clientKey => PaytabsConfig.clientKey;
+  static String get merchantEmail => PaytabsConfig.merchantEmail;
 
   /// Initialize Paytabs payment
   /// Call this during app startup to set up the payment SDK

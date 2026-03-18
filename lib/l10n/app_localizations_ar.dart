@@ -589,4 +589,13 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get termsSection7Content =>
       'نحتفظ بالحق في تعديل هذه الشروط أو السياسات المتعلقة بالتطبيق أو الخدمات في أي وقت. يشكل استمرارك في استخدام التطبيق بعد أي تغييرات من هذا القبيل موافقتك على هذه التغييرات.';
+
+  @override
+  String get bookingConfirmed => 'تم تأكيد الحجز بنجاح!';
+
+  @override
+  String get bookingFailed => 'فشل الحجز. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get somethingWentWrong => 'حدث خطأ ما. يرجى المحاولة مرة أخرى.';
 }

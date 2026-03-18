@@ -19,6 +19,9 @@ import 'package:country_picker/country_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:premium_force_main/services/payment_service.dart';
+import 'package:premium_force_main/models/payment_model.dart';
+import 'package:premium_force_main/utils/paytabs_config.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -45,6 +48,7 @@ class _NewBookingState extends State<NewBooking> {
   late int _selectedCityCode;
 
   bool _isCalculatingDistance = false;
+  bool _isBooking = false;
 
   double _totalDistance = 50.0;
 
@@ -67,7 +71,7 @@ class _NewBookingState extends State<NewBooking> {
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  String? _selectedVehicleClass = "Luxury Sedan";
+  String? _selectedVehicleClass;
   String? _selectedVehicleBrand = "Mercedes";
   String? _selectedVehicleModel = "S-Class S450";
   String? _numberOfPassengers = "1";
@@ -100,8 +104,11 @@ class _NewBookingState extends State<NewBooking> {
           c.modelName == _selectedVehicleModel,
       orElse: () => carsList.first,
     );
-    final distance = selectedCar.distance > 0 ? selectedCar.distance : 1;
-    return (_totalDistance / distance) * selectedCar.price;
+    final distance = selectedCar.distance > 0 ? selectedCar.distance : 10;
+    final price = selectedCar.price > 0
+        ? selectedCar.price
+        : 5.0; // Fallback for testing
+    return (_totalDistance / distance) * price;
   }
 
   @override
@@ -109,6 +116,14 @@ class _NewBookingState extends State<NewBooking> {
     super.initState();
     _selectedCatCode = widget.catcode;
     _selectedCityCode = widget.citycode;
+
+    // Set initial class based on catcode
+    if (_selectedCatCode == 2) {
+      _selectedVehicleClass =
+          "Luxury Sedan"; // Will be updated to "Chauffeured Class" once API loads
+    } else {
+      _selectedVehicleClass = "Luxury Sedan";
+    }
 
     // Use preloaded data from widget if available
     _apiCities = widget.preloadedCities ?? [];
@@ -156,6 +171,7 @@ class _NewBookingState extends State<NewBooking> {
         return <Map<String, dynamic>>[{}, {}, {}, {}, {}, {}];
       });
 
+      final categoriesResult = results[0];
       final brandsResult = results[1];
       final carsResult = results[2];
       final citiesResult = results[3];
@@ -163,6 +179,7 @@ class _NewBookingState extends State<NewBooking> {
       final terminalsResult = results[5];
 
       if (kDebugMode) {
+        debugPrint('🌐 API │ Categories: $categoriesResult');
         debugPrint('🌐 API │ Cities: $citiesResult');
         debugPrint('🌐 API │ Airports: $airportsResult');
         debugPrint('🌐 API │ Terminals: $terminalsResult');
@@ -170,6 +187,39 @@ class _NewBookingState extends State<NewBooking> {
 
       if (mounted) {
         setState(() {
+          // Build category lookup map (categoryId -> categoryName)
+          Map<String, String> categoryIdToName = {};
+          if (categoriesResult['success'] == true) {
+            final categoriesData =
+                categoriesResult['data'] ??
+                categoriesResult['categories'] ??
+                categoriesResult['payload'];
+            if (categoriesData is List) {
+              for (var category in categoriesData) {
+                if (category is Map<String, dynamic>) {
+                  // Try various ID keys
+                  final id = (category['_id'] ?? category['id'] ?? '')
+                      .toString();
+                  // Try various name keys
+                  final name =
+                      (category['name'] ??
+                              category['categoryName'] ??
+                              category['category_name'] ??
+                              'Unknown')
+                          .toString()
+                          .trim();
+
+                  if (id.isNotEmpty && name != 'Unknown') {
+                    categoryIdToName[id] = name;
+                    if (kDebugMode) {
+                      debugPrint('🌐 API │ Category mapping: $id -> $name');
+                    }
+                  }
+                }
+              }
+            }
+          }
+
           // Process brands from API
           if (brandsResult['success'] == true) {
             final brandsData =
@@ -195,7 +245,7 @@ class _NewBookingState extends State<NewBooking> {
           }
 
           // Process cars - convert to CarModel
-          // API cars have structure: {_id, carName, brand, model, category, numberOfPassengers, minimumChargeDistance, minCharge, carImage}
+          // API cars have structure: {_id, carName, brand, model, category/categoryId, numberOfPassengers, minimumChargeDistance, minCharge, carImage}
           if (carsResult['success'] == true) {
             final carsData = carsResult['data'] ?? carsResult['cars'];
             if (carsData is List) {
@@ -205,11 +255,75 @@ class _NewBookingState extends State<NewBooking> {
                       return car;
                     } else if (car is Map<String, dynamic>) {
                       // Extract and normalize category field
-                      // API returns 'category' field like "Luxury SUV"
-                      final apiCategory =
-                          (car['category'] ?? car['className'] ?? 'Unknown')
-                              .toString()
-                              .trim();
+                      // Try: Resolve from ID mapping first, then direct name fallback
+                      String apiCategory = '';
+
+                      // 1. Try to get ID from various possible keys
+                      dynamic cidRaw =
+                          car['categoryId'] ??
+                          car['category_id'] ??
+                          car['categoryID'] ??
+                          (car['category'] is Map
+                              ? (car['category']['_id'] ??
+                                    car['category']['id'])
+                              : (car['category'] is String &&
+                                        car['category'].toString().length > 15
+                                    ? car['category']
+                                    : null));
+
+                      String cid = cidRaw?.toString().trim() ?? '';
+
+                      // 2. Resolve Name from ID mapping
+                      if (cid.isNotEmpty && categoryIdToName.containsKey(cid)) {
+                        apiCategory = categoryIdToName[cid]!;
+                        if (kDebugMode) {
+                          debugPrint(
+                            '🌐 API │ Resolved category from ID: $cid -> $apiCategory',
+                          );
+                        }
+                      } else if (cid.isNotEmpty) {
+                        if (kDebugMode) {
+                          debugPrint(
+                            '🌐 API │ Category ID $cid not found in mapping',
+                          );
+                        }
+                      }
+
+                      // 3. Fallback to direct names if mapping failed or wasn't possible
+                      if (apiCategory.isEmpty ||
+                          apiCategory.toLowerCase() == 'unknown') {
+                        dynamic catData =
+                            car['category'] ??
+                            car['className'] ??
+                            car['carclass'] ??
+                            car['carClass'];
+                        if (catData is String) {
+                          apiCategory = catData.trim();
+                        } else if (catData is Map) {
+                          apiCategory =
+                              (catData['name'] ??
+                                      catData['categoryName'] ??
+                                      catData['category_name'] ??
+                                      catData['className'] ??
+                                      '')
+                                  .toString()
+                                  .trim();
+                        }
+                      }
+
+                      // 4. Final fallback to "Unknown"
+                      if (apiCategory.isEmpty ||
+                          apiCategory.toLowerCase() == 'unknown') {
+                        apiCategory = 'Unknown';
+                        if (kDebugMode) {
+                          debugPrint(
+                            '⚠️ 🌐 API │ Unresolved category for ${car['carName']}: ${car['category']}',
+                          );
+                          debugPrint(
+                            '🌐 API │ Car Object Keys: ${car.keys.toList()}',
+                          );
+                        }
+                      }
 
                       // Image path handling - API can return a String or a Map with 'url'
                       String? carImage;
@@ -235,6 +349,12 @@ class _NewBookingState extends State<NewBooking> {
 
                       carImage ??= 'assets/images/bmwdummy.jpg';
 
+                      if (kDebugMode && apiCategory == 'Unknown') {
+                        debugPrint(
+                          '⚠️ 🌐 API │ Car has Unknown category: ${car['carName'] ?? car['model']}',
+                        );
+                      }
+
                       return CarModel(
                         id: car['_id'] ?? car['id'] ?? '',
                         className: apiCategory,
@@ -247,7 +367,11 @@ class _NewBookingState extends State<NewBooking> {
                                 .trim(),
                         imagePath: carImage,
                         price: _parseDouble(
-                          car['price'] ?? car['minCharge'] ?? 0,
+                          car['price'] ??
+                              car['minCharge'] ??
+                              car['charge'] ??
+                              car['priceRange'] ??
+                              0,
                         ),
                         distance: _parseDouble(
                           car['distance'] ?? car['minimumChargeDistance'] ?? 10,
@@ -263,6 +387,15 @@ class _NewBookingState extends State<NewBooking> {
                   })
                   .whereType<CarModel>()
                   .toList();
+
+              if (kDebugMode) {
+                debugPrint('🌐 API │ Cars loaded: ${_cars.length}');
+                if (_cars.isNotEmpty) {
+                  debugPrint(
+                    '🌐 API │ Sample car: className=${_cars.first.className}, brand=${_cars.first.brand}',
+                  );
+                }
+              }
             }
           }
 
@@ -309,11 +442,56 @@ class _NewBookingState extends State<NewBooking> {
 
           // Set default values if cars were loaded
           if (_cars.isNotEmpty) {
-            final firstCar = _cars.first;
-            // Set to first car's category (which comes from API)
-            _selectedVehicleClass = firstCar.className;
-            _selectedVehicleBrand = firstCar.brand;
-            _selectedVehicleModel = firstCar.modelName;
+            String initialClass = _cars.first.className;
+
+            // Try to match category code to specific class names
+            if (_selectedCatCode == 2) {
+              // Priority for "Chauffeur" catcode
+              for (var car in _cars) {
+                if (car.className.toLowerCase().contains('chauffeur')) {
+                  initialClass = car.className;
+                  break;
+                }
+              }
+            } else if (_selectedCatCode == 0 || _selectedCatCode == 1) {
+              // Priority for Airport categories
+              for (var car in _cars) {
+                if (car.className.toLowerCase().contains('sedan')) {
+                  initialClass = car.className;
+                  break;
+                }
+              }
+            }
+
+            // Ensure initial class is NOT "Unknown" if other options exist
+            if (initialClass.toLowerCase() == 'unknown') {
+              for (var car in _cars) {
+                if (car.className.toLowerCase() != 'unknown') {
+                  initialClass = car.className;
+                  break;
+                }
+              }
+            }
+
+            _selectedVehicleClass = initialClass;
+
+            // Find valid brand for this class
+            final brandsInClass = _getAvailableBrands(_selectedVehicleClass);
+            if (brandsInClass.isNotEmpty) {
+              _selectedVehicleBrand = brandsInClass.first;
+
+              // Find valid model for this brand/class
+              final modelsInBrand = _getAvailableModels(
+                _selectedVehicleClass,
+                _selectedVehicleBrand,
+              );
+              _selectedVehicleModel = modelsInBrand.isNotEmpty
+                  ? modelsInBrand.first
+                  : null;
+            } else {
+              _selectedVehicleBrand = null;
+              _selectedVehicleModel = null;
+            }
           }
         });
       }
@@ -467,6 +645,18 @@ class _NewBookingState extends State<NewBooking> {
       case 0:
       default:
         return loc.airportArrival;
+    }
+  }
+
+  String _getCategoryForApi(int code) {
+    switch (code) {
+      case 1:
+        return 'airport departure';
+      case 2:
+        return 'chauffeured';
+      case 0:
+      default:
+        return 'airport arrival';
     }
   }
 
@@ -688,107 +878,232 @@ class _NewBookingState extends State<NewBooking> {
                               });
                             }
                           } else if (showReviewAndConfirm) {
-                            String getIsoDateTime(DateTime? d, TimeOfDay? t) {
-                              if (d == null || t == null) return "";
-                              return DateTime(
-                                d.year,
-                                d.month,
-                                d.day,
-                                t.hour,
-                                t.minute,
-                              ).toUtc().toIso8601String();
-                            }
+                            if (_isBooking) return;
 
-                            // Get airport coordinates
-                            final airportCoords = _getAirportCoordinates();
-                            double? finalPickupLat;
-                            double? finalPickupLng;
-                            double? finalDropOffLat;
-                            double? finalDropOffLng;
-                            String? finalDropOffAddress;
+                            setState(() {
+                              _isBooking = true;
+                            });
 
-                            // Assign coordinates based on booking type
-                            if (_selectedCatCode == 0) {
-                              // Airport Arrival: pickup is airport, dropoff is selected location
-                              finalPickupLat = airportCoords['lat'];
-                              finalPickupLng = airportCoords['lng'];
-                              finalDropOffLat = _dropLat;
-                              finalDropOffLng = _dropLng;
-                              finalDropOffAddress = _dropAddress;
-                            } else if (_selectedCatCode == 1) {
-                              // Airport Departure: pickup is selected location, dropoff is airport
-                              // But user specifically asked to pass airport long/lat as pickup long/lat
-                              finalPickupLat = airportCoords['lat'];
-                              finalPickupLng = airportCoords['lng'];
-                              finalDropOffLat = _pickupLat;
-                              finalDropOffLng = _pickupLng;
-                              finalDropOffAddress = _getSelectedTerminalName(
-                                context,
+                            try {
+                              // 1. Prepare Request Data
+                              final userData = UserLocalStorage.getUserData();
+                              final userId = UserLocalStorage.getUserId();
+                              final userEmail = userData?['email'] ?? "";
+                              final userName = userData?['name'] ?? "Customer";
+                              final userPhone =
+                                  userData?['phoneNumber'] ??
+                                  UserLocalStorage.getPhoneNumber() ??
+                                  "";
+
+                              final totalWithVat = _calculatedCharge * 1.15;
+                              final orderId =
+                                  "BOOK_${DateTime.now().millisecondsSinceEpoch}";
+
+                              // 2. Process Payment
+                              final paymentRequest = PaymentRequest(
+                                amount: totalWithVat,
+                                currency: PaytabsConfig.defaultCurrency,
+                                merchantCountryCode:
+                                    PaytabsConfig.merchantCountryCode,
+                                orderId: orderId,
+                                customerEmail: userEmail,
+                                customerName: userName,
+                                customerPhone: userPhone,
+                                cartId: orderId,
+                                cartDescription:
+                                    "Ride Booking for $_selectedVehicleClass",
                               );
-                            } else {
-                              // Chauffeur Service: both are selected locations
-                              finalPickupLat = _pickupLat;
-                              finalPickupLng = _pickupLng;
-                              finalDropOffLat = _dropLat;
-                              finalDropOffLng = _dropLng;
-                              finalDropOffAddress = _dropAddress;
+
+                              final paymentResult = await PaymentService()
+                                  .startPayment(request: paymentRequest);
+
+                              if (paymentResult.success) {
+                                // 3. If Payment Successful, Create Booking Record
+                                String getIsoDateTime(
+                                  DateTime? d,
+                                  TimeOfDay? t,
+                                ) {
+                                  if (d == null || t == null) return "";
+                                  return DateTime(
+                                            d.year,
+                                            d.month,
+                                            d.day,
+                                            t.hour,
+                                            t.minute,
+                                          )
+                                          .toUtc()
+                                          .toIso8601String()
+                                          .split('.')
+                                          .first +
+                                      "Z";
+                                }
+
+                                final airportCoords = _getAirportCoordinates();
+                                double? finalPickupLat;
+                                double? finalPickupLng;
+                                double? finalDropOffLat;
+                                double? finalDropOffLng;
+                                String? finalDropOffAddress;
+
+                                if (_selectedCatCode == 0) {
+                                  finalPickupLat = airportCoords['lat'];
+                                  finalPickupLng = airportCoords['lng'];
+                                  finalDropOffLat = _dropLat;
+                                  finalDropOffLng = _dropLng;
+                                  finalDropOffAddress = _dropAddress;
+                                } else if (_selectedCatCode == 1) {
+                                  finalPickupLat = airportCoords['lat'];
+                                  finalPickupLng = airportCoords['lng'];
+                                  finalDropOffLat = _pickupLat;
+                                  finalDropOffLng = _pickupLng;
+                                  finalDropOffAddress =
+                                      _getSelectedTerminalName(context);
+                                } else {
+                                  finalPickupLat = _pickupLat;
+                                  finalPickupLng = _pickupLng;
+                                  finalDropOffLat = _dropLat;
+                                  finalDropOffLng = _dropLng;
+                                  finalDropOffAddress = _dropAddress;
+                                }
+
+                                final BookingRequestModel
+                                requestModel = BookingRequestModel(
+                                  category: _getCategoryForApi(
+                                    _selectedCatCode,
+                                  ),
+                                  city: _getCityName(
+                                    context,
+                                    _selectedCityCode,
+                                  ).toLowerCase(),
+                                  airport: _getSelectedAirportName(context),
+                                  terminal: _getSelectedTerminalName(context),
+                                  flightNumber: flightNumberController.text,
+                                  cityID: _getSelectedCityId(),
+                                  airportID: _getSelectedAirportId(),
+                                  terminalID: _getSelectedTerminalId(),
+                                  arrival: getIsoDateTime(
+                                    _selectedDate,
+                                    _selectedTime,
+                                  ),
+                                  pickupLat: finalPickupLat?.toString().trim(),
+                                  pickupLng: finalPickupLng?.toString().trim(),
+                                  dropOffLat: finalDropOffLat
+                                      ?.toString()
+                                      .trim(),
+                                  dropOffLng: finalDropOffLng
+                                      ?.toString()
+                                      .trim(),
+                                  dropOffAddress:
+                                      finalDropOffAddress ?? _pickupAddress,
+                                  pickupAddress: _pickupAddress,
+                                  carclass:
+                                      (_selectedVehicleClass == null ||
+                                          _selectedVehicleClass!
+                                                  .toLowerCase() ==
+                                              'unknown')
+                                      ? 'Luxury Sedan'
+                                      : _selectedVehicleClass,
+                                  carbrand: _selectedVehicleBrand ?? 'BMW',
+                                  carmodel: _selectedVehicleModel ?? 'S-Class',
+                                  carName:
+                                      "${_selectedVehicleBrand ?? ''} ${_selectedVehicleModel ?? ''}"
+                                          .trim(),
+                                  specialRequestText:
+                                      specialRequestsController.text,
+                                  specialRequestAudio:
+                                      _specialRequestsVoiceNotePath != null
+                                      ? File(_specialRequestsVoiceNotePath!)
+                                      : null,
+                                  passengerCount: _numberOfPassengers
+                                      .toString(),
+                                  passengerNames: jsonEncode(
+                                    _passengerNameController.text
+                                        .split(',')
+                                        .map((e) => e.trim())
+                                        .where((e) => e.isNotEmpty)
+                                        .toList(),
+                                  ),
+                                  passengerMobile:
+                                      "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}",
+                                  distance:
+                                      "${_totalDistance.toStringAsFixed(2)} km",
+                                  charge: double.parse(
+                                    totalWithVat.toStringAsFixed(2),
+                                  ),
+                                  bookingStatus: "pending",
+                                  customerID: userId,
+                                  driverID: "null",
+                                );
+
+                                if (kDebugMode) {
+                                  debugPrint(
+                                    "🚀 🌐 API │ PREPARING BOOKING SUBMISSION",
+                                  );
+                                  debugPrint("🚀 🌐 API │ Order ID: $orderId");
+                                  final map = requestModel.toMap();
+                                  debugPrint(
+                                    "🚀 🌐 API │ Payload Summary (${map.length} fields):",
+                                  );
+                                  map.forEach((key, value) {
+                                    debugPrint("   🔹 $key: $value");
+                                  });
+                                }
+
+                                final apiResponse = await ApiService()
+                                    .createBooking(
+                                      booking: requestModel,
+                                      token: UserLocalStorage.getToken(),
+                                    );
+
+                                if (kDebugMode) {
+                                  debugPrint(
+                                    "✅ 🌐 API │ BOOKING RESPONSE RECEIVED",
+                                  );
+                                  debugPrint(
+                                    "✅ 🌐 API │ Status: ${apiResponse['success']}",
+                                  );
+                                  debugPrint(
+                                    "✅ 🌐 API │ Full Response: $apiResponse",
+                                  );
+                                }
+
+                                if (apiResponse['success'] == true) {
+                                  _showCustomSnackBar(
+                                    // Use direct string fallback if localization not yet generated
+                                    "Booking confirmed successfully!",
+                                    'S',
+                                  );
+                                  Navigator.of(context).pop();
+                                } else {
+                                  _showCustomSnackBar(
+                                    apiResponse['message'] ??
+                                        "Booking failed. Please try again.",
+                                    'E',
+                                  );
+                                }
+                              } else {
+                                _showCustomSnackBar(
+                                  paymentResult.responseMessage,
+                                  'E',
+                                );
+                              }
+                            } catch (e) {
+                              debugPrint('❌ Booking error: $e');
+                              _showCustomSnackBar(
+                                "Something went wrong. Please try again.",
+                                'E',
+                              );
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _isBooking = false;
+                                });
+                              }
                             }
-
-                            BookingRequestModel
-                            requestModel = BookingRequestModel(
-                              category: _getServiceName(
-                                context,
-                                _selectedCatCode,
-                              ),
-                              city: _getCityName(context, _selectedCityCode),
-                              airport: _getSelectedTerminalName(context),
-                              cityID: _getSelectedCityId(),
-                              airportID: _getSelectedAirportId(),
-                              terminalID: _getSelectedTerminalId(),
-                              arrival: getIsoDateTime(
-                                _selectedDate,
-                                _selectedTime,
-                              ),
-                              pickupLat: finalPickupLat?.toString(),
-                              pickupLong: finalPickupLng?.toString(),
-                              dropOffLat: finalDropOffLat?.toString(),
-                              dropOffLong: finalDropOffLng?.toString(),
-                              dropOffAddress:
-                                  finalDropOffAddress ?? _pickupAddress,
-                              carclass: _selectedVehicleClass,
-                              carbrand: _selectedVehicleBrand,
-                              carmodel: _selectedVehicleModel,
-                              specialRequestText:
-                                  specialRequestsController.text,
-                              specialRequestAudio:
-                                  _specialRequestsVoiceNotePath != null
-                                  ? File(_specialRequestsVoiceNotePath!)
-                                  : null,
-                              passengerCount: _numberOfPassengers.toString(),
-                              passengerNames: jsonEncode([
-                                _passengerNameController.text,
-                              ]),
-                              passengerMobile:
-                                  "+$_selectedPassengerCountryCode ${_mobileNumberController.text}",
-                              distance:
-                                  "${_totalDistance.toStringAsFixed(2)} km",
-                              charge:
-                                  "${(_calculatedCharge * 1.15).toStringAsFixed(2)}",
-                              bookingStatus: "pending",
-                              paymentStatus: "false",
-                            );
-
-                            print(
-                              "=========== BOOKING REQUEST MODEL START ===========",
-                            );
-                            print(requestModel.toString());
-                            print(
-                              "=========== BOOKING REQUEST MODEL END ===========",
-                            );
                           }
                         },
                   fontsize: 16,
-                  showLoader: _isCalculatingDistance,
+                  showLoader: _isCalculatingDistance || _isBooking,
                 ),
               ),
               SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 32),
@@ -2527,6 +2842,16 @@ class _NewBookingState extends State<NewBooking> {
     if (terminals.isNotEmpty) {
       return terminals[_selectedTerminalCode < terminals.length
           ? _selectedTerminalCode
+          : 0];
+    }
+    return "";
+  }
+
+  String? _getSelectedAirportName(BuildContext context) {
+    final airports = _getAvailableAirports(context);
+    if (airports.isNotEmpty) {
+      return airports[_selectedAirportCode < airports.length
+          ? _selectedAirportCode
           : 0];
     }
     return "";

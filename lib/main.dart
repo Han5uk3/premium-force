@@ -11,6 +11,7 @@ import 'package:premium_force_main/firebase_options.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/storage/notification_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 
 import 'package:premium_force_main/notifications/notification_screen.dart';
@@ -22,6 +23,9 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables
+  await dotenv.load(fileName: "lib/.env");
  
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await UserLocalStorage.init();

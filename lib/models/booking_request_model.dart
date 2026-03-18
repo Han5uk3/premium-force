@@ -6,13 +6,13 @@ class BookingRequestModel {
   String? airport;
   String? arrival; // ISO 8601 DateTime string
   String? pickupLat;
-  String? pickupLong;
+  String? pickupLng;
   String? dropOffLat;
-  String? dropOffLong;
+  String? dropOffLng;
   String? dropOffAddress;
   String? carclass;
   String? carName;
-  String? charge;
+  double? charge;
   String? carbrand;
   String? carmodel;
   File? carimage;
@@ -30,6 +30,9 @@ class BookingRequestModel {
   String? cityID;
   String? airportID;
   String? terminalID;
+  String? flightNumber;
+  String? terminal;
+  String? pickupAddress;
 
   BookingRequestModel({
     this.category,
@@ -37,9 +40,9 @@ class BookingRequestModel {
     this.airport,
     this.arrival,
     this.pickupLat,
-    this.pickupLong,
+    this.pickupLng,
     this.dropOffLat,
-    this.dropOffLong,
+    this.dropOffLng,
     this.dropOffAddress,
     this.carclass,
     this.carName,
@@ -60,6 +63,9 @@ class BookingRequestModel {
     this.cityID,
     this.airportID,
     this.terminalID,
+    this.flightNumber,
+    this.terminal,
+    this.pickupAddress,
   });
 
   Map<String, dynamic> toMap() {
@@ -69,9 +75,9 @@ class BookingRequestModel {
       if (airport != null) 'airport': airport,
       if (arrival != null) 'arrival': arrival,
       if (pickupLat != null) 'pickupLat': pickupLat,
-      if (pickupLong != null) 'pickupLong': pickupLong,
+      if (pickupLng != null) 'pickupLng': pickupLng,
       if (dropOffLat != null) 'dropOffLat': dropOffLat,
-      if (dropOffLong != null) 'dropOffLong': dropOffLong,
+      if (dropOffLng != null) 'dropOffLng': dropOffLng,
       if (dropOffAddress != null) 'dropOffAddress': dropOffAddress,
       if (carclass != null) 'carclass': carclass,
       if (carName != null) 'carName': carName,
@@ -93,6 +99,9 @@ class BookingRequestModel {
       if (cityID != null) 'cityID': cityID,
       if (airportID != null) 'airportID': airportID,
       if (terminalID != null) 'terminalID': terminalID,
+      if (flightNumber != null) 'flightNumber': flightNumber,
+      if (terminal != null) 'terminal': terminal,
+      if (pickupAddress != null) 'pickupAddress': pickupAddress,
     };
   }
 

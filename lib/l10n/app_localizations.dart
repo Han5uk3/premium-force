@@ -1225,6 +1225,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'We reserve the right to modify these terms or policies relating to the app or services at any time. Continued use of the app after any such changes shall constitute your consent to such changes.'**
   String get termsSection7Content;
+
+  /// No description provided for @bookingConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking confirmed successfully!'**
+  String get bookingConfirmed;
+
+  /// No description provided for @bookingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking failed. Please try again.'**
+  String get bookingFailed;
+
+  /// No description provided for @somethingWentWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get somethingWentWrong;
 }
 
 class _AppLocalizationsDelegate

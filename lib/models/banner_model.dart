@@ -18,7 +18,14 @@ class BannerModel {
 
   /// Factory constructor to create a BannerModel from JSON.
   factory BannerModel.fromJson(Map<String, dynamic> json) {
-    String imageUrl = json['imageUrl'] ?? json['image'] ?? '';
+    String imageUrl = '';
+    final imageRaw = json['imageUrl'] ?? json['image'];
+
+    if (imageRaw is String) {
+      imageUrl = imageRaw;
+    } else if (imageRaw is Map<String, dynamic>) {
+      imageUrl = (imageRaw['url'] ?? imageRaw['imageUrl'] ?? '').toString();
+    }
 
     // Modernize relative paths if they don't start with http/https
     if (imageUrl.isNotEmpty &&

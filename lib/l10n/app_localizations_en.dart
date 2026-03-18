@@ -595,4 +595,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get termsSection7Content =>
       'We reserve the right to modify these terms or policies relating to the app or services at any time. Continued use of the app after any such changes shall constitute your consent to such changes.';
+
+  @override
+  String get bookingConfirmed => 'Booking confirmed successfully!';
+
+  @override
+  String get bookingFailed => 'Booking failed. Please try again.';
+
+  @override
+  String get somethingWentWrong => 'Something went wrong. Please try again.';
 }
