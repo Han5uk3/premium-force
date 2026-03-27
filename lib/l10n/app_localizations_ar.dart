@@ -171,19 +171,19 @@ class AppLocalizationsAr extends AppLocalizations {
   String get location => 'الموقع';
 
   @override
-  String get promoCode => 'Promo Code';
+  String get promoCode => 'رمز العرض';
 
   @override
-  String get saveChanges => 'Save Changes';
+  String get saveChanges => 'حفظ التغييرات';
 
   @override
   String get phoneNumber => 'رقم الهاتف';
 
   @override
-  String get pleaseEnterYourPromoCode => 'Please enter your promo code';
+  String get pleaseEnterYourPromoCode => 'يرجى إدخال رمز العرض الخاص بك';
 
   @override
-  String get enterYourPromoCode => 'Enter your promo code';
+  String get enterYourPromoCode => 'أدخل رمز العرض الخاص بك';
 
   @override
   String get submit => 'إرسال';
