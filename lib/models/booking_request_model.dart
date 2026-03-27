@@ -33,6 +33,9 @@ class BookingRequestModel {
   String? flightNumber;
   String? terminal;
   String? pickupAddress;
+  String? carID;
+  String? brandID;
+  String? categoryID;
 
   BookingRequestModel({
     this.category,
@@ -66,6 +69,9 @@ class BookingRequestModel {
     this.flightNumber,
     this.terminal,
     this.pickupAddress,
+    this.carID,
+    this.brandID,
+    this.categoryID,
   });
 
   Map<String, dynamic> toMap() {
@@ -102,6 +108,9 @@ class BookingRequestModel {
       if (flightNumber != null) 'flightNumber': flightNumber,
       if (terminal != null) 'terminal': terminal,
       if (pickupAddress != null) 'pickupAddress': pickupAddress,
+      if (carID != null) 'carID': carID,
+      if (brandID != null) 'brandID': brandID,
+      if (categoryID != null) 'categoryID': categoryID,
     };
   }
 

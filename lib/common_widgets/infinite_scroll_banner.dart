@@ -19,6 +19,8 @@ class InfiniteScrollBanner extends StatefulWidget {
 
 class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     with WidgetsBindingObserver {
+  static const int _infiniteBuffer = 10000;
+
   late PageController _pageController;
   List<BannerModel> _banners = [];
   bool _isLoading = true;
@@ -35,7 +37,10 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _pageController = PageController();
+    _pageController = PageController(
+      viewportFraction: 0.8,
+      initialPage: _infiniteBuffer,
+    );
   }
 
   void _initializeBanners() {
@@ -91,6 +96,9 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           _banners = [_defaultBanner, ...fetchedBanners];
           _isLoading = false;
         });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _jumpToInitialPage();
+        });
 
         // Auto-scroll banners after a delay
         _startAutoScroll();
@@ -99,6 +107,9 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
         setState(() {
           _banners = [_defaultBanner];
           _isLoading = false;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _jumpToInitialPage();
         });
         _startAutoScroll();
       }
@@ -109,25 +120,36 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           _banners = [_defaultBanner];
           _isLoading = false;
         });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _jumpToInitialPage();
+        });
         _startAutoScroll();
       }
     }
   }
 
+  void _jumpToInitialPage() {
+    if (!_pageController.hasClients || _banners.isEmpty) return;
+    _pageController.jumpToPage(_infiniteBuffer);
+    setState(() {
+      _currentIndex = 0;
+    });
+  }
+
   void _startAutoScroll() {
-    // Cancel existing timer if any
     _autoScrollTimer?.cancel();
 
-    // Start a new timer that scrolls every 5 seconds
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (mounted && _pageController.hasClients && _banners.isNotEmpty) {
-        int nextPage = (_currentIndex + 1) % _banners.length;
-        _pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      }
+      if (!mounted || !_pageController.hasClients || _banners.isEmpty) return;
+
+      int current = _pageController.page?.round() ?? _infiniteBuffer;
+      int nextPage = current + 1;
+
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeInOutCubic,
+      );
     });
   }
 
@@ -175,48 +197,102 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
       return const SizedBox.shrink();
     }
 
-    return SizedBox(
-      height: 140,
-      child: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            onPageChanged: (int index) {
-              setState(() => _currentIndex = index);
-              // Restart auto-scroll timer when user manually scrolls
-              _startAutoScroll();
-            },
-            itemCount: _banners.length,
-            itemBuilder: (context, index) {
-              return _buildBannerItem(context, _banners[index], index == 0);
-            },
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 140,
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(),
+                pageSnapping: true,
+                onPageChanged: (int index) {
+                  if (_banners.isEmpty) return;
+                  final int realIndex = index % _banners.length;
+                  setState(() {
+                    _currentIndex = realIndex;
+                  });
+                  _startAutoScroll();
+                },
+                itemCount: 100000,
+                itemBuilder: (context, index) {
+                  final int bannerIndex = index % _banners.length;
+                  final BannerModel banner = _banners[bannerIndex];
+
+                  final Widget child = _buildBannerItem(
+                    context,
+                    banner,
+                    bannerIndex == 0,
+                  );
+
+                  return AnimatedBuilder(
+                    animation: _pageController,
+                    builder: (context, widget) {
+                      double scale = 0.88;
+                      if (_pageController.hasClients &&
+                          _pageController.position.haveDimensions) {
+                        final double page =
+                            _pageController.page ??
+                            _pageController.initialPage.toDouble();
+                        final double diff = (page - index).abs();
+                        scale = (1 - diff * 0.12).clamp(0.82, 1.0);
+                      }
+                      return Center(
+                        child: Transform.scale(
+                          scale: scale,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 1),
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: widget,
+                          ),
+                        ),
+                      );
+                    },
+                    child: child,
+                  );
+                },
+              ),
+            ],
           ),
-          // Indicator dots at the bottom
-          if (_banners.length > 1)
-            Positioned(
-              bottom: 8,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _banners.length,
-                  (index) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentIndex == index
-                          ? Colors.white
-                          : Colors.white.withAlpha(128),
+        ),
+        // Indicator dots below the banner
+        if (_banners.length > 1)
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    _banners.length,
+                    (index) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _currentIndex == index
+                            ? Colors.white
+                            : Colors.white.withAlpha(128),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
+            ],
+          ),
+      ],
     );
   }
 
@@ -227,27 +303,27 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   ) {
     final isAsset = banner.imageUrl.startsWith('assets/');
 
-    return Container(
-      decoration: BoxDecoration(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
         color: Colors.black,
-        image:
-            isAsset
-                ? DecorationImage(
-                  image: AssetImage(banner.imageUrl),
-                  fit: BoxFit.cover,
-                )
-                : null,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child:
-          isAsset
-              ? _buildBannerOverlay(context, banner, isFirstCard)
-              : CachedNetworkImage(
+        width: double.infinity,
+        height: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (isAsset)
+              Image.asset(banner.imageUrl, fit: BoxFit.cover)
+            else
+              CachedNetworkImage(
                 imageUrl: banner.imageUrl,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(color: Colors.grey[800]),
-                errorWidget:
-                    (context, url, error) => Container(color: Colors.grey[800]),
+                width: double.infinity,
+                height: double.infinity,
+                placeholder: (context, url) =>
+                    Container(color: Colors.grey[800]),
+                errorWidget: (context, url, error) =>
+                    Container(color: Colors.grey[800]),
                 imageBuilder: (context, imageProvider) {
                   return Container(
                     decoration: BoxDecoration(
@@ -256,10 +332,13 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                         fit: BoxFit.cover,
                       ),
                     ),
-                    child: _buildBannerOverlay(context, banner, isFirstCard),
                   );
                 },
               ),
+            _buildBannerOverlay(context, banner, isFirstCard),
+          ],
+        ),
+      ),
     );
   }
 

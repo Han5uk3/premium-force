@@ -422,6 +422,22 @@ class ApiService {
     }
   }
 
+  /// Fetch a specific brand by ID from the backend.
+  ///
+  /// Calls `GET /api/brands/:id`
+  /// Returns the brand details including logo/image.
+  Future<Map<String, dynamic>> getBrandById(String id, {String? token}) async {
+    try {
+      final response = await _dio.get(
+        'brands/$id',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
   /// Fetch all cars from the backend.
   ///
   /// Calls `GET /api/cars`
@@ -430,6 +446,22 @@ class ApiService {
     try {
       final response = await _dio.get(
         'cars',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch a specific car by ID from the backend.
+  ///
+  /// Calls `GET /api/cars/:id`
+  /// Returns the car details including brandId and other info.
+  Future<Map<String, dynamic>> getCarById(String id, {String? token}) async {
+    try {
+      final response = await _dio.get(
+        'cars/$id',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -533,8 +565,86 @@ class ApiService {
   }
 
   // ---------------------------------------------------------------------------
-  // Bookings
+  // Routes & Pricing
   // ---------------------------------------------------------------------------
+
+  /// Fetch the price for a specific route and vehicle.
+  ///
+  /// Calls `GET /api/routes/FromcityToCity/vehicleRoutePrice`
+  Future<Map<String, dynamic>> getRoutePrice({
+    required String fromCityId,
+    required String toCityId,
+    required String vehicleId,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.get(
+        'routes/FromcityToCity/vehicleRoutePrice',
+        data: {
+          'fromCity': fromCityId,
+          'toCity': toCityId,
+          'vehicleID': vehicleId,
+        },
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Filter routes to check availability between cities.
+  ///
+  /// Calls `POST /api/routes/city-to-city/filter` (Note the double slash in Postman might be a typo)
+  /// We'll use the canonical path.
+  Future<Map<String, dynamic>> filterRoutes({
+    required String fromCityId,
+    required String toCityId,
+    String? vehicleId,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.post(
+        'routes/city-to-city/filter',
+        data: {
+          'fromCity': fromCityId,
+          'toCity': toCityId,
+          if (vehicleId != null) 'vehicleID': vehicleId,
+        },
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      // Try again with the double slash if it fails?
+      // Actually, let's keep it simple first.
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch a route by cities and vehicle.
+  /// This is another way to check if a route exists.
+  Future<Map<String, dynamic>> getRouteByCities({
+    required String fromCityId,
+    required String toCityId,
+    String? vehicleId,
+    String? token,
+  }) async {
+    try {
+      // Based on findstr output, there might be a simple routes filter
+      final response = await _dio.get(
+        'routes',
+        queryParameters: {
+          'fromCity': fromCityId,
+          'toCity': toCityId,
+          if (vehicleId != null) 'vehicleID': vehicleId,
+        },
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
 
   /// Create a new booking.
   ///

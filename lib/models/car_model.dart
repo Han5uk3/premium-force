@@ -7,6 +7,8 @@ class CarModel {
   final double price;
   final double distance;
   final int maxPassengers;
+  final String? brandId; // Added to support backend requirements
+  final String? categoryId; // Added to support backend requirements
 
   CarModel({
     required this.id,
@@ -17,6 +19,8 @@ class CarModel {
     required this.price,
     required this.distance,
     required this.maxPassengers,
+    this.brandId,
+    this.categoryId,
   });
 }
 
