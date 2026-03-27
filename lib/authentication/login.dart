@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -493,17 +494,19 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                           },
                         ),
 
-                        const SizedBox(height: 12),
+                        if (!Platform.isAndroid) ...[
+                          const SizedBox(height: 12),
 
-                        // ── Apple Sign-In button ───────────────────────
-                        Consumer<AuthProvider>(
-                          builder: (context, authProvider, _) {
-                            return _AppleSignInButton(
-                              isLoading: authProvider.isAppleLoading,
-                              onTap: _handleAppleSignIn,
-                            );
-                          },
-                        ),
+                          // ── Apple Sign-In button ───────────────────────
+                          Consumer<AuthProvider>(
+                            builder: (context, authProvider, _) {
+                              return _AppleSignInButton(
+                                isLoading: authProvider.isAppleLoading,
+                                onTap: _handleAppleSignIn,
+                              );
+                            },
+                          ),
+                        ],
 
                         const SizedBox(height: 32),
                       ],

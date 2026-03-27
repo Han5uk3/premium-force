@@ -6,9 +6,9 @@ class BookingRequestModel {
   String? airport;
   String? arrival; // ISO 8601 DateTime string
   String? pickupLat;
-  String? pickupLng;
+  String? pickupLong;
   String? dropOffLat;
-  String? dropOffLng;
+  String? dropOffLong;
   String? dropOffAddress;
   String? carclass;
   String? carName;
@@ -36,6 +36,8 @@ class BookingRequestModel {
   String? carID;
   String? brandID;
   String? categoryID;
+  int? serviceDuration;
+  int? estimatedHours;
 
   BookingRequestModel({
     this.category,
@@ -43,9 +45,9 @@ class BookingRequestModel {
     this.airport,
     this.arrival,
     this.pickupLat,
-    this.pickupLng,
+    this.pickupLong,
     this.dropOffLat,
-    this.dropOffLng,
+    this.dropOffLong,
     this.dropOffAddress,
     this.carclass,
     this.carName,
@@ -72,6 +74,8 @@ class BookingRequestModel {
     this.carID,
     this.brandID,
     this.categoryID,
+    this.serviceDuration,
+    this.estimatedHours,
   });
 
   Map<String, dynamic> toMap() {
@@ -81,9 +85,9 @@ class BookingRequestModel {
       if (airport != null) 'airport': airport,
       if (arrival != null) 'arrival': arrival,
       if (pickupLat != null) 'pickupLat': pickupLat,
-      if (pickupLng != null) 'pickupLng': pickupLng,
+      if (pickupLong != null) 'pickupLong': pickupLong,
       if (dropOffLat != null) 'dropOffLat': dropOffLat,
-      if (dropOffLng != null) 'dropOffLng': dropOffLng,
+      if (dropOffLong != null) 'dropOffLong': dropOffLong,
       if (dropOffAddress != null) 'dropOffAddress': dropOffAddress,
       if (carclass != null) 'carclass': carclass,
       if (carName != null) 'carName': carName,
@@ -111,6 +115,8 @@ class BookingRequestModel {
       if (carID != null) 'carID': carID,
       if (brandID != null) 'brandID': brandID,
       if (categoryID != null) 'categoryID': categoryID,
+      if (serviceDuration != null) 'serviceDuration': serviceDuration,
+      if (estimatedHours != null) 'estimatedHours': estimatedHours,
     };
   }
 

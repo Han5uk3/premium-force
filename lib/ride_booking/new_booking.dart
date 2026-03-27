@@ -67,6 +67,7 @@ class _NewBookingState extends State<NewBooking> {
   final _tripInfoFormKey = GlobalKey<FormState>();
   final _preferencesFormKey = GlobalKey<FormState>();
   final _passengerFormKey = GlobalKey<FormState>();
+  final _chauffeurTripInfoFormKey = GlobalKey<FormState>();
 
   bool showPreferances = false;
   bool showTripInfo = true;
@@ -98,22 +99,12 @@ class _NewBookingState extends State<NewBooking> {
   int _selectedAirportCode = 0;
   OverlayEntry? _overlayEntry;
   String _selectedPassengerCountryCode = '966';
+  int _selectedServiceDuration =
+      0; // 0 for hourly, 1 for 8 hours, 2 for 12 hours
+  int _selectedEstimatedHours = 1; // 1 to 12
 
   double get _calculatedCharge {
-    if (_routePrice != null && _routePrice! > 0) return _routePrice!;
-    final carsList = _cars.isNotEmpty ? _cars : availableCars;
-    final selectedCar = carsList.firstWhere(
-      (c) =>
-          c.className == _selectedVehicleClass &&
-          c.brand == _selectedVehicleBrand &&
-          c.modelName == _selectedVehicleModel,
-      orElse: () => carsList.first,
-    );
-    final distance = selectedCar.distance > 0 ? selectedCar.distance : 10;
-    final price = selectedCar.price > 0
-        ? selectedCar.price
-        : 5.0; // Fallback for testing
-    return (_totalDistance / distance) * price;
+    return 1.0; // BYPASS FOR TESTING: Fixed 1.0 Riyal
   }
 
   /// Get the current selected CarModel
@@ -135,6 +126,7 @@ class _NewBookingState extends State<NewBooking> {
     }
   }
 
+  /*
   /// Extracts the city ID from an address string by matching with _apiCities
   String? _getCityIdFromAddress(String? address) {
     if (address == null || address.isEmpty || _apiCities.isEmpty) return null;
@@ -148,7 +140,9 @@ class _NewBookingState extends State<NewBooking> {
     }
     return null;
   }
+  */
 
+  /*
   /// Gets the city ID for the selected airport
   String? _getAirportCityId() {
     if (_apiAirports.isEmpty) return null;
@@ -174,51 +168,23 @@ class _NewBookingState extends State<NewBooking> {
       return null;
     }
   }
+  */
 
   /// Check route availability and optionally fetch price
+  /* 
+  /// Check route availability and optionally fetch price
   Future<Map<String, dynamic>> _fetchRouteDetails({bool withVehicle = false}) async {
-    String? fromCityId;
-    String? toCityId;
-
-    if (_selectedCatCode == 0) {
-      // Airport Arrival: From Airport City to Dropoff City
-      fromCityId = _getAirportCityId();
-      toCityId = _getCityIdFromAddress(_dropAddress);
-    } else if (_selectedCatCode == 1) {
-      // Airport Departure: From Pickup City to Airport City
-      fromCityId = _getCityIdFromAddress(_pickupAddress);
-      toCityId = _getAirportCityId();
-    } else {
-      // Chauffeur: From Pickup to Dropoff
-      fromCityId = _getCityIdFromAddress(_pickupAddress);
-      toCityId = _getCityIdFromAddress(_dropAddress);
-    }
-
-    if (fromCityId == null || toCityId == null) {
-      return {'success': false, 'message': 'City not recognized.'};
-    }
-
-    final api = ApiService();
-    final token = UserLocalStorage.getToken();
-    final selectedCar = _getSelectedCar();
-
-    if (withVehicle && selectedCar != null) {
-      return await api.getRoutePrice(
-        fromCityId: fromCityId,
-        toCityId: toCityId,
-        vehicleId: selectedCar.id,
-        token: token,
-      );
-    } else {
-      // Filter routes to see if ANY route exists
-      return await api.filterRoutes(
-        fromCityId: fromCityId,
-        toCityId: toCityId,
-        token: token,
-      );
-    }
+    // BYPASS: Always return success with a custom price for testing
+    debugPrint('🚧 BYPASS │ Returning custom price (5.0) for testing');
+    return {
+      'success': true,
+      'data': {'charge': 5.0},
+      'payload': {'charge': 5.0},
+    };
   }
+  */
 
+  /*
   void _showNoServiceAlert() {
     showDialog(
       context: context,
@@ -236,6 +202,7 @@ class _NewBookingState extends State<NewBooking> {
       ),
     );
   }
+  */
 
   @override
   void initState() {
@@ -944,436 +911,492 @@ class _NewBookingState extends State<NewBooking> {
     }
   }
 
+  void _handleBackAction() {
+    if (showReviewAndConfirm) {
+      setState(() {
+        showReviewAndConfirm = false;
+        showPassenger = true;
+        showTripInfo = false;
+        showPreferances = false;
+      });
+    } else if (showPassenger) {
+      setState(() {
+        showReviewAndConfirm = false;
+        showPassenger = false;
+        showTripInfo = false;
+        showPreferances = true;
+      });
+    } else if (showPreferances) {
+      setState(() {
+        showReviewAndConfirm = false;
+        showPreferances = false;
+        showTripInfo = true;
+        showPassenger = false;
+      });
+    } else if (showTripInfo) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xff3E230A), Color(0xff141313)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+    return PopScope(
+      canPop: showTripInfo,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) return;
+        _handleBackAction();
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xff3E230A), Color(0xff141313)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
         ),
-      ),
-      child: Scaffold(
-        appBar: buidAppBar(context),
-        backgroundColor: Colors.transparent,
-        body: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 16),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                alignment: Alignment.topCenter,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeIn,
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.05, 0.0),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
+        child: Scaffold(
+          appBar: buidAppBar(context),
+          backgroundColor: Colors.transparent,
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 16),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  alignment: Alignment.topCenter,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.05, 0.0),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                    layoutBuilder:
+                        (Widget? currentChild, List<Widget> previousChildren) {
+                          return Stack(
+                            alignment: Alignment.topCenter,
+                            children: <Widget>[
+                              ...previousChildren,
+                              if (currentChild != null) currentChild,
+                            ],
+                          );
+                        },
+                    child: showReviewAndConfirm
+                        ? SizedBox(
+                            key: const ValueKey('reviewAndConfirmPage'),
+                            width: double.infinity,
+                            child: buildReviewAndConfirmPage(context, loc),
+                          )
+                        : showPassenger
+                        ? SizedBox(
+                            key: const ValueKey('passengerForm'),
+                            width: double.infinity,
+                            child: buildPassengerForm(context, loc),
+                          )
+                        : showPreferances
+                        ? SizedBox(
+                            key: const ValueKey('preferencesForm'),
+                            width: double.infinity,
+                            child: buildPreferancesForm(context, loc),
+                          )
+                        : SizedBox(
+                            key: const ValueKey('tripInfoForm'),
+                            width: double.infinity,
+                            child: buildTripInfoForm(context, loc),
                           ),
-                        );
-                      },
-                  layoutBuilder:
-                      (Widget? currentChild, List<Widget> previousChildren) {
-                        return Stack(
-                          alignment: Alignment.topCenter,
-                          children: <Widget>[
-                            ...previousChildren,
-                            if (currentChild != null) currentChild,
-                          ],
-                        );
-                      },
-                  child: showReviewAndConfirm
-                      ? SizedBox(
-                          key: const ValueKey('reviewAndConfirmPage'),
-                          width: double.infinity,
-                          child: buildReviewAndConfirmPage(context, loc),
-                        )
-                      : showPassenger
-                      ? SizedBox(
-                          key: const ValueKey('passengerForm'),
-                          width: double.infinity,
-                          child: buildPassengerForm(context, loc),
-                        )
-                      : showPreferances
-                      ? SizedBox(
-                          key: const ValueKey('preferencesForm'),
-                          width: double.infinity,
-                          child: buildPreferancesForm(context, loc),
-                        )
-                      : SizedBox(
-                          key: const ValueKey('tripInfoForm'),
-                          width: double.infinity,
-                          child: buildTripInfoForm(context, loc),
-                        ),
+                  ),
                 ),
-              ),
-              SizedBox(height: 32),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: PremiumButton(
-                  text: (_isCalculatingDistance || _isCheckingRoute)
-                      ? "Processing..."
-                      : showReviewAndConfirm
-                      ? loc.bookService
-                      : loc.continueText,
-                  onTap: _isCalculatingDistance || _isCheckingRoute
-                      ? () {}
-                      : () async {
-                          if (showTripInfo) {
-                            if (_tripInfoFormKey.currentState?.validate() ??
-                                false) {
-                              if (_selectedCatCode == 1 &&
-                                  _selectedDate != null &&
-                                  _selectedTime != null &&
-                                  _selectedPickupDate != null &&
-                                  _selectedPickupTime != null) {
-                                final depDateTime = DateTime(
-                                  _selectedDate!.year,
-                                  _selectedDate!.month,
-                                  _selectedDate!.day,
-                                  _selectedTime!.hour,
-                                  _selectedTime!.minute,
-                                );
-                                final pickDateTime = DateTime(
-                                  _selectedPickupDate!.year,
-                                  _selectedPickupDate!.month,
-                                  _selectedPickupDate!.day,
-                                  _selectedPickupTime!.hour,
-                                  _selectedPickupTime!.minute,
-                                );
-
-                                if (pickDateTime.isAfter(
-                                  depDateTime.subtract(
-                                    const Duration(hours: 4),
-                                  ),
-                                )) {
-                                  _showCustomSnackBar(
-                                    loc.pickupTimeAtLeast4HoursBeforeDeparture,
-                                    'E',
+                SizedBox(height: 32),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: PremiumButton(
+                    text: (_isCalculatingDistance || _isCheckingRoute)
+                        ? "Processing..."
+                        : showReviewAndConfirm
+                        ? loc.bookService
+                        : loc.continueText,
+                    onTap: _isCalculatingDistance || _isCheckingRoute
+                        ? () {}
+                        : () async {
+                            if (showTripInfo) {
+                              if (_tripInfoFormKey.currentState?.validate() ??
+                                  false) {
+                                if (_selectedCatCode == 1 &&
+                                    _selectedDate != null &&
+                                    _selectedTime != null &&
+                                    _selectedPickupDate != null &&
+                                    _selectedPickupTime != null) {
+                                  final depDateTime = DateTime(
+                                    _selectedDate!.year,
+                                    _selectedDate!.month,
+                                    _selectedDate!.day,
+                                    _selectedTime!.hour,
+                                    _selectedTime!.minute,
                                   );
-                                  return;
+                                  final pickDateTime = DateTime(
+                                    _selectedPickupDate!.year,
+                                    _selectedPickupDate!.month,
+                                    _selectedPickupDate!.day,
+                                    _selectedPickupTime!.hour,
+                                    _selectedPickupTime!.minute,
+                                  );
+
+                                  if (pickDateTime.isAfter(
+                                    depDateTime.subtract(
+                                      const Duration(hours: 4),
+                                    ),
+                                  )) {
+                                    _showCustomSnackBar(
+                                      loc.pickupTimeAtLeast4HoursBeforeDeparture,
+                                      'E',
+                                    );
+                                    return;
+                                  }
                                 }
+
+                                setState(() {
+                                  showPreferances = true;
+                                  showTripInfo = false;
+                                  showPassenger = false;
+                                  showReviewAndConfirm = false;
+                                });
                               }
+                            } else if (showPreferances) {
+                              if (_preferencesFormKey.currentState
+                                      ?.validate() ??
+                                  false) {
+                                // ── Route & Vehicle Availability Check (Bypassed) ─────
+                                /*
+                                setState(() {
+                                  _isCheckingRoute = true;
+                                });
 
-                              setState(() {
-                                showPreferances = true;
-                                showTripInfo = false;
-                                showPassenger = false;
-                                showReviewAndConfirm = false;
-                              });
-                            }
-                          } else if (showPreferances) {
-                            if (_preferencesFormKey.currentState?.validate() ??
-                                false) {
-                              // ── Route & Vehicle Availability Check ─────
-                              setState(() {
-                                _isCheckingRoute = true;
-                              });
-
-                              final routeResult = await _fetchRouteDetails(
-                                withVehicle: true,
-                              );
-
-                              setState(() {
-                                _isCheckingRoute = false;
-                              });
-
-                              if (routeResult['success'] == true) {
-                                final data =
-                                    routeResult['data'] ??
-                                    routeResult['payload'] ??
-                                    routeResult;
-                                final fetchedCharge = _parseDouble(
-                                  data is Map ? data['charge'] : 0,
+                                final routeResult = await _fetchRouteDetails(
+                                  withVehicle: true,
                                 );
-                                if (fetchedCharge > 0) {
-                                  setState(() {
-                                    _routePrice = fetchedCharge;
-                                  });
+
+                                setState(() {
+                                  _isCheckingRoute = false;
+                                });
+
+                                if (routeResult['success'] == true) {
+                                  final data =
+                                      routeResult['data'] ??
+                                      routeResult['payload'] ??
+                                      routeResult;
+                                  final fetchedCharge = _parseDouble(
+                                    data is Map ? data['charge'] : 0,
+                                  );
+                                  if (fetchedCharge > 0) {
+                                    setState(() {
+                                      _routePrice = fetchedCharge;
+                                    });
+                                  } else {
+                                    _showNoServiceAlert();
+                                    return;
+                                  }
                                 } else {
+                                  // No price found for this route/vehicle
                                   _showNoServiceAlert();
                                   return;
                                 }
-                              } else {
-                                // No price found for this route/vehicle
-                                _showNoServiceAlert();
-                                return;
+                                */
+
+                                setState(() {
+                                  showPassenger = true;
+                                  showTripInfo = false;
+                                  showPreferances = false;
+                                  showReviewAndConfirm = false;
+                                });
                               }
+                            } else if (showPassenger) {
+                              if (_passengerFormKey.currentState?.validate() ??
+                                  false) {
+                                setState(() {
+                                  _isCalculatingDistance = true;
+                                });
+                                await _calculateActualDistance();
+
+                                setState(() {
+                                  showReviewAndConfirm = true;
+                                  showTripInfo = false;
+                                  showPreferances = false;
+                                  showPassenger = false;
+                                  _isCalculatingDistance = false;
+                                });
+                              }
+                            } else if (showReviewAndConfirm) {
+                              if (_isBooking) return;
 
                               setState(() {
-                                showPassenger = true;
-                                showTripInfo = false;
-                                showPreferances = false;
-                                showReviewAndConfirm = false;
+                                _isBooking = true;
                               });
-                            }
-                          } else if (showPassenger) {
-                            if (_passengerFormKey.currentState?.validate() ??
-                                false) {
-                              setState(() {
-                                _isCalculatingDistance = true;
-                              });
-                              await _calculateActualDistance();
 
-                              setState(() {
-                                showReviewAndConfirm = true;
-                                showTripInfo = false;
-                                showPreferances = false;
-                                showPassenger = false;
-                                _isCalculatingDistance = false;
-                              });
-                            }
-                          } else if (showReviewAndConfirm) {
-                            if (_isBooking) return;
+                              try {
+                                // 1. Prepare Request Data
+                                final userData = UserLocalStorage.getUserData();
+                                final userId = UserLocalStorage.getUserId();
+                                final userEmail = userData?['email'] ?? "";
+                                final userName =
+                                    userData?['name'] ?? "Customer";
+                                final userPhone =
+                                    userData?['phoneNumber'] ??
+                                    UserLocalStorage.getPhoneNumber() ??
+                                    "";
 
-                            setState(() {
-                              _isBooking = true;
-                            });
+                                final totalWithVat =
+                                    1.0; // BYPASS FOR TESTING: Fixed 1.0 Riyal
+                                final orderId =
+                                    "BOOK_${DateTime.now().millisecondsSinceEpoch}";
 
-                            try {
-                              // 1. Prepare Request Data
-                              final userData = UserLocalStorage.getUserData();
-                              final userId = UserLocalStorage.getUserId();
-                              final userEmail = userData?['email'] ?? "";
-                              final userName = userData?['name'] ?? "Customer";
-                              final userPhone =
-                                  userData?['phoneNumber'] ??
-                                  UserLocalStorage.getPhoneNumber() ??
-                                  "";
-
-                              final totalWithVat = _calculatedCharge * 1.15;
-                              final orderId =
-                                  "BOOK_${DateTime.now().millisecondsSinceEpoch}";
-
-                              // 2. Process Payment
-                              final paymentRequest = PaymentRequest(
-                                amount: totalWithVat,
-                                currency: PaytabsConfig.defaultCurrency,
-                                merchantCountryCode:
-                                    PaytabsConfig.merchantCountryCode,
-                                orderId: orderId,
-                                customerEmail: userEmail,
-                                customerName: userName,
-                                customerPhone: userPhone,
-                                cartId: orderId,
-                                cartDescription:
-                                    "Ride Booking for $_selectedVehicleClass",
-                              );
-
-                              final paymentResult = await PaymentService()
-                                  .startPayment(request: paymentRequest);
-
-                              if (paymentResult.success) {
-                                // 3. If Payment Successful, Create Booking Record
-                                String getIsoDateTime(
-                                  DateTime? d,
-                                  TimeOfDay? t,
-                                ) {
-                                  if (d == null || t == null) return "";
-                                  return DateTime(
-                                            d.year,
-                                            d.month,
-                                            d.day,
-                                            t.hour,
-                                            t.minute,
-                                          )
-                                          .toUtc()
-                                          .toIso8601String()
-                                          .split('.')
-                                          .first +
-                                      "Z";
-                                }
-
-                                final airportCoords = _getAirportCoordinates();
-                                double? finalPickupLat;
-                                double? finalPickupLng;
-                                double? finalDropOffLat;
-                                double? finalDropOffLng;
-                                String? finalPickupAddress;
-                                String? finalDropOffAddress;
-
-                                if (_selectedCatCode == 0) {
-                                  finalPickupLat = airportCoords['lat'];
-                                  finalPickupLng = airportCoords['lng'];
-                                  finalDropOffLat = _dropLat;
-                                  finalDropOffLng = _dropLng;
-
-                                  final String airport =
-                                      _getSelectedAirportName(context) ?? "";
-                                  final String terminal =
-                                      _getSelectedTerminalName(context) ?? "";
-                                  finalPickupAddress =
-                                      terminal.isNotEmpty
-                                          ? "$airport - $terminal"
-                                          : airport;
-                                  finalDropOffAddress = _dropAddress;
-                                } else if (_selectedCatCode == 1) {
-                                  finalPickupLat = _pickupLat;
-                                  finalPickupLng = _pickupLng;
-                                  finalDropOffLat = airportCoords['lat'];
-                                  finalDropOffLng = airportCoords['lng'];
-
-                                  final String airport =
-                                      _getSelectedAirportName(context) ?? "";
-                                  final String terminal =
-                                      _getSelectedTerminalName(context) ?? "";
-                                  finalDropOffAddress =
-                                      terminal.isNotEmpty
-                                          ? "$airport - $terminal"
-                                          : airport;
-                                  finalPickupAddress = _pickupAddress;
-                                } else {
-                                  finalPickupLat = _pickupLat;
-                                  finalPickupLng = _pickupLng;
-                                  finalDropOffLat = _dropLat;
-                                  finalDropOffLng = _dropLng;
-                                  finalPickupAddress = _pickupAddress;
-                                  finalDropOffAddress = _dropAddress;
-                                }
-
-                                final BookingRequestModel requestModel =
-                                    BookingRequestModel(
-                                  category:
-                                      _selectedCatCode == 0
-                                          ? "Arrival"
-                                          : _selectedCatCode == 1
-                                          ? "Departure"
-                                          : "Chauffeur",
-                                  flightNumber: flightNumberController.text,
-                                  cityID: _getSelectedCityId(),
-                                  airportID: _getSelectedAirportId(),
-                                  terminalID: _getSelectedTerminalId(),
-                                  arrival: getIsoDateTime(
-                                    _selectedDate,
-                                    _selectedTime,
-                                  ),
-                                  pickupLat: finalPickupLat?.toString().trim(),
-                                  pickupLng: finalPickupLng?.toString().trim(),
-                                  dropOffLat: finalDropOffLat
-                                      ?.toString()
-                                      .trim(),
-                                  dropOffLng: finalDropOffLng
-                                      ?.toString()
-                                      .trim(),
-                                  dropOffAddress: finalDropOffAddress,
-                                  pickupAddress: finalPickupAddress,
-                                  specialRequestText:
-                                      specialRequestsController.text,
-                                  specialRequestAudio:
-                                      _specialRequestsVoiceNotePath != null
-                                      ? File(_specialRequestsVoiceNotePath!)
-                                      : null,
-                                  passengerCount: _numberOfPassengers
-                                      .toString(),
-                                  passengerNames: jsonEncode(
-                                    _passengerNameController.text
-                                        .split(',')
-                                        .map((e) => e.trim())
-                                        .where((e) => e.isNotEmpty)
-                                        .toList(),
-                                  ),
-                                  passengerMobile:
-                                      "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}",
-                                  distance:
-                                      "${_totalDistance.toStringAsFixed(2)} km",
-                                  charge: double.parse(
-                                    totalWithVat.toStringAsFixed(2),
-                                  ),
-                                  bookingStatus: "pending",
-                                  customerID: userId,
-                                  driverID: "null",
-                                  carID: _getSelectedCarId(),
-                                  brandID: _getSelectedBrandId(),
-                                  categoryID: _getSelectedCategoryId(),
+                                // 2. Process Payment
+                                final paymentRequest = PaymentRequest(
+                                  amount: totalWithVat,
+                                  currency: PaytabsConfig.defaultCurrency,
+                                  merchantCountryCode:
+                                      PaytabsConfig.merchantCountryCode,
+                                  orderId: orderId,
+                                  customerEmail: userEmail,
+                                  customerName: userName,
+                                  customerPhone: userPhone,
+                                  cartId: orderId,
+                                  cartDescription:
+                                      "Ride Booking for $_selectedVehicleClass",
                                 );
 
-                                if (kDebugMode) {
-                                  debugPrint(
-                                    "🚀 🌐 API │ PREPARING BOOKING SUBMISSION",
-                                  );
-                                  debugPrint("🚀 🌐 API │ Order ID: $orderId");
-                                  final map = requestModel.toMap();
-                                  debugPrint(
-                                    "🚀 🌐 API │ Payload Summary (${map.length} fields):",
-                                  );
-                                  map.forEach((key, value) {
-                                    debugPrint("   🔹 $key: $value");
-                                  });
-                                }
+                                final paymentResult = await PaymentService()
+                                    .startPayment(request: paymentRequest);
 
-                                // final apiResponse = await ApiService()
-                                //     .createBooking(
-                                //       booking: requestModel,
-                                //       token: UserLocalStorage.getToken(),
-                                //     );
-                                final apiResponse = {'success': true} as Map<String, dynamic>;
+                                if (paymentResult.success) {
+                                  // 3. If Payment Successful, Create Booking Record
+                                  String getIsoDateTime(
+                                    DateTime? d,
+                                    TimeOfDay? t,
+                                  ) {
+                                    if (d == null || t == null) return "";
+                                    return DateTime(
+                                              d.year,
+                                              d.month,
+                                              d.day,
+                                              t.hour,
+                                              t.minute,
+                                            )
+                                            .toUtc()
+                                            .toIso8601String()
+                                            .split('.')
+                                            .first +
+                                        "Z";
+                                  }
 
+                                  final airportCoords =
+                                      _getAirportCoordinates();
+                                  double? finalPickupLat;
+                                  double? finalPickupLng;
+                                  double? finalDropOffLat;
+                                  double? finalDropOffLng;
+                                  String? finalPickupAddress;
+                                  String? finalDropOffAddress;
 
-                                if (kDebugMode) {
-                                  debugPrint(
-                                    "✅ 🌐 API │ BOOKING RESPONSE RECEIVED",
-                                  );
-                                  debugPrint(
-                                    "✅ 🌐 API │ Status: ${apiResponse['success']}",
-                                  );
-                                  debugPrint(
-                                    "✅ 🌐 API │ Full Response: $apiResponse",
-                                  );
-                                }
+                                  if (_selectedCatCode == 0) {
+                                    finalPickupLat = airportCoords['lat'];
+                                    finalPickupLng = airportCoords['lng'];
+                                    finalDropOffLat = _dropLat;
+                                    finalDropOffLng = _dropLng;
 
-                                if (apiResponse['success'] == true) {
-                                  _showCustomSnackBar(
-                                    // Use direct string fallback if localization not yet generated
-                                    "Booking confirmed successfully!",
-                                    'S',
+                                    final String airport =
+                                        _getSelectedAirportName(context) ?? "";
+                                    final String terminal =
+                                        _getSelectedTerminalName(context) ?? "";
+                                    finalPickupAddress = terminal.isNotEmpty
+                                        ? "$airport - $terminal"
+                                        : airport;
+                                    finalDropOffAddress = _dropAddress;
+                                  } else if (_selectedCatCode == 1) {
+                                    finalPickupLat = _pickupLat;
+                                    finalPickupLng = _pickupLng;
+                                    finalDropOffLat = airportCoords['lat'];
+                                    finalDropOffLng = airportCoords['lng'];
+
+                                    final String airport =
+                                        _getSelectedAirportName(context) ?? "";
+                                    final String terminal =
+                                        _getSelectedTerminalName(context) ?? "";
+                                    finalDropOffAddress = terminal.isNotEmpty
+                                        ? "$airport - $terminal"
+                                        : airport;
+                                    finalPickupAddress = _pickupAddress;
+                                  } else {
+                                    finalPickupLat = _pickupLat;
+                                    finalPickupLng = _pickupLng;
+                                    finalDropOffLat = _dropLat;
+                                    finalDropOffLng = _dropLng;
+                                    finalPickupAddress = _pickupAddress;
+                                    finalDropOffAddress = _dropAddress;
+                                  }
+
+                                  // Logging raw items removed to focus on exact API data
+
+                                  final BookingRequestModel
+                                  requestModel = BookingRequestModel(
+                                    category: _getCategoryForApi(
+                                      _selectedCatCode,
+                                    ),
+                                    city: _getCityName(
+                                      context,
+                                      _selectedCityCode,
+                                    ),
+                                    airport:
+                                        _getSelectedAirportName(context) ?? "",
+                                    flightNumber: flightNumberController.text,
+                                    cityID: _getSelectedCityId(),
+                                    airportID: _getSelectedAirportId(),
+                                    terminalID: _getSelectedTerminalId(),
+                                    terminal:
+                                        _getSelectedTerminalName(context) ?? "",
+                                    arrival: getIsoDateTime(
+                                      _selectedDate,
+                                      _selectedTime,
+                                    ),
+                                    pickupLat: finalPickupLat
+                                        ?.toString()
+                                        .trim(),
+                                    pickupLong: finalPickupLng
+                                        ?.toString()
+                                        .trim(),
+                                    dropOffLat: finalDropOffLat
+                                        ?.toString()
+                                        .trim(),
+                                    dropOffLong: finalDropOffLng
+                                        ?.toString()
+                                        .trim(),
+                                    dropOffAddress: finalDropOffAddress,
+                                    pickupAddress: finalPickupAddress,
+                                    specialRequestText:
+                                        specialRequestsController.text,
+                                    specialRequestAudio:
+                                        _specialRequestsVoiceNotePath != null
+                                        ? File(_specialRequestsVoiceNotePath!)
+                                        : null,
+                                    passengerCount: _numberOfPassengers
+                                        .toString(),
+                                    passengerNames: jsonEncode(
+                                      _passengerNameController.text
+                                          .split(',')
+                                          .map((e) => e.trim())
+                                          .where((e) => e.isNotEmpty)
+                                          .toList(),
+                                    ),
+                                    passengerMobile:
+                                        "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}",
+                                    distance:
+                                        "${_totalDistance.toStringAsFixed(2)} km",
+                                    charge: double.parse(
+                                      totalWithVat.toStringAsFixed(2),
+                                    ),
+                                    bookingStatus: "pending",
+                                    customerID: userId,
+                                    driverID: "null",
+                                    carID: _getSelectedCarId(),
+                                    brandID: _getSelectedBrandId(),
+                                    categoryID: _getSelectedCategoryId(),
+                                    carclass: _selectedVehicleClass,
+                                    carName: _selectedVehicleModel,
+                                    carbrand: _selectedVehicleBrand,
+                                    carmodel: _selectedVehicleModel,
+                                    serviceDuration: _selectedCatCode == 2
+                                        ? _selectedServiceDuration
+                                        : null,
+                                    estimatedHours: _selectedCatCode == 2
+                                        ? _selectedServiceDuration == 0
+                                              ? _selectedEstimatedHours
+                                              : null
+                                        : null,
                                   );
-                                  Navigator.of(context).pop();
+
+                                  if (kDebugMode) {
+                                    final finalDataMap = requestModel.toMap();
+                                    debugPrint(
+                                      '🚀 🌐 API │ EXACT DATA FOR BOOKING:',
+                                    );
+                                    final prettyJson = JsonEncoder.withIndent(
+                                      '  ',
+                                    ).convert(finalDataMap);
+                                    debugPrint(prettyJson);
+                                  }
+
+                                  final apiResponse = await ApiService()
+                                      .createBooking(
+                                        booking: requestModel,
+                                        token: UserLocalStorage.getToken(),
+                                      );
+
+                                  if (kDebugMode) {
+                                    debugPrint(
+                                      "✅ 🌐 API │ BOOKING RESPONSE RECEIVED",
+                                    );
+                                    debugPrint(
+                                      "✅ 🌐 API │ Status: ${apiResponse['success']}",
+                                    );
+                                    debugPrint(
+                                      "✅ 🌐 API │ Full Response: $apiResponse",
+                                    );
+                                  }
+
+                                  if (apiResponse['success'] == true) {
+                                    _showCustomSnackBar(
+                                      // Use direct string fallback if localization not yet generated
+                                      "Booking confirmed successfully!",
+                                      'S',
+                                    );
+                                    Navigator.of(context).pop();
+                                  } else {
+                                    _showCustomSnackBar(
+                                      apiResponse['message'] ??
+                                          "Booking failed. Please try again.",
+                                      'E',
+                                    );
+                                  }
                                 } else {
                                   _showCustomSnackBar(
-                                    apiResponse['message'] ??
-                                        "Booking failed. Please try again.",
+                                    paymentResult.responseMessage,
                                     'E',
                                   );
                                 }
-                              } else {
+                              } catch (e) {
+                                debugPrint('❌ Booking error: $e');
                                 _showCustomSnackBar(
-                                  paymentResult.responseMessage,
+                                  "Something went wrong. Please try again.",
                                   'E',
                                 );
-                              }
-                            } catch (e) {
-                              debugPrint('❌ Booking error: $e');
-                              _showCustomSnackBar(
-                                "Something went wrong. Please try again.",
-                                'E',
-                              );
-                            } finally {
-                              if (mounted) {
-                                setState(() {
-                                  _isBooking = false;
-                                });
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _isBooking = false;
+                                  });
+                                }
                               }
                             }
-                          }
-                        },
-                  fontsize: 16,
-                  showLoader: _isCalculatingDistance || _isBooking,
+                          },
+                    fontsize: 16,
+                    showLoader: _isCalculatingDistance || _isBooking,
+                  ),
                 ),
-              ),
-              SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 32),
-            ],
+                SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
@@ -1441,9 +1464,7 @@ class _NewBookingState extends State<NewBooking> {
                 if (_selectedCatCode == 0) {
                   final airport = _getSelectedAirportName(context) ?? "";
                   final terminal = _getSelectedTerminalName(context) ?? "";
-                  return terminal.isNotEmpty
-                      ? "$airport - $terminal"
-                      : airport;
+                  return terminal.isNotEmpty ? "$airport - $terminal" : airport;
                 }
                 return _pickupAddress ?? "";
               }
@@ -1452,9 +1473,7 @@ class _NewBookingState extends State<NewBooking> {
                 if (_selectedCatCode == 1) {
                   final airport = _getSelectedAirportName(context) ?? "";
                   final terminal = _getSelectedTerminalName(context) ?? "";
-                  return terminal.isNotEmpty
-                      ? "$airport - $terminal"
-                      : airport;
+                  return terminal.isNotEmpty ? "$airport - $terminal" : airport;
                 }
                 return _dropAddress ?? "";
               }
@@ -1462,7 +1481,10 @@ class _NewBookingState extends State<NewBooking> {
               return Bookingcard(
                 isFromReviewAndConfirm: true,
                 status: "",
-                type: _getServiceName(context, _selectedCatCode),
+                isChauffeur: _selectedCatCode == 2,
+                type: _selectedCatCode == 2
+                    ? "${loc.chauffeur} - ${_getServiceDurationLabel(_selectedServiceDuration)}"
+                    : _getServiceName(context, _selectedCatCode),
                 pickup: getPickup(),
                 dropoff: getDropoff(),
                 date: getDisplayDate(),
@@ -1508,6 +1530,7 @@ class _NewBookingState extends State<NewBooking> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                /*
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -1531,13 +1554,14 @@ class _NewBookingState extends State<NewBooking> {
                   ],
                 ),
                 SizedBox(height: 8),
-
+                */
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      loc.charge,
+                      getBaseChargeText(loc),
+
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -1549,7 +1573,7 @@ class _NewBookingState extends State<NewBooking> {
                       children: [
                         RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " ${_calculatedCharge.toStringAsFixed(2)}",
+                          " 1.00",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -1561,6 +1585,7 @@ class _NewBookingState extends State<NewBooking> {
                   ],
                 ),
                 SizedBox(height: 8),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -1590,6 +1615,7 @@ class _NewBookingState extends State<NewBooking> {
                   ],
                 ),
                 SizedBox(height: 8),
+
                 Divider(color: Colors.grey.shade700),
                 SizedBox(height: 8),
                 Row(
@@ -1609,7 +1635,7 @@ class _NewBookingState extends State<NewBooking> {
                       children: [
                         RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " ${(_calculatedCharge * 1.15).toStringAsFixed(2)}",
+                          " 1.00",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -1626,6 +1652,20 @@ class _NewBookingState extends State<NewBooking> {
         ),
       ],
     );
+  }
+
+  String getBaseChargeText(AppLocalizations loc) {
+    if (_selectedCatCode == 2) {
+      switch (_selectedServiceDuration) {
+        case 0:
+          return loc.baseChauffeurChargeHourly;
+        case 1:
+          return loc.baseChauffeurCharge8Hours;
+        case 2:
+          return loc.baseChauffeurCharge12Hours;
+      }
+    }
+    return loc.charge;
   }
 
   Widget buildPassengerForm(BuildContext context, AppLocalizations loc) {
@@ -1848,6 +1888,7 @@ class _NewBookingState extends State<NewBooking> {
         maxLines: 4,
         suffixIcon: GestureDetector(
           onTap: () async {
+            FocusScope.of(context).requestFocus(FocusNode());
             final path = await showDialog<String>(
               context: context,
               builder: (context) => VoiceNoteDialog(
@@ -1855,6 +1896,7 @@ class _NewBookingState extends State<NewBooking> {
               ),
             );
             if (path != null) {
+              FocusScope.of(context).requestFocus(FocusNode());
               setState(() {
                 if (path == 'DELETED') {
                   _specialRequestsVoiceNotePath = null;
@@ -2350,7 +2392,6 @@ class _NewBookingState extends State<NewBooking> {
         SizedBox(height: 16),
         buildDateTimePickers(context, loc, false),
         SizedBox(height: 16),
-        buildDateTimePickers(context, loc, true),
       ],
     );
   }
@@ -2360,12 +2401,75 @@ class _NewBookingState extends State<NewBooking> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         buildDropLocation(context, loc, false),
+
+        SizedBox(height: 16),
+        buildHoursDataSelectors(context, loc),
         SizedBox(height: 16),
         buildDateTimePickers(context, loc, true),
-        SizedBox(height: 16),
-        buildDropLocation(context, loc, true),
       ],
     );
+  }
+
+  Widget buildHoursDataSelectors(BuildContext context, AppLocalizations loc) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: PremiumDropDown(
+            title: loc.serviceDuration,
+            value: _getServiceDurationLabel(_selectedServiceDuration),
+            items: ["Hourly", "8 Hours", "12 Hours"],
+            onChanged: (val) {
+              if (val != null) {
+                setState(() {
+                  if (val == "Hourly") {
+                    _selectedServiceDuration = 0;
+                    _selectedEstimatedHours = 1;
+                  } else if (val == "8 Hours") {
+                    _selectedServiceDuration = 1;
+                    _selectedEstimatedHours = 8;
+                  } else if (val == "12 Hours") {
+                    _selectedServiceDuration = 2;
+                    _selectedEstimatedHours = 12;
+                  }
+                });
+              }
+            },
+          ),
+        ),
+        if (_selectedServiceDuration == 0) ...[
+          SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: PremiumDropDown(
+              title: "Estimated hours",
+              value: _selectedEstimatedHours.toString(),
+              items: List.generate(12, (index) => (index + 1).toString()),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedEstimatedHours = int.tryParse(val) ?? 1;
+                  });
+                }
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _getServiceDurationLabel(int value) {
+    switch (value) {
+      case 0:
+        return "Hourly";
+      case 1:
+        return "8 Hours";
+      case 2:
+        return "12 Hours";
+      default:
+        return "Hourly";
+    }
   }
 
   Widget buildDropLocation(
@@ -2425,13 +2529,16 @@ class _NewBookingState extends State<NewBooking> {
                       if (selectedCity.toLowerCase().contains("dammam")) {
                         initLat = 26.3927;
                         initLng = 49.9777;
-                      } else if (selectedCity.toLowerCase().contains("jeddah")) {
+                      } else if (selectedCity.toLowerCase().contains(
+                        "jeddah",
+                      )) {
                         initLat = 21.4858;
                         initLng = 39.1925;
                       }
                     }
                   }
 
+                  FocusScope.of(context).requestFocus(FocusNode());
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2443,6 +2550,7 @@ class _NewBookingState extends State<NewBooking> {
                     ),
                   );
                   if (result != null && result is Map<String, dynamic>) {
+                    FocusScope.of(context).requestFocus(FocusNode());
                     if (isDropLocation) {
                       setState(() {
                         _dropAddress = result['address'];
@@ -2609,6 +2717,7 @@ class _NewBookingState extends State<NewBooking> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () async {
+                        FocusScope.of(context).requestFocus(FocusNode());
                         DateTime? picked = await showDatePicker(
                           context: context,
                           initialDate:
@@ -2634,6 +2743,7 @@ class _NewBookingState extends State<NewBooking> {
                           },
                         );
                         if (picked != null) {
+                          FocusScope.of(context).requestFocus(FocusNode());
                           setState(() {
                             if (isPickup) {
                               _selectedPickupDate = picked;
@@ -2714,6 +2824,7 @@ class _NewBookingState extends State<NewBooking> {
                   Expanded(
                     child: GestureDetector(
                       onTap: () async {
+                        FocusScope.of(context).requestFocus(FocusNode());
                         if (isPickup
                             ? _selectedPickupDate == null
                             : _selectedDate == null) {
@@ -2740,7 +2851,7 @@ class _NewBookingState extends State<NewBooking> {
                           Overlay.of(context).insert(overlayEntry);
                           return;
                         }
-                        showDialog(
+                        await showDialog(
                           context: context,
                           builder: (BuildContext dialogContext) {
                             TimeOfDay tempTime =
@@ -2885,6 +2996,7 @@ class _NewBookingState extends State<NewBooking> {
                             );
                           },
                         );
+                        FocusScope.of(context).requestFocus(FocusNode());
                       },
                       child: Container(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -2968,32 +3080,7 @@ class _NewBookingState extends State<NewBooking> {
           leading: IconButton(
             enableFeedback: true,
             icon: Icon(Icons.arrow_back_ios, color: Colors.white),
-            onPressed: () {
-              if (showReviewAndConfirm) {
-                setState(() {
-                  showReviewAndConfirm = false;
-                  showPassenger = true;
-                  showTripInfo = false;
-                  showPreferances = false;
-                });
-              } else if (showPassenger) {
-                setState(() {
-                  showReviewAndConfirm = false;
-                  showPassenger = false;
-                  showTripInfo = false;
-                  showPreferances = true;
-                });
-              } else if (showPreferances) {
-                setState(() {
-                  showReviewAndConfirm = false;
-                  showPreferances = false;
-                  showTripInfo = true;
-                  showPassenger = false;
-                });
-              } else if (showTripInfo) {
-                Navigator.pop(context);
-              }
-            },
+            onPressed: _handleBackAction,
           ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(76),

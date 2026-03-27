@@ -577,14 +577,18 @@ class ApiService {
     required String vehicleId,
     String? token,
   }) async {
+    final payload = {
+      'fromCity': fromCityId,
+      'toCity': toCityId,
+      'vehicleID': vehicleId,
+    };
+    if (kDebugMode) {
+      debugPrint('🚀 🌐 API │ Route Price Request: $payload');
+    }
     try {
       final response = await _dio.get(
         'routes/FromcityToCity/vehicleRoutePrice',
-        data: {
-          'fromCity': fromCityId,
-          'toCity': toCityId,
-          'vehicleID': vehicleId,
-        },
+        data: payload,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -603,14 +607,18 @@ class ApiService {
     String? vehicleId,
     String? token,
   }) async {
+    final payload = {
+      'fromCity': fromCityId,
+      'toCity': toCityId,
+      if (vehicleId != null) 'vehicleID': vehicleId,
+    };
+    if (kDebugMode) {
+      debugPrint('🚀 🌐 API │ Filter Routes Request: $payload');
+    }
     try {
       final response = await _dio.post(
         'routes/city-to-city/filter',
-        data: {
-          'fromCity': fromCityId,
-          'toCity': toCityId,
-          if (vehicleId != null) 'vehicleID': vehicleId,
-        },
+        data: payload,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -653,6 +661,9 @@ class ApiService {
     required BookingRequestModel booking,
     String? token,
   }) async {
+    if (kDebugMode) {
+      debugPrint('🚀 🌐 API │ Create Booking Payload: ${booking.toMap()}');
+    }
     try {
       final fields = booking.toMap();
 
@@ -673,18 +684,33 @@ class ApiService {
       final formData = FormData.fromMap(fields);
 
       if (kDebugMode) {
-        debugPrint('🚀 🌐 API │ FINAL FORM DATA:');
+        debugPrint('🚀 🌐 API │ FINAL FORM DATA (MULTIPART):');
         for (var element in formData.fields) {
-          debugPrint('   📁 ${element.key}: ${element.value}');
+          debugPrint('   📁 Field: ${element.key} -> ${element.value}');
         }
         for (var element in formData.files) {
-          debugPrint('   📄 ${element.key}: ${element.value.filename}');
+          debugPrint('   📄 File: ${element.key} -> ${element.value.filename}');
         }
       }
 
       final response = await _dio.post(
         'bookings/',
         data: formData,
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch all bookings.
+  ///
+  /// Calls `GET /api/bookings`
+  Future<Map<String, dynamic>> getAllBookings({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'bookings/',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);

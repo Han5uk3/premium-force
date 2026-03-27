@@ -25,7 +25,8 @@ class Homepage extends StatefulWidget {
   State<Homepage> createState() => _HomepageState();
 }
 
-class _HomepageState extends State<Homepage> with AutomaticKeepAliveClientMixin {
+class _HomepageState extends State<Homepage>
+    with AutomaticKeepAliveClientMixin {
   List<Map<String, dynamic>> _fleetCars = [];
   List<Map<String, dynamic>> _apiCities = [];
   List<Map<String, dynamic>> _apiAirports = [];
@@ -1245,7 +1246,7 @@ class _HomepageState extends State<Homepage> with AutomaticKeepAliveClientMixin 
                                     },
                                   ),
                           ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 24),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: PremiumButton(

@@ -200,6 +200,30 @@ abstract class AppLocalizations {
   /// **'Chauffeur Service'**
   String get chauffeurService;
 
+  /// No description provided for @serviceDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Service Duration'**
+  String get serviceDuration;
+
+  /// No description provided for @baseChauffeurChargeHourly.
+  ///
+  /// In en, this message translates to:
+  /// **'Base Chauffeur Charge (Hourly)'**
+  String get baseChauffeurChargeHourly;
+
+  /// No description provided for @baseChauffeurCharge8Hours.
+  ///
+  /// In en, this message translates to:
+  /// **'Base Chauffeur Charge (8 Hours)'**
+  String get baseChauffeurCharge8Hours;
+
+  /// No description provided for @baseChauffeurCharge12Hours.
+  ///
+  /// In en, this message translates to:
+  /// **'Base Chauffeur Charge (12 Hours)'**
+  String get baseChauffeurCharge12Hours;
+
   /// No description provided for @luxury.
   ///
   /// In en, this message translates to:
@@ -1129,6 +1153,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No completed bookings'**
   String get noCompletedBookings;
+
+  /// No description provided for @noCancelledBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'No cancelled bookings'**
+  String get noCancelledBookings;
 
   /// No description provided for @onceYouBookItWillAppearHere.
   ///

@@ -12,10 +12,12 @@ class Bookingcard extends StatelessWidget {
   final String brand;
   final int passengers;
   final bool isFromReviewAndConfirm;
+  final bool isChauffeur;
   const Bookingcard({
     super.key,
     this.passengers = 1,
     this.isFromReviewAndConfirm = false,
+    this.isChauffeur = false,
     required this.status,
     required this.type,
     required this.pickup,
@@ -120,34 +122,38 @@ class Bookingcard extends StatelessWidget {
                     ],
                   ),
                 ),
-                SizedBox(width: 4),
-                Image.asset(
-                  "assets/icons/pixel_arrow.png",
-                  height: 30,
-                  width: 30,
-                  fit: BoxFit.contain,
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      buildContainerText(false, true, loc),
-                      SizedBox(height: 8),
-                      Text(
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        dropoff,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                isChauffeur ? SizedBox.shrink() : SizedBox(width: 4),
+                isChauffeur
+                    ? SizedBox.shrink()
+                    : Image.asset(
+                        "assets/icons/pixel_arrow.png",
+                        height: 30,
+                        width: 30,
+                        fit: BoxFit.contain,
+                      ),
+                isChauffeur ? SizedBox.shrink() : SizedBox(width: 8),
+                isChauffeur
+                    ? SizedBox.shrink()
+                    : Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            buildContainerText(false, true, loc),
+                            SizedBox(height: 8),
+                            Text(
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              dropoff,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
               ],
             ),
 

@@ -60,6 +60,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get chauffeurService => 'خدمة السائق';
 
   @override
+  String get serviceDuration => 'مدة الخدمة';
+
+  @override
+  String get baseChauffeurChargeHourly => 'رسوم السائق الأساسية (بالساعة)';
+
+  @override
+  String get baseChauffeurCharge8Hours => 'رسوم السائق الأساسية (8 ساعات)';
+
+  @override
+  String get baseChauffeurCharge12Hours => 'رسوم السائق الأساسية (12 ساعة)';
+
+  @override
   String get luxury => 'فاخر';
 
   @override
@@ -533,6 +545,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get noCompletedBookings => 'لا توجد حجوزات مكتملة';
+
+  @override
+  String get noCancelledBookings => 'لا توجد حجوزات ملغاة';
 
   @override
   String get onceYouBookItWillAppearHere => 'بمجرد حجز خدمة، ستظهر هنا.';

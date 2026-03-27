@@ -60,6 +60,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chauffeurService => 'Chauffeur Service';
 
   @override
+  String get serviceDuration => 'Service Duration';
+
+  @override
+  String get baseChauffeurChargeHourly => 'Base Chauffeur Charge (Hourly)';
+
+  @override
+  String get baseChauffeurCharge8Hours => 'Base Chauffeur Charge (8 Hours)';
+
+  @override
+  String get baseChauffeurCharge12Hours => 'Base Chauffeur Charge (12 Hours)';
+
+  @override
   String get luxury => 'Luxury';
 
   @override
@@ -538,6 +550,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noCompletedBookings => 'No completed bookings';
+
+  @override
+  String get noCancelledBookings => 'No cancelled bookings';
 
   @override
   String get onceYouBookItWillAppearHere =>

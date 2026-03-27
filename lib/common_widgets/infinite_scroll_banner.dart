@@ -3,10 +3,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
-import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/models/banner_model.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
+import 'package:shimmer/shimmer.dart';
 import 'dart:async';
 
 /// Infinite scroll banner widget that displays banners one by one
@@ -182,15 +182,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     }
 
     if (_isLoading && _banners.isEmpty) {
-      return Container(
-        height: 140,
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Center(child: PremiumLoader(color: Color(0xFFE4A46B), size: 24)),
-      );
+      return _buildShimmerLoading(context);
     }
 
     if (_banners.isEmpty) {
@@ -216,9 +208,11 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                   });
                   _startAutoScroll();
                 },
-                itemCount: 100000,
+                itemCount: _banners.length == 1 ? 1 : 100000,
                 itemBuilder: (context, index) {
-                  final int bannerIndex = index % _banners.length;
+                  final int bannerIndex = _banners.length == 1
+                      ? 0
+                      : index % _banners.length;
                   final BannerModel banner = _banners[bannerIndex];
 
                   final Widget child = _buildBannerItem(
@@ -247,7 +241,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                             decoration: BoxDecoration(
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.25),
+                                  color: Colors.black.withValues(alpha: 0.25),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -408,6 +402,61 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoading(BuildContext context) {
+    final double width = MediaQuery.of(context).size.width;
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[800]!,
+      highlightColor: Colors.grey[700]!,
+      child: SizedBox(
+        height: 140,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Center shimmer card
+            Container(
+              width: width * 0.8,
+              height: 140,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            // Left peek card
+            Positioned(
+              left: -(width * 0.7), // Shows 10% of the 80% width card
+              child: Transform.scale(
+                scale: 0.88,
+                child: Container(
+                  width: width * 0.8,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            // Right peek card
+            Positioned(
+              right: -(width * 0.7), // Shows 10% of the 80% width card
+              child: Transform.scale(
+                scale: 0.88,
+                child: Container(
+                  width: width * 0.8,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
