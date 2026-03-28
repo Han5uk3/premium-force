@@ -104,7 +104,39 @@ class _NewBookingState extends State<NewBooking> {
   int _selectedEstimatedHours = 1; // 1 to 12
 
   double get _calculatedCharge {
-    return 1.0; // BYPASS FOR TESTING: Fixed 1.0 Riyal
+    if (_routePrice != null && _routePrice! > 0) return _routePrice!;
+
+    final car = _getSelectedCar();
+    if (car == null) return 50.0; // Minimal default
+    
+    // For Chauffeur Service
+    if (_selectedCatCode == 2) {
+      double basePrice = car.price;
+      if (_selectedServiceDuration == 0) {
+        // Hourly: Charge per hour (minimum 1, max 12)
+        return basePrice * _selectedEstimatedHours;
+      } else if (_selectedServiceDuration == 1) {
+        // 8 Hours: Potentially a discounted rate
+        return basePrice * 8; 
+      } else {
+        // 12 Hours
+        return basePrice * 12;
+      }
+    }
+
+    // Distance-based pricing for Airport service if no route price found
+    double distance = _totalDistance;
+    double minCharge = car.price;
+    double minDistance = car.distance;
+    
+    if (distance <= minDistance) {
+      return minCharge;
+    } else {
+      double extraDistance = distance - minDistance;
+      // Extra charge per km
+      double pricePerExtraKm = (minCharge / minDistance) * 1.2;
+      return minCharge + (extraDistance * pricePerExtraKm);
+    }
   }
 
   /// Get the current selected CarModel
@@ -126,23 +158,7 @@ class _NewBookingState extends State<NewBooking> {
     }
   }
 
-  /*
-  /// Extracts the city ID from an address string by matching with _apiCities
-  String? _getCityIdFromAddress(String? address) {
-    if (address == null || address.isEmpty || _apiCities.isEmpty) return null;
 
-    for (var city in _apiCities) {
-      final cityName = (city['cityName'] ?? city['name'] ?? '').toString();
-      if (cityName.isNotEmpty &&
-          address.toLowerCase().contains(cityName.toLowerCase())) {
-        return (city['_id'] ?? city['id']).toString();
-      }
-    }
-    return null;
-  }
-  */
-
-  /*
   /// Gets the city ID for the selected airport
   String? _getAirportCityId() {
     if (_apiAirports.isEmpty) return null;
@@ -157,41 +173,121 @@ class _NewBookingState extends State<NewBooking> {
 
     try {
       final airport = _apiAirports.firstWhere(
-        (a) => a['airportName'] == selectedAirportName,
+        (a) => a['airportName']?.toString() == selectedAirportName,
       );
-      return (airport['cityID'] ??
-              airport['cityId'] ??
-              airport['city_id'] ??
-              airport['city'])
-          ?.toString();
+      var cityId = airport['cityID'] ?? airport['cityId'] ?? airport['city_id'];
+      if (cityId is Map) {
+          cityId = cityId['_id'] ?? cityId['id'];
+      }
+      return cityId?.toString();
     } catch (_) {
       return null;
     }
   }
-  */
 
-  /// Check route availability and optionally fetch price
-  /* 
   /// Check route availability and optionally fetch price
   Future<Map<String, dynamic>> _fetchRouteDetails({bool withVehicle = false}) async {
-    // BYPASS: Always return success with a custom price for testing
-    debugPrint('🚧 BYPASS │ Returning custom price (5.0) for testing');
-    return {
-      'success': true,
-      'data': {'charge': 5.0},
-      'payload': {'charge': 5.0},
-    };
-  }
-  */
+    final cityId = _getSelectedCityId();
+    final carId = _getSelectedCarId();
+    final airportCityId = _getAirportCityId();
 
-  /*
+    if (cityId == null) {
+      return {'success': false, 'message': 'City not selected'};
+    }
+
+    String fromCity = cityId;
+    String toCity = cityId;
+
+    if (_selectedCatCode == 0) {
+      // Arrival: From Airport City to Drop Location City
+      fromCity = airportCityId ?? cityId;
+      toCity = cityId;
+    } else if (_selectedCatCode == 1) {
+      // Departure: From Pickup Location City to Airport City
+      fromCity = cityId;
+      toCity = airportCityId ?? cityId;
+    }
+
+    final api = ApiService();
+    final token = UserLocalStorage.getToken();
+
+    if (kDebugMode) {
+      debugPrint('🚀 🌐 API │ Route Check: From $fromCity To $toCity Cat: $_selectedCatCode');
+    }
+
+    if (withVehicle && carId != null) {
+      final priceRes = await api.getRoutePrice(
+        fromCityId: fromCity,
+        toCityId: toCity,
+        vehicleId: carId,
+        token: token,
+      );
+
+      if (priceRes['success'] == true && priceRes['data'] is List) {
+        final routes = priceRes['data'] as List;
+        try {
+          final match = routes.firstWhere((r) {
+            final rFrom =
+                (r['fromCity'] is Map ? r['fromCity']['_id'] : r['fromCity'])
+                    .toString();
+            final rTo =
+                (r['toCity'] is Map ? r['toCity']['_id'] : r['toCity'])
+                    .toString();
+            final rVehicle =
+                (r['vehicleID'] is Map
+                        ? r['vehicleID']['_id']
+                        : r['vehicleID'])
+                    .toString();
+            return rFrom == fromCity && rTo == toCity && rVehicle == carId;
+          });
+          return {'success': true, 'data': match};
+        } catch (_) {
+          debugPrint('🌐 API │ No matching route found in list for vehicle: $carId');
+          return {
+            'success': false,
+            'message': 'Selected route is not available for this vehicle.',
+          };
+        }
+      }
+      return priceRes;
+    } else {
+      final filterRes = await api.filterRoutes(
+        fromCityId: fromCity,
+        toCityId: toCity,
+        vehicleId: null,
+        token: token,
+      );
+
+      if (filterRes['success'] == true && filterRes['data'] is List) {
+        final routes = filterRes['data'] as List;
+        final matches =
+            routes.where((r) {
+              final rFrom =
+                  (r['fromCity'] is Map ? r['fromCity']['_id'] : r['fromCity'])
+                      .toString();
+              final rTo =
+                  (r['toCity'] is Map ? r['toCity']['_id'] : r['toCity'])
+                      .toString();
+              return rFrom == fromCity && rTo == toCity;
+            }).toList();
+
+        if (matches.isNotEmpty) {
+          return {'success': true, 'data': matches};
+        } else {
+          return {'success': false, 'message': 'Route not available.'};
+        }
+      }
+      return filterRes;
+    }
+  }
+
   void _showNoServiceAlert() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Service Not Available"),
         content: Text(
-          "Service not available in this city. Please try another location.",
+          "Service not available for this route or vehicle. Please contact support or try another selection.",
         ),
         actions: [
           TextButton(
@@ -202,7 +298,6 @@ class _NewBookingState extends State<NewBooking> {
       ),
     );
   }
-  */
 
   @override
   void initState() {
@@ -1078,8 +1173,6 @@ class _NewBookingState extends State<NewBooking> {
                               if (_preferencesFormKey.currentState
                                       ?.validate() ??
                                   false) {
-                                // ── Route & Vehicle Availability Check (Bypassed) ─────
-                                /*
                                 setState(() {
                                   _isCheckingRoute = true;
                                 });
@@ -1097,23 +1190,36 @@ class _NewBookingState extends State<NewBooking> {
                                       routeResult['data'] ??
                                       routeResult['payload'] ??
                                       routeResult;
-                                  final fetchedCharge = _parseDouble(
-                                    data is Map ? data['charge'] : 0,
-                                  );
+                                  
+                                  // Data could be a List or a Map depending on filter vs priceRes
+                                  double fetchedCharge = 0;
+                                  if (data is Map) {
+                                      fetchedCharge = _parseDouble(data['charge'] ?? data['price'] ?? 0);
+                                  } else if (data is List && data.isNotEmpty) {
+                                      // If it's filterRoutes output, it might not have the charge directly 
+                                      // but we prioritize getRoutePrice which returns a map with 'charge'
+                                      fetchedCharge = _parseDouble(data[0]['charge'] ?? data[0]['price'] ?? 0);
+                                  }
+
                                   if (fetchedCharge > 0) {
                                     setState(() {
                                       _routePrice = fetchedCharge;
                                     });
                                   } else {
-                                    _showNoServiceAlert();
-                                    return;
+                                    // If we got success but no price, check if at least one route exists
+                                    if (data is List && data.isNotEmpty) {
+                                         // Route exists but using distance-based pricing fallback
+                                         _routePrice = null;
+                                    } else {
+                                        _showNoServiceAlert();
+                                        return;
+                                    }
                                   }
                                 } else {
-                                  // No price found for this route/vehicle
+                                  // No price/route found
                                   _showNoServiceAlert();
                                   return;
                                 }
-                                */
 
                                 setState(() {
                                   showPassenger = true;
@@ -1157,8 +1263,7 @@ class _NewBookingState extends State<NewBooking> {
                                     UserLocalStorage.getPhoneNumber() ??
                                     "";
 
-                                final totalWithVat =
-                                    1.0; // BYPASS FOR TESTING: Fixed 1.0 Riyal
+                                final totalWithVat = _calculatedCharge * 1.15; // Including 15% VAT
                                 final orderId =
                                     "BOOK_${DateTime.now().millisecondsSinceEpoch}";
 
@@ -1337,11 +1442,15 @@ class _NewBookingState extends State<NewBooking> {
                                     debugPrint(prettyJson);
                                   }
 
-                                  final apiResponse = await ApiService()
-                                      .createBooking(
-                                        booking: requestModel,
-                                        token: UserLocalStorage.getToken(),
-                                      );
+                                  final apiResponse = _selectedCatCode == 2
+                                      ? await ApiService().createHourlyBooking(
+                                          booking: requestModel,
+                                          token: UserLocalStorage.getToken(),
+                                        )
+                                      : await ApiService().createBooking(
+                                          booking: requestModel,
+                                          token: UserLocalStorage.getToken(),
+                                        );
 
                                   if (kDebugMode) {
                                     debugPrint(
@@ -1573,7 +1682,7 @@ class _NewBookingState extends State<NewBooking> {
                       children: [
                         RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " 1.00",
+                          " ${_calculatedCharge.toStringAsFixed(2)}",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -1635,7 +1744,7 @@ class _NewBookingState extends State<NewBooking> {
                       children: [
                         RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " 1.00",
+                          " ${(_calculatedCharge * 1.15).toStringAsFixed(2)}",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,

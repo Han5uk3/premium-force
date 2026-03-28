@@ -10,6 +10,9 @@ class PaytabsConfig {
   /// Your Paytabs client key
   static String get clientKey => dotenv.get('PAYTABS_CLIENT_KEY', fallback: '');
 
+  /// Your Paytabs profile ID
+  static String get profileId => dotenv.get('PAYTABS_PROFILE_ID', fallback: '153721');
+
   /// Your merchant email
   static String get merchantEmail => dotenv.get('PAYTABS_MERCHANT_EMAIL', fallback: 'your-merchant@example.com');
 

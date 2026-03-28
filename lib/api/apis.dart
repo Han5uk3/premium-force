@@ -704,6 +704,42 @@ class ApiService {
     }
   }
 
+  /// Fetch all bookings for a specific customer.
+  ///
+  /// Calls `GET /api/bookings/customer/:customerId`
+  Future<Map<String, dynamic>> getBookingsByCustomerId({
+    required String customerId,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.get(
+        'bookings/customer/$customerId',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch all bookings for a specific driver.
+  ///
+  /// Calls `GET /api/bookings/driver/:driverId`
+  Future<Map<String, dynamic>> getBookingsByDriverId({
+    required String driverId,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.get(
+        'bookings/driver/$driverId',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
   /// Fetch all bookings.
   ///
   /// Calls `GET /api/bookings`
@@ -714,6 +750,94 @@ class ApiService {
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Create an hourly booking (specifically for chauffeur category).
+  ///
+  /// Calls `POST /api/hourly-bookings`
+  Future<Map<String, dynamic>> createHourlyBooking({
+    required BookingRequestModel booking,
+    String? token,
+  }) async {
+    if (kDebugMode) {
+      debugPrint(
+        '🚀 🌐 API │ Create Hourly Booking Payload: ${booking.toMap()}',
+      );
+    }
+    try {
+      // Manual mapping to handle unique keys required by hourly-bookings API
+      final fields = <String, dynamic>{};
+      fields['hours'] =
+          booking.category == 'chauffeured' && booking.serviceDuration == 0
+              ? booking.estimatedHours?.toString() ?? '1'
+              : (booking.serviceDuration == 1
+                  ? '8'
+                  : (booking.serviceDuration == 2 ? '12' : '1'));
+
+      fields['pickupLat'] = booking.pickupLat ?? '';
+      fields['pickuplong'] = booking.pickupLong ?? ''; // Lowercase 'l'
+      fields['pickupAdddress'] = booking.pickupAddress ?? ''; // Triple 'd'
+      fields['extraHours'] = '0';
+      fields['category'] = booking.carclass ?? '';
+      fields['model'] = booking.carmodel ?? '';
+      fields['brand'] = booking.carbrand ?? '';
+      fields['carName'] = booking.carName ?? '';
+      fields['charge'] = booking.charge?.toString() ?? '0';
+      fields['customerID'] = booking.customerID ?? '';
+      fields['driverID'] = booking.driverID ?? 'null';
+      fields['passsenrgersCount'] =
+          booking.passengerCount ?? '1'; // typo: passsenrgersCount
+      fields['passengerMobile'] = booking.passengerMobile ?? '';
+      fields['carClass'] = booking.carclass ?? ''; // Upper C
+      fields['specialRequestText'] = booking.specialRequestText ?? '';
+      fields['bookingStatus'] = booking.bookingStatus ?? 'pending';
+      fields['passengerNames'] = booking.passengerNames ?? '[]';
+      fields['isActive'] = 'true';
+
+      // Handle files
+      if (booking.specialRequestAudio != null) {
+        fields['specialRequestAudio'] = await MultipartFile.fromFile(
+          booking.specialRequestAudio!.path,
+          filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
+        );
+      }
+      if (booking.carimage != null) {
+        fields['carImge'] = await MultipartFile.fromFile(
+          booking.carimage!.path,
+          filename: 'car_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        ); // typo: carImge
+      }
+
+      final formData = FormData.fromMap(fields);
+
+      if (kDebugMode) {
+        debugPrint('🚀 🌐 API │ FINAL HOURLY FORM DATA (MULTIPART):');
+        for (var element in formData.fields) {
+          debugPrint('   📁 Field: ${element.key} -> ${element.value}');
+        }
+        for (var element in formData.files) {
+          debugPrint('   📄 File: ${element.key} -> ${element.value.filename}');
+        }
+      }
+
+      /*
+      final response = await _dio.post(
+        'hourly-bookings',
+        data: formData,
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+      */
+
+      // Mocking a successful response for testing
+      return {
+        'success': true,
+        'message': 'Mock hourly booking successful!',
+        'bookingID': 'MOCK_HOURLY_${DateTime.now().millisecondsSinceEpoch}',
+      };
     } catch (e) {
       return _handleError(e);
     }

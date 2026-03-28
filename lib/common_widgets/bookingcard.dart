@@ -289,46 +289,30 @@ class Bookingcard extends StatelessWidget {
   }
 
   String getStatusText(String status, AppLocalizations loc) {
-    switch (status) {
-      case "Completed":
-      case "C":
-      case "c":
-        return loc.completed;
-      case "Pending":
-      case "P":
-      case "p":
-        return loc.pending;
-      case "Cancelled":
-      case "X":
-      case "x":
-        return loc.cancelled;
-      case "q":
-      case "Q":
-        return loc.pickup;
-      case "w":
-      case "W":
-        return loc.dropoff;
-      default:
-        return loc.unknown;
+    status = status.toLowerCase();
+    if (status == "completed" || status == "c") {
+      return loc.completed;
+    } else if (status == "pending" || status == "p") {
+      return loc.pending;
+    } else if (status == "cancelled" || status == "x") {
+      return loc.cancelled;
+    } else if (status == "q") {
+      return loc.pickup;
+    } else if (status == "w") {
+      return loc.dropoff;
     }
+    return loc.unknown;
   }
 
   Color getColorByStatus(String status) {
-    switch (status) {
-      case "Completed":
-      case "C":
-      case "c":
-        return Colors.green;
-      case "Pending":
-      case "P":
-      case "p":
-        return Colors.orange;
-      case "Cancelled":
-      case "X":
-      case "x":
-        return Colors.red;
-      default:
-        return Colors.grey;
+    status = status.toLowerCase();
+    if (status == "completed" || status == "c") {
+      return Colors.green;
+    } else if (status == "pending" || status == "p") {
+      return Colors.orange;
+    } else if (status == "cancelled" || status == "x") {
+      return Colors.red;
     }
+    return Colors.grey;
   }
 }
