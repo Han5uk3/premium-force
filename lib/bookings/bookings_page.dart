@@ -3,9 +3,9 @@ import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
-import 'package:intl/intl.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/bookings/booking_details_page.dart';
 
 class BookingsPage extends StatefulWidget {
   const BookingsPage({super.key});
@@ -203,11 +203,7 @@ class _BookingsPageState extends State<BookingsPage>
             ),
             Expanded(
               child: _isLoading
-                  ? const Center(
-                      child: PremiumLoader(
-                        color: Color(0xFFE4A46B),
-                      ),
-                    )
+                  ? const Center(child: PremiumLoader(color: Color(0xFFE4A46B)))
                   : _errorMessage != null
                   ? Center(
                       child: Text(
@@ -282,38 +278,47 @@ class _BookingsPageState extends State<BookingsPage>
           final arrivalDate = booking.arrival != null
               ? DateTime.tryParse(booking.arrival!)
               : null;
-          final dateStr = arrivalDate != null
-              ? DateFormat('dd MMM yyyy').format(arrivalDate)
-              : 'N/A';
-          final timeStr = arrivalDate != null
-              ? DateFormat('hh:mm a').format(arrivalDate)
-              : 'N/A';
+          final dateStr = Bookingcard.formatDate(context, arrivalDate);
+          final timeStr = Bookingcard.formatTime(context, arrivalDate);
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: Bookingcard(
-              isFromReviewAndConfirm: false,
-              status: booking.bookingStatus ?? 'Pending',
-              type: booking.category ?? 'Booking',
-              pickup: booking.pickupAddress ?? booking.airport ?? 'N/A',
-              dropoff: booking.dropOffAddress ?? 'N/A',
-              date: dateStr,
-              time: timeStr,
-              ride:
-                  booking.estimatedHours != null
-                      ? '${booking.carName ?? ''} (${booking.estimatedHours} Hours)'
+            child: GestureDetector(
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BookingDetailsPage(booking: booking),
+                  ),
+                );
+                if (result == true) {
+                  _fetchBookings();
+                }
+              },
+              child: Bookingcard(
+                isFromReviewAndConfirm: false,
+                status: booking.bookingStatus ?? 'Pending',
+                type: _getBookingName(booking.category, context) ?? 'Booking',
+                pickup: booking.pickupAddress ?? booking.airport ?? 'N/A',
+                dropoff: booking.dropOffAddress ?? 'N/A',
+                date: dateStr,
+                time: timeStr,
+                ride: booking.estimatedHours != null
+                    ? '${booking.carName ?? ''} (${booking.estimatedHours} Hours)'
                           .trim()
-                      : (booking.carName ??
-                          ((booking.carbrand != null ||
-                                  booking.carmodel != null)
+                    : (booking.carName ??
+                          ((booking.carbrand != null || booking.carmodel != null)
                               ? '${booking.carbrand ?? ''} ${booking.carmodel ?? ''}'
-                                  .trim()
+                                    .trim()
                               : 'N/A')),
-              brand: booking.carbrand ?? 'N/A',
-              passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
-              isChauffeur:
-                  (booking.category ?? '').toLowerCase().contains('chauffeur') ||
-                  booking.estimatedHours != null,
+                brand: booking.carbrand ?? 'N/A',
+                passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
+                isChauffeur:
+                    (booking.category ?? '').toLowerCase().contains(
+                      'chauffeur',
+                    ) ||
+                    booking.estimatedHours != null,
+              ),
             ),
           );
         },
@@ -388,6 +393,22 @@ class _BookingsPageState extends State<BookingsPage>
         ],
       ),
     );
+  }
+
+  String _getBookingName(String? category, BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    if (category == null) return 'Booking';
+    switch (category.toLowerCase()) {
+      case 'chauffeur':
+        return loc.chauffeur;
+      case 'airport arrival':
+        return loc.airportArrival;
+      case 'airport departure':
+        return loc.airportDeparture;
+
+      default:
+        return 'invalid';
+    }
   }
 }
 

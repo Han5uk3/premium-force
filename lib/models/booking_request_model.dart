@@ -38,6 +38,7 @@ class BookingRequestModel {
   String? categoryID;
   int? serviceDuration;
   int? estimatedHours;
+  String? specialId;
 
   BookingRequestModel({
     this.category,
@@ -76,6 +77,7 @@ class BookingRequestModel {
     this.categoryID,
     this.serviceDuration,
     this.estimatedHours,
+    this.specialId,
   });
 
   Map<String, dynamic> toMap() {
@@ -94,7 +96,7 @@ class BookingRequestModel {
       if (charge != null) 'charge': charge,
       if (carbrand != null) 'carbrand': carbrand,
       if (carmodel != null) 'carmodel': carmodel,
-      if (carImage != null) 'carImage': carImage!.path, 
+      if (carImage != null) 'carImage': carImage!.path,
       if (specialRequestText != null) 'specialRequestText': specialRequestText,
       if (specialRequestAudio != null)
         'specialRequestAudio': specialRequestAudio!.path,
@@ -117,6 +119,7 @@ class BookingRequestModel {
       if (categoryID != null) 'categoryID': categoryID,
       if (serviceDuration != null) 'serviceDuration': serviceDuration,
       if (estimatedHours != null) 'estimatedHours': estimatedHours,
+      if (specialId != null) 'specialId': specialId,
     };
   }
 

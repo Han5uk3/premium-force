@@ -43,25 +43,53 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     );
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Update localizations whenever dependencies change (e.g., locale change)
+    if (_isInitialized) {
+      _updateDefaultBanner();
+    } else {
+      _initializeBanners();
+    }
+  }
+
   void _initializeBanners() {
     if (_isInitialized) return;
     _isInitialized = true;
 
-    // Create the default static banner
-    _defaultBanner = BannerModel(
-      id: 'default-banner',
-      title:
-          AppLocalizations.of(context)?.luxuryAirportTransfers ??
-          'Luxury Airport Transfers',
-      description:
-          AppLocalizations.of(context)?.inSaudiArabia ?? 'In Saudi Arabia',
-      imageUrl: 'assets/images/banner.png',
-      isActive: true,
-      createdAt: DateTime.now(),
-    );
+    _updateDefaultBanner();
 
     // Fetch banners from the backend
     _fetchBanners();
+  }
+
+  void _updateDefaultBanner() {
+    // Create or update the default static banner with current localized strings
+    final loc = AppLocalizations.of(context);
+    final String title = loc?.luxuryAirportTransfers ?? 'Luxury Airport Transfers';
+    final String description = loc?.inSaudiArabia ?? 'In Saudi Arabia';
+
+    _defaultBanner = BannerModel(
+      id: 'default-banner',
+      title: title,
+      description: description,
+      imageUrl: 'assets/images/banner.png',
+      isActive: true,
+      createdAt: _isInitialized && _banners.isNotEmpty
+          ? _defaultBanner.createdAt
+          : DateTime.now(),
+    );
+
+    // If banners list is already populated, update the default banner in the list
+    if (_banners.isNotEmpty) {
+      final int index = _banners.indexWhere((b) => b.id == 'default-banner');
+      if (index != -1) {
+        setState(() {
+          _banners[index] = _defaultBanner;
+        });
+      }
+    }
   }
 
   Future<void> _fetchBanners() async {
@@ -130,10 +158,22 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
 
   void _jumpToInitialPage() {
     if (!_pageController.hasClients || _banners.isEmpty) return;
-    _pageController.jumpToPage(_infiniteBuffer);
-    setState(() {
-      _currentIndex = 0;
-    });
+    
+    // Only jump if we are not already at the buffer or if specifically requested
+    try {
+      final double currentPage = _pageController.page ?? 0.0;
+      if (currentPage == 0.0 || (currentPage - _infiniteBuffer).abs() > 0.5) {
+        _pageController.jumpToPage(_infiniteBuffer);
+      }
+    } catch (_) {
+      _pageController.jumpToPage(_infiniteBuffer);
+    }
+    
+    if (mounted) {
+      setState(() {
+        _currentIndex = 0;
+      });
+    }
   }
 
   void _startAutoScroll() {
@@ -173,14 +213,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     _pageController.dispose();
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
-    // Initialize banners on first build
-    if (!_isInitialized) {
-      _initializeBanners();
-    }
-
     if (_isLoading && _banners.isEmpty) {
       return _buildShimmerLoading(context);
     }
@@ -221,18 +255,28 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                     bannerIndex == 0,
                   );
 
-                  return AnimatedBuilder(
+                   return AnimatedBuilder(
                     animation: _pageController,
                     builder: (context, widget) {
-                      double scale = 0.88;
-                      if (_pageController.hasClients &&
-                          _pageController.position.haveDimensions) {
-                        final double page =
-                            _pageController.page ??
-                            _pageController.initialPage.toDouble();
-                        final double diff = (page - index).abs();
-                        scale = (1 - diff * 0.12).clamp(0.82, 1.0);
+                      double scale = 1.0; // Default to full size instead of 0.88 to avoid shrinking
+                      
+                      if (_pageController.hasClients) {
+                        try {
+                          // Try to get current page, fallback to a sensible default if null
+                          final double page = _pageController.page ?? _infiniteBuffer.toDouble();
+                          final double diff = (page - index).abs();
+                          scale = (1 - diff * 0.12).clamp(0.82, 1.0);
+                        } catch (_) {
+                          // If page cannot be read, stay at 1.0 or based on index relative to buffer
+                          if (index == _infiniteBuffer) scale = 1.0;
+                          else scale = 0.82;
+                        }
+                      } else {
+                        // If not yet attached, we assume the first active page (index == initialPage) is full size
+                        if (index == _infiniteBuffer) scale = 1.0;
+                        else scale = 0.82;
                       }
+                      
                       return Center(
                         child: Transform.scale(
                           scale: scale,
@@ -241,7 +285,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                             decoration: BoxDecoration(
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.25),
+                                  color: Colors.black.withAlpha(64), // Using alpha for stability
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),

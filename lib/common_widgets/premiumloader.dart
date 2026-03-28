@@ -30,7 +30,7 @@ class PremiumLoader extends StatefulWidget {
 
   const PremiumLoader({
     super.key,
-    this.size = 40,
+    this.size = 20,
     this.color = const Color(0xFFD4A574),
     this.barCount = 5,
     this.duration = const Duration(milliseconds: 1200),

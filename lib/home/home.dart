@@ -1,11 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:premium_force_main/bookings/bookings_page.dart';
 import 'package:premium_force_main/common_widgets/bottomnavbar.dart';
 import 'package:premium_force_main/account/account.dart';
+import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/home/homepage.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class Home extends StatefulWidget {
-  const Home({super.key});
+  const Home({super.key, this.isfromSuccessPage = false});
+  final bool isfromSuccessPage;
 
   @override
   State<Home> createState() => _HomeState();
@@ -14,6 +19,14 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   final PageController _pageController = PageController();
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isfromSuccessPage == true) {
+      _selectedIndex = 1;
+    }
+  }
 
   @override
   void dispose() {
@@ -28,28 +41,84 @@ class _HomeState extends State<Home> {
   }
 
   void _onNavTapped(int index) {
-    _pageController.jumpToPage(
-      index,
-      // duration: const Duration(milliseconds: 300),
-      // curve: Curves.easeInOut,
+    _pageController.jumpToPage(index);
+  }
+
+  Future<bool?> _showExitDialog(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xff1a1a1a),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Color(0xff1a1a1a)),
+        ),
+        title: Text(
+          loc.exitApp,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          loc.exitAppConfirm,
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.cancel, style: const TextStyle(color: Colors.grey)),
+          ),
+          SizedBox(
+            height: 45,
+            width: 80,
+            child: PremiumButton(
+              text: loc.exit,
+              onTap: () => Navigator.pop(context, true),
+              fontsize: 16,
+              showLoader: false,
+              borderRadius: 8.0,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      backgroundColor: Colors.transparent,
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
-        onPageChanged: _onPageChanged,
-        children: [Homepage(), BookingsPage(), AccountPage()],
-      ),
-      resizeToAvoidBottomInset: true,
-      bottomNavigationBar: BottomNavBar(
-        selectedIndex: _selectedIndex,
-        onIndexChanged: _onNavTapped,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        if (_selectedIndex != 0) {
+          _onNavTapped(0);
+        } else {
+          final shouldExit = await _showExitDialog(context);
+          if (shouldExit == true) {
+            if (Platform.isAndroid) {
+              SystemNavigator.pop();
+            } else {
+              exit(0);
+            }
+          }
+        }
+      },
+      child: Scaffold(
+        extendBody: true,
+        backgroundColor: Colors.transparent,
+        body: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
+          onPageChanged: _onPageChanged,
+          children: [Homepage(), BookingsPage(), AccountPage()],
+        ),
+        resizeToAvoidBottomInset: true,
+        bottomNavigationBar: BottomNavBar(
+          selectedIndex: _selectedIndex,
+          onIndexChanged: _onNavTapped,
+        ),
       ),
     );
   }

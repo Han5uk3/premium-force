@@ -13,9 +13,8 @@ import 'package:premium_force_main/storage/notification_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-
 import 'package:premium_force_main/notifications/notification_screen.dart';
-
+import 'package:country_picker/country_picker.dart';
 
 /// Global navigator key – allows navigating from outside a widget tree
 /// (e.g. when the user taps a push notification).
@@ -23,10 +22,10 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   await dotenv.load(fileName: "lib/.env");
- 
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await UserLocalStorage.init();
   await NotificationStorage.init();
@@ -44,7 +43,7 @@ void main() async {
 /// when the app is launched from a terminated-state notification).
 void _handleNotificationTap(RemoteMessage message) {
   debugPrint('🔔 Notification tapped │ data: ${message.data}');
-  
+
   // Navigate to the notifications screen
   navigatorKey.currentState?.push(
     MaterialPageRoute(builder: (context) => const NotificationScreen()),
@@ -65,6 +64,15 @@ class MainApp extends StatefulWidget {
 
 class _MainAppState extends State<MainApp> {
   Locale _locale = const Locale('en');
+  late final AuthProvider _authProvider;
+  late final UserProvider _userProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _authProvider = AuthProvider();
+    _userProvider = UserProvider();
+  }
 
   void setLocale(Locale locale) {
     setState(() {
@@ -76,24 +84,23 @@ class _MainAppState extends State<MainApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider.value(value: _authProvider),
+        ChangeNotifierProvider.value(value: _userProvider),
       ],
       child: MaterialApp(
         title: "Premium Force",
         debugShowCheckedModeBanner: false,
         navigatorKey: navigatorKey,
         locale: _locale,
-        localizationsDelegates: const [
+        localizationsDelegates: [
           AppLocalizations.delegate,
+          CountryLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
-        home:
-            // Home(),
-            SplashScreen(),
+        home: SplashScreen(),
       ),
     );
   }

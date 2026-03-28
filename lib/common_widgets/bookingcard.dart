@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class Bookingcard extends StatelessWidget {
@@ -13,13 +14,13 @@ class Bookingcard extends StatelessWidget {
   final int passengers;
   final bool isFromReviewAndConfirm;
   final bool isChauffeur;
-  final String? carImageUrl;
+
   const Bookingcard({
     super.key,
     this.passengers = 1,
     this.isFromReviewAndConfirm = false,
     this.isChauffeur = false,
-    this.carImageUrl,
+
     required this.status,
     required this.type,
     required this.pickup,
@@ -29,6 +30,18 @@ class Bookingcard extends StatelessWidget {
     required this.ride,
     required this.brand,
   });
+
+  static String formatTime(BuildContext context, DateTime? dateTime) {
+    if (dateTime == null) return 'N/A';
+    final locale = Localizations.localeOf(context).languageCode;
+    return '${DateFormat('hh:mm', 'en').format(dateTime)} ${DateFormat('a', locale).format(dateTime)}';
+  }
+
+  static String formatDate(BuildContext context, DateTime? dateTime) {
+    if (dateTime == null) return 'N/A';
+    final locale = Localizations.localeOf(context).languageCode;
+    return DateFormat('dd MMM yyyy', locale).format(dateTime);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,11 +140,14 @@ class Bookingcard extends StatelessWidget {
                 isChauffeur ? SizedBox.shrink() : SizedBox(width: 4),
                 isChauffeur
                     ? SizedBox.shrink()
-                    : Image.asset(
-                        "assets/icons/pixel_arrow.png",
-                        height: 30,
-                        width: 30,
-                        fit: BoxFit.contain,
+                    : Transform.flip(
+                        flipX: Directionality.of(context) == TextDirection.rtl,
+                        child: Image.asset(
+                          "assets/icons/pixel_arrow.png",
+                          height: 30,
+                          width: 30,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                 isChauffeur ? SizedBox.shrink() : SizedBox(width: 8),
                 isChauffeur

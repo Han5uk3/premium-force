@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:premium_force_main/main.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/authentication/otp.dart';
 import 'package:premium_force_main/authentication/signup.dart';
@@ -169,7 +170,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
             final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
             final double screenHeight = constraints.maxHeight;
             final double initialFormTop = screenHeight * 0.35;
-            
+
             // Sync settings
             const Duration animDuration = Duration(milliseconds: 250);
             const Curve animCurve = Curves.easeOutCubic;
@@ -177,14 +178,17 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
             // Movements
             // Only slide the background if the login screen's own field has focus
             final bool isMainKeyboardActive = _mobileFocusNode.hasFocus;
-            
+
             // Logo moves up subtly (by 30% of keyboard)
-            final double logoSlideUp = isMainKeyboardActive ? (bottomInset * 0.30) : 0;
+            final double logoSlideUp = isMainKeyboardActive
+                ? (bottomInset * 0.30)
+                : 0;
             // Form slides over the logo (by 60% of keyboard)
             // Capped to ensure some logo area always remains visible
-            final double maxFormSlide = initialFormTop - 60; // Leave 60px of top area
-            final double formSlideUp = isMainKeyboardActive 
-                ? (bottomInset * 0.65).clamp(0, maxFormSlide) 
+            final double maxFormSlide =
+                initialFormTop - 60; // Leave 60px of top area
+            final double formSlideUp = isMainKeyboardActive
+                ? (bottomInset * 0.65).clamp(0, maxFormSlide)
                 : 0;
 
             return Stack(
@@ -200,7 +204,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                   child: Center(
                     child: Image.asset(
                       'assets/applogo/premiumforcelogo.png',
-                      width: 180,
+                      width: 200,
                       height: 100,
                     ),
                   ),
@@ -226,351 +230,417 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                       ),
                     ),
                     child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.only(
-                      bottom: bottomInset > 0 ? bottomInset + 20 : 0,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 40),
-                        // Sign In Title
-                        Text(
-                          AppLocalizations.of(context)!.signIn,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                          ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.only(
+                          bottom: bottomInset > 0 ? bottomInset + 20 : 0,
                         ),
-                        const SizedBox(height: 32),
-
-                          PremiumTextField(
-                            focusNode: _mobileFocusNode,
-                            title: AppLocalizations.of(context)!.mobileNumber,
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return AppLocalizations.of(
-                                context,
-                              )!.pleaseEnterYourMobileNumber;
-                            }
-                            if (value.length < 9) {
-                              return AppLocalizations.of(
-                                context,
-                              )!.pleaseEnterValidMobileNumber;
-                            }
-                            return null;
-                          },
-                          controller: _mobileController,
-                          hintText: AppLocalizations.of(
-                            context,
-                          )!.enterMobileNumber,
-                          fontsize: 16,
-
-                          keyboardType: TextInputType.phone,
-                          needTitle: true,
-                          obscureText: false,
-                          prefixIcon: GestureDetector(
-                            onTap: () {
-                              showCountryPicker(
-                                context: context,
-                                showPhoneCode: true,
-                                customFlagBuilder: (context) =>
-                                    const SizedBox.shrink(),
-                                countryListTheme: CountryListThemeData(
-                                  backgroundColor: const Color(0xFF141313),
-                                  textStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                  searchTextStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(30),
-                                    topRight: Radius.circular(30),
-                                  ),
-                                  inputDecoration: InputDecoration(
-                                    hintText: AppLocalizations.of(
-                                      context,
-                                    )!.search,
-                                    hintStyle: TextStyle(
-                                      color: Colors.white.withAlpha(180),
-                                    ),
-                                    prefixIcon: const Icon(
-                                      Icons.search,
-                                      color: Colors.white,
-                                    ),
-                                    filled: true,
-                                    fillColor: const Color(0xFF1A1410),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade800,
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade800,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFE4A46B),
-                                      ),
-                                    ),
-                                  ),
-                                  bottomSheetHeight:
-                                      MediaQuery.of(context).size.height * 0.75,
-                                ),
-                                onSelect: (Country country) {
-                                  setState(() {
-                                    _selectedCountryCode = country.phoneCode;
-                                  });
-                                },
-                              );
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: const BoxDecoration(
-                                color: Colors.transparent,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '+$_selectedCountryCode',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const Icon(
-                                    Icons.arrow_drop_down,
-                                    color: Colors.white,
-                                  ),
-                                  Container(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                    ),
-                                    height: 24,
-                                    width: 1,
-                                    color: Colors.grey,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Continue Button
-                        const SizedBox(height: 20),
-                        // Terms and Conditions
-                        Row(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            PremiumCheckbox(
-                              ontap: () {
-                                setState(() {
-                                  _isAgreed = !_isAgreed;
-                                });
+                            const SizedBox(height: 40),
+                            // Sign In Title
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  AppLocalizations.of(context)!.signIn,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                                CircleAvatar(
+                                  radius: 16,
+                                  child: Material(
+                                    borderRadius: BorderRadius.circular(100),
+
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(100),
+                                      child: InkWell(
+                                        splashColor: Colors.grey.withAlpha(200),
+                                        borderRadius: BorderRadius.circular(
+                                          100,
+                                        ),
+                                        onTap: () {
+                                          bool isCurrentlyEnglish =
+                                              Localizations.localeOf(
+                                                context,
+                                              ).languageCode ==
+                                              'en';
+                                          MainApp.setLocale(
+                                            context,
+                                            Locale(
+                                              isCurrentlyEnglish ? 'ar' : 'en',
+                                            ),
+                                          );
+                                        },
+                                        child: SvgPicture.asset(
+                                          Localizations.localeOf(
+                                                    context,
+                                                  ).languageCode ==
+                                                  'en'
+                                              ? 'assets/flags/en.svg'
+                                              : 'assets/flags/ar.svg',
+                                          fit: BoxFit.fill,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 32),
+
+                            PremiumTextField(
+                              focusNode: _mobileFocusNode,
+                              title: AppLocalizations.of(context)!.mobileNumber,
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return AppLocalizations.of(
+                                    context,
+                                  )!.pleaseEnterYourMobileNumber;
+                                }
+                                if (value.length < 9) {
+                                  return AppLocalizations.of(
+                                    context,
+                                  )!.pleaseEnterValidMobileNumber;
+                                }
+                                return null;
                               },
-                              isAgreed: _isAgreed,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: TextStyle(
-                                    color: Color(0xFFB0B0B0),
-                                    fontSize: 13,
-                                    height: 1.4,
+                              controller: _mobileController,
+                              hintText: AppLocalizations.of(
+                                context,
+                              )!.enterMobileNumber,
+                              fontsize: 16,
+
+                              keyboardType: TextInputType.phone,
+                              needTitle: true,
+                              obscureText: false,
+                              prefixIcon: GestureDetector(
+                                onTap: () {
+                                  showCountryPicker(
+                                    context: context,
+                                    showPhoneCode: true,
+                                    customFlagBuilder: (context) =>
+                                        const SizedBox.shrink(),
+                                    countryListTheme: CountryListThemeData(
+                                      backgroundColor: const Color(0xFF141313),
+                                      textStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                      searchTextStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(30),
+                                        topRight: Radius.circular(30),
+                                      ),
+                                      inputDecoration: InputDecoration(
+                                        hintText: AppLocalizations.of(
+                                          context,
+                                        )!.search,
+                                        hintStyle: TextStyle(
+                                          color: Colors.white.withAlpha(180),
+                                        ),
+                                        prefixIcon: const Icon(
+                                          Icons.search,
+                                          color: Colors.white,
+                                        ),
+                                        filled: true,
+                                        fillColor: const Color(0xFF1A1410),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: Colors.grey.shade800,
+                                          ),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: Colors.grey.shade800,
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: Color(0xFFE4A46B),
+                                          ),
+                                        ),
+                                      ),
+                                      bottomSheetHeight:
+                                          MediaQuery.of(context).size.height *
+                                          0.75,
+                                    ),
+                                    onSelect: (Country country) {
+                                      setState(() {
+                                        _selectedCountryCode =
+                                            country.phoneCode;
+                                      });
+                                    },
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
                                   ),
-                                  children: [
-                                    TextSpan(
-                                      text:
-                                          'By Clicking continue button you agree to our ',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        decoration: TextDecoration.none,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: 'Terms and Conditions',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        decoration: TextDecoration.none,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: ' and ',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        decoration: TextDecoration.none,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: 'Privacy Policy',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        decoration: TextDecoration.none,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 25),
-                        PremiumButton(
-                          showLoader: _isLoading,
-                          fontsize: 18,
-                          text: AppLocalizations.of(context)!.continueText,
-                          onTap: () async {
-                            if (_formKey.currentState!.validate() &&
-                                _isAgreed) {
-                              setState(() => _isLoading = true);
-
-                              final authProvider = context.read<AuthProvider>();
-                              final success = await authProvider.requestOtp(
-                                countryCode: '+$_selectedCountryCode',
-                                phoneNumber: _mobileController.text.trim(),
-                              );
-
-                              if (!mounted) return;
-                              setState(() => _isLoading = false);
-
-                              if (success) {
-                                Navigator.of(context).push(
-                                  SmoothNavigation.route(
-                                    OTPVerificationPage(
-                                      countryCode: '+$_selectedCountryCode',
-                                      phoneNumber: _mobileController.text
-                                          .trim(),
-                                    ),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.transparent,
                                   ),
-                                );
-                              } else {
-                                _showCustomSnackBar(
-                                  authProvider.errorMessage ??
-                                      'Failed to send OTP. Please try again.',
-                                );
-                              }
-                            } else if (_isAgreed == false) {
-                              _showCustomSnackBar(
-                                'Please agree to the terms and conditions and privacy policy.',
-                              );
-                            }
-                          },
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // ── OR divider ─────────────────────────────────
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                height: 1,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.white.withAlpha(60),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '+$_selectedCountryCode',
+                                        textDirection: TextDirection.ltr,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.arrow_drop_down,
+                                        color: Colors.white,
+                                      ),
+                                      Container(
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        height: 24,
+                                        width: 1,
+                                        color: Colors.grey,
+                                      ),
                                     ],
                                   ),
                                 ),
                               ),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              child: Text(
-                                'OR',
-                                style: TextStyle(
-                                  color: Colors.white.withAlpha(150),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 1.5,
+
+                            const SizedBox(height: 24),
+
+                            // Continue Button
+                            const SizedBox(height: 20),
+                            // Terms and Conditions
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                PremiumCheckbox(
+                                  ontap: () {
+                                    setState(() {
+                                      _isAgreed = !_isAgreed;
+                                    });
+                                  },
+                                  isAgreed: _isAgreed,
                                 ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                height: 1,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.white.withAlpha(60),
-                                      Colors.transparent,
-                                    ],
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        color: Color(0xFFB0B0B0),
+                                        fontSize: 13,
+                                        height: 1.4,
+                                      ),
+                                      children: [
+                                        TextSpan(
+                                          text: AppLocalizations.of(
+                                            context,
+                                          )!.byClickingContinueButton,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                            decoration: TextDecoration.none,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text:
+                                              " ${AppLocalizations.of(context)!.termsAndConditions}",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w900,
+                                            decoration: TextDecoration.none,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text:
+                                              " ${AppLocalizations.of(context)!.and} ",
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                            decoration: TextDecoration.none,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: AppLocalizations.of(
+                                            context,
+                                          )!.privacyPolicy,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w900,
+                                            decoration: TextDecoration.none,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
+                            SizedBox(height: 25),
+                            PremiumButton(
+                              showLoader: _isLoading,
+                              fontsize: 18,
+                              text: AppLocalizations.of(context)!.continueText,
+                              onTap: () async {
+                                if (_formKey.currentState!.validate() &&
+                                    _isAgreed) {
+                                  setState(() => _isLoading = true);
+
+                                  final authProvider = context
+                                      .read<AuthProvider>();
+                                  final success = await authProvider.requestOtp(
+                                    countryCode: '+$_selectedCountryCode',
+                                    phoneNumber: _mobileController.text.trim(),
+                                  );
+
+                                  if (!mounted) return;
+                                  setState(() => _isLoading = false);
+
+                                  if (success) {
+                                    Navigator.of(context).push(
+                                      SmoothNavigation.route(
+                                        OTPVerificationPage(
+                                          countryCode: '+$_selectedCountryCode',
+                                          phoneNumber: _mobileController.text
+                                              .trim(),
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    final error = authProvider.errorMessage;
+                                    final message =
+                                        error ==
+                                            "invalid phone number or country code"
+                                        ? AppLocalizations.of(
+                                            context,
+                                          )!.invalidPhoneNumberOrCountryCode
+                                        : (error ??
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.somethingWentWrong);
+                                    _showCustomSnackBar(message);
+                                  }
+                                } else if (_isAgreed == false) {
+                                  _showCustomSnackBar(
+                                    'Please agree to the terms and conditions and privacy policy.',
+                                  );
+                                }
+                              },
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            // ── OR divider ─────────────────────────────────
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.white.withAlpha(60),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Text(
+                                    AppLocalizations.of(context)!.or,
+                                    style: TextStyle(
+                                      color: Colors.white.withAlpha(150),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 1.5,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(
+                                    height: 1,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.white.withAlpha(60),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            // ── Google Sign-In button ──────────────────────
+                            Consumer<AuthProvider>(
+                              builder: (context, authProvider, _) {
+                                return _GoogleSignInButton(
+                                  isLoading: authProvider.isGoogleLoading,
+                                  onTap: _handleGoogleSignIn,
+                                );
+                              },
+                            ),
+
+                            if (!Platform.isAndroid) ...[
+                              const SizedBox(height: 12),
+
+                              // ── Apple Sign-In button ───────────────────────
+                              Consumer<AuthProvider>(
+                                builder: (context, authProvider, _) {
+                                  return _AppleSignInButton(
+                                    isLoading: authProvider.isAppleLoading,
+                                    onTap: _handleAppleSignIn,
+                                  );
+                                },
+                              ),
+                            ],
+
+                            const SizedBox(height: 32),
                           ],
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // ── Google Sign-In button ──────────────────────
-                        Consumer<AuthProvider>(
-                          builder: (context, authProvider, _) {
-                            return _GoogleSignInButton(
-                              isLoading: authProvider.isGoogleLoading,
-                              onTap: _handleGoogleSignIn,
-                            );
-                          },
-                        ),
-
-                        if (!Platform.isAndroid) ...[
-                          const SizedBox(height: 12),
-
-                          // ── Apple Sign-In button ───────────────────────
-                          Consumer<AuthProvider>(
-                            builder: (context, authProvider, _) {
-                              return _AppleSignInButton(
-                                isLoading: authProvider.isAppleLoading,
-                                onTap: _handleAppleSignIn,
-                              );
-                            },
-                          ),
-                        ],
-
-                        const SizedBox(height: 32),
-                      ],
-                    ), // Column
-                  ), // SingleChildScrollView
-                ), // Padding
-              ), // Container
-            ), // AnimatedPositioned
-          ], // Children
-        ); // Stack
-      }, // Builder
-    ), // LayoutBuilder
-  ), // Form
-); // Scaffold body (actually Form is the body)
-}
+                        ), // Column
+                      ), // SingleChildScrollView
+                    ), // Padding
+                  ), // Container
+                ), // AnimatedPositioned
+              ], // Children
+            ); // Stack
+          }, // Builder
+        ), // LayoutBuilder
+      ), // Form
+    ); // Scaffold body (actually Form is the body)
+  }
 }
 
 /// A styled Google Sign-In button that matches the app's dark premium theme.
@@ -611,8 +681,8 @@ class _GoogleSignInButton extends StatelessWidget {
                     height: 24,
                   ),
                   const SizedBox(width: 14),
-                  const Text(
-                    'Continue with Google',
+                  Text(
+                    AppLocalizations.of(context)!.continueWithGoogle,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,

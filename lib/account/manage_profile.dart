@@ -8,6 +8,7 @@ import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -34,6 +35,11 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   bool _isLoading = false;
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
+  bool _isCheckingPromo = false;
+  bool _isPromoValid = false;
+  String? _appliedPromoId;
+  String? _initialPromoCode;
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -48,7 +54,12 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       _specialIdController.text = user.specialId ?? '';
       _latitude = user.lat;
       _longitude = user.long;
-      _isCorporateEmployee = user.specialId != null && user.specialId!.isNotEmpty;
+      _isCorporateEmployee =
+          user.specialId != null && user.specialId!.isNotEmpty;
+      if (_isCorporateEmployee) {
+        _initialPromoCode = user.specialId;
+        _isPromoValid = true;
+      }
     }
 
     _animController = AnimationController(
@@ -64,6 +75,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
 
   @override
   void dispose() {
+    _overlayEntry?.remove();
     _nameController.dispose();
     _emailController.dispose();
     _locationController.dispose();
@@ -71,6 +83,34 @@ class _ManageProfilePageState extends State<ManageProfilePage>
     _phoneController.dispose();
     _animController.dispose();
     super.dispose();
+  }
+
+  void _showCustomSnackBar(String message, {String type = "E"}) {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: AnimatedSnackBar(
+            message: message,
+            type: type,
+            onDismissed: () {
+              if (mounted) {
+                _overlayEntry?.remove();
+                _overlayEntry = null;
+              }
+            },
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
   }
 
   Future<void> _pickImage() async {
@@ -213,6 +253,63 @@ class _ManageProfilePageState extends State<ManageProfilePage>
     );
   }
 
+  Future<void> _verifyPromoCode() async {
+    final code = _specialIdController.text.trim();
+    if (code.isEmpty) return;
+
+    setState(() {
+      _isCheckingPromo = true;
+      _isPromoValid = false;
+      _appliedPromoId = null;
+    });
+
+    final result = await ApiService().getSpecialContentByCode(code: code);
+
+    if (result['success'] == true) {
+      final promo = result['data'];
+      if (promo != null && promo['isActive'] == true) {
+        setState(() {
+          _isPromoValid = true;
+          _appliedPromoId = promo['_id'] ?? promo['id'];
+        });
+        if (mounted) {
+          _showCustomSnackBar("Promo code applied successfully!", type: "S");
+        }
+      } else {
+        setState(() {
+          _isPromoValid = false;
+          _appliedPromoId = null;
+        });
+        if (mounted) {
+          _showCustomSnackBar(
+            promo != null && promo['isActive'] == false
+                ? "Promo code is inactive"
+                : "Invalid promo code",
+            type: "E",
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        _showCustomSnackBar(
+          result['message'] ?? "Invalid or inactive promo code",
+          type: "E",
+        );
+      }
+    }
+
+    setState(() => _isCheckingPromo = false);
+  }
+
+  void _removePromoCode() {
+    setState(() {
+      _isPromoValid = false;
+      _appliedPromoId = null;
+      _specialIdController.clear();
+    });
+    _showCustomSnackBar("Promo code removed", type: "W");
+  }
+
   Future<void> _handleUpdateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -223,6 +320,11 @@ class _ManageProfilePageState extends State<ManageProfilePage>
 
     final token = UserLocalStorage.getToken();
 
+    // Only include special ID if corporate employee is checked and promo is valid
+    final specialId = (_isCorporateEmployee && _isPromoValid)
+        ? _specialIdController.text.trim()
+        : null;
+
     final result = await ApiService().updateUser(
       id: user.uid,
       username: _nameController.text.trim(),
@@ -231,33 +333,39 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       lat: _latitude,
       long: _longitude,
       profileImage: _profileImage,
-      specialId: _isCorporateEmployee ? _specialIdController.text.trim() : "",
+      specialId: specialId,
       token: token,
     );
 
     if (!mounted) return;
-    setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Profile updated successfully!"),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // Only increment if it's a NEW promo code compared to what was there initially
+      final currentPromo = _specialIdController.text.trim();
+      final hasNewPromo =
+          _isPromoValid &&
+          currentPromo.isNotEmpty &&
+          currentPromo != _initialPromoCode;
+
+      if (hasNewPromo && _appliedPromoId != null) {
+        await ApiService().incrementSpecialContentCount(
+          id: _appliedPromoId!,
+          token: token,
+        );
+      }
+      _showCustomSnackBar("Profile updated successfully!", type: "S");
       // Fetch user again to sync with provider
       await Provider.of<AuthProvider>(context, listen: false).fetchUser();
 
       if (!mounted) return;
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] as String? ?? 'Update failed'),
-          backgroundColor: Colors.red,
-        ),
+      _showCustomSnackBar(
+        result['message'] as String? ?? 'Update failed',
+        type: "E",
       );
     }
+    setState(() => _isLoading = false);
   }
 
   @override
@@ -347,12 +455,15 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                                 fit: BoxFit.cover,
                                                 placeholder: (context, url) =>
                                                     const Center(
-                                                  child: PremiumLoader(
-                                                      color: Color(0xFFE4A46B)),
-                                                ),
-                                                errorWidget: (context, url,
-                                                        error) =>
-                                                    _buildPlaceholderIcon(),
+                                                      child: PremiumLoader(
+                                                        color: Color(
+                                                          0xFFE4A46B,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                errorWidget:
+                                                    (context, url, error) =>
+                                                        _buildPlaceholderIcon(),
                                               ),
                                             )
                                           : _buildPlaceholderIcon(),
@@ -569,8 +680,9 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  AppLocalizations.of(context)!
-                                      .iAmACorporateEmployee,
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.iAmACorporateEmployee,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -585,42 +697,80 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                         if (_isCorporateEmployee) ...[
                           const SizedBox(height: 20),
                           // Special ID (optional)
-                          PremiumTextField(
-                            title: AppLocalizations.of(
-                              context,
-                            )!.promoCode,
-                            controller: _specialIdController,
-                            hintText: AppLocalizations.of(
-                              context,
-                            )!.enterYourPromoCode,
-                            fontsize: 15,
-                            needTitle: true,
-                            obscureText: false,
-                            prefixIcon: ShaderMask(
-                              shaderCallback: (Rect bounds) {
-                                return const LinearGradient(
-                                  colors: [
-                                    Color(0xFF49280B),
-                                    Color(0xFFE4A46B),
-                                    Color(0xFF60350F),
-                                  ],
-                                ).createShader(bounds);
-                              },
-                              child: const Icon(
-                                Icons.badge_outlined,
-                                color: Colors.white,
-                                size: 20,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: PremiumTextField(
+                                  title: AppLocalizations.of(
+                                    context,
+                                  )!.promoCode,
+                                  controller: _specialIdController,
+                                  hintText: AppLocalizations.of(
+                                    context,
+                                  )!.enterYourPromoCode,
+                                  fontsize: 15,
+                                  needTitle: true,
+                                  obscureText: false,
+                                  readOnly: _isPromoValid,
+                                  enabled: !_isPromoValid,
+                                  prefixIcon: ShaderMask(
+                                    shaderCallback: (Rect bounds) {
+                                      return const LinearGradient(
+                                        colors: [
+                                          Color(0xFF49280B),
+                                          Color(0xFFE4A46B),
+                                          Color(0xFF60350F),
+                                        ],
+                                      ).createShader(bounds);
+                                    },
+                                    child: const Icon(
+                                      Icons.badge_outlined,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (_isCorporateEmployee &&
+                                        (value == null || value.isEmpty)) {
+                                      return AppLocalizations.of(
+                                        context,
+                                      )!.pleaseEnterYourPromoCode;
+                                    }
+                                    return null;
+                                  },
+                                ),
                               ),
-                            ),
-                            validator: (value) {
-                              if (_isCorporateEmployee &&
-                                  (value == null || value.isEmpty)) {
-                                return AppLocalizations.of(
-                                  context,
-                                )!.pleaseEnterYourPromoCode;
-                              }
-                              return null;
-                            },
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 1,
+                                child: Padding(
+                                  padding: EdgeInsets.only(bottom: 0),
+                                  child: SizedBox(
+                                    height: 59,
+                                    child: PremiumButton(
+                                      showLoader: _isCheckingPromo,
+                                      fontsize: 14,
+                                      text: _isPromoValid
+                                          ? AppLocalizations.of(context)!.remove
+                                          : AppLocalizations.of(context)!.apply,
+                                      gradient: _isPromoValid
+                                          ? [
+                                              Colors.red.shade800,
+                                              Colors.red.shade400,
+                                            ]
+                                          : null,
+                                      onTap: _isCheckingPromo
+                                          ? () {}
+                                          : _isPromoValid
+                                          ? _removePromoCode
+                                          : _verifyPromoCode,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
 
@@ -630,7 +780,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                         PremiumButton(
                           showLoader: _isLoading,
                           fontsize: 18,
-                          text: AppLocalizations.of(  context)!.saveChanges,
+                          text: AppLocalizations.of(context)!.saveChanges,
                           onTap: _isLoading ? () {} : _handleUpdateProfile,
                         ),
 

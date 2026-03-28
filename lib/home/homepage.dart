@@ -704,6 +704,7 @@ class _HomepageState extends State<Homepage>
   }
 
   Widget _buildPremiumFleet(BuildContext context, AppLocalizations loc) {
+    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
     return Container(
       height: 230,
       color: Colors.black,
@@ -733,9 +734,9 @@ class _HomepageState extends State<Homepage>
                     scrollDirection: Axis.horizontal,
                     itemBuilder: (context, index) {
                       return Padding(
-                        padding: EdgeInsets.only(
-                          left: index == 0 ? 24 : 6,
-                          right: index == 2 ? 24 : 6,
+                        padding: EdgeInsetsDirectional.only(
+                          start: index == 0 ? 24 : 6,
+                          end: index == 2 ? 24 : 6,
                         ),
                         child: const PremuimfleetcardShimmer(),
                       );
@@ -744,7 +745,7 @@ class _HomepageState extends State<Homepage>
                 : _fleetCars.isEmpty
                 ? Center(
                     child: Text(
-                      'No cars available',
+                      loc.noCarsAvailable,
                       style: TextStyle(color: Colors.white54),
                     ),
                   )
@@ -753,9 +754,9 @@ class _HomepageState extends State<Homepage>
                     scrollDirection: Axis.horizontal,
                     itemBuilder: (context, index) {
                       return Padding(
-                        padding: EdgeInsets.only(
-                          left: index == 0 ? 24 : 6,
-                          right: index == _fleetCars.length - 1 ? 24 : 6,
+                        padding: EdgeInsetsDirectional.only(
+                          start: index == 0 ? 24 : 6,
+                          end: index == _fleetCars.length - 1 ? 24 : 6,
                         ),
                         child: Premuimfleetcard(
                           brand: _fleetCars[index]["brand"],
@@ -1312,10 +1313,9 @@ class _HomepageState extends State<Homepage>
                         placeholder: (context, url) => Container(
                           color: Colors.black26,
                           child: const Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: PremiumLoader(color: Color(0xFFE4A46B)),
+                            child: PremiumLoader(
+                              color: Color(0xFFE4A46B),
+                              size: 20,
                             ),
                           ),
                         ),

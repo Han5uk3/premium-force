@@ -210,7 +210,11 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _errorMessage = result['message'] as String? ?? 'Failed to send OTP';
+        String msg = result['message'] as String? ?? 'Failed to send OTP';
+        if (msg.contains("Invalid 'To' Phone Number")) {
+          msg = "invalid phone number or country code";
+        }
+        _errorMessage = msg;
         _status = AuthStatus.failure;
         notifyListeners();
         return false;
@@ -279,16 +283,21 @@ class AuthProvider extends ChangeNotifier {
           }
 
           // --- Check if user exists ---
-          final userData = result['user'];
-          if (userData != null && userData is Map<String, dynamic>) {
+          var userData = result['user'] ?? result['data'];
+          if (userData is Map<String, dynamic>) {
+            // Handle nested user key
+            if (userData.containsKey('user') && userData['user'] is Map<String, dynamic>) {
+              userData = userData['user'];
+            }
+
             // Existing user → save only userId + phoneNumber
             _user = UserModel.fromJson(userData);
-            final uid = userData['_id'] ?? userData['id'] ?? '';
-            final phone = userData['phoneNumber'] ?? phoneNumber;
+            final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
+            final phone = (userData['phoneNumber'] ?? phoneNumber).toString();
 
             await UserLocalStorage.saveUserCredentials(
-              userId: uid as String,
-              phoneNumber: phone as String,
+              userId: uid,
+              phoneNumber: phone,
             );
 
             // Persist the full user data locally
@@ -356,11 +365,11 @@ class AuthProvider extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   /// Resend the OTP and restart the cooldown timer.
-  Future<void> requestOtpResend({
+  Future<bool> requestOtpResend({
     required String countryCode,
     required String phoneNumber,
   }) async {
-    if (_resendCountdown > 0) return;
+    if (_resendCountdown > 0) return false;
 
     final result = await _api.sendOtp(
       countryCode: countryCode,
@@ -372,6 +381,16 @@ class AuthProvider extends ChangeNotifier {
       _status = AuthStatus.otpSent;
       _phoneNumber = phoneNumber;
       notifyListeners();
+      return true;
+    } else {
+      String msg = result['message'] as String? ?? 'Failed to resend OTP';
+      if (msg.contains("Invalid 'To' Phone Number")) {
+        msg = "invalid phone number or country code";
+      }
+      _errorMessage = msg;
+      _status = AuthStatus.failure;
+      notifyListeners();
+      return false;
     }
   }
 
@@ -423,13 +442,18 @@ class AuthProvider extends ChangeNotifier {
           await UserLocalStorage.saveToken(accessToken);
         }
 
-        final userData = result['user'] ?? result['data'] ?? result;
+        var userData = result['user'] ?? result['data'] ?? result;
         if (userData is Map<String, dynamic>) {
+          // Handle nested user key
+          if (userData.containsKey('user') && userData['user'] is Map<String, dynamic>) {
+            userData = userData['user'];
+          }
+
           _user = UserModel.fromJson(userData);
-          final uid = userData['_id'] ?? userData['id'] ?? '';
+          final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
 
           await UserLocalStorage.saveUserCredentials(
-            userId: uid as String,
+            userId: uid,
             phoneNumber: phoneNumber,
           );
 
@@ -547,25 +571,49 @@ class AuthProvider extends ChangeNotifier {
         debugPrint('🔐 Google Sign-In │ Email exists. Fetching user data...');
 
         // Try to get user data from the response or by email
-        final userData =
-            emailCheckResponse['user'] ?? emailCheckResponse['data'];
+        var userData = emailCheckResponse['user'] ?? emailCheckResponse['data'];
 
         if (userData is Map<String, dynamic>) {
+          // Handle nested user key
+          if (userData.containsKey('user') && userData['user'] is Map<String, dynamic>) {
+            userData = userData['user'];
+          }
+
           _user = UserModel.fromJson(userData);
-          final uid = userData['_id'] ?? userData['id'] ?? '';
-          final phone = userData['phoneNumber'] ?? '';
+          final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
+          final phone = (userData['phoneNumber'] ?? '').toString();
+
+          // Step 3a(ii): Call googleAuth to get session tokens for persistence
+          if (result.idToken != null) {
+            final authResponse = await _api.googleAuth(idToken: result.idToken!);
+            if (authResponse['success'] == true) {
+              final accessToken = authResponse['accessToken'] as String?;
+              final refreshToken = authResponse['refreshToken'] as String?;
+              if (accessToken != null) {
+                if (refreshToken != null) {
+                  await UserLocalStorage.saveTokens(
+                    accessToken: accessToken,
+                    refreshToken: refreshToken,
+                  );
+                } else {
+                  await UserLocalStorage.saveToken(accessToken);
+                }
+                debugPrint('✅ Google Sign-In │ Tokens saved for persistence');
+              }
+            }
+          }
 
           await UserLocalStorage.saveUserCredentials(
-            userId: uid as String,
-            phoneNumber: phone as String,
+            userId: uid,
+            phoneNumber: phone,
           );
 
           // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
 
-          // If there's a token in response, save it
-          final token = userData['token'] ?? emailCheckResponse['token'];
-          if (token is String && token.isNotEmpty) {
+          // If there's a token in response, save it (legacy fallback)
+          final token = (userData['token'] ?? emailCheckResponse['token'])?.toString();
+          if (token != null && token.isNotEmpty) {
             await UserLocalStorage.saveToken(token);
           }
 
@@ -657,25 +705,49 @@ class AuthProvider extends ChangeNotifier {
         debugPrint('🍎 Apple Sign-In │ Email exists. Fetching user data...');
 
         // Try to get user data from the response or by email
-        final userData =
-            emailCheckResponse['user'] ?? emailCheckResponse['data'];
+        var userData = emailCheckResponse['user'] ?? emailCheckResponse['data'];
 
         if (userData is Map<String, dynamic>) {
+          // Handle nested user key
+          if (userData.containsKey('user') && userData['user'] is Map<String, dynamic>) {
+            userData = userData['user'];
+          }
+
           _user = UserModel.fromJson(userData);
-          final uid = userData['_id'] ?? userData['id'] ?? '';
-          final phone = userData['phoneNumber'] ?? '';
+          final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
+          final phone = (userData['phoneNumber'] ?? '').toString();
+
+          // Step 3a(ii): Call appleAuth to get session tokens for persistence
+          if (result.idToken != null) {
+            final authResponse = await _api.appleAuth(idToken: result.idToken!);
+            if (authResponse['success'] == true) {
+              final accessToken = authResponse['accessToken'] as String?;
+              final refreshToken = authResponse['refreshToken'] as String?;
+              if (accessToken != null) {
+                if (refreshToken != null) {
+                  await UserLocalStorage.saveTokens(
+                    accessToken: accessToken,
+                    refreshToken: refreshToken,
+                  );
+                } else {
+                  await UserLocalStorage.saveToken(accessToken);
+                }
+                debugPrint('🍎 Apple Sign-In │ Tokens saved for persistence');
+              }
+            }
+          }
 
           await UserLocalStorage.saveUserCredentials(
-            userId: uid as String,
-            phoneNumber: phone as String,
+            userId: uid,
+            phoneNumber: phone,
           );
 
           // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
 
-          // If there's a token in response, save it
-          final token = userData['token'] ?? emailCheckResponse['token'];
-          if (token is String && token.isNotEmpty) {
+          // If there's a token in response, save it (legacy fallback)
+          final token = (userData['token'] ?? emailCheckResponse['token'])?.toString();
+          if (token != null && token.isNotEmpty) {
             await UserLocalStorage.saveToken(token);
           }
 

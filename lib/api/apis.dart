@@ -193,7 +193,7 @@ class ApiService {
   }
 
   // ---------------------------------------------------------------------------
-  // Auth - Google Sign-In
+  // Auth - Google Sign-In & Apple Sign-In
   // ---------------------------------------------------------------------------
 
   /// Authenticate with Google.
@@ -216,6 +216,30 @@ class ApiService {
       return _success(response);
     } catch (e) {
       debugPrint('🔐 Google Auth │ Error: $e');
+      return _handleError(e);
+    }
+  }
+
+  /// Authenticate with Apple.
+  ///
+  /// Sends the Apple [idToken] along with platform type to the backend.
+  /// The endpoint lives at `/auth/apple` (outside the `/api` prefix).
+  Future<Map<String, dynamic>> appleAuth({required String idToken}) async {
+    try {
+      final data = {'idToken': idToken};
+
+      debugPrint('🍎 Apple Auth │ Sending data: $data');
+
+      final response = await _dio.post(
+        'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/auth/apple',
+        data: data,
+      );
+
+      debugPrint('🍎 Apple Auth │ Response: ${response.data}');
+
+      return _success(response);
+    } catch (e) {
+      debugPrint('🍎 Apple Auth │ Error: $e');
       return _handleError(e);
     }
   }
@@ -788,6 +812,42 @@ class ApiService {
     }
   }
 
+  /// Update an existing booking's status.
+  Future<Map<String, dynamic>> updateBookingStatus({
+    required String bookingId,
+    required String status,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.put(
+        'bookings/$bookingId',
+        data: {'bookingStatus': status},
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Update an existing hourly booking's status.
+  Future<Map<String, dynamic>> updateHourlyBookingStatus({
+    required String bookingId,
+    required String status,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.put(
+        'hourly-bookings/$bookingId',
+        data: {'bookingStatus': status},
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
   /// Create an hourly booking (specifically for chauffeur category).
   ///
   /// Calls `POST /api/hourly-bookings`
@@ -893,8 +953,9 @@ class ApiService {
           message = 'No internet connection. Please check your network.';
         case DioExceptionType.badResponse:
           message =
-              (data is Map<String, dynamic> ? data['message'] : null)
-                  as String? ??
+              (data is Map<String, dynamic>
+                      ? (data['message'] ?? data['error'])
+                      : null) as String? ??
               'Server error ($statusCode)';
         case DioExceptionType.cancel:
           message = 'Request was cancelled.';
@@ -916,5 +977,55 @@ class ApiService {
       'success': false,
       'message': 'Something went wrong. Please try again.',
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Special Content (Promo Codes)
+  // ---------------------------------------------------------------------------
+
+  /// Fetch all special content (promo codes).
+  Future<Map<String, dynamic>> getSpecialContent({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'special-content',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch a specific promo code by its code string.
+  /// Calls GET /api/special-content/code/:code
+  Future<Map<String, dynamic>> getSpecialContentByCode({
+    required String code,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.get(
+        'special-content/code/$code',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Increment the usage count of a special content (promo code).
+  Future<Map<String, dynamic>> incrementSpecialContentCount({
+    required String id,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.post(
+        'special-content/$id/increment',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
   }
 }

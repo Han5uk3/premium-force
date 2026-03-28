@@ -7,6 +7,7 @@ import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/authentication/signup.dart';
 import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class OTPVerificationPage extends StatefulWidget {
   final String countryCode;
@@ -73,7 +74,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
   /// Handle OTP verification and navigate based on result.
   Future<void> _handleVerify() async {
     if (_otpController.text.length != 6) {
-      _showCustomSnackBar("Please enter a valid OTP");
+      _showCustomSnackBar(AppLocalizations.of(context)!.pleaseEnterAValidOtp);
       return;
     }
 
@@ -129,7 +130,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           child: AppBar(
             centerTitle: true,
             title: Text(
-              "Enter OTP",
+              AppLocalizations.of(context)!.enterOtp,
               style: TextStyle(
                 fontSize: 20,
                 color: Colors.white,
@@ -193,7 +194,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: 'OTP has been sent to ',
+                      text: AppLocalizations.of(context)!.otpHasBeenSentTo,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
@@ -244,7 +245,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "Didn't receive the code? ",
+                        AppLocalizations.of(context)!.didntReceiveTheCode,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white.withAlpha(180),
@@ -252,20 +253,41 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                       ),
                       GestureDetector(
                         onTap: canResend
-                            ? () {
-                                context.read<AuthProvider>().requestOtpResend(
-                                  countryCode: widget.countryCode,
-                                  phoneNumber: widget.phoneNumber,
-                                );
-                                _showCustomSnackBar(
-                                  "OTP has been resent to ${widget.countryCode} ${widget.phoneNumber}",
-                                );
+                            ? () async {
+                                final authProvider = context
+                                    .read<AuthProvider>();
+                                final success = await authProvider
+                                    .requestOtpResend(
+                                      countryCode: widget.countryCode,
+                                      phoneNumber: widget.phoneNumber,
+                                    );
+
+                                if (mounted) {
+                                  if (success) {
+                                    _showCustomSnackBar(
+                                      "${AppLocalizations.of(context)!.otpHasBeenResentTo}${widget.countryCode} ${widget.phoneNumber}",
+                                    );
+                                  } else {
+                                    final error = authProvider.errorMessage;
+                                    final message =
+                                        error ==
+                                            "invalid phone number or country code"
+                                        ? AppLocalizations.of(
+                                            context,
+                                          )!.invalidPhoneNumberOrCountryCode
+                                        : (error ??
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.somethingWentWrong);
+                                    _showCustomSnackBar(message);
+                                  }
+                                }
                               }
                             : null,
                         child: Text(
                           canResend
-                              ? 'Resend OTP'
-                              : 'Resend in ${_formatCountdown(authProvider.resendCountdown)}',
+                              ? AppLocalizations.of(context)!.resendOtp
+                              : '${AppLocalizations.of(context)!.resendIn}${_formatCountdown(authProvider.resendCountdown)}',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -286,7 +308,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
               PremiumButton(
                 showLoader: _isVerifying,
                 fontsize: 18,
-                text: "Verify",
+                text: AppLocalizations.of(context)!.verify,
                 onTap: _isVerifying ? () {} : _handleVerify,
               ),
             ],

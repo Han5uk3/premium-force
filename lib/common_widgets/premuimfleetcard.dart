@@ -189,7 +189,8 @@ class Premuimfleetcard extends StatelessWidget {
             // BackdropFilter so it is scroll-safe.
             Positioned(
               top: 5,
-              right: 5,
+              right: Directionality.of(context) == TextDirection.ltr ? 5 : null,
+              left: Directionality.of(context) == TextDirection.rtl ? 5 : null,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: SizedBox(
@@ -202,7 +203,16 @@ class Premuimfleetcard extends StatelessWidget {
                       imageProvider.isNotEmpty
                           ? Positioned(
                               top: -5,
-                              right: -5,
+                              right:
+                                  Directionality.of(context) ==
+                                      TextDirection.rtl
+                                  ? -5
+                                  : null,
+                              left:
+                                  Directionality.of(context) ==
+                                      TextDirection.ltr
+                                  ? -5
+                                  : null,
                               width: 240,
                               height: 160,
                               child: ImageFiltered(
@@ -220,7 +230,16 @@ class Premuimfleetcard extends StatelessWidget {
                             )
                           : Positioned(
                               top: -5,
-                              right: -5,
+                              right:
+                                  Directionality.of(context) ==
+                                      TextDirection.rtl
+                                  ? -5
+                                  : null,
+                              left:
+                                  Directionality.of(context) ==
+                                      TextDirection.ltr
+                                  ? -5
+                                  : null,
                               width: 240,
                               height: 160,
                               child: Container(color: Colors.grey[700]),

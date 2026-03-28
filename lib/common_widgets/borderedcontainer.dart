@@ -18,22 +18,20 @@ class PremiumContainer extends StatelessWidget {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: Colors.black,
         gradient: LinearGradient(
           colors: [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Center(
-        child: Container(
-          height: height - 1.2,
-          width: width - 1.2,
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: child,
+      child: Container(
+        margin: EdgeInsets.all(1),
+        height: height,
+        width: width,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
         ),
+        child: child,
       ),
     );
   }

@@ -21,7 +21,6 @@ import 'package:country_picker/country_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:premium_force_main/services/payment_service.dart';
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
 import 'package:flutter/services.dart';
@@ -101,6 +100,11 @@ class _NewBookingState extends State<NewBooking> {
   int _selectedAirportCode = 0;
   OverlayEntry? _overlayEntry;
   String _selectedPassengerCountryCode = '966';
+
+  // Promo Code variables
+  bool _isPromoValid = false;
+  String? _appliedPromoId;
+  double _discountPercentage = 0.0;
   int _selectedServiceDuration =
       0; // 0 for hourly, 1 for 8 hours, 2 for 12 hours
   int _selectedEstimatedHours = 1; // 1 to 12
@@ -469,6 +473,36 @@ class _NewBookingState extends State<NewBooking> {
     _apiTerminals = widget.preloadedTerminals ?? [];
 
     _loadCarData();
+    _loadUserPromoCode();
+  }
+
+  Future<void> _loadUserPromoCode() async {
+    final userData = UserLocalStorage.getUserData();
+    final specialId = userData?['specialId']?.toString();
+    if (specialId == null || specialId.isEmpty) return;
+
+    final result = await ApiService().getSpecialContentByCode(code: specialId);
+    if (result['success'] == true) {
+      final promo = result['data'];
+      if (promo != null && promo['isActive'] == true) {
+        if (mounted) {
+          setState(() {
+            _isPromoValid = true;
+            _appliedPromoId = promo['_id'] ?? promo['id'];
+            _discountPercentage = _parseDouble(
+              promo['discountPercentage'] ?? promo['discount'] ?? 0,
+            );
+          });
+        }
+      } else {
+        if (mounted) {
+          _showCustomSnackBar(
+            "Promo code expired, please add a new promo code",
+            "E",
+          );
+        }
+      }
+    }
   }
 
   /// Load car data (categories, brands, cars) from the backend API.
@@ -1449,6 +1483,9 @@ class _NewBookingState extends State<NewBooking> {
 
                                 final totalWithVat =
                                     _calculatedCharge *
+                                    (_isPromoValid
+                                        ? (1 - _discountPercentage / 100)
+                                        : 1) *
                                     1.15; // Including 15% VAT
                                 final orderId =
                                     "BOOK_${DateTime.now().millisecondsSinceEpoch}";
@@ -1567,10 +1604,9 @@ class _NewBookingState extends State<NewBooking> {
                                     } else if (selectedCar.imagePath.startsWith(
                                       'http',
                                     )) {
-                                      carImageFile =
-                                          await _getImageFileFromUrl(
-                                            selectedCar.imagePath,
-                                          );
+                                      carImageFile = await _getImageFileFromUrl(
+                                        selectedCar.imagePath,
+                                      );
                                     } else {
                                       final localFile = File(
                                         selectedCar.imagePath,
@@ -1644,6 +1680,7 @@ class _NewBookingState extends State<NewBooking> {
                                     carID: _getSelectedCarId(),
                                     brandID: _getSelectedBrandId(),
                                     categoryID: _getSelectedCategoryId(),
+                                    specialId: _appliedPromoId,
                                     carclass: _selectedVehicleClass,
                                     carName: _selectedVehicleModel,
                                     carbrand: _selectedVehicleBrand,
@@ -1698,7 +1735,7 @@ class _NewBookingState extends State<NewBooking> {
                                       "Booking confirmed successfully!",
                                       'S',
                                     );
-                                    Navigator.of(context).pop();
+                                    Navigator.of(context).pop(true);
                                   } else {
                                     _showCustomSnackBar(
                                       apiResponse['message'] ??
@@ -1774,27 +1811,29 @@ class _NewBookingState extends State<NewBooking> {
           child: Builder(
             builder: (context) {
               String getDisplayDate() {
+                DateTime? date;
                 if (_selectedCatCode == 0) {
-                  return _selectedDate != null
-                      ? DateFormat("yyyy-MM-dd").format(_selectedDate!)
-                      : "";
+                  date = _selectedDate;
                 } else {
-                  return _selectedPickupDate != null
-                      ? DateFormat("yyyy-MM-dd").format(_selectedPickupDate!)
-                      : "";
+                  date = _selectedPickupDate;
                 }
+                return Bookingcard.formatDate(context, date);
               }
 
               String getDisplayTime() {
-                if (_selectedCatCode == 0) {
-                  return _selectedTime != null
-                      ? _selectedTime!.format(context)
-                      : "";
-                } else {
-                  return _selectedPickupTime != null
-                      ? _selectedPickupTime!.format(context)
-                      : "";
-                }
+                TimeOfDay? timeOfDay = (_selectedCatCode == 0)
+                    ? _selectedTime
+                    : _selectedPickupTime;
+                if (timeOfDay == null) return "";
+                final now = DateTime.now();
+                final dt = DateTime(
+                  now.year,
+                  now.month,
+                  now.day,
+                  timeOfDay.hour,
+                  timeOfDay.minute,
+                );
+                return Bookingcard.formatTime(context, dt);
               }
 
               String getPickup() {
@@ -1815,7 +1854,6 @@ class _NewBookingState extends State<NewBooking> {
                 return _dropAddress ?? "";
               }
 
-              final selectedCar = _getSelectedCar();
               return Bookingcard(
                 isFromReviewAndConfirm: true,
                 status: "",
@@ -1830,7 +1868,6 @@ class _NewBookingState extends State<NewBooking> {
                 ride: _selectedVehicleClass ?? "",
                 brand: _selectedVehicleBrand ?? "",
                 passengers: int.tryParse(_numberOfPassengers ?? "1") ?? 1,
-                carImageUrl: selectedCar?.imagePath,
               );
             },
           ),
@@ -1999,14 +2036,52 @@ class _NewBookingState extends State<NewBooking> {
                 ),
                 SizedBox(height: 8),
                 */
+                /*
+                const SizedBox(height: 16),
+                PremiumTextField(
+                  controller: _promoController,
+                  title: "Promo Code",
+                  hintText: "Enter promo code",
+                  readOnly: _isPromoValid,
+                  enabled: !_isPromoValid,
+                  needBorder: true,
+                  blackbg: true,
+                  borderRadius: 12,
+                  suffixIcon: _isCheckingPromo
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFFE4A46B),
+                              ),
+                            ),
+                          ),
+                        )
+                      : TextButton(
+                          onPressed: _isPromoValid ? _removePromoCode : _verifyPromoCode,
+                          child: Text(
+                            _isPromoValid ? "Remove" : "Apply",
+                            style: TextStyle(
+                              color: _isPromoValid ? Colors.red : const Color(0xFFE4A46B),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                ),
+                */
+                const SizedBox(height: 24),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
                       getBaseChargeText(loc),
-
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -2015,10 +2090,10 @@ class _NewBookingState extends State<NewBooking> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        RiyalSymbol(color: Colors.white, size: 16),
+                        const RiyalSymbol(color: Colors.white, size: 16),
                         Text(
                           " ${_calculatedCharge.toStringAsFixed(2)}",
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -2028,7 +2103,42 @@ class _NewBookingState extends State<NewBooking> {
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
+                if (_isPromoValid && _discountPercentage > 0) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Discount (${_discountPercentage.toStringAsFixed(0)}%)",
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            "-",
+                            style: TextStyle(color: Colors.green, fontSize: 16),
+                          ),
+                          const RiyalSymbol(color: Colors.green, size: 16),
+                          Text(
+                            " ${(_calculatedCharge * (_discountPercentage / 100)).toStringAsFixed(2)}",
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 8),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2036,7 +2146,7 @@ class _NewBookingState extends State<NewBooking> {
                   children: [
                     Text(
                       loc.vat,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -2045,10 +2155,10 @@ class _NewBookingState extends State<NewBooking> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        RiyalSymbol(color: Colors.white, size: 16),
+                        const RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " ${(_calculatedCharge * 0.15).toStringAsFixed(2)}",
-                          style: TextStyle(
+                          " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 0.15).toStringAsFixed(2)}",
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -2058,17 +2168,17 @@ class _NewBookingState extends State<NewBooking> {
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
 
                 Divider(color: Colors.grey.shade700),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
                       loc.total,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -2077,10 +2187,10 @@ class _NewBookingState extends State<NewBooking> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        RiyalSymbol(color: Colors.white, size: 16),
+                        const RiyalSymbol(color: Colors.white, size: 16),
                         Text(
-                          " ${(_calculatedCharge * 1.15).toStringAsFixed(2)}",
-                          style: TextStyle(
+                          " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 1.15).toStringAsFixed(2)}",
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
@@ -3612,7 +3722,7 @@ class _NewBookingState extends State<NewBooking> {
           backgroundColor: Colors.transparent,
           leading: IconButton(
             enableFeedback: true,
-            icon: Icon(Icons.arrow_back_ios, color: Colors.white),
+            icon: Icon(Icons.arrow_back_ios, color: Colors.white, size: 16),
             onPressed: _handleBackAction,
           ),
           bottom: PreferredSize(
