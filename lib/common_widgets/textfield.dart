@@ -24,6 +24,7 @@ class PremiumTextField extends StatelessWidget {
   final bool needAutoCapitalize;
   final FontWeight titleFontWeight;
   final Widget? suffix;
+  final FocusNode? focusNode;
   const PremiumTextField({
     super.key,
     this.needTitle = true,
@@ -47,6 +48,7 @@ class PremiumTextField extends StatelessWidget {
     this.needAutoCapitalize = false,
     this.titleFontWeight = FontWeight.w400,
     this.suffix,
+    this.focusNode,
   });
 
   @override
@@ -118,6 +120,7 @@ class PremiumTextField extends StatelessWidget {
                         ],
                         controller: controller,
                         keyboardType: keyboardType,
+                        focusNode: focusNode,
                         obscureText: obscureText,
                         enabled: enabled,
                         readOnly: readOnly,

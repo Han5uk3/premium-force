@@ -13,11 +13,13 @@ class Bookingcard extends StatelessWidget {
   final int passengers;
   final bool isFromReviewAndConfirm;
   final bool isChauffeur;
+  final String? carImageUrl;
   const Bookingcard({
     super.key,
     this.passengers = 1,
     this.isFromReviewAndConfirm = false,
     this.isChauffeur = false,
+    this.carImageUrl,
     required this.status,
     required this.type,
     required this.pickup,

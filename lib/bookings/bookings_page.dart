@@ -5,6 +5,7 @@ import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
+import 'package:premium_force_main/common_widgets/premiumloader.dart';
 
 class BookingsPage extends StatefulWidget {
   const BookingsPage({super.key});
@@ -49,55 +50,81 @@ class _BookingsPageState extends State<BookingsPage>
       }
 
       final token = UserLocalStorage.getToken();
-      final response = await _apiService.getBookingsByCustomerId(
-        customerId: currentUserId,
-        token: token,
-      );
 
-      if (response['success'] == true) {
+      // Fetch regular bookings and hourly bookings in parallel
+      final results = await Future.wait([
+        _apiService.getBookingsByCustomerId(
+          customerId: currentUserId,
+          token: token,
+        ),
+        _apiService.getHourlyBookingsByCustomerId(
+          customerId: currentUserId,
+          token: token,
+        ),
+      ]);
+
+      final regularResponse = results[0];
+      final hourlyResponse = results[1];
+
+      List<BookingModel> userBookings = [];
+
+      if (regularResponse['success'] == true) {
         final List<dynamic> bookingsJson =
-            response['data'] ?? response['bookings'] ?? [];
+            regularResponse['data'] ?? regularResponse['bookings'] ?? [];
+        userBookings.addAll(
+          bookingsJson.map((json) => BookingModel.fromJson(json)),
+        );
+      }
 
-        // Convert to models (no needs for client-side filtering anymore)
-        final List<BookingModel> userBookings = bookingsJson
-            .map((json) => BookingModel.fromJson(json))
-            .toList();
+      if (hourlyResponse['success'] == true) {
+        final List<dynamic> hourlyBookingsJson =
+            hourlyResponse['data'] ?? hourlyResponse['bookings'] ?? [];
+        userBookings.addAll(
+          hourlyBookingsJson.map((json) => BookingModel.fromJson(json)),
+        );
+      }
 
-        // Sort by most recent (createdAt or arrival)
-        userBookings.sort((a, b) {
-          final dateA =
-              a.createdAt ??
-              (a.arrival != null ? DateTime.tryParse(a.arrival!) : null) ??
-              DateTime(0);
-          final dateB =
-              b.createdAt ??
-              (b.arrival != null ? DateTime.tryParse(b.arrival!) : null) ??
-              DateTime(0);
-          return dateB.compareTo(dateA); // Most recent first
-        });
+      if (userBookings.isEmpty &&
+          regularResponse['success'] != true &&
+          hourlyResponse['success'] != true) {
+        _errorMessage =
+            regularResponse['message'] ??
+            hourlyResponse['message'] ??
+            "Failed to fetch bookings";
+      }
 
-        // Categorize bookings
-        _upcomingBookings = [];
-        _ongoingBookings = [];
-        _completedBookings = [];
-        _canceledBookings = [];
+      // Sort by most recent (createdAt or arrival)
+      userBookings.sort((a, b) {
+        final dateA =
+            a.createdAt ??
+            (a.arrival != null ? DateTime.tryParse(a.arrival!) : null) ??
+            DateTime(0);
+        final dateB =
+            b.createdAt ??
+            (b.arrival != null ? DateTime.tryParse(b.arrival!) : null) ??
+            DateTime(0);
+        return dateB.compareTo(dateA); // Most recent first
+      });
 
-        for (final booking in userBookings) {
-          final status = booking.bookingStatus?.toLowerCase() ?? 'pending';
+      // Categorize bookings
+      _upcomingBookings = [];
+      _ongoingBookings = [];
+      _completedBookings = [];
+      _canceledBookings = [];
 
-          if (status == 'pending') {
-            _upcomingBookings.add(booking);
-          } else if (status == 'completed') {
-            _completedBookings.add(booking);
-          } else if (status == 'cancelled') {
-            _canceledBookings.add(booking);
-          } else {
-            // Ongoing is anything that is not pending, completed, or cancelled
-            _ongoingBookings.add(booking);
-          }
+      for (final booking in userBookings) {
+        final status = booking.bookingStatus?.toLowerCase() ?? 'pending';
+
+        if (status == 'pending') {
+          _upcomingBookings.add(booking);
+        } else if (status == 'completed') {
+          _completedBookings.add(booking);
+        } else if (status == 'cancelled') {
+          _canceledBookings.add(booking);
+        } else {
+          // Ongoing is anything that is not pending, completed, or cancelled
+          _ongoingBookings.add(booking);
         }
-      } else {
-        _errorMessage = response['message'] ?? "Failed to fetch bookings";
       }
     } catch (e) {
       _errorMessage = "An unexpected error occurred: $e";
@@ -177,7 +204,7 @@ class _BookingsPageState extends State<BookingsPage>
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(
+                      child: PremiumLoader(
                         color: Color(0xFFE4A46B),
                       ),
                     )
@@ -273,15 +300,20 @@ class _BookingsPageState extends State<BookingsPage>
               date: dateStr,
               time: timeStr,
               ride:
-                  booking.carName ??
-                  ((booking.carbrand != null || booking.carmodel != null)
-                      ? '${booking.carbrand ?? ''} ${booking.carmodel ?? ''}'
-                            .trim()
-                      : 'N/A'),
+                  booking.estimatedHours != null
+                      ? '${booking.carName ?? ''} (${booking.estimatedHours} Hours)'
+                          .trim()
+                      : (booking.carName ??
+                          ((booking.carbrand != null ||
+                                  booking.carmodel != null)
+                              ? '${booking.carbrand ?? ''} ${booking.carmodel ?? ''}'
+                                  .trim()
+                              : 'N/A')),
               brand: booking.carbrand ?? 'N/A',
               passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
               isChauffeur:
-                  (booking.category ?? '').toLowerCase() == 'chauffeur',
+                  (booking.category ?? '').toLowerCase().contains('chauffeur') ||
+                  booking.estimatedHours != null,
             ),
           );
         },

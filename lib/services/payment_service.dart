@@ -83,8 +83,9 @@ class PaymentService {
       FlutterPaytabsBridge.startCardPayment(configuration, (event) {
         debugPrint('🎯 PayTabs Callback Received: $event');
         
-        if (event["status"] == "success") {
+        if (completer.isCompleted) return;
 
+        if (event["status"] == "success") {
           var transactionDetails = event["data"];
           debugPrint('Transaction Details: $transactionDetails');
 
@@ -123,17 +124,38 @@ class PaymentService {
           ));
         } else if (event["status"] == "event") {
           debugPrint('PayTabs Internal Event: ${event["message"]}');
-          if (event["message"] == "cancel") {
-             completer.complete(PaymentResult(
-                success: false,
-                transactionReference: '',
-                invoiceId: '',
-                responseCode: 'CANCELLED',
-                responseMessage: 'Payment was cancelled by user',
-                customerEmail: request.customerEmail,
-                amount: request.amount,
-              ));
+          if (!completer.isCompleted) {
+            final msg = event["message"]?.toString().toLowerCase();
+            completer.complete(PaymentResult(
+              success: false,
+              transactionReference: '',
+              invoiceId: '',
+              responseCode: 'EVENT_CANCELLED',
+              responseMessage: msg == "cancel"
+                  ? "Payment Cancelled"
+                  : (event["message"] ?? 'Payment activity stopped'),
+              customerEmail: request.customerEmail,
+              amount: request.amount,
+            ));
           }
+        } else {
+          // Catch any other status (like direct 'cancel' in some SDK versions)
+          final status = (event["status"] ?? 'UNKNOWN').toString().toLowerCase();
+          final msg = (event["message"] ?? '').toString().toLowerCase();
+          
+          debugPrint('PayTabs Other Status: $status - $msg');
+          
+          completer.complete(PaymentResult(
+            success: false,
+            transactionReference: '',
+            invoiceId: '',
+            responseCode: status.toUpperCase(),
+            responseMessage: (status == "cancel" || msg == "cancel")
+                ? "Payment Cancelled"
+                : (event["message"] ?? 'Transaction failed or was stopped'),
+            customerEmail: request.customerEmail,
+            amount: request.amount,
+          ));
         }
       });
 

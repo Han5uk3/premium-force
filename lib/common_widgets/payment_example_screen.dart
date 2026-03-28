@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/payment_provider.dart';
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
+import 'package:premium_force_main/common_widgets/premiumloader.dart';
 
 /// Example payment widget
 /// This demonstrates how to integrate Paytabs payment in your app
@@ -182,15 +183,9 @@ class _PaymentExampleScreenState extends State<PaymentExampleScreen> {
                       disabledBackgroundColor: Colors.grey,
                     ),
                     child: paymentProvider.isProcessing
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
+                        ? const PremiumLoader(
+                            size: 24,
+                            color: Colors.white,
                           )
                         : const Text('Pay Now'),
                   ),

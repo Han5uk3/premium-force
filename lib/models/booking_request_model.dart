@@ -15,7 +15,7 @@ class BookingRequestModel {
   double? charge;
   String? carbrand;
   String? carmodel;
-  File? carimage;
+  File? carImage;
   String? specialRequestText;
   File? specialRequestAudio;
   String? passengerCount;
@@ -54,7 +54,7 @@ class BookingRequestModel {
     this.charge,
     this.carbrand,
     this.carmodel,
-    this.carimage,
+    this.carImage,
     this.specialRequestText,
     this.specialRequestAudio,
     this.passengerCount,
@@ -94,7 +94,7 @@ class BookingRequestModel {
       if (charge != null) 'charge': charge,
       if (carbrand != null) 'carbrand': carbrand,
       if (carmodel != null) 'carmodel': carmodel,
-      if (carimage != null) 'carimage': carimage!.path, // Displaying path
+      if (carImage != null) 'carImage': carImage!.path, 
       if (specialRequestText != null) 'specialRequestText': specialRequestText,
       if (specialRequestAudio != null)
         'specialRequestAudio': specialRequestAudio!.path,

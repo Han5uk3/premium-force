@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/common_widgets/premiumloader.dart';
 
 class LocationPickerPage extends StatefulWidget {
   final double? initialLat;
@@ -239,44 +240,70 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: _buildAppBar(),
+        floatingActionButton:
+            widget.needCurrentLocationButton && _selectedAddress.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: FloatingActionButton(
+                  onPressed: _isLoading ? null : _useCurrentLocation,
+                  backgroundColor: const Color(0xFF0D0A08),
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFF49280B), width: 1),
+                  ),
+                  child: _isLoading
+                      ? const PremiumLoader(size: 24, color: Color(0xFFE4A46B))
+                      : ShaderMask(
+                          shaderCallback: (Rect bounds) {
+                            return const LinearGradient(
+                              colors: [
+                                Color(0xFF49280B),
+                                Color(0xFFE4A46B),
+                                Color(0xFF60350F),
+                              ],
+                            ).createShader(bounds);
+                          },
+                          child: const Icon(
+                            Icons.my_location,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              )
+            : null,
         body: Stack(
           children: [
             // Map
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
+            GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _selectedLocation,
+                zoom: 14,
               ),
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: _selectedLocation,
-                  zoom: 14,
-                ),
-                onMapCreated: (controller) {
-                  _mapController.complete(controller);
-                },
-                onTap: (latLng) async {
-                  setState(() {
-                    _selectedLocation = latLng;
-                  });
-                  await _getAddressFromLatLng(latLng);
-                },
-                markers: {
-                  Marker(
-                    markerId: const MarkerId('selected'),
-                    position: _selectedLocation,
-                    icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueOrange,
-                    ),
+              onMapCreated: (controller) {
+                _mapController.complete(controller);
+              },
+              onTap: (latLng) async {
+                setState(() {
+                  _selectedLocation = latLng;
+                });
+                await _getAddressFromLatLng(latLng);
+              },
+              markers: {
+                Marker(
+                  markerId: const MarkerId('selected'),
+                  position: _selectedLocation,
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueOrange,
                   ),
-                },
-                mapType: MapType.normal,
-                myLocationEnabled: false,
-                myLocationButtonEnabled: false,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-                style: _mapDarkStyle,
-              ),
+                ),
+              },
+              mapType: MapType.normal,
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              style: _mapDarkStyle,
             ),
 
             // Search bar overlay at top
@@ -388,13 +415,9 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                         ),
                       ),
                       child: const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFFE4A46B),
-                          ),
+                        child: PremiumLoader(
+                          size: 20,
+                          color: Color(0xFFE4A46B),
                         ),
                       ),
                     ),
@@ -440,6 +463,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             ),
                             title: Text(
                               _searchResults[index]['address'],
+                              textAlign: TextAlign.left,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 13,
@@ -457,40 +481,40 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               ),
             ),
 
-            // Bottom panel with address + buttons
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFF3E230A), Color(0xFF141313)],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(150),
-                      blurRadius: 20,
-                      offset: const Offset(0, -5),
+            // Bottom panel with address + buttons (only shown when address is not empty)
+            if (_selectedAddress.isNotEmpty)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF3E230A), Color(0xFF141313)],
                     ),
-                  ],
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Selected address display
-                        if (_selectedAddress.isNotEmpty) ...[
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(150),
+                        blurRadius: 20,
+                        offset: const Offset(0, -5),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Selected address display
                           Row(
                             children: [
                               ShaderMask(
@@ -532,131 +556,114 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 20),
-                        ],
 
-                        // Use current location button
-                        widget.needCurrentLocationButton
-                            ? GestureDetector(
-                                onTap: _isLoading ? null : _useCurrentLocation,
-                                child: Container(
-                                  width: double.infinity,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0D0A08),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFF49280B),
-                                      width: 1,
-                                    ),
+                          if (widget.needCurrentLocationButton) ...[
+                            // Use current location button (condensed in selected state)
+                            GestureDetector(
+                              onTap: _isLoading ? null : _useCurrentLocation,
+                              child: Container(
+                                width: double.infinity,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0D0A08),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFF49280B),
+                                    width: 1,
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (_isLoading)
-                                        const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Color(0xFFE4A46B),
-                                          ),
-                                        )
-                                      else
-                                        ShaderMask(
-                                          shaderCallback: (Rect bounds) {
-                                            return const LinearGradient(
-                                              colors: [
-                                                Color(0xFF49280B),
-                                                Color(0xFFE4A46B),
-                                                Color(0xFF60350F),
-                                              ],
-                                            ).createShader(bounds);
-                                          },
-                                          child: const Icon(
-                                            Icons.my_location,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                        ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        _isLoading
-                                            ? 'Getting location...'
-                                            : 'Use Current Location',
-                                        style: const TextStyle(
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (_isLoading)
+                                      const PremiumLoader(
+                                        size: 24,
+                                        color: Color(0xFFE4A46B),
+                                      )
+                                    else
+                                      ShaderMask(
+                                        shaderCallback: (Rect bounds) {
+                                          return const LinearGradient(
+                                            colors: [
+                                              Color(0xFF49280B),
+                                              Color(0xFFE4A46B),
+                                              Color(0xFF60350F),
+                                            ],
+                                          ).createShader(bounds);
+                                        },
+                                        child: const Icon(
+                                          Icons.my_location,
                                           color: Colors.white,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w500,
+                                          size: 20,
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      _isLoading
+                                          ? 'Getting location...'
+                                          : 'Use Current Location',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              )
-                            : SizedBox.shrink(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
 
-                        const SizedBox(height: 12),
-
-                        // Confirm button
-                        GestureDetector(
-                          onTap: () {
-                            if (_selectedAddress.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Please select a location first',
-                                  ),
-                                  backgroundColor: Colors.red,
+                          // Confirm button
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context, {
+                                'address': _selectedAddress,
+                                'lat': _selectedLocation.latitude,
+                                'lng': _selectedLocation.longitude,
+                              });
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Color(0xFF49280B),
+                                    Color(0xFFE4A46B),
+                                    Color(0xFF60350F),
+                                  ],
                                 ),
-                              );
-                              return;
-                            }
-                            Navigator.pop(context, {
-                              'address': _selectedAddress,
-                              'lat': _selectedLocation.latitude,
-                              'lng': _selectedLocation.longitude,
-                            });
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(10),
+                                    blurRadius: 8,
+                                    spreadRadius: 3,
+                                  ),
                                 ],
                               ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withAlpha(10),
-                                  blurRadius: 8,
-                                  spreadRadius: 3,
-                                ),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Confirm Location',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
+                              child: const Center(
+                                child: Text(
+                                  'Confirm Location',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),

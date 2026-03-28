@@ -13,6 +13,7 @@ import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:premium_force_main/common_widgets/premiumloader.dart';
 
 class PremiumForceLoginPage extends StatefulWidget {
   const PremiumForceLoginPage({super.key});
@@ -29,13 +30,23 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
   bool _isAgreed = false;
   OverlayEntry? _overlayEntry;
   bool _isLoading = false;
+  final FocusNode _mobileFocusNode = FocusNode();
   String _selectedCountryCode = '966';
+
+  @override
+  void initState() {
+    super.initState();
+    _mobileFocusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
     _overlayEntry?.remove();
     _mobileController.dispose();
     _emailController.dispose();
+    _mobileFocusNode.dispose();
     super.dispose();
   }
 
@@ -149,40 +160,77 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF1E1105),
       body: Form(
         key: _formKey,
-        child: Column(
-          children: [
-            // Top section with logo
-            Expanded(
-              flex: 30,
-              child: SizedBox(
-                child: Image.asset(
-                  'assets/applogo/premiumforcelogo.png', // You'll need to add your logo
-                  width: 180,
-                  height: 100,
-                ),
-              ),
-            ),
-            // Bottom section with form
-            Expanded(
-              flex: 55,
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFF3E230A), Color(0xFF141313)],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
+            final double screenHeight = constraints.maxHeight;
+            final double initialFormTop = screenHeight * 0.35;
+            
+            // Sync settings
+            const Duration animDuration = Duration(milliseconds: 250);
+            const Curve animCurve = Curves.easeOutCubic;
+
+            // Movements
+            // Only slide the background if the login screen's own field has focus
+            final bool isMainKeyboardActive = _mobileFocusNode.hasFocus;
+            
+            // Logo moves up subtly (by 30% of keyboard)
+            final double logoSlideUp = isMainKeyboardActive ? (bottomInset * 0.30) : 0;
+            // Form slides over the logo (by 60% of keyboard)
+            // Capped to ensure some logo area always remains visible
+            final double maxFormSlide = initialFormTop - 60; // Leave 60px of top area
+            final double formSlideUp = isMainKeyboardActive 
+                ? (bottomInset * 0.65).clamp(0, maxFormSlide) 
+                : 0;
+
+            return Stack(
+              children: [
+                // Logo Parallax
+                AnimatedPositioned(
+                  duration: animDuration,
+                  curve: animCurve,
+                  top: -logoSlideUp,
+                  left: 0,
+                  right: 0,
+                  height: initialFormTop,
+                  child: Center(
+                    child: Image.asset(
+                      'assets/applogo/premiumforcelogo.png',
+                      width: 180,
+                      height: 100,
+                    ),
                   ),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
                 ),
-                child: Padding(
+                // Form Slide
+                AnimatedPositioned(
+                  duration: animDuration,
+                  curve: animCurve,
+                  top: initialFormTop - formSlideUp,
+                  left: 0,
+                  right: 0,
+                  bottom: -formSlideUp,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF3E230A), Color(0xFF141313)],
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(30),
+                        topRight: Radius.circular(30),
+                      ),
+                    ),
+                    child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      bottom: bottomInset > 0 ? bottomInset + 20 : 0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -190,7 +238,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                         // Sign In Title
                         Text(
                           AppLocalizations.of(context)!.signIn,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
                             fontWeight: FontWeight.w600,
@@ -199,8 +247,9 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                         ),
                         const SizedBox(height: 32),
 
-                        PremiumTextField(
-                          title: AppLocalizations.of(context)!.mobileNumber,
+                          PremiumTextField(
+                            focusNode: _mobileFocusNode,
+                            title: AppLocalizations.of(context)!.mobileNumber,
                           validator: (value) {
                             if (value!.isEmpty) {
                               return AppLocalizations.of(
@@ -510,16 +559,18 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
                         const SizedBox(height: 32),
                       ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                    ), // Column
+                  ), // SingleChildScrollView
+                ), // Padding
+              ), // Container
+            ), // AnimatedPositioned
+          ], // Children
+        ); // Stack
+      }, // Builder
+    ), // LayoutBuilder
+  ), // Form
+); // Scaffold body (actually Form is the body)
+}
 }
 
 /// A styled Google Sign-In button that matches the app's dark premium theme.
@@ -552,16 +603,7 @@ class _GoogleSignInButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (isLoading)
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFFE4A46B),
-                      ),
-                    ),
-                  )
+                  const PremiumLoader(size: 24, color: Color(0xFFE4A46B))
                 else ...[
                   SvgPicture.asset(
                     'assets/icons/google_logo.svg',
@@ -618,16 +660,7 @@ class _AppleSignInButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (isLoading)
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Color(0xFFE4A46B),
-                      ),
-                    ),
-                  )
+                  const PremiumLoader(size: 24, color: Color(0xFFE4A46B))
                 else ...[
                   const Icon(Icons.apple, color: Colors.white, size: 24),
                   const SizedBox(width: 14),

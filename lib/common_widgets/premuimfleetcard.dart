@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/common_widgets/premiumloader.dart';
 
 class Premuimfleetcard extends StatelessWidget {
   const Premuimfleetcard({
@@ -73,11 +74,9 @@ class Premuimfleetcard extends StatelessWidget {
                     placeholder: (context, url) => Container(
                       color: Colors.grey[800],
                       child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.grey[600]!,
-                          ),
+                        child: PremiumLoader(
+                          size: 24,
+                          color: Colors.grey[600]!,
                         ),
                       ),
                     ),
@@ -238,15 +237,9 @@ class Premuimfleetcard extends StatelessWidget {
                                 imageUrl: brandLogoUrl!,
                                 fit: BoxFit.contain,
                                 placeholder: (context, url) => Center(
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1.5,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.amber,
-                                      ),
-                                    ),
+                                  child: PremiumLoader(
+                                    size: 24,
+                                    color: Colors.amber,
                                   ),
                                 ),
                                 errorWidget: (context, url, error) => Center(
@@ -270,15 +263,9 @@ class Premuimfleetcard extends StatelessWidget {
                                     "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/thumb/${brand.toLowerCase()}.png",
                                 fit: BoxFit.contain,
                                 placeholder: (context, url) => Center(
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1.5,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.amber,
-                                      ),
-                                    ),
+                                  child: PremiumLoader(
+                                    size: 24,
+                                    color: Colors.amber,
                                   ),
                                 ),
                                 errorWidget: (context, url, error) => Center(

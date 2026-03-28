@@ -629,7 +629,7 @@ class ApiService {
     }
   }
 
-  /// Fetch a route by cities and vehicle.
+  /// Fetch routes by cities and vehicle.
   /// This is another way to check if a route exists.
   Future<Map<String, dynamic>> getRouteByCities({
     required String fromCityId,
@@ -646,6 +646,24 @@ class ApiService {
           'toCity': toCityId,
           if (vehicleId != null) 'vehicleID': vehicleId,
         },
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch hourly pricing specifically for a vehicle.
+  ///
+  /// Calls `GET /api/hourly-routes/vehicle/:vehicleId`
+  Future<Map<String, dynamic>> getHourlyPriceForVehicle({
+    required String vehicleId,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.get(
+        'hourly-routes/vehicle/$vehicleId',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -674,11 +692,8 @@ class ApiService {
           filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
         );
       }
-      if (booking.carimage != null) {
-        fields['carimage'] = await MultipartFile.fromFile(
-          booking.carimage!.path,
-          filename: 'car_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        );
+      if (booking.carImage != null) {
+        fields['carImage'] = await MultipartFile.fromFile(booking.carImage!.path, filename: 'car_image.jpg');
       }
 
       final formData = FormData.fromMap(fields);
@@ -714,6 +729,24 @@ class ApiService {
     try {
       final response = await _dio.get(
         'bookings/customer/$customerId',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch all hourly bookings for a specific customer.
+  ///
+  /// Calls `GET /api/hourly-bookings/customer/:customerId`
+  Future<Map<String, dynamic>> getHourlyBookingsByCustomerId({
+    required String customerId,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.get(
+        'hourly-bookings/customer/$customerId',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -804,11 +837,8 @@ class ApiService {
           filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
         );
       }
-      if (booking.carimage != null) {
-        fields['carImge'] = await MultipartFile.fromFile(
-          booking.carimage!.path,
-          filename: 'car_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        ); // typo: carImge
+      if (booking.carImage != null) {
+        fields['carImage'] = await MultipartFile.fromFile(booking.carImage!.path, filename: 'car_image.jpg');
       }
 
       final formData = FormData.fromMap(fields);
@@ -823,21 +853,12 @@ class ApiService {
         }
       }
 
-      /*
       final response = await _dio.post(
         'hourly-bookings',
         data: formData,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
-      */
-
-      // Mocking a successful response for testing
-      return {
-        'success': true,
-        'message': 'Mock hourly booking successful!',
-        'bookingID': 'MOCK_HOURLY_${DateTime.now().millisecondsSinceEpoch}',
-      };
     } catch (e) {
       return _handleError(e);
     }

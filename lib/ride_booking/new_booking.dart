@@ -10,6 +10,7 @@ import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/authentication/location_picker.dart';
+import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/ride_booking/voice_note_dialog.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -23,6 +24,8 @@ import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/services/payment_service.dart';
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -67,7 +70,6 @@ class _NewBookingState extends State<NewBooking> {
   final _tripInfoFormKey = GlobalKey<FormState>();
   final _preferencesFormKey = GlobalKey<FormState>();
   final _passengerFormKey = GlobalKey<FormState>();
-  final _chauffeurTripInfoFormKey = GlobalKey<FormState>();
 
   bool showPreferances = false;
   bool showTripInfo = true;
@@ -108,7 +110,7 @@ class _NewBookingState extends State<NewBooking> {
 
     final car = _getSelectedCar();
     if (car == null) return 50.0; // Minimal default
-    
+
     // For Chauffeur Service
     if (_selectedCatCode == 2) {
       double basePrice = car.price;
@@ -117,7 +119,7 @@ class _NewBookingState extends State<NewBooking> {
         return basePrice * _selectedEstimatedHours;
       } else if (_selectedServiceDuration == 1) {
         // 8 Hours: Potentially a discounted rate
-        return basePrice * 8; 
+        return basePrice * 8;
       } else {
         // 12 Hours
         return basePrice * 12;
@@ -128,7 +130,7 @@ class _NewBookingState extends State<NewBooking> {
     double distance = _totalDistance;
     double minCharge = car.price;
     double minDistance = car.distance;
-    
+
     if (distance <= minDistance) {
       return minCharge;
     } else {
@@ -158,6 +160,43 @@ class _NewBookingState extends State<NewBooking> {
     }
   }
 
+  /// Converts an asset to a temporary file
+  Future<File> _getImageFileFromAsset(String assetPath) async {
+    final byteData = await rootBundle.load(assetPath);
+    final file = File(
+      '${(await getTemporaryDirectory()).path}/${assetPath.split('/').last}',
+    );
+    await file.create(recursive: true);
+    await file.writeAsBytes(
+      byteData.buffer.asUint8List(
+        byteData.offsetInBytes,
+        byteData.lengthInBytes,
+      ),
+    );
+    return file;
+  }
+
+  /// Downloads an image from URL and saves to a temporary file
+  Future<File?> _getImageFileFromUrl(String url) async {
+    try {
+      final response = await Dio().get<List<int>>(
+        url,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      if (response.data != null) {
+        final tempDir = await getTemporaryDirectory();
+        // Extract fileName but keep it simple
+        String fileName = url.split('/').last.split('?').first;
+        if (!fileName.contains('.')) fileName = "$fileName.jpg";
+        final file = File('${tempDir.path}/$fileName');
+        await file.writeAsBytes(response.data!);
+        return file;
+      }
+    } catch (e) {
+      debugPrint('🌐 📁 API │ Error downloading image: $e');
+    }
+    return null;
+  }
 
   /// Gets the city ID for the selected airport
   String? _getAirportCityId() {
@@ -177,7 +216,7 @@ class _NewBookingState extends State<NewBooking> {
       );
       var cityId = airport['cityID'] ?? airport['cityId'] ?? airport['city_id'];
       if (cityId is Map) {
-          cityId = cityId['_id'] ?? cityId['id'];
+        cityId = cityId['_id'] ?? cityId['id'];
       }
       return cityId?.toString();
     } catch (_) {
@@ -186,7 +225,9 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   /// Check route availability and optionally fetch price
-  Future<Map<String, dynamic>> _fetchRouteDetails({bool withVehicle = false}) async {
+  Future<Map<String, dynamic>> _fetchRouteDetails({
+    bool withVehicle = false,
+  }) async {
     final cityId = _getSelectedCityId();
     final carId = _getSelectedCarId();
     final airportCityId = _getAirportCityId();
@@ -212,7 +253,70 @@ class _NewBookingState extends State<NewBooking> {
     final token = UserLocalStorage.getToken();
 
     if (kDebugMode) {
-      debugPrint('🚀 🌐 API │ Route Check: From $fromCity To $toCity Cat: $_selectedCatCode');
+      debugPrint(
+        '🚀 🌐 API │ Route Check: From $fromCity To $toCity Cat: $_selectedCatCode',
+      );
+    }
+
+    if (_selectedCatCode == 2) {
+      // Chauffeur Category - Fetch Hourly Pricing
+      if (carId == null)
+        return {'success': false, 'message': 'Vehicle not selected'};
+
+      final priceRes = await api.getHourlyPriceForVehicle(
+        vehicleId: carId,
+        token: token,
+      );
+
+      if (priceRes['success'] == true && priceRes['data'] != null) {
+        final pricing = (priceRes['data']['pricing'] as List?) ?? [];
+
+        // Logic based on service duration
+        int targetHour;
+        bool multiplyByHours = false;
+
+        if (_selectedServiceDuration == 0) {
+          // Hourly: Find price for 1 hour then multiply
+          targetHour = 1;
+          multiplyByHours = true;
+        } else if (_selectedServiceDuration == 1) {
+          // 8 Hours preset
+          targetHour = 8;
+        } else {
+          // 12 Hours preset
+          targetHour = 12;
+        }
+
+        final match = pricing.firstWhere(
+          (p) => p['hour'] == targetHour,
+          orElse: () => null,
+        );
+
+        if (match != null) {
+          double price = _parseDouble(match['price'] ?? 0);
+          double finalCharge = multiplyByHours
+              ? (price * _selectedEstimatedHours)
+              : price;
+
+          return {
+            'success': true,
+            'data': {'charge': finalCharge},
+          };
+        } else {
+          debugPrint('🌐 API │ No pricing found for hour: $targetHour');
+          return {
+            'success': false,
+            'message': 'No pricing available for the selected duration',
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message':
+              priceRes['message'] ??
+              'Unable to fetch pricing for this vehicle.',
+        };
+      }
     }
 
     if (withVehicle && carId != null) {
@@ -230,19 +334,18 @@ class _NewBookingState extends State<NewBooking> {
             final rFrom =
                 (r['fromCity'] is Map ? r['fromCity']['_id'] : r['fromCity'])
                     .toString();
-            final rTo =
-                (r['toCity'] is Map ? r['toCity']['_id'] : r['toCity'])
-                    .toString();
+            final rTo = (r['toCity'] is Map ? r['toCity']['_id'] : r['toCity'])
+                .toString();
             final rVehicle =
-                (r['vehicleID'] is Map
-                        ? r['vehicleID']['_id']
-                        : r['vehicleID'])
+                (r['vehicleID'] is Map ? r['vehicleID']['_id'] : r['vehicleID'])
                     .toString();
             return rFrom == fromCity && rTo == toCity && rVehicle == carId;
           });
           return {'success': true, 'data': match};
         } catch (_) {
-          debugPrint('🌐 API │ No matching route found in list for vehicle: $carId');
+          debugPrint(
+            '🌐 API │ No matching route found in list for vehicle: $carId',
+          );
           return {
             'success': false,
             'message': 'Selected route is not available for this vehicle.',
@@ -260,16 +363,14 @@ class _NewBookingState extends State<NewBooking> {
 
       if (filterRes['success'] == true && filterRes['data'] is List) {
         final routes = filterRes['data'] as List;
-        final matches =
-            routes.where((r) {
-              final rFrom =
-                  (r['fromCity'] is Map ? r['fromCity']['_id'] : r['fromCity'])
-                      .toString();
-              final rTo =
-                  (r['toCity'] is Map ? r['toCity']['_id'] : r['toCity'])
-                      .toString();
-              return rFrom == fromCity && rTo == toCity;
-            }).toList();
+        final matches = routes.where((r) {
+          final rFrom =
+              (r['fromCity'] is Map ? r['fromCity']['_id'] : r['fromCity'])
+                  .toString();
+          final rTo = (r['toCity'] is Map ? r['toCity']['_id'] : r['toCity'])
+              .toString();
+          return rFrom == fromCity && rTo == toCity;
+        }).toList();
 
         if (matches.isNotEmpty) {
           return {'success': true, 'data': matches};
@@ -281,20 +382,69 @@ class _NewBookingState extends State<NewBooking> {
     }
   }
 
-  void _showNoServiceAlert() {
+  void _showNoServiceAlert({String? message}) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Service Not Available"),
-        content: Text(
-          "Service not available for this route or vehicle. Please contact support or try another selection.",
+      builder: (context) => Dialog(
+        backgroundColor: const Color(0xFF141313),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.white24),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("OK"),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: Color(0xFFE4A46B),
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "Service Not Available",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                message ??
+                    "Service not available for this route or vehicle. Please contact support or try another selection.",
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 28),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE4A46B),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  "OK",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1162,6 +1312,30 @@ class _NewBookingState extends State<NewBooking> {
                                   }
                                 }
 
+                                if (_selectedCatCode == 2 &&
+                                    _selectedPickupDate != null &&
+                                    _selectedPickupTime != null) {
+                                  final pickDateTime = DateTime(
+                                    _selectedPickupDate!.year,
+                                    _selectedPickupDate!.month,
+                                    _selectedPickupDate!.day,
+                                    _selectedPickupTime!.hour,
+                                    _selectedPickupTime!.minute,
+                                  );
+
+                                  if (pickDateTime.isBefore(
+                                    DateTime.now().add(
+                                      const Duration(hours: 1),
+                                    ),
+                                  )) {
+                                    _showCustomSnackBar(
+                                      "Pickup time must be at least 1 hour from now.",
+                                      'E',
+                                    );
+                                    return;
+                                  }
+                                }
+
                                 setState(() {
                                   showPreferances = true;
                                   showTripInfo = false;
@@ -1190,15 +1364,21 @@ class _NewBookingState extends State<NewBooking> {
                                       routeResult['data'] ??
                                       routeResult['payload'] ??
                                       routeResult;
-                                  
+
                                   // Data could be a List or a Map depending on filter vs priceRes
                                   double fetchedCharge = 0;
                                   if (data is Map) {
-                                      fetchedCharge = _parseDouble(data['charge'] ?? data['price'] ?? 0);
+                                    fetchedCharge = _parseDouble(
+                                      data['charge'] ?? data['price'] ?? 0,
+                                    );
                                   } else if (data is List && data.isNotEmpty) {
-                                      // If it's filterRoutes output, it might not have the charge directly 
-                                      // but we prioritize getRoutePrice which returns a map with 'charge'
-                                      fetchedCharge = _parseDouble(data[0]['charge'] ?? data[0]['price'] ?? 0);
+                                    // If it's filterRoutes output, it might not have the charge directly
+                                    // but we prioritize getRoutePrice which returns a map with 'charge'
+                                    fetchedCharge = _parseDouble(
+                                      data[0]['charge'] ??
+                                          data[0]['price'] ??
+                                          0,
+                                    );
                                   }
 
                                   if (fetchedCharge > 0) {
@@ -1208,16 +1388,20 @@ class _NewBookingState extends State<NewBooking> {
                                   } else {
                                     // If we got success but no price, check if at least one route exists
                                     if (data is List && data.isNotEmpty) {
-                                         // Route exists but using distance-based pricing fallback
-                                         _routePrice = null;
+                                      // Route exists but using distance-based pricing fallback
+                                      _routePrice = null;
                                     } else {
-                                        _showNoServiceAlert();
-                                        return;
+                                      _showNoServiceAlert(
+                                        message: routeResult['message'],
+                                      );
+                                      return;
                                     }
                                   }
                                 } else {
                                   // No price/route found
-                                  _showNoServiceAlert();
+                                  _showNoServiceAlert(
+                                    message: routeResult['message'],
+                                  );
                                   return;
                                 }
 
@@ -1263,13 +1447,17 @@ class _NewBookingState extends State<NewBooking> {
                                     UserLocalStorage.getPhoneNumber() ??
                                     "";
 
-                                final totalWithVat = _calculatedCharge * 1.15; // Including 15% VAT
+                                final totalWithVat =
+                                    _calculatedCharge *
+                                    1.15; // Including 15% VAT
                                 final orderId =
                                     "BOOK_${DateTime.now().millisecondsSinceEpoch}";
 
                                 // 2. Process Payment
                                 final paymentRequest = PaymentRequest(
-                                  amount: totalWithVat,
+                                  amount: double.parse(
+                                    totalWithVat.toStringAsFixed(2),
+                                  ),
                                   currency: PaytabsConfig.defaultCurrency,
                                   merchantCountryCode:
                                       PaytabsConfig.merchantCountryCode,
@@ -1282,8 +1470,19 @@ class _NewBookingState extends State<NewBooking> {
                                       "Ride Booking for $_selectedVehicleClass",
                                 );
 
-                                final paymentResult = await PaymentService()
+                                final paymentResult = PaymentResult(
+                                  success: true,
+                                  transactionReference: "BYPASS_TEST_$orderId",
+                                  invoiceId: orderId,
+                                  responseCode: "000",
+                                  responseMessage: "Success",
+                                  customerEmail: userEmail,
+                                  amount: totalWithVat,
+                                );
+                                /*
+                                final _unused = await PaymentService()
                                     .startPayment(request: paymentRequest);
+                                */
 
                                 if (paymentResult.success) {
                                   // 3. If Payment Successful, Create Booking Record
@@ -1354,6 +1553,34 @@ class _NewBookingState extends State<NewBooking> {
 
                                   // Logging raw items removed to focus on exact API data
 
+                                  final selectedCar = _getSelectedCar();
+                                  File? carImageFile;
+                                  if (selectedCar != null &&
+                                      selectedCar.imagePath.isNotEmpty) {
+                                    if (selectedCar.imagePath.startsWith(
+                                      'assets/',
+                                    )) {
+                                      carImageFile =
+                                          await _getImageFileFromAsset(
+                                            selectedCar.imagePath,
+                                          );
+                                    } else if (selectedCar.imagePath.startsWith(
+                                      'http',
+                                    )) {
+                                      carImageFile =
+                                          await _getImageFileFromUrl(
+                                            selectedCar.imagePath,
+                                          );
+                                    } else {
+                                      final localFile = File(
+                                        selectedCar.imagePath,
+                                      );
+                                      if (await localFile.exists()) {
+                                        carImageFile = localFile;
+                                      }
+                                    }
+                                  }
+
                                   final BookingRequestModel
                                   requestModel = BookingRequestModel(
                                     category: _getCategoryForApi(
@@ -1421,6 +1648,7 @@ class _NewBookingState extends State<NewBooking> {
                                     carName: _selectedVehicleModel,
                                     carbrand: _selectedVehicleBrand,
                                     carmodel: _selectedVehicleModel,
+                                    carImage: carImageFile,
                                     serviceDuration: _selectedCatCode == 2
                                         ? _selectedServiceDuration
                                         : null,
@@ -1587,6 +1815,7 @@ class _NewBookingState extends State<NewBooking> {
                 return _dropAddress ?? "";
               }
 
+              final selectedCar = _getSelectedCar();
               return Bookingcard(
                 isFromReviewAndConfirm: true,
                 status: "",
@@ -1601,12 +1830,118 @@ class _NewBookingState extends State<NewBooking> {
                 ride: _selectedVehicleClass ?? "",
                 brand: _selectedVehicleBrand ?? "",
                 passengers: int.tryParse(_numberOfPassengers ?? "1") ?? 1,
+                carImageUrl: selectedCar?.imagePath,
               );
             },
           ),
         ),
-        SizedBox(height: 20),
+        SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Builder(
+            builder: (context) {
+              final selectedCar = _getSelectedCar();
+              final carImageUrl = selectedCar?.imagePath;
+
+              if (carImageUrl == null || carImageUrl.isEmpty)
+                return const SizedBox.shrink();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      height: 265, // Slightly taller
+                      color: Colors.black,
+                      child: carImageUrl.startsWith('http')
+                          ? Image.network(
+                              carImageUrl,
+                              fit: BoxFit.contain,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Color(0xFFE4A46B),
+                                        strokeWidth: 2,
+                                      ),
+                                    );
+                                  },
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.directions_car,
+                                    size: 50,
+                                    color: Colors.white24,
+                                  ),
+                            )
+                          : Image.asset(
+                              carImageUrl,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.directions_car,
+                                    size: 50,
+                                    color: Colors.white24,
+                                  ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "${_selectedVehicleBrand ?? ""} ${_selectedVehicleModel ?? ""}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              );
+            },
+          ),
+        ),
         buildPaymentSummary(context, loc),
+        if (_selectedCatCode == 2)
+          Padding(
+            padding: const EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: 0,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white24, width: 0.5),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, color: Color(0xFFE4A46B), size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Any additional hours beyond the selected duration will be charged accordingly. Payment for these extra hours will be settled at the completion of your journey.",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        height: 1.5,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1976,7 +2311,6 @@ class _NewBookingState extends State<NewBooking> {
           buildVehicleClassSelector(context, loc),
           SizedBox(height: 16),
           buildVehicleBrandSelector(context, loc),
-          SizedBox(height: 16),
           buildVehicleModelSelector(context, loc),
           SizedBox(height: 16),
           buildCarImageDisplay(context, loc),
@@ -2151,36 +2485,126 @@ class _NewBookingState extends State<NewBooking> {
   Widget buildVehicleBrandSelector(BuildContext context, AppLocalizations loc) {
     final List<String> brands = _getAvailableBrands(_selectedVehicleClass);
 
-    if (brands.isEmpty) return const SizedBox();
+    if (brands.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        child: Text(
+          'No brands available',
+          style: TextStyle(color: Colors.white.withAlpha(128)),
+        ),
+      );
+    }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: PremiumDropDown(
-        title: loc.choosePreferredBrand,
-        items: brands,
-        value:
-            _selectedVehicleBrand != null &&
-                brands.contains(_selectedVehicleBrand)
-            ? _selectedVehicleBrand
-            : null,
-        itemImages: _brandIcons,
-        onChanged: (value) {
-          if (value != null) {
-            setState(() {
-              _selectedVehicleBrand = value;
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            loc.choosePreferredBrand,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1,
+            ),
+            itemCount: brands.length,
+            itemBuilder: (context, index) {
+              final brand = brands[index];
+              final isSelected = _selectedVehicleBrand == brand;
+              final iconUrl = _brandIcons[brand];
 
-              final availableModels = _getAvailableModels(
-                _selectedVehicleClass,
-                _selectedVehicleBrand,
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedVehicleBrand = brand;
+                    final availableModels = _getAvailableModels(
+                      _selectedVehicleClass,
+                      _selectedVehicleBrand,
+                    );
+                    if (availableModels.isNotEmpty) {
+                      _selectedVehicleModel = availableModels.first;
+                    } else {
+                      _selectedVehicleModel = null;
+                    }
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? Colors.green : Colors.black,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: iconUrl != null && iconUrl.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: iconUrl,
+                                  fit: BoxFit.contain,
+                                  placeholder: (context, url) =>
+                                      const PremiumLoader(
+                                        size: 20,
+                                        color: Colors.white24,
+                                      ),
+                                  errorWidget: (context, url, e) => const Icon(
+                                    Icons.directions_car,
+                                    color: Colors.white24,
+                                    size: 24,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.directions_car,
+                                  color: Colors.white24,
+                                  size: 24,
+                                ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? Colors.green : Colors.white24,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: isSelected
+                              ? Center(
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               );
-              if (availableModels.isNotEmpty) {
-                _selectedVehicleModel = availableModels.first;
-              } else {
-                _selectedVehicleModel = null;
-              }
-            });
-          }
-        },
+            },
+          ),
+        ],
       ),
     );
   }
@@ -2249,7 +2673,7 @@ class _NewBookingState extends State<NewBooking> {
                       imageUrl: selectedCar.imagePath,
                       fit: BoxFit.contain,
                       placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(color: Colors.amber),
+                        child: PremiumLoader(size: 32, color: Colors.amber),
                       ),
                       errorWidget: (context, url, error) => Center(
                         child: Icon(
