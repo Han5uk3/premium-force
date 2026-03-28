@@ -7,6 +7,7 @@ import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 
 class BookingDetailsPage extends StatefulWidget {
   final BookingModel booking;
@@ -194,6 +195,27 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 child: _buildDriverCard(),
               ),
             ],
+
+            // Track Driver Button
+            if ((booking.bookingStatus ?? '').toLowerCase().trim() == 'starttracking')
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: PremiumButton(
+                  fontsize: 14,
+                  text: 'Track Driver',
+                  showLoader: false,
+                  gradient: const [Color(0xFFE4A46B), Color(0xFF49280B)],
+                  textColor: Colors.black,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DriverTrackingPage(booking: booking),
+                      ),
+                    );
+                  },
+                ),
+              ),
 
             // Cancel Booking Button
             if ((booking.bookingStatus ?? '').toLowerCase().trim() ==
