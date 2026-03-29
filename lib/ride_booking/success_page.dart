@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:premium_force_main/common_widgets/borderedcontainer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/home/home.dart';
-import 'package:premium_force_main/home/homepage.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class SuccessPage extends StatefulWidget {

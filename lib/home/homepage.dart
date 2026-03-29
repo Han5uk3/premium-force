@@ -22,7 +22,6 @@ import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 
-
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
 
@@ -41,7 +40,6 @@ class _HomepageState extends State<Homepage>
   bool _isLoadingCars = false;
   bool _isLoadingBookings = false;
 
-
   @override
   bool get wantKeepAlive => true;
 
@@ -59,7 +57,6 @@ class _HomepageState extends State<Homepage>
     _fetchPastBookings();
   }
 
-
   Future<void> _handleRefresh() async {
     // Force reload everything
     await Future.wait([
@@ -68,7 +65,6 @@ class _HomepageState extends State<Homepage>
       _fetchPastBookings(),
     ]);
   }
-
 
   Future<void> _fetchLocationData() async {
     if (mounted) setState(() => _isLoadingLocations = true);
@@ -637,15 +633,13 @@ class _HomepageState extends State<Homepage>
       }
 
       // Filter by status: completed or cancelled
-      final pastBookings =
-          userBookings.where((b) {
-            final status = b.bookingStatus?.toLowerCase() ?? '';
-            return status == 'completed' ||
-                status == 'cancelled' ||
-                status == 'c' ||
-                status == 'x';
-          }).toList();
-
+      final pastBookings = userBookings.where((b) {
+        final status = b.bookingStatus?.toLowerCase() ?? '';
+        return status == 'completed' ||
+            status == 'cancelled' ||
+            status == 'c' ||
+            status == 'x';
+      }).toList();
 
       // Sort by date (descending)
       pastBookings.sort((a, b) {
@@ -688,7 +682,6 @@ class _HomepageState extends State<Homepage>
   }
 
   @override
-
   Widget build(BuildContext context) {
     super.build(context);
     final loc = AppLocalizations.of(context)!;
@@ -787,10 +780,9 @@ class _HomepageState extends State<Homepage>
               physics: const NeverScrollableScrollPhysics(),
               itemBuilder: (context, index) {
                 final booking = _pastBookings[index];
-                final arrivalDate =
-                    booking.arrival != null
-                        ? DateTime.tryParse(booking.arrival!)
-                        : null;
+                final arrivalDate = booking.arrival != null
+                    ? DateTime.tryParse(booking.arrival!)
+                    : null;
                 final dateStr = Bookingcard.formatDate(context, arrivalDate);
                 final timeStr = Bookingcard.formatTime(context, arrivalDate);
 
@@ -801,8 +793,8 @@ class _HomepageState extends State<Homepage>
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder:
-                              (context) => BookingDetailsPage(booking: booking),
+                          builder: (context) =>
+                              BookingDetailsPage(booking: booking),
                         ),
                       );
                       if (result == true) {
@@ -835,9 +827,7 @@ class _HomepageState extends State<Homepage>
     );
   }
 
-
   Widget _buildPremiumFleet(BuildContext context, AppLocalizations loc) {
-    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
     return Container(
       height: 230,
       color: Colors.black,

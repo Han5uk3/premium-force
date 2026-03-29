@@ -298,7 +298,7 @@ class _BookingsPageState extends State<BookingsPage>
               child: Bookingcard(
                 isFromReviewAndConfirm: false,
                 status: booking.bookingStatus ?? 'Pending',
-                type: _getBookingName(booking.category, context) ?? 'Booking',
+                type: _getBookingName(booking.category, context),
                 pickup: booking.pickupAddress ?? booking.airport ?? 'N/A',
                 dropoff: booking.dropOffAddress ?? 'N/A',
                 date: dateStr,
@@ -307,7 +307,8 @@ class _BookingsPageState extends State<BookingsPage>
                     ? '${booking.carName ?? ''} (${booking.estimatedHours} Hours)'
                           .trim()
                     : (booking.carName ??
-                          ((booking.carbrand != null || booking.carmodel != null)
+                          ((booking.carbrand != null ||
+                                  booking.carmodel != null)
                               ? '${booking.carbrand ?? ''} ${booking.carmodel ?? ''}'
                                     .trim()
                               : 'N/A')),

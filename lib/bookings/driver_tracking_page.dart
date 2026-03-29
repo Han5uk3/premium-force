@@ -108,7 +108,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       ),
     );
 
-    final isChauffeur = (widget.booking.category ?? '').toLowerCase().contains('chauffeur');
+    final isChauffeur = (widget.booking.category ?? '').toLowerCase().contains(
+      'chauffeur',
+    );
     if (!isChauffeur && widget.booking.dropOffLat != null) {
       final dropoff = LatLng(
         double.tryParse(widget.booking.dropOffLat ?? '0') ?? 0,
@@ -135,7 +137,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       double.tryParse(widget.booking.dropOffLong ?? '0') ?? 0,
     );
 
-    final isChauffeur = (widget.booking.category ?? '').toLowerCase().contains('chauffeur');
+    final isChauffeur = (widget.booking.category ?? '').toLowerCase().contains(
+      'chauffeur',
+    );
 
     if (!isChauffeur && pickup.latitude != 0 && dropoff.latitude != 0) {
       _polylines.add(
@@ -163,18 +167,18 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         .ref('bookings/${widget.booking.id}/driver_location')
         .onValue
         .listen((event) {
-      final data = event.snapshot.value as Map?;
-      if (data != null) {
-        final lat = data['lat'] as double?;
-        final lng = data['lng'] as double?;
-        if (lat != null && lng != null) {
-          setState(() {
-            _driverLocation = LatLng(lat, lng);
-            _updateDriverMarker();
-          });
-        }
-      }
-    });
+          final data = event.snapshot.value as Map?;
+          if (data != null) {
+            final lat = data['lat'] as double?;
+            final lng = data['lng'] as double?;
+            if (lat != null && lng != null) {
+              setState(() {
+                _driverLocation = LatLng(lat, lng);
+                _updateDriverMarker();
+              });
+            }
+          }
+        });
   }
 
   void _updateDriverMarker() async {
@@ -221,10 +225,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         ),
       ),
       body: GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: pickup,
-          zoom: 14,
-        ),
+        initialCameraPosition: CameraPosition(target: pickup, zoom: 14),
         onMapCreated: (GoogleMapController controller) {
           _controller.complete(controller);
           controller.setMapStyle(_mapStyle);
