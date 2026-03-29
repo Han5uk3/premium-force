@@ -2770,8 +2770,8 @@ class _NewBookingState extends State<NewBooking> {
         children: [
           // Car Image
           Container(
-            width: double.infinity,
-            height: 259,
+            // width: double.infinity,
+            // height: 259,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: Colors.grey.shade800,

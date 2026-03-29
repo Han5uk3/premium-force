@@ -157,7 +157,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   }
 
   void _jumpToInitialPage() {
-    if (!_pageController.hasClients || _banners.isEmpty) return;
+    if (!_pageController.hasClients || _banners.length <= 1) return;
+
     
     // Only jump if we are not already at the buffer or if specifically requested
     try {
@@ -180,7 +181,10 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     _autoScrollTimer?.cancel();
 
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (!mounted || !_pageController.hasClients || _banners.isEmpty) return;
+      if (!mounted ||
+          !_pageController.hasClients ||
+          _banners.length <= 1) return;
+
 
       int current = _pageController.page?.round() ?? _infiniteBuffer;
       int nextPage = current + 1;
@@ -232,8 +236,12 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
             children: [
               PageView.builder(
                 controller: _pageController,
-                physics: const BouncingScrollPhysics(),
+                physics:
+                    _banners.length > 1
+                        ? const BouncingScrollPhysics()
+                        : const NeverScrollableScrollPhysics(),
                 pageSnapping: true,
+
                 onPageChanged: (int index) {
                   if (_banners.isEmpty) return;
                   final int realIndex = index % _banners.length;

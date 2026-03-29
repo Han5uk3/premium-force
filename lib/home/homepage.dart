@@ -17,6 +17,11 @@ import 'package:premium_force_main/api/apis.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/common_widgets/infinite_scroll_banner.dart';
+import 'package:premium_force_main/models/booking_model.dart';
+import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/common_widgets/bookingcard.dart';
+import 'package:premium_force_main/bookings/booking_details_page.dart';
+
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -31,8 +36,11 @@ class _HomepageState extends State<Homepage>
   List<Map<String, dynamic>> _apiCities = [];
   List<Map<String, dynamic>> _apiAirports = [];
   List<Map<String, dynamic>> _apiTerminals = [];
+  List<BookingModel> _pastBookings = [];
   bool _isLoadingLocations = false;
   bool _isLoadingCars = false;
+  bool _isLoadingBookings = false;
+
 
   @override
   bool get wantKeepAlive => true;
@@ -48,12 +56,19 @@ class _HomepageState extends State<Homepage>
     if (_fleetCars.isEmpty) {
       _fetchFleetCars();
     }
+    _fetchPastBookings();
   }
+
 
   Future<void> _handleRefresh() async {
     // Force reload everything
-    await Future.wait([_fetchLocationData(), _fetchFleetCars()]);
+    await Future.wait([
+      _fetchLocationData(),
+      _fetchFleetCars(),
+      _fetchPastBookings(),
+    ]);
   }
+
 
   Future<void> _fetchLocationData() async {
     if (mounted) setState(() => _isLoadingLocations = true);
@@ -593,7 +608,87 @@ class _HomepageState extends State<Homepage>
   ];
   */
 
+  Future<void> _fetchPastBookings() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.user?.uid;
+    if (userId == null) return;
+
+    if (mounted) setState(() => _isLoadingBookings = true);
+
+    try {
+      final api = ApiService();
+      final token = UserLocalStorage.getToken();
+
+      final results = await Future.wait([
+        api.getBookingsByCustomerId(customerId: userId, token: token),
+        api.getHourlyBookingsByCustomerId(customerId: userId, token: token),
+      ]);
+
+      List<BookingModel> userBookings = [];
+
+      for (var result in results) {
+        if (result['success'] == true) {
+          final List<dynamic> bookingsJson =
+              result['data'] ?? result['bookings'] ?? [];
+          userBookings.addAll(
+            bookingsJson.map((json) => BookingModel.fromJson(json)),
+          );
+        }
+      }
+
+      // Filter by status: completed or cancelled
+      final pastBookings =
+          userBookings.where((b) {
+            final status = b.bookingStatus?.toLowerCase() ?? '';
+            return status == 'completed' ||
+                status == 'cancelled' ||
+                status == 'c' ||
+                status == 'x';
+          }).toList();
+
+
+      // Sort by date (descending)
+      pastBookings.sort((a, b) {
+        final dateA =
+            a.createdAt ??
+            (a.arrival != null ? DateTime.tryParse(a.arrival!) : null) ??
+            DateTime(0);
+        final dateB =
+            b.createdAt ??
+            (b.arrival != null ? DateTime.tryParse(b.arrival!) : null) ??
+            DateTime(0);
+        return dateB.compareTo(dateA); // Most recent first
+      });
+
+      if (mounted) {
+        setState(() {
+          _pastBookings = pastBookings.take(5).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching past bookings: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingBookings = false);
+    }
+  }
+
+  String _getBookingName(String? category, BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    if (category == null) return 'Booking';
+    switch (category.toLowerCase()) {
+      case 'chauffeur':
+        return loc.chauffeur;
+      case 'airport arrival':
+        return loc.airportArrival;
+      case 'airport departure':
+        return loc.airportDeparture;
+      default:
+        return 'Booking';
+    }
+  }
+
   @override
+
   Widget build(BuildContext context) {
     super.build(context);
     final loc = AppLocalizations.of(context)!;
@@ -642,66 +737,104 @@ class _HomepageState extends State<Homepage>
               color: Colors.white,
             ),
           ),
-          /*
-          Flexible(
-            child: ListView.builder(
-              itemCount: bookingItems.length,
+          if (_isLoadingBookings)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: PremiumLoader(color: Color(0xFFE4A46B))),
+            )
+          else if (_pastBookings.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 36,
+                  horizontal: 16,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(80),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.withAlpha(20)),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.history_rounded,
+                        size: 42,
+                        color: Colors.grey.withAlpha(120),
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        loc.noRecentBookings,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.withAlpha(200),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              itemCount: _pastBookings.length,
               shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              physics: NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              physics: const NeverScrollableScrollPhysics(),
               itemBuilder: (context, index) {
+                final booking = _pastBookings[index];
+                final arrivalDate =
+                    booking.arrival != null
+                        ? DateTime.tryParse(booking.arrival!)
+                        : null;
+                final dateStr = Bookingcard.formatDate(context, arrivalDate);
+                final timeStr = Bookingcard.formatTime(context, arrivalDate);
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Bookingcard(
-                    status: bookingItems[index]["status"],
-                    type: bookingItems[index]["type"],
-                    pickup: bookingItems[index]["pickup"],
-                    dropoff: bookingItems[index]["dropoff"],
-                    date: bookingItems[index]["date"],
-                    time: bookingItems[index]["time"],
-                    ride: bookingItems[index]["ride"],
-                    brand: bookingItems[index]["brand"],
+                  child: GestureDetector(
+                    onTap: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => BookingDetailsPage(booking: booking),
+                        ),
+                      );
+                      if (result == true) {
+                        _fetchPastBookings();
+                      }
+                    },
+                    child: Bookingcard(
+                      status: booking.bookingStatus ?? 'Pending',
+                      type: _getBookingName(booking.category, context),
+                      pickup: booking.pickupAddress ?? booking.airport ?? 'N/A',
+                      dropoff: booking.dropOffAddress ?? 'N/A',
+                      date: dateStr,
+                      time: timeStr,
+                      ride: booking.displayName,
+                      brand: booking.displayBrand,
+                      passengers:
+                          int.tryParse(booking.passengerCount ?? '1') ?? 1,
+                      isChauffeur:
+                          (booking.category ?? '').toLowerCase().contains(
+                            'chauffeur',
+                          ) ||
+                          booking.estimatedHours != null,
+                    ),
                   ),
                 );
               },
             ),
-          ),
-          */
-          SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.black.withAlpha(80),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withAlpha(20)),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.history_rounded,
-                    size: 42,
-                    color: Colors.grey.withAlpha(120),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    loc.noRecentBookings,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.withAlpha(200),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
+
 
   Widget _buildPremiumFleet(BuildContext context, AppLocalizations loc) {
     final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';

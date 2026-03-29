@@ -20,8 +20,7 @@ class ApiService {
   // Configuration
   // ---------------------------------------------------------------------------
 
-  static const String _baseUrl =
-      'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api/';
+  static const String _baseUrl = 'https://api.premiumforcegroup.com/api/';
 
   // ---------------------------------------------------------------------------
   // Singleton + Dio instance
@@ -717,7 +716,10 @@ class ApiService {
         );
       }
       if (booking.carImage != null) {
-        fields['carImage'] = await MultipartFile.fromFile(booking.carImage!.path, filename: 'car_image.jpg');
+        fields['carImage'] = await MultipartFile.fromFile(
+          booking.carImage!.path,
+          filename: 'car_image.jpg',
+        );
       }
 
       final formData = FormData.fromMap(fields);
@@ -865,10 +867,10 @@ class ApiService {
       final fields = <String, dynamic>{};
       fields['hours'] =
           booking.category == 'chauffeured' && booking.serviceDuration == 0
-              ? booking.estimatedHours?.toString() ?? '1'
-              : (booking.serviceDuration == 1
-                  ? '8'
-                  : (booking.serviceDuration == 2 ? '12' : '1'));
+          ? booking.estimatedHours?.toString() ?? '1'
+          : (booking.serviceDuration == 1
+                ? '8'
+                : (booking.serviceDuration == 2 ? '12' : '1'));
 
       fields['pickupLat'] = booking.pickupLat ?? '';
       fields['pickuplong'] = booking.pickupLong ?? ''; // Lowercase 'l'
@@ -898,7 +900,10 @@ class ApiService {
         );
       }
       if (booking.carImage != null) {
-        fields['carImage'] = await MultipartFile.fromFile(booking.carImage!.path, filename: 'car_image.jpg');
+        fields['carImage'] = await MultipartFile.fromFile(
+          booking.carImage!.path,
+          filename: 'car_image.jpg',
+        );
       }
 
       final formData = FormData.fromMap(fields);
@@ -955,7 +960,8 @@ class ApiService {
           message =
               (data is Map<String, dynamic>
                       ? (data['message'] ?? data['error'])
-                      : null) as String? ??
+                      : null)
+                  as String? ??
               'Server error ($statusCode)';
         case DioExceptionType.cancel:
           message = 'Request was cancelled.';
