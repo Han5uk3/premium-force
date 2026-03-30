@@ -87,10 +87,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get airportDeparture => 'مغادرة المطار';
 
   @override
-  String get goToBooking => 'Go to booking';
+  String get goToBooking => 'الانتقال إلى الحجز';
 
   @override
-  String get backToHome => 'Back to home';
+  String get backToHome => 'العودة إلى الصفحة الرئيسية';
 
   @override
   String get chauffeurService => 'خدمة السائق';
@@ -139,7 +139,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get yourJourneyIsSecuredWeLlNotifyYouOnceYourChauffeurIsAssigned =>
-      'Your journey is secured. We’ll notify you once your chauffeur is assigned.';
+      'رحلتك مؤمّنة. سنقوم بإعلامك بمجرد تعيين السائق.';
 
   @override
   String get convertible => 'مكشوفة';
@@ -711,8 +711,45 @@ class AppLocalizationsAr extends AppLocalizations {
   String get exitApp => 'إغلاق التطبيق';
 
   @override
-  String get exitAppConfirm => 'هل تريد حقاً إغلاق التطبيق؟';
+  String get exitAppConfirm => 'هل تريد حقًا الخروج من التطبيق؟';
 
   @override
   String get exit => 'خروج';
+
+  @override
+  String get cannotReviewWithoutValidDriver =>
+      'لا يمكن التقييم بدون سائق صالح.';
+
+  @override
+  String get reviewSubmittedSuccessfully => 'تم إرسال التقييم بنجاح.';
+
+  @override
+  String get paymentSuccessfulBookingCompleted => 'نجح الدفع. اكتمل الحجز!';
+
+  @override
+  String get paymentError => 'خطأ في الدفع: ';
+
+  @override
+  String get policyLinkComingSoon => 'رابط السياسة قريبًا!';
+
+  @override
+  String get no => 'لا';
+
+  @override
+  String get yes => 'نعم';
+
+  @override
+  String get bookingCancelledSuccessfully => 'تم إلغاء الحجز بنجاح';
+
+  @override
+  String get error => 'خطأ: ';
+
+  @override
+  String get locationServicesAreDisabled => 'خدمات الموقع معطلة.';
+
+  @override
+  String get locationPermissionDenied => 'تم رفض إذن الموقع.';
+
+  @override
+  String get errorGettingLocation => 'خطأ في الحصول على الموقع: ';
 }

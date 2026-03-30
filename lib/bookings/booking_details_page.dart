@@ -407,7 +407,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       children: [
                         TextButton(
                           onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
-                          child: const Text('Cancel',
+                          child: Text(AppLocalizations.of(context)!.cancel,
                               style: TextStyle(color: Colors.white54)),
                         ),
                         const SizedBox(width: 8),
@@ -427,7 +427,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                                   
                                   if (driverID == null || driverID.isEmpty || driverID == 'null') {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Cannot review without a valid driver.')),
+                                      SnackBar(content: Text(AppLocalizations.of(context)!.cannotReviewWithoutValidDriver)),
                                     );
                                     setDialogState(() => isSubmitting = false);
                                     Navigator.pop(ctx);
@@ -451,7 +451,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                                         };
                                       });
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Review submitted successfully.')),
+                                        SnackBar(content: Text(AppLocalizations.of(context)!.reviewSubmittedSuccessfully)),
                                       );
                                       Navigator.pop(ctx);
                                     } else {
@@ -468,7 +468,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.black))
-                              : const Text('Submit'),
+                              : Text(AppLocalizations.of(context)!.submit),
                         ),
                       ],
                     ),
@@ -921,8 +921,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           if (result['success'] == true) {
             setState(() => _extraHoursPaid = true);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Payment successful. Booking completed!'),
+              SnackBar(
+                content: Text(AppLocalizations.of(context)!.paymentSuccessfulBookingCompleted),
                 backgroundColor: Colors.green,
               ),
             );
@@ -953,7 +953,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment error: $e'),
+            content: Text('${AppLocalizations.of(context)!.paymentError}$e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -986,7 +986,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               onTap: () {
                 // User will add link later
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Policy link coming soon!')),
+                  SnackBar(content: Text(AppLocalizations.of(context)!.policyLinkComingSoon)),
                 );
               },
               child: const Text(
@@ -1002,7 +1002,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         ),
         actions: [
           TextButton(
-            child: const Text('No', style: TextStyle(color: Colors.white54)),
+            child: Text(AppLocalizations.of(context)!.no, style: const TextStyle(color: Colors.white54)),
             onPressed: () => Navigator.pop(context),
           ),
           TextButton(
@@ -1057,8 +1057,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       if (result['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Booking cancelled successfully'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.bookingCancelledSuccessfully),
               backgroundColor: Colors.green,
             ),
           );
@@ -1078,7 +1078,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${AppLocalizations.of(context)!.error}$e'), backgroundColor: Colors.red),
         );
       }
     }

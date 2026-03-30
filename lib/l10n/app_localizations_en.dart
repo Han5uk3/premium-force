@@ -721,4 +721,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exit => 'Exit';
+
+  @override
+  String get cannotReviewWithoutValidDriver =>
+      'Cannot review without a valid driver.';
+
+  @override
+  String get reviewSubmittedSuccessfully => 'Review submitted successfully.';
+
+  @override
+  String get paymentSuccessfulBookingCompleted =>
+      'Payment successful. Booking completed!';
+
+  @override
+  String get paymentError => 'Payment error: ';
+
+  @override
+  String get policyLinkComingSoon => 'Policy link coming soon!';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get yes => 'Yes';
+
+  @override
+  String get bookingCancelledSuccessfully => 'Booking cancelled successfully';
+
+  @override
+  String get error => 'Error: ';
+
+  @override
+  String get locationServicesAreDisabled => 'Location services are disabled.';
+
+  @override
+  String get locationPermissionDenied => 'Location permission denied.';
+
+  @override
+  String get errorGettingLocation => 'Error getting location: ';
 }

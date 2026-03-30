@@ -227,5 +227,17 @@
   "verify": "Verify",
   "exitApp": "Exit App",
   "exitAppConfirm": "Do you really want to exit the app?",
-  "exit": "Exit"
+  "exit": "Exit",
+  "cannotReviewWithoutValidDriver": "Cannot review without a valid driver.",
+  "reviewSubmittedSuccessfully": "Review submitted successfully.",
+  "paymentSuccessfulBookingCompleted": "Payment successful. Booking completed!",
+  "paymentError": "Payment error: ",
+  "policyLinkComingSoon": "Policy link coming soon!",
+  "no": "No",
+  "yes": "Yes",
+  "bookingCancelledSuccessfully": "Booking cancelled successfully",
+  "error": "Error: ",
+  "locationServicesAreDisabled": "Location services are disabled.",
+  "locationPermissionDenied": "Location permission denied.",
+  "errorGettingLocation": "Error getting location: "
 }

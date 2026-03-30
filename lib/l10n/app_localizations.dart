@@ -1471,6 +1471,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit'**
   String get exit;
+
+  /// No description provided for @cannotReviewWithoutValidDriver.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot review without a valid driver.'**
+  String get cannotReviewWithoutValidDriver;
+
+  /// No description provided for @reviewSubmittedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Review submitted successfully.'**
+  String get reviewSubmittedSuccessfully;
+
+  /// No description provided for @paymentSuccessfulBookingCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment successful. Booking completed!'**
+  String get paymentSuccessfulBookingCompleted;
+
+  /// No description provided for @paymentError.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment error: '**
+  String get paymentError;
+
+  /// No description provided for @policyLinkComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Policy link coming soon!'**
+  String get policyLinkComingSoon;
+
+  /// No description provided for @no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get no;
+
+  /// No description provided for @yes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get yes;
+
+  /// No description provided for @bookingCancelledSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking cancelled successfully'**
+  String get bookingCancelledSuccessfully;
+
+  /// No description provided for @error.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: '**
+  String get error;
+
+  /// No description provided for @locationServicesAreDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Location services are disabled.'**
+  String get locationServicesAreDisabled;
+
+  /// No description provided for @locationPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission denied.'**
+  String get locationPermissionDenied;
+
+  /// No description provided for @errorGettingLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Error getting location: '**
+  String get errorGettingLocation;
 }
 
 class _AppLocalizationsDelegate
