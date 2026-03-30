@@ -1634,10 +1634,18 @@ class _NewBookingState extends State<NewBooking> {
                                     terminalID: _getSelectedTerminalId(),
                                     terminal:
                                         _getSelectedTerminalName(context) ?? "",
-                                    arrival: getIsoDateTime(
-                                      _selectedDate,
-                                      _selectedTime,
-                                    ),
+                                    arrival: _selectedCatCode != 2
+                                        ? getIsoDateTime(
+                                          _selectedDate,
+                                          _selectedTime,
+                                        )
+                                        : null,
+                                    pickupdatetime: _selectedCatCode == 2
+                                        ? getIsoDateTime(
+                                          _selectedPickupDate,
+                                          _selectedPickupTime,
+                                        )
+                                        : null,
                                     pickupLat: finalPickupLat
                                         ?.toString()
                                         .trim(),
@@ -1891,7 +1899,7 @@ class _NewBookingState extends State<NewBooking> {
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       width: double.infinity,
-                      height: 265, // Slightly taller
+
                       color: Colors.black,
                       child: carImageUrl.startsWith('http')
                           ? Image.network(

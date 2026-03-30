@@ -127,8 +127,16 @@ class AuthProvider extends ChangeNotifier {
     try {
       final storedUserId = UserLocalStorage.getUserId();
       final storedToken = UserLocalStorage.getToken();
+      final loginProvider = UserLocalStorage.getLoginProvider();
 
-      if (storedUserId != null && storedToken != null) {
+      // Check if we have enough credentials to consider the user logged in.
+      // For phone login, we need both id and token.
+      // For social login, we need at least the id (tokens can be refreshed silently).
+      final isSocialLogin = loginProvider == 'google' || loginProvider == 'apple';
+      final hasUserId = storedUserId != null && storedUserId.isNotEmpty;
+      final hasToken = storedToken != null && storedToken.isNotEmpty;
+
+      if (hasUserId && (hasToken || isSocialLogin)) {
         // First try to load from local storage
         final localData = UserLocalStorage.getUserData();
         if (localData != null) {
@@ -549,12 +557,13 @@ class AuthProvider extends ChangeNotifier {
       }
 
       _googleResult = result;
+      // Store provider and social token early (helps with persistence for new users too)
+      await UserLocalStorage.saveLoginProvider('google');
+      if (result.idToken != null) {
+        await UserLocalStorage.saveSocialIdToken(result.idToken!);
+      }
 
       debugPrint('🔐 Google Sign-In │ Email: ${result.email}');
-      debugPrint('🔐 Google Sign-In │ Display Name: ${result.displayName}');
-      debugPrint(
-        '🔐 Google Sign-In │ ID Token present: ${result.idToken != null}',
-      );
 
       // Step 2: Check if email exists in backend
       final emailCheckResponse = await _api.checkEmailExists(
@@ -604,12 +613,6 @@ class AuthProvider extends ChangeNotifier {
                 debugPrint('✅ Google Sign-In │ Tokens saved for persistence');
               }
             }
-          }
-
-          // Store the local-only tokens
-          await UserLocalStorage.saveLoginProvider('google');
-          if (result.idToken != null) {
-            await UserLocalStorage.saveSocialIdToken(result.idToken!);
           }
 
           await UserLocalStorage.saveUserCredentials(
@@ -666,12 +669,6 @@ class AuthProvider extends ChangeNotifier {
   AppleSignInResult? get appleResult => _appleResult;
 
   /// Sign in with Apple.
-  ///
-  /// Flow:
-  /// 1. Native Apple Sign-In (show Apple sign-in sheet → email, displayName, userId, idToken)
-  /// 2. Check if email exists in backend using `GET /users/check-email?email=...`
-  /// 3. If email exists → fetch user data and authenticate → [AuthStatus.authenticated]
-  /// 4. If email doesn't exist → navigate to signup with pre-filled data → [AuthStatus.otpVerified]
   Future<void> signInWithApple() async {
     _isAppleLoading = true;
     _errorMessage = null;
@@ -688,13 +685,13 @@ class AuthProvider extends ChangeNotifier {
       }
 
       _appleResult = result;
+      // Store provider and social token early
+      await UserLocalStorage.saveLoginProvider('apple');
+      if (result.idToken != null) {
+        await UserLocalStorage.saveSocialIdToken(result.idToken!);
+      }
 
       debugPrint('🍎 Apple Sign-In │ User ID: ${result.userId}');
-      debugPrint('🍎 Apple Sign-In │ Email: ${result.email}');
-      debugPrint('🍎 Apple Sign-In │ Display Name: ${result.displayName}');
-      debugPrint(
-        '🍎 Apple Sign-In │ ID Token present: ${result.idToken != null}',
-      );
 
       // Step 2: Check if email exists in backend
       final emailCheckResponse = await _api.checkEmailExists(
@@ -746,12 +743,6 @@ class AuthProvider extends ChangeNotifier {
             }
           }
 
-          // Store the local-only tokens
-          await UserLocalStorage.saveLoginProvider('apple');
-          if (result.idToken != null) {
-            await UserLocalStorage.saveSocialIdToken(result.idToken!);
-          }
-
           await UserLocalStorage.saveUserCredentials(
             userId: uid,
             phoneNumber: phone,
@@ -772,7 +763,6 @@ class AuthProvider extends ChangeNotifier {
           );
         } else {
           // Email exists but we couldn't get user data from response
-          // This shouldn't happen in normal flow but treating as new user
           _status = AuthStatus.otpVerified;
           debugPrint(
             '⚠️ Apple Sign-In │ Email exists but no user data. Going to signup.',
@@ -829,6 +819,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
   // ---------------------------------------------------------------------------
   // Delete Account
   // ---------------------------------------------------------------------------

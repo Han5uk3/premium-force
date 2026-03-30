@@ -69,12 +69,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final booking = widget.booking;
-    final arrivalDate = booking.arrival != null
-        ? DateTime.tryParse(booking.arrival!)
-        : null;
+    final displayDate = (booking.pickupdatetime != null && booking.pickupdatetime!.isNotEmpty)
+        ? DateTime.tryParse(booking.pickupdatetime!)
+        : (booking.arrival != null ? DateTime.tryParse(booking.arrival!) : null);
 
-    final dateStr = Bookingcard.formatDate(context, arrivalDate);
-    final timeStr = Bookingcard.formatTime(context, arrivalDate);
+    final dateStr = Bookingcard.formatDate(context, displayDate);
+    final timeStr = Bookingcard.formatTime(context, displayDate);
 
     // AI Check for Chauffeur Category
     final isChauffeur =
@@ -135,7 +135,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         width: double.infinity,
-                        height: 220,
+
                         color: Colors.black,
                         child: Image.network(
                           booking.carimage!,
@@ -200,9 +200,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 child: _buildDriverCard(),
               ),
             ],
+            SizedBox(height: 24),
 
             // Track Driver Button
-            if ((booking.bookingStatus ?? '').toLowerCase().trim() == 'starttracking')
+            if ((booking.bookingStatus ?? '').toLowerCase().trim() ==
+                'starttracking')
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: PremiumButton(
@@ -215,7 +217,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => DriverTrackingPage(booking: booking),
+                        builder: (context) =>
+                            DriverTrackingPage(booking: booking),
                       ),
                     );
                   },

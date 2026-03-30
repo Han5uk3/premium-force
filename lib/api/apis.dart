@@ -93,7 +93,8 @@ class ApiService {
                     }
 
                     debugPrint('✅ API │ Backend token refreshed. Retrying...');
-                    e.requestOptions.headers['Authorization'] = 'Bearer $newAccess';
+                    e.requestOptions.headers['Authorization'] =
+                        'Bearer $newAccess';
                     return handler.resolve(await _dio.fetch(e.requestOptions));
                   }
                 } catch (reErr) {
@@ -101,31 +102,37 @@ class ApiService {
                 }
               }
             }
-
             // --- PATH B: GOOGLE LOGIN (LOCAL STORAGE FOCUSED) ---
             else if (provider == 'google') {
-              debugPrint('🔄 API │ Google Auth. Triggering Silent NATIVE Refresh...');
+              debugPrint(
+                '🔄 API │ Google Auth. Triggering Silent NATIVE Refresh...',
+              );
               try {
-                final silentRes = await GoogleSignInService.instance.signInSilently();
+                final silentRes = await GoogleSignInService.instance
+                    .signInSilently();
                 if (silentRes?.idToken != null) {
                   await UserLocalStorage.saveSocialIdToken(silentRes!.idToken!);
-                  
+
                   // For Google, we use the raw native token as our authorization bearer
                   // If the backend expects its own token, you should call googleAuth() here instead.
                   // For a "Local-Only" architecture, the native IdToken IS the bearer.
-                  e.requestOptions.headers['Authorization'] = 'Bearer ${silentRes.idToken}';
-                  
-                  debugPrint('✅ API │ Native token refreshed locally. Retrying...');
+                  e.requestOptions.headers['Authorization'] =
+                      'Bearer ${silentRes.idToken}';
+
+                  debugPrint(
+                    '✅ API │ Native token refreshed locally. Retrying...',
+                  );
                   return handler.resolve(await _dio.fetch(e.requestOptions));
                 }
               } catch (googleErr) {
                 debugPrint('❌ API │ Google silent refresh failure: $googleErr');
               }
             }
-
             // --- PATH C: APPLE LOGIN (LOCAL STORAGE FOCUSED) ---
             else if (provider == 'apple') {
-              debugPrint('🔄 API │ Apple Auth. Re-authentication check needed...');
+              debugPrint(
+                '🔄 API │ Apple Auth. Re-authentication check needed...',
+              );
               // Note: Apple requires fresh user gesture or biometric often.
               // For a silent implementation, we'd rely on Keychain storage if not expired.
             }
@@ -908,6 +915,9 @@ class ApiService {
       fields['bookingStatus'] = booking.bookingStatus ?? 'pending';
       fields['passengerNames'] = booking.passengerNames ?? '[]';
       fields['isActive'] = 'true';
+      if (booking.pickupdatetime != null) {
+        fields['pickupdatetime'] = booking.pickupdatetime;
+      }
 
       // Handle files
       if (booking.specialRequestAudio != null) {

@@ -97,10 +97,12 @@ class _BookingsPageState extends State<BookingsPage>
       userBookings.sort((a, b) {
         final dateA =
             a.createdAt ??
+            (a.pickupdatetime != null ? DateTime.tryParse(a.pickupdatetime!) : null) ??
             (a.arrival != null ? DateTime.tryParse(a.arrival!) : null) ??
             DateTime(0);
         final dateB =
             b.createdAt ??
+            (b.pickupdatetime != null ? DateTime.tryParse(b.pickupdatetime!) : null) ??
             (b.arrival != null ? DateTime.tryParse(b.arrival!) : null) ??
             DateTime(0);
         return dateB.compareTo(dateA); // Most recent first
@@ -275,11 +277,11 @@ class _BookingsPageState extends State<BookingsPage>
         itemCount: bookings.length,
         itemBuilder: (context, index) {
           final booking = bookings[index];
-          final arrivalDate = booking.arrival != null
-              ? DateTime.tryParse(booking.arrival!)
-              : null;
-          final dateStr = Bookingcard.formatDate(context, arrivalDate);
-          final timeStr = Bookingcard.formatTime(context, arrivalDate);
+          final displayDate = (booking.pickupdatetime != null && booking.pickupdatetime!.isNotEmpty)
+              ? DateTime.tryParse(booking.pickupdatetime!)
+              : (booking.arrival != null ? DateTime.tryParse(booking.arrival!) : null);
+          final dateStr = Bookingcard.formatDate(context, displayDate);
+          final timeStr = Bookingcard.formatTime(context, displayDate);
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),

@@ -19,6 +19,7 @@ class BookingModel {
   final String? airport;
   final String? terminal;
   final String? arrival; // ISO 8601 DateTime string
+  final String? pickupdatetime; // ISO 8601 DateTime string
   final double? pickupLat;
   final double? pickupLong;
   final double? dropOffLat;
@@ -71,6 +72,7 @@ class BookingModel {
     this.driver,
     this.originalIds,
     this.arrival,
+    this.pickupdatetime,
     this.pickupLat,
     this.pickupLong,
     this.dropOffLat,
@@ -176,6 +178,7 @@ class BookingModel {
       terminal: terminalDetails?.terminalName ?? json['terminal']?.toString(),
       
       arrival: json['arrival']?.toString(),
+      pickupdatetime: json['pickupdatetime']?.toString(),
       pickupLat: (json['pickupLat'] ?? json['pickuplat']) != null 
           ? double.tryParse(json['pickupLat'].toString()) 
           : null,
@@ -293,6 +296,7 @@ class BookingModel {
       'estimatedHours': estimatedHours,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'pickupdatetime': pickupdatetime,
     };
   }
 }
