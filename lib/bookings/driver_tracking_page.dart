@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:premium_force_main/models/booking_model.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:geolocator/geolocator.dart';
 
 /// Displays a live map of the driver's location for a given booking.
 ///
@@ -36,6 +39,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Timer? _chauffeurTimer;
   Duration _elapsed = Duration.zero;
   bool _tripEnded = false;
+  // Distance & ETA
+  LatLng? _lastFetchLocation;
+  String _currentEta = 'Calculating...';
+  String _currentDistance = 'Calculating...';
 
   static const String _mapStyle = '''
 [
@@ -267,6 +274,18 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                 _updateDriverMarker();
               });
               _moveCameraToDriver();
+              
+              if (_lastFetchLocation == null ||
+                  Geolocator.distanceBetween(
+                        _lastFetchLocation!.latitude,
+                        _lastFetchLocation!.longitude,
+                        lat,
+                        lng,
+                      ) >
+                      100) {
+                _lastFetchLocation = _driverLocation;
+                _fetchDirections();
+              }
             }
           }
         });
@@ -354,6 +373,102 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  Future<void> _fetchDirections() async {
+    if (_driverLocation == null) return;
+
+    final booking = widget.booking;
+    final pickupLat = booking.pickupLat ?? 0;
+    final pickupLng = booking.pickupLong ?? 0;
+    if (pickupLat == 0 || pickupLng == 0) return;
+
+    final dropoffLat = booking.dropOffLat ?? 0;
+    final dropoffLng = booking.dropOffLong ?? 0;
+    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
+
+    String origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
+    String destination;
+    String waypoints = '';
+
+    if (_isChauffeur || !hasDropoff) {
+      destination = '$pickupLat,$pickupLng';
+    } else {
+      destination = '$dropoffLat,$dropoffLng';
+      waypoints = '&waypoints=$pickupLat,$pickupLng';
+    }
+
+    final apiKey =
+        dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
+    if (apiKey.isEmpty) return;
+
+    final url =
+        'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
+
+    try {
+      final response = await Dio().get(url);
+      if (response.statusCode == 200 && response.data['status'] == 'OK') {
+        final routes = response.data['routes'] as List;
+        if (routes.isNotEmpty) {
+          final legs = routes.first['legs'] as List;
+          int totalDistance = 0;
+          int totalDuration = 0;
+          for (var leg in legs) {
+            totalDistance += (leg['distance']['value'] as num).toInt();
+            totalDuration += (leg['duration']['value'] as num).toInt();
+          }
+
+          final polylineStr = routes.first['overview_polyline']['points'] as String;
+          final polyPoints = _decodePolyline(polylineStr);
+
+          if (mounted) {
+            setState(() {
+              _polylines.clear(); 
+              _addRoutePolyline(polyPoints);
+
+              _currentDistance = '${(totalDistance / 1000).toStringAsFixed(1)} km';
+              
+              int mins = (totalDuration / 60).round();
+              _currentEta = mins > 60 
+                  ? '${mins ~/ 60} hr ${mins % 60} min' 
+                  : '$mins min';
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching directions: $e');
+    }
+  }
+
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> poly = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      poly.add(LatLng(lat / 100000.0, lng / 100000.0));
+    }
+    return poly;
+  }
 
   String _formatElapsed(Duration d) {
     final hours = d.inHours;
@@ -483,7 +598,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                   ] else ...[
                     Text(
                       _driverLocation != null
-                          ? 'Driver location received'
+                          ? 'ETA: $_currentEta • $_currentDistance'
                           : 'Waiting for driver location...',
                       style: const TextStyle(
                         color: Colors.white,
