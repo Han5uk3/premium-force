@@ -62,6 +62,9 @@ class PaymentResult extends Equatable {
   final String? agreementId;
   final String customerEmail;
   final double amount;
+  final String? orderID;
+  final String? transactionID;
+  final double? discountPercentage;
 
   const PaymentResult({
     required this.success,
@@ -72,6 +75,9 @@ class PaymentResult extends Equatable {
     this.agreementId,
     required this.customerEmail,
     required this.amount,
+    this.orderID,
+    this.transactionID,
+    this.discountPercentage,
   });
 
   @override
@@ -84,6 +90,9 @@ class PaymentResult extends Equatable {
     agreementId,
     customerEmail,
     amount,
+    orderID,
+    transactionID,
+    discountPercentage,
   ];
 
   Map<String, dynamic> toJson() {
@@ -96,6 +105,9 @@ class PaymentResult extends Equatable {
       'agreementId': agreementId,
       'customerEmail': customerEmail,
       'amount': amount,
+      'orderID': orderID,
+      'transactionID': transactionID,
+      'discountPercentage': discountPercentage,
     };
   }
 
@@ -109,6 +121,9 @@ class PaymentResult extends Equatable {
       agreementId: json['agreementId'] as String?,
       customerEmail: json['customerEmail'] as String? ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      orderID: json['orderID'] as String?,
+      transactionID: json['transactionID'] as String?,
+      discountPercentage: (json['discountPercentage'] as num?)?.toDouble(),
     );
   }
 }

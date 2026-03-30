@@ -1515,6 +1515,9 @@ class _NewBookingState extends State<NewBooking> {
                                   responseMessage: "Success",
                                   customerEmail: userEmail,
                                   amount: totalWithVat,
+                                  orderID: orderId,
+                                  transactionID: "BYPASS_TEST_$orderId",
+                                  discountPercentage: _discountPercentage,
                                 );
                                 /*
                                 final _unused = await PaymentService()
@@ -1636,15 +1639,15 @@ class _NewBookingState extends State<NewBooking> {
                                         _getSelectedTerminalName(context) ?? "",
                                     arrival: _selectedCatCode != 2
                                         ? getIsoDateTime(
-                                          _selectedDate,
-                                          _selectedTime,
-                                        )
+                                            _selectedDate,
+                                            _selectedTime,
+                                          )
                                         : null,
                                     pickupdatetime: _selectedCatCode == 2
                                         ? getIsoDateTime(
-                                          _selectedPickupDate,
-                                          _selectedPickupTime,
-                                        )
+                                            _selectedPickupDate,
+                                            _selectedPickupTime,
+                                          )
                                         : null,
                                     pickupLat: finalPickupLat
                                         ?.toString()
@@ -1702,6 +1705,10 @@ class _NewBookingState extends State<NewBooking> {
                                               ? _selectedEstimatedHours
                                               : null
                                         : null,
+                                    orderID: paymentResult.orderID,
+                                    transactionID: paymentResult.transactionID,
+                                    discountPercentage:
+                                        paymentResult.discountPercentage,
                                   );
 
                                   if (kDebugMode) {

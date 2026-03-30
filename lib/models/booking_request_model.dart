@@ -40,6 +40,9 @@ class BookingRequestModel {
   int? estimatedHours;
   String? specialId;
   String? pickupdatetime;
+  double? discountPercentage;
+  String? orderID;
+  String? transactionID;
 
   BookingRequestModel({
     this.category,
@@ -80,6 +83,9 @@ class BookingRequestModel {
     this.estimatedHours,
     this.specialId,
     this.pickupdatetime,
+    this.discountPercentage,
+    this.orderID,
+    this.transactionID,
   });
 
   Map<String, dynamic> toMap() {
@@ -123,6 +129,9 @@ class BookingRequestModel {
       if (estimatedHours != null) 'estimatedHours': estimatedHours,
       if (specialId != null) 'specialId': specialId,
       if (pickupdatetime != null) 'pickupdatetime': pickupdatetime,
+      if (discountPercentage != null) 'discountPercentage': discountPercentage,
+      if (orderID != null) 'orderID': orderID,
+      if (transactionID != null) 'transactionID': transactionID,
     };
   }
 

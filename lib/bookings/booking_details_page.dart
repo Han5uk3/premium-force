@@ -257,10 +257,19 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     AppLocalizations loc,
     BookingModel booking,
   ) {
-    // Logic from new_booking.dart back-calculated
+    // booking.charge is the total the customer paid (after discount + 15% VAT)
     final total = booking.charge ?? 0.0;
-    final baseCharge = total / 1.15;
-    final vat = total - baseCharge;
+    final discount = booking.discountPercentage ?? 0.0;
+
+    // Reverse-engineer: total = base * (1 - discount%) * 1.15
+    // So: base = total / ((1 - discount%) * 1.15)
+    final discountFactor = 1.0 - (discount / 100.0);
+    final baseCharge = (discountFactor > 0)
+        ? total / (discountFactor * 1.15)
+        : total / 1.15;
+    final discountSaving = baseCharge * (discount / 100.0);
+    final discountedBase = baseCharge - discountSaving;
+    final vat = discountedBase * 0.15;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,6 +299,30 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSummaryRow(loc.charge, baseCharge),
+                if (discount > 0) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Discount (${discount.toStringAsFixed(0)}%)',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      Text(
+                        '- ${discountSaving.toStringAsFixed(2)} SAR',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 8),
                 _buildSummaryRow(loc.vat, vat),
                 const SizedBox(height: 8),
@@ -301,29 +334,41 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   isBold: true,
                   color: const Color(0xFFE4A46B),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Payment Status',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      booking.paymentStatus ?? 'Paid',
-                      style: const TextStyle(
-                        color: Colors.green,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+                if (booking.orderID != null || booking.transactionID != null) ...[
+                  const Divider(color: Colors.white10, height: 24),
+                  if (booking.orderID != null)
+                    _buildInfoRow('Order ID', booking.orderID!),
+                  if (booking.orderID != null && booking.transactionID != null)
+                    const SizedBox(height: 4),
+                  if (booking.transactionID != null)
+                    _buildInfoRow('Transaction ID', booking.transactionID!),
+                ],
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.5),
+            fontSize: 12,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+            fontFamily: 'monospace',
           ),
         ),
       ],

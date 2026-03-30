@@ -47,6 +47,9 @@ class BookingModel {
   final Map<String, dynamic>? rating;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final double? discountPercentage;
+  final String? orderID;
+  final String? transactionID;
 
   // IDs (sometimes redundant with originalIds but kept for compatibility)
   final String? customerID;
@@ -108,6 +111,9 @@ class BookingModel {
     this.rating,
     this.createdAt,
     this.updatedAt,
+    this.discountPercentage,
+    this.orderID,
+    this.transactionID,
   });
 
   String get displayBrand {
@@ -253,6 +259,11 @@ class BookingModel {
       updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'].toString())
           : null,
+      discountPercentage: json['discountPercentage'] != null
+          ? double.tryParse(json['discountPercentage'].toString())
+          : null,
+      orderID: json['orderID']?.toString(),
+      transactionID: json['transactionID']?.toString(),
     );
   }
 
@@ -297,6 +308,9 @@ class BookingModel {
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'pickupdatetime': pickupdatetime,
+      'discountPercentage': discountPercentage,
+      'orderID': orderID,
+      'transactionID': transactionID,
     };
   }
 }
