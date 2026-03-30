@@ -5,6 +5,7 @@ import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/models/user.dart';
+import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
@@ -21,11 +22,15 @@ class BookingDetailsPage extends StatefulWidget {
 class _BookingDetailsPageState extends State<BookingDetailsPage> {
   UserModel? _driver;
   bool _isLoadingDriver = false;
+  bool _isPayingExtraHours = false;
+  bool _extraHoursPaid = false;
+  Map<String, dynamic>? _currentRating;
   final ApiService _apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
+    _currentRating = widget.booking.rating;
     if (widget.booking.driver != null) {
       _driver = widget.booking.driver;
     } else if (widget.booking.driverID != null &&
@@ -200,7 +205,16 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 child: _buildDriverCard(),
               ),
             ],
+            // Review Section (if completed)
+            _buildReviewSection(),
+
             SizedBox(height: 24),
+
+            // ------------------------------------------------------------------
+            // Extra Hours charge banner (chauffeur overtime)
+            // ------------------------------------------------------------------
+            if (_shouldShowExtraHoursSection(booking))
+              _buildExtraHoursBanner(booking),
 
             // Track Driver Button
             if ((booking.bookingStatus ?? '').toLowerCase().trim() ==
@@ -249,6 +263,222 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildReviewSection() {
+    final status = (widget.booking.bookingStatus ?? '').toLowerCase().trim();
+    if (status != 'completed') return const SizedBox.shrink();
+
+    if (_currentRating != null) {
+      // Show entered review
+      final rate = _currentRating!['rate'] ?? 5;
+      final text = _currentRating!['reviewText'] ?? '';
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text(
+                    'Your Review',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: List.generate(5, (index) {
+                      return Icon(
+                        index < rate ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 18,
+                      );
+                    }),
+                  ),
+                ],
+              ),
+              if (text.toString().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  text.toString(),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    } else {
+      // Show "Leave a Review" button
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: PremiumButton(
+          fontsize: 14,
+          text: 'Leave a Review',
+          showLoader: false,
+          textColor: Colors.white,
+          onTap: () => _showReviewDialog(context),
+        ),
+      );
+    }
+  }
+
+  void _showReviewDialog(BuildContext context) {
+    int selectedStars = 5;
+    final reviewController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              backgroundColor: const Color(0xFF1C1C1E),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Rate your Driver',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (index) {
+                        return IconButton(
+                          icon: Icon(
+                            index < selectedStars
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: Colors.amber,
+                            size: 32,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              selectedStars = index + 1;
+                            });
+                          },
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: reviewController,
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Add an optional review...',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.05),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                          child: const Text('Cancel',
+                              style: TextStyle(color: Colors.white54)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE4A46B),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  setDialogState(() => isSubmitting = true);
+                                  final token = UserLocalStorage.getToken();
+                                  final driverID = widget.booking.driverID;
+                                  
+                                  if (driverID == null || driverID.isEmpty || driverID == 'null') {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Cannot review without a valid driver.')),
+                                    );
+                                    setDialogState(() => isSubmitting = false);
+                                    Navigator.pop(ctx);
+                                    return;
+                                  }
+
+                                  final result = await _apiService.addReview(
+                                    bookingID: widget.booking.id,
+                                    driverID: driverID,
+                                    rate: selectedStars,
+                                    reviewText: reviewController.text,
+                                    token: token,
+                                  );
+
+                                  if (mounted) {
+                                    if (result['success'] == true) {
+                                      setState(() {
+                                        _currentRating = {
+                                          'rate': selectedStars,
+                                          'reviewText': reviewController.text,
+                                        };
+                                      });
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Review submitted successfully.')),
+                                      );
+                                      Navigator.pop(ctx);
+                                    } else {
+                                       setDialogState(() => isSubmitting = false);
+                                       ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(result['message'] ?? 'Failed to submit review')),
+                                      );
+                                    }
+                                  }
+                                },
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.black))
+                              : const Text('Submit'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -497,6 +727,240 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         ],
       ),
     );
+  }
+
+
+  /// Simple key–value row used inside the extra-hours banner.
+  Widget _extraInfoRow(
+    String label,
+    String value,
+    Color valueColor, {
+    bool bold = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 13,
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: valueColor,
+            fontSize: 13,
+            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Extra Hours helpers
+  // ---------------------------------------------------------------------------
+
+  /// Show the extra hours section when:
+  /// - booking is chauffeur (estimatedHours != null)
+  /// - extraHours > 0 (driver ran over)
+  /// - trip has ended (status is 'endtracking' or completed-but-unpaid)
+  /// - customer has not already paid for extra hours in this session.
+  bool _shouldShowExtraHoursSection(BookingModel booking) {
+    if (_extraHoursPaid) return false;
+    final extraHours = booking.extraHours ?? 0;
+    if (extraHours <= 0) return false;
+    final isChauffeur =
+        (booking.category ?? '').toLowerCase().contains('chauffeur') ||
+        booking.estimatedHours != null;
+    if (!isChauffeur) return false;
+    final status = (booking.bookingStatus ?? '').toLowerCase().trim();
+    // Show when driver stopped tracking (endtracking) or still showing starttracking
+    return status == 'endtracking' || status == 'starttracking';
+  }
+
+  Widget _buildExtraHoursBanner(BookingModel booking) {
+    final extraHours = booking.extraHours ?? 0;
+    // Use the base per-hour rate from the original charge
+    // charge / estimatedHours gives hourly rate; fallback to 0 if unknown
+    final bookedHours = booking.estimatedHours ?? 1;
+    final originalCharge = booking.charge ?? 0.0;
+    final hourlyRate = bookedHours > 0 ? (originalCharge / bookedHours) : 0.0;
+    final extraCharge = hourlyRate * extraHours;
+    final extraVat = extraCharge * 0.15;
+    final extraTotal = extraCharge + extraVat;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.red.shade900.withOpacity(0.25),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade700, width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.timer_off, color: Colors.redAccent, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Extra Hours Charge',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _extraInfoRow('Extra Hours', '$extraHours hrs', Colors.white70),
+                const SizedBox(height: 4),
+                _extraInfoRow(
+                  'Extra Charge',
+                  'SAR ${extraCharge.toStringAsFixed(2)}',
+                  Colors.white70,
+                ),
+                const SizedBox(height: 4),
+                _extraInfoRow(
+                  'VAT (15%)',
+                  'SAR ${extraVat.toStringAsFixed(2)}',
+                  Colors.white70,
+                ),
+                const Divider(color: Colors.white24, height: 16),
+                _extraInfoRow(
+                  'Total Extra Due',
+                  'SAR ${extraTotal.toStringAsFixed(2)}',
+                  Colors.redAccent,
+                  bold: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          PremiumButton(
+            fontsize: 14,
+            text: 'Complete Payment',
+            showLoader: _isPayingExtraHours,
+            onTap: _isPayingExtraHours
+                ? () {}
+                : () => _payExtraHours(
+                      booking: booking,
+                      extraTotal: extraTotal,
+                    ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _payExtraHours({
+    required BookingModel booking,
+    required double extraTotal,
+  }) async {
+    if (_isPayingExtraHours) return;
+    setState(() => _isPayingExtraHours = true);
+
+    try {
+      final userData = UserLocalStorage.getUserData();
+      final userEmail = userData?['email'] as String? ?? '';
+
+      final orderId =
+          'EXTRA_${booking.id}_${DateTime.now().millisecondsSinceEpoch}';
+
+      // ── BYPASS (same as main booking flow) ──────────────────────────────
+      final paymentResult = PaymentResult(
+        success: true,
+        transactionReference: 'BYPASS_EXTRA_$orderId',
+        invoiceId: orderId,
+        responseCode: '000',
+        responseMessage: 'Success',
+        customerEmail: userEmail,
+        amount: extraTotal,
+        orderID: orderId,
+        transactionID: 'BYPASS_EXTRA_$orderId',
+      );
+      // ── Uncomment below to enable live Paytabs payment ───────────────────
+      // final userData2 = UserLocalStorage.getUserData();
+      // final paymentResult = await PaymentService().startPayment(
+      //   request: PaymentRequest(
+      //     amount: double.parse(extraTotal.toStringAsFixed(2)),
+      //     currency: PaytabsConfig.defaultCurrency,
+      //     merchantCountryCode: PaytabsConfig.merchantCountryCode,
+      //     orderId: orderId,
+      //     customerEmail: userData2?['email'] ?? '',
+      //     customerName: userData2?['name'] ?? 'Customer',
+      //     customerPhone: userData2?['phoneNumber'] ?? UserLocalStorage.getPhoneNumber() ?? '',
+      //     cartId: orderId,
+      //     cartDescription:
+      //         'Extra ${booking.extraHours} hour(s) — Chauffeur booking ${booking.id}',
+      //   ),
+      // );
+
+      if (paymentResult.success) {
+        // Mark booking as completed
+        final token = UserLocalStorage.getToken();
+        final result = await _apiService.updateHourlyBookingStatus(
+          bookingId: booking.id,
+          status: 'completed',
+          transactionReference: paymentResult.transactionReference,
+          token: token,
+        );
+
+        if (mounted) {
+          if (result['success'] == true) {
+            setState(() => _extraHoursPaid = true);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Payment successful. Booking completed!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            // Pop back so the parent refreshes
+            Navigator.pop(context, true);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  result['message'] ?? 'Payment ok, but failed to update booking.',
+                ),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(paymentResult.responseMessage),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPayingExtraHours = false);
+    }
   }
 
   void _showCancelDialog(BuildContext context) {

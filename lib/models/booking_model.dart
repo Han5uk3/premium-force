@@ -43,6 +43,7 @@ class BookingModel {
   final String? flightNumber;
   final int? serviceDuration;
   final int? estimatedHours;
+  final int? extraHours; // > 0 when driver ran over booked hours
   final List<String>? trackingTimeline;
   final Map<String, dynamic>? rating;
   final DateTime? createdAt;
@@ -107,6 +108,7 @@ class BookingModel {
     this.categoryID,
     this.serviceDuration,
     this.estimatedHours,
+    this.extraHours,
     this.trackingTimeline,
     this.rating,
     this.createdAt,
@@ -247,6 +249,9 @@ class BookingModel {
       estimatedHours: json['estimatedHours'] != null
           ? int.tryParse(json['estimatedHours'].toString())
           : (json['hours'] != null ? int.tryParse(json['hours'].toString()) : null),
+      extraHours: json['extraHours'] != null
+          ? int.tryParse(json['extraHours'].toString())
+          : null,
       
       trackingTimeline: json['TrackingTimeLine'] != null 
           ? List<String>.from(json['TrackingTimeLine']) 
@@ -305,6 +310,7 @@ class BookingModel {
       'categoryID': categoryID,
       'serviceDuration': serviceDuration,
       'estimatedHours': estimatedHours,
+      'extraHours': extraHours,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'pickupdatetime': pickupdatetime,

@@ -860,12 +860,17 @@ class ApiService {
   Future<Map<String, dynamic>> updateHourlyBookingStatus({
     required String bookingId,
     required String status,
+    String? transactionReference,
     String? token,
   }) async {
     try {
+      final data = <String, dynamic>{'bookingStatus': status, 'status': status};
+      if (transactionReference != null) {
+        data['transactionReference'] = transactionReference;
+      }
       final response = await _dio.put(
         'hourly-bookings/$bookingId',
-        data: {'bookingStatus': status},
+        data: data,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -948,6 +953,41 @@ class ApiService {
       final response = await _dio.post(
         'hourly-bookings',
         data: formData,
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reviews
+  // ---------------------------------------------------------------------------
+
+  /// Add a review for a completed booking.
+  /// 
+  /// Calls `POST /api/reviews`
+  Future<Map<String, dynamic>> addReview({
+    required String bookingID,
+    required String driverID,
+    required int rate,
+    String? reviewText,
+    String? token,
+  }) async {
+    try {
+      final data = <String, dynamic>{
+        'bookingID': bookingID,
+        'driverID': driverID,
+        'rate': rate,
+        'isActive': true,
+      };
+      if (reviewText != null && reviewText.trim().isNotEmpty) {
+        data['reviewText'] = reviewText.trim();
+      }
+      final response = await _dio.post(
+        'reviews',
+        data: data,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
