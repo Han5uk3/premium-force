@@ -282,6 +282,9 @@ class AuthProvider extends ChangeNotifier {
             await UserLocalStorage.saveToken(accessToken);
           }
 
+          // Mark provider as phone
+          await UserLocalStorage.saveLoginProvider('phone');
+
           // --- Check if user exists ---
           var userData = result['user'] ?? result['data'];
           if (userData is Map<String, dynamic>) {
@@ -603,6 +606,12 @@ class AuthProvider extends ChangeNotifier {
             }
           }
 
+          // Store the local-only tokens
+          await UserLocalStorage.saveLoginProvider('google');
+          if (result.idToken != null) {
+            await UserLocalStorage.saveSocialIdToken(result.idToken!);
+          }
+
           await UserLocalStorage.saveUserCredentials(
             userId: uid,
             phoneNumber: phone,
@@ -735,6 +744,12 @@ class AuthProvider extends ChangeNotifier {
                 debugPrint('🍎 Apple Sign-In │ Tokens saved for persistence');
               }
             }
+          }
+
+          // Store the local-only tokens
+          await UserLocalStorage.saveLoginProvider('apple');
+          if (result.idToken != null) {
+            await UserLocalStorage.saveSocialIdToken(result.idToken!);
           }
 
           await UserLocalStorage.saveUserCredentials(

@@ -58,10 +58,10 @@ class GoogleSignInService {
 
       debugPrint('🔐 Google Sign-In │ Success: ${account.email}');
       debugPrint('🔐 Google Sign-In │ ID Token present: ${idToken != null}');
-      debugPrint('🔐 Google Sign-In │ ID Token: $idToken');
 
       return GoogleSignInResult(
         idToken: idToken,
+        accessToken: auth.accessToken,
         email: account.email,
         displayName: account.displayName,
         photoUrl: account.photoUrl,
@@ -70,6 +70,29 @@ class GoogleSignInService {
     } catch (e) {
       debugPrint('🔐 Google Sign-In │ Error: $e');
       rethrow;
+    }
+  }
+
+  /// Attempt to sign in silently in the background.
+  ///
+  /// Useful for refreshing tokens without showing a UI.
+  Future<GoogleSignInResult?> signInSilently() async {
+    try {
+      final GoogleSignInAccount? account = await _googleSignIn.signInSilently();
+      if (account == null) return null;
+
+      final GoogleSignInAuthentication auth = await account.authentication;
+      return GoogleSignInResult(
+        idToken: auth.idToken,
+        accessToken: auth.accessToken,
+        email: account.email,
+        displayName: account.displayName,
+        photoUrl: account.photoUrl,
+        googleId: account.id,
+      );
+    } catch (e) {
+      debugPrint('🔐 Google Sign-In │ Silent Auth Error: $e');
+      return null;
     }
   }
 
@@ -82,6 +105,7 @@ class GoogleSignInService {
 /// Holds the result of a successful Google Sign-In.
 class GoogleSignInResult {
   final String? idToken;
+  final String? accessToken;
   final String email;
   final String? displayName;
   final String? photoUrl;
@@ -89,6 +113,7 @@ class GoogleSignInResult {
 
   const GoogleSignInResult({
     required this.idToken,
+    this.accessToken,
     required this.email,
     this.displayName,
     this.photoUrl,

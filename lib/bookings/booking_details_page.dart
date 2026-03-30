@@ -26,7 +26,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.booking.driverID != null &&
+    if (widget.booking.driver != null) {
+      _driver = widget.booking.driver;
+    } else if (widget.booking.driverID != null &&
         widget.booking.driverID != 'null' &&
         widget.booking.driverID!.isNotEmpty) {
       _fetchDriverDetails();
@@ -34,6 +36,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Future<void> _fetchDriverDetails() async {
+    // If we already have the driver from the model, no need to fetch
+    if (_driver != null) return;
+
     setState(() {
       _isLoadingDriver = true;
     });

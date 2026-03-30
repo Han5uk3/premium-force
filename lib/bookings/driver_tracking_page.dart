@@ -95,8 +95,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
   void _initMarkers() {
     final pickup = LatLng(
-      double.tryParse(widget.booking.pickupLat ?? '0') ?? 0,
-      double.tryParse(widget.booking.pickupLong ?? '0') ?? 0,
+      widget.booking.pickupLat ?? 0,
+      widget.booking.pickupLong ?? 0,
     );
 
     _markers.add(
@@ -113,8 +113,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     );
     if (!isChauffeur && widget.booking.dropOffLat != null) {
       final dropoff = LatLng(
-        double.tryParse(widget.booking.dropOffLat ?? '0') ?? 0,
-        double.tryParse(widget.booking.dropOffLong ?? '0') ?? 0,
+        widget.booking.dropOffLat ?? 0,
+        widget.booking.dropOffLong ?? 0,
       );
       _markers.add(
         Marker(
@@ -129,12 +129,12 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
   void _initPolylines() {
     final pickup = LatLng(
-      double.tryParse(widget.booking.pickupLat ?? '0') ?? 0,
-      double.tryParse(widget.booking.pickupLong ?? '0') ?? 0,
+      widget.booking.pickupLat ?? 0,
+      widget.booking.pickupLong ?? 0,
     );
     final dropoff = LatLng(
-      double.tryParse(widget.booking.dropOffLat ?? '0') ?? 0,
-      double.tryParse(widget.booking.dropOffLong ?? '0') ?? 0,
+      widget.booking.dropOffLat ?? 0,
+      widget.booking.dropOffLong ?? 0,
     );
 
     final isChauffeur = (widget.booking.category ?? '').toLowerCase().contains(
@@ -206,8 +206,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   @override
   Widget build(BuildContext context) {
     final pickup = LatLng(
-      double.tryParse(widget.booking.pickupLat ?? '0') ?? 0,
-      double.tryParse(widget.booking.pickupLong ?? '0') ?? 0,
+      widget.booking.pickupLat ?? 0,
+      widget.booking.pickupLong ?? 0,
     );
 
     return Scaffold(

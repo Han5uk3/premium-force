@@ -303,16 +303,8 @@ class _BookingsPageState extends State<BookingsPage>
                 dropoff: booking.dropOffAddress ?? 'N/A',
                 date: dateStr,
                 time: timeStr,
-                ride: booking.estimatedHours != null
-                    ? '${booking.carName ?? ''} (${booking.estimatedHours} Hours)'
-                          .trim()
-                    : (booking.carName ??
-                          ((booking.carbrand != null ||
-                                  booking.carmodel != null)
-                              ? '${booking.carbrand ?? ''} ${booking.carmodel ?? ''}'
-                                    .trim()
-                              : 'N/A')),
-                brand: booking.carbrand ?? 'N/A',
+                ride: booking.displayName,
+                brand: booking.displayBrand,
                 passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
                 isChauffeur:
                     (booking.category ?? '').toLowerCase().contains(

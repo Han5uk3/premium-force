@@ -37,6 +37,8 @@ class UserLocalStorage {
   static const String _fcmTokenKey = 'fcm_token';
   static const String _userDataKey = 'user_data';
   static const String _notificationStatusKey = 'notification_status';
+  static const String _loginProviderKey = 'login_provider';
+  static const String _socialIdTokenKey = 'social_id_token';
 
   static late Box<dynamic> _box;
 
@@ -82,6 +84,8 @@ class UserLocalStorage {
     await _box.delete(_tokenKey);
     await _box.delete(_refreshTokenKey);
     await _box.delete(_userDataKey);
+    await _box.delete(_loginProviderKey);
+    await _box.delete(_socialIdTokenKey);
     debugPrint('💾 User data cleared');
   }
 
@@ -192,5 +196,29 @@ class UserLocalStorage {
   /// Retrieve the notification status, defaults to true.
   static bool getNotificationStatus() {
     return _box.get(_notificationStatusKey, defaultValue: true) as bool;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Provider Specific (Local Storage Focused Auth)
+  // ---------------------------------------------------------------------------
+
+  /// Save whether the user logged in via phone, google, or apple.
+  static Future<void> saveLoginProvider(String provider) async {
+    await _box.put(_loginProviderKey, provider);
+  }
+
+  /// Get the current login provider ('phone', 'google', 'apple').
+  static String? getLoginProvider() {
+    return _box.get(_loginProviderKey) as String?;
+  }
+
+  /// Save the native social ID token (IdToken) from Google/Apple.
+  static Future<void> saveSocialIdToken(String token) async {
+    await _box.put(_socialIdTokenKey, token);
+  }
+
+  /// Get the stored native social ID token.
+  static String? getSocialIdToken() {
+    return _box.get(_socialIdTokenKey) as String?;
   }
 }

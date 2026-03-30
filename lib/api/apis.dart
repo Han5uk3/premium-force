@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/models/booking_request_model.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/services/google_sign_in_service.dart';
 
 /// Centralised API service for the Premium Force app.
 ///
@@ -62,55 +63,71 @@ class ApiService {
         onError: (DioException e, ErrorInterceptorHandler handler) async {
           // Check if error is 401 Unauthorized
           if (e.response?.statusCode == 401) {
-            final refreshToken = UserLocalStorage.getRefreshToken();
+            final provider = UserLocalStorage.getLoginProvider();
+            debugPrint('🔄 API │ Unauthorized. Provider: $provider');
 
-            if (refreshToken != null) {
-              debugPrint(
-                '🔄 API │ Access token expired. Attempting refresh...',
-              );
-              try {
-                // Use a separate Dio instance to avoid interceptor loops
-                final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
-                final refreshResponse = await refreshDio.post(
-                  '/otp/refresh-token',
-                  data: {'refreshToken': refreshToken},
-                );
-
-                if (refreshResponse.statusCode == 200 &&
-                    refreshResponse.data['success'] == true) {
-                  final newAccessToken = refreshResponse.data['accessToken'];
-                  final newRefreshToken = refreshResponse.data['refreshToken'];
-
-                  // Save new tokens
-                  if (newRefreshToken != null) {
-                    await UserLocalStorage.saveTokens(
-                      accessToken: newAccessToken,
-                      refreshToken: newRefreshToken,
-                    );
-                  } else {
-                    await UserLocalStorage.saveToken(newAccessToken);
-                  }
-
-                  debugPrint(
-                    '✅ API │ Token refreshed successfully. Retrying request...',
+            // --- PATH A: PHONE LOGIN (BACKEND FOCUSED) ---
+            if (provider == 'phone' || provider == null) {
+              final refreshToken = UserLocalStorage.getRefreshToken();
+              if (refreshToken != null) {
+                debugPrint('🔄 API │ Phone Auth. Refreshing backend tokens...');
+                try {
+                  final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
+                  final refreshResponse = await refreshDio.post(
+                    '/otp/refresh-token',
+                    data: {'refreshToken': refreshToken},
                   );
 
-                  // Update the authorization header
-                  final requestOptions = e.requestOptions;
-                  requestOptions.headers['Authorization'] =
-                      'Bearer $newAccessToken';
+                  if (refreshResponse.statusCode == 200 &&
+                      refreshResponse.data['success'] == true) {
+                    final newAccess = refreshResponse.data['accessToken'];
+                    final newRefresh = refreshResponse.data['refreshToken'];
 
-                  // Retry the original request with the new token
-                  final retryResponse = await _dio.fetch(requestOptions);
-                  return handler.resolve(retryResponse);
+                    if (newRefresh != null) {
+                      await UserLocalStorage.saveTokens(
+                        accessToken: newAccess,
+                        refreshToken: newRefresh,
+                      );
+                    } else {
+                      await UserLocalStorage.saveToken(newAccess);
+                    }
+
+                    debugPrint('✅ API │ Backend token refreshed. Retrying...');
+                    e.requestOptions.headers['Authorization'] = 'Bearer $newAccess';
+                    return handler.resolve(await _dio.fetch(e.requestOptions));
+                  }
+                } catch (reErr) {
+                  debugPrint('❌ API │ Phone refresh failure: $reErr');
                 }
-              } catch (refreshErr) {
-                // Refresh failed (e.g. refresh token is also invalid)
-                debugPrint('❌ API │ Token refresh failed: $refreshErr');
-                // You could optionally trigger a full logout here
-                // UserLocalStorage.clearUser();
-                // AuthProvider().checkAuth(); // To reset state
               }
+            }
+
+            // --- PATH B: GOOGLE LOGIN (LOCAL STORAGE FOCUSED) ---
+            else if (provider == 'google') {
+              debugPrint('🔄 API │ Google Auth. Triggering Silent NATIVE Refresh...');
+              try {
+                final silentRes = await GoogleSignInService.instance.signInSilently();
+                if (silentRes?.idToken != null) {
+                  await UserLocalStorage.saveSocialIdToken(silentRes!.idToken!);
+                  
+                  // For Google, we use the raw native token as our authorization bearer
+                  // If the backend expects its own token, you should call googleAuth() here instead.
+                  // For a "Local-Only" architecture, the native IdToken IS the bearer.
+                  e.requestOptions.headers['Authorization'] = 'Bearer ${silentRes.idToken}';
+                  
+                  debugPrint('✅ API │ Native token refreshed locally. Retrying...');
+                  return handler.resolve(await _dio.fetch(e.requestOptions));
+                }
+              } catch (googleErr) {
+                debugPrint('❌ API │ Google silent refresh failure: $googleErr');
+              }
+            }
+
+            // --- PATH C: APPLE LOGIN (LOCAL STORAGE FOCUSED) ---
+            else if (provider == 'apple') {
+              debugPrint('🔄 API │ Apple Auth. Re-authentication check needed...');
+              // Note: Apple requires fresh user gesture or biometric often.
+              // For a silent implementation, we'd rely on Keychain storage if not expired.
             }
           }
           // If not 401 or refresh failed, pass the error along
@@ -1025,8 +1042,9 @@ class ApiService {
     String? token,
   }) async {
     try {
-      final response = await _dio.post(
+      final response = await _dio.patch(
         'special-content/$id/increment',
+        data: {'usedCount': 1},
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
