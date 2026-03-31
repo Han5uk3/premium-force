@@ -813,8 +813,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         booking.estimatedHours != null;
     if (!isChauffeur) return false;
     final status = (booking.bookingStatus ?? '').toLowerCase().trim();
-    // Show when driver stopped tracking (endtracking) or still showing starttracking
-    return status == 'endtracking' || status == 'starttracking';
+    // Show when driver set paymentpending
+    return status == 'paymentpending';
   }
 
   Widget _buildExtraHoursBanner(BookingModel booking) {
@@ -1204,17 +1204,21 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   String getBookingStatusText(String status) {
     switch (status.toLowerCase()) {
       case 'completed':
-        return 'completed';
+        return 'Trip Completed';
       case 'cancelled':
         return 'This booking has been canceled';
       case 'pending':
         return 'A driver will be assigned to you soon!';
+      case 'assigned':
+        return 'A driver has been assigned!';
       case 'starttracking':
-        return 'Your chauffeur is on the way.';
-      case 'endtracking':
-        return 'Your trip had ended!';
+        return 'Your ride is in progress.';
+      case 'paymentpending':
+        return 'Payment pending for extra hours.';
+      case 'reviewed':
+        return 'Trip reviewed.';
       default:
-        return 'default';
+        return status;
     }
   }
 }
