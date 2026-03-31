@@ -59,7 +59,6 @@ class _SignUpPageState extends State<SignUpPage>
   bool _isCheckingPromo = false;
   bool _isPromoValid = false;
   String? _appliedPromoId;
-  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -103,7 +102,7 @@ class _SignUpPageState extends State<SignUpPage>
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
+    AnimatedSnackBar.dismiss();
     _nameController.dispose();
     _emailController.dispose();
     _locationController.dispose();
@@ -114,31 +113,7 @@ class _SignUpPageState extends State<SignUpPage>
   }
 
   void _showCustomSnackBar(String message, {String type = "E"}) {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: AnimatedSnackBar(
-            message: message,
-            type: type,
-            onDismissed: () {
-              if (mounted) {
-                _overlayEntry?.remove();
-                _overlayEntry = null;
-              }
-            },
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
+    AnimatedSnackBar.show(context, message, type);
   }
 
   Future<void> _pickImage() async {
@@ -316,7 +291,10 @@ class _SignUpPageState extends State<SignUpPage>
           _appliedPromoId = promo['_id'] ?? promo['id'];
         });
         if (mounted) {
-          _showCustomSnackBar("Promo code applied successfully!", type: "S");
+          _showCustomSnackBar(
+            AppLocalizations.of(context)!.promoCodeAppliedSuccessfully,
+            type: "S",
+          );
         }
       } else {
         setState(() {
@@ -326,8 +304,8 @@ class _SignUpPageState extends State<SignUpPage>
         if (mounted) {
           _showCustomSnackBar(
             promo != null && promo['isActive'] == false
-                ? "Promo code is inactive"
-                : "Invalid promo code",
+                ? AppLocalizations.of(context)!.promoCodeIsInactive
+                : AppLocalizations.of(context)!.invalidPromoCode,
             type: "E",
           );
         }
@@ -335,7 +313,8 @@ class _SignUpPageState extends State<SignUpPage>
     } else {
       if (mounted) {
         _showCustomSnackBar(
-          result['message'] ?? "Invalid or inactive promo code",
+          result['message'] ??
+              AppLocalizations.of(context)!.invalidOrInactivePromoCode,
           type: "E",
         );
       }
@@ -350,7 +329,10 @@ class _SignUpPageState extends State<SignUpPage>
       _appliedPromoId = null;
       _specialIdController.clear();
     });
-    _showCustomSnackBar("Promo code removed", type: "W");
+    _showCustomSnackBar(
+      AppLocalizations.of(context)!.promoCodeRemoved,
+      type: "W",
+    );
   }
 
   Future<void> _handleSignUp() async {
@@ -421,18 +403,23 @@ class _SignUpPageState extends State<SignUpPage>
       }
 
       // Save tokens if returned
-      final accessToken = result['accessToken'] as String?;
-      final refreshToken = result['refreshToken'] as String?;
+      final tokens = result['tokens'];
+      final accessToken = (tokens is Map
+              ? (tokens['accessToken'] ?? tokens['token'])
+              : (result['accessToken'] ?? result['token']))
+          as String?;
+      final refreshToken = (tokens is Map
+              ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+              : (result['refreshToken'] ?? result['refresh_token']))
+          as String?;
+
       if (accessToken != null && refreshToken != null) {
         await UserLocalStorage.saveTokens(
           accessToken: accessToken,
           refreshToken: refreshToken,
         );
-      } else {
-        final singleToken = result['token'] as String?;
-        if (singleToken != null) {
-          await UserLocalStorage.saveToken(singleToken);
-        }
+      } else if (accessToken != null) {
+        await UserLocalStorage.saveToken(accessToken);
       }
 
       if (!mounted) return;
@@ -442,7 +429,8 @@ class _SignUpPageState extends State<SignUpPage>
       );
     } else {
       _showCustomSnackBar(
-        result['message'] as String? ?? 'Signup failed',
+        result['message'] as String? ??
+            AppLocalizations.of(context)!.signupFailed,
         type: "E",
       );
     }
@@ -938,7 +926,9 @@ class _SignUpPageState extends State<SignUpPage>
                                     child: PremiumButton(
                                       showLoader: _isCheckingPromo,
                                       fontsize: 14,
-                                      text: _isPromoValid ? "Remove" : "Apply",
+                                      text: _isPromoValid
+                                          ? AppLocalizations.of(context)!.remove
+                                          : AppLocalizations.of(context)!.apply,
                                       gradient: _isPromoValid
                                           ? [
                                             Colors.red.shade800,

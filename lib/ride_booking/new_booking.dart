@@ -25,6 +25,7 @@ import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:premium_force_main/ride_booking/success_page.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -98,7 +99,6 @@ class _NewBookingState extends State<NewBooking> {
   String? _specialRequestsVoiceNotePath;
   int _selectedTerminalCode = 0;
   int _selectedAirportCode = 0;
-  OverlayEntry? _overlayEntry;
   String _selectedPassengerCountryCode = '966';
 
   // Promo Code variables
@@ -724,8 +724,7 @@ class _NewBookingState extends State<NewBooking> {
                       if (carImage != null &&
                           !carImage.startsWith('http') &&
                           !carImage.startsWith('assets/')) {
-                        const host =
-                            'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000';
+                        const host = 'https://api.premiumforcegroup.com';
                         carImage = carImage.startsWith('/')
                             ? '$host$carImage'
                             : '$host/$carImage';
@@ -1006,7 +1005,7 @@ class _NewBookingState extends State<NewBooking> {
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
+    AnimatedSnackBar.dismiss();
     flightNumberController.dispose();
     specialRequestsController.dispose();
     super.dispose();
@@ -1073,31 +1072,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   void _showCustomSnackBar(String message, String type) {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: AnimatedSnackBar(
-            message: message,
-            type: type,
-            onDismissed: () {
-              if (mounted) {
-                _overlayEntry?.remove();
-                _overlayEntry = null;
-              }
-            },
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
+    AnimatedSnackBar.show(context, message, type);
   }
 
   String _getServiceName(BuildContext context, int code) {
@@ -1303,7 +1278,7 @@ class _NewBookingState extends State<NewBooking> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: PremiumButton(
                     text: (_isCalculatingDistance || _isCheckingRoute)
-                        ? "Processing..."
+                        ? loc.processing
                         : showReviewAndConfirm
                         ? loc.bookService
                         : loc.continueText,
@@ -1363,7 +1338,7 @@ class _NewBookingState extends State<NewBooking> {
                                     ),
                                   )) {
                                     _showCustomSnackBar(
-                                      "Pickup time must be at least 1 hour from now.",
+                                      loc.pickupTimeAtLeast1HourFromNow,
                                       'E',
                                     );
                                     return;
@@ -1746,15 +1721,21 @@ class _NewBookingState extends State<NewBooking> {
 
                                   if (apiResponse['success'] == true) {
                                     _showCustomSnackBar(
-                                      // Use direct string fallback if localization not yet generated
-                                      "Booking confirmed successfully!",
+                                      loc.bookingConfirmedSuccessfully,
                                       'S',
                                     );
-                                    Navigator.of(context).pop(true);
+                                    Navigator.pushAndRemoveUntil(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const SuccessPage(),
+                                      ),
+                                      (route) => false,
+                                    );
                                   } else {
                                     _showCustomSnackBar(
                                       apiResponse['message'] ??
-                                          "Booking failed. Please try again.",
+                                          loc.bookingFailed,
                                       'E',
                                     );
                                   }
@@ -1767,7 +1748,7 @@ class _NewBookingState extends State<NewBooking> {
                               } catch (e) {
                                 debugPrint('❌ Booking error: $e');
                                 _showCustomSnackBar(
-                                  "Something went wrong. Please try again.",
+                                  loc.somethingWentWrong,
                                   'E',
                                 );
                               } finally {
@@ -1974,15 +1955,15 @@ class _NewBookingState extends State<NewBooking> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white24, width: 0.5),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, color: Color(0xFFE4A46B), size: 20),
-                  SizedBox(width: 12),
+                  const Icon(Icons.info_outline, color: Color(0xFFE4A46B), size: 20),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      "Any additional hours beyond the selected duration will be charged accordingly. Payment for these extra hours will be settled at the completion of your journey.",
-                      style: TextStyle(
+                      loc.extraHoursInfo,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
                         height: 1.5,
@@ -2125,7 +2106,7 @@ class _NewBookingState extends State<NewBooking> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        "Discount (${_discountPercentage.toStringAsFixed(0)}%)",
+                        "${loc.discount} (${_discountPercentage.toStringAsFixed(0)}%)",
                         style: const TextStyle(
                           color: Colors.green,
                           fontSize: 16,
@@ -3419,12 +3400,10 @@ class _NewBookingState extends State<NewBooking> {
                                           _selectedPickupTime!.minute <
                                               now.minute)) {
                                     _selectedPickupTime = null;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          loc.previouslySelectedTimeClearedAsItIsInThePast,
-                                        ),
-                                      ),
+                                    AnimatedSnackBar.show(
+                                      context,
+                                      loc.previouslySelectedTimeClearedAsItIsInThePast,
+                                      'I',
                                     );
                                   }
                                 }
@@ -3439,12 +3418,10 @@ class _NewBookingState extends State<NewBooking> {
                                       (_selectedTime!.hour == now.hour &&
                                           _selectedTime!.minute < now.minute)) {
                                     _selectedTime = null;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          loc.previouslySelectedTimeClearedAsItIsInThePast,
-                                        ),
-                                      ),
+                                    AnimatedSnackBar.show(
+                                      context,
+                                      loc.previouslySelectedTimeClearedAsItIsInThePast,
+                                      'I',
                                     );
                                   }
                                 }

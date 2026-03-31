@@ -69,7 +69,7 @@ class UserModel {
         !imageUrl.startsWith('http')) {
       // Backend images are usually in /uploads or relative to root
       const String host =
-          'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000';
+          'https://api.premiumforcegroup.com';
       if (imageUrl.startsWith('/')) {
         imageUrl = '$host$imageUrl';
       } else {

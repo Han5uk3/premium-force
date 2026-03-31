@@ -544,6 +544,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get km => 'كم';
 
   @override
+  String get discount => 'خصم';
+
+  @override
   String get charge => 'الرسوم';
 
   @override
@@ -752,4 +755,237 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get errorGettingLocation => 'خطأ في الحصول على الموقع: ';
+
+  @override
+  String get trackYourDriver => 'تتبع سائقك';
+
+  @override
+  String get airportArrivalSubtitle => 'وصول المطار - السائق في الطريق إليك';
+
+  @override
+  String get airportDepartureSubtitle => 'مغادرة المطار - السائق قادم للاستلام';
+
+  @override
+  String get chauffeurServiceSubtitle =>
+      'خدمة السائق - السائق في الطريق للاستلام';
+
+  @override
+  String get driverOnTheWay => 'السائق في الطريق';
+
+  @override
+  String get tripEnded => 'انتهت الرحلة';
+
+  @override
+  String get waitingForDriver => 'في انتظار السائق...';
+
+  @override
+  String get waitingForLocation => 'في انتظار موقع السائق...';
+
+  @override
+  String get etaPrefix => 'الوقت المتوقع للوصول:';
+
+  @override
+  String get pickupPointLabel => 'نقطة الاستلام';
+
+  @override
+  String get airportDropoffLabel => 'المطار (توصيل)';
+
+  @override
+  String get airportPickupLabel => 'المطار (استلام)';
+
+  @override
+  String get dropoffPointLabel => 'نقطة التوصيل';
+
+  @override
+  String get driverMarkerTitle => 'السائق';
+
+  @override
+  String get extraHoursCharge => 'رسوم الساعات الإضافية';
+
+  @override
+  String get extraHours => 'ساعات إضافية';
+
+  @override
+  String get totalExtraDue => 'إجمالي المبلغ الإضافي المستحق';
+
+  @override
+  String get completePayment => 'إكمال الدفع';
+
+  @override
+  String get cancelBooking => 'إلغاء الحجز';
+
+  @override
+  String get cancelBookingConfirm =>
+      'هل أنت متأكد من رغبتك في إلغاء هذا الحجز؟';
+
+  @override
+  String get viewCancellationPolicy => 'عرض سياسة الإلغاء والخصوصية';
+
+  @override
+  String get yesCancel => 'نعم، إلغاء';
+
+  @override
+  String get tripCompletedStatus => 'اكتملت الرحلة';
+
+  @override
+  String get bookingCanceledStatus => 'تم إلغاء هذا الحجز';
+
+  @override
+  String get pendingDriverStatus => 'سيتم تعيين سائق لك قريبًا!';
+
+  @override
+  String get driverAssignedStatus => 'تم تعيين سائق!';
+
+  @override
+  String get rideInProgressStatus => 'رحلتك قيد التنفيذ.';
+
+  @override
+  String get paymentPendingStatus => 'الدفع معلق للساعات الإضافية.';
+
+  @override
+  String get tripReviewedStatus => 'تمت مراجعة الرحلة.';
+
+  @override
+  String get extraHoursInfo =>
+      'سيتم احتساب أي ساعات إضافية تتجاوز المدة المحددة وفقًا لذلك. سيتم تسوية دفع هذه الساعات الإضافية عند انتهاء رحلتك.';
+
+  @override
+  String get paymentOkFailedUpdate => 'تم الدفع، ولكن فشل تحديث الحجز.';
+
+  @override
+  String get pleaseAgreeToTerms =>
+      'يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية.';
+
+  @override
+  String get trackDriver => 'تتبع السائق';
+
+  @override
+  String get cancelBookingButton => 'إلغاء الحجز';
+
+  @override
+  String get yourReview => 'تقييمك';
+
+  @override
+  String get leaveAReview => 'اترك تقييماً';
+
+  @override
+  String get rateYourDriver => 'قيم سائقك';
+
+  @override
+  String get addAnOptionalReview => 'أضف تقييماً اختيارياً...';
+
+  @override
+  String get transactionDetails => 'تفاصيل المعاملة';
+
+  @override
+  String get orderIDLabel => 'رقم الطلب';
+
+  @override
+  String get transactionIDLabel => 'رقم المعاملة';
+
+  @override
+  String copiedToClipboard(Object label) {
+    return 'تم نسخ $label إلى الحافظة';
+  }
+
+  @override
+  String get driverAssigned => 'تم تعيين السائق';
+
+  @override
+  String get id => 'المعرّف';
+
+  @override
+  String get riyal => 'ر.س';
+
+  @override
+  String get hrs => 'ساعات';
+
+  @override
+  String get extraHoursLabel => 'ساعات إضافية';
+
+  @override
+  String get errorLaunchingDialer => 'خطأ في فتح تطبيق الاتصال: ';
+
+  @override
+  String get processing => 'جارٍ المعالجة...';
+
+  @override
+  String get pickupTimeAtLeast1HourFromNow =>
+      'يجب أن يكون وقت الاستلام بعد ساعة واحدة على الأقل من الآن.';
+
+  @override
+  String get voiceNoteSaved => 'تم حفظ الملاحظة الصوتية بنجاح.';
+
+  @override
+  String get noBrandsAvailable => 'لا توجد علامات تجارية متاحة';
+
+  @override
+  String get hourly => 'بالساعة';
+
+  @override
+  String get eightHours => '8 ساعات';
+
+  @override
+  String get twelveHours => '12 ساعة';
+
+  @override
+  String get estimatedHours => 'الساعات المقدّرة';
+
+  @override
+  String rideBookingFor(Object vehicleClass) {
+    return 'حجز الرحلة لـ $vehicleClass';
+  }
+
+  @override
+  String get serviceNotAvailable => 'الخدمة غير متوفرة';
+
+  @override
+  String get serviceNotAvailableMessage =>
+      'الخدمة غير متوفرة لهذا المسار أو لهذه المركبة. يرجى التواصل مع الدعم أو تجربة اختيار آخر.';
+
+  @override
+  String get ok => 'حسنًا';
+
+  @override
+  String get promoCodeExpired => 'انتهت صلاحية رمز العرض، يرجى إدخال رمز جديد';
+
+  @override
+  String get promoCodeAppliedSuccessfully => 'تم تطبيق رمز العرض بنجاح!';
+
+  @override
+  String get promoCodeIsInactive => 'رمز العرض غير نشط';
+
+  @override
+  String get invalidPromoCode => 'رمز العرض غير صالح';
+
+  @override
+  String get invalidOrInactivePromoCode => 'رمز العرض غير صالح أو غير نشط';
+
+  @override
+  String get promoCodeRemoved => 'تم إزالة رمز العرض';
+
+  @override
+  String get signupFailed => 'فشل إنشاء الحساب';
+
+  @override
+  String get locationPermissionsPermanentlyDenied =>
+      'تم رفض أذونات الموقع بشكل دائم. قم بالتمكين من الإعدادات.';
+
+  @override
+  String get searchForALocation => 'ابحث عن موقع...';
+
+  @override
+  String get selectedLocationDisplay => 'الموقع المختار';
+
+  @override
+  String get gettingLocation => 'جاري الحصول على الموقع...';
+
+  @override
+  String get useCurrentLocation => 'استخدام الموقع الحالي';
+
+  @override
+  String get confirmLocation => 'تأكيد الموقع';
+
+  @override
+  String get settings => 'الإعدادات';
 }

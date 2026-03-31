@@ -274,8 +274,15 @@ class AuthProvider extends ChangeNotifier {
       _cancelResendTimer();
 
       if (result['success'] == true) {
-        final accessToken = result['accessToken'] as String?;
-        final refreshToken = result['refreshToken'] as String?;
+        final tokens = result['tokens'];
+        final accessToken = (tokens is Map
+                ? (tokens['accessToken'] ?? tokens['token'])
+                : (result['accessToken'] ?? result['token']))
+            as String?;
+        final refreshToken = (tokens is Map
+                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                : (result['refreshToken'] ?? result['refresh_token']))
+            as String?;
 
         final isRegistered = accessToken != null && accessToken.isNotEmpty;
 
@@ -441,8 +448,15 @@ class AuthProvider extends ChangeNotifier {
 
       if (result['success'] == true) {
         // --- Save tokens ---
-        final accessToken = result['accessToken'] as String?;
-        final refreshToken = result['refreshToken'] as String?;
+        final tokens = result['tokens'];
+        final accessToken = (tokens is Map
+                ? (tokens['accessToken'] ?? tokens['token'])
+                : (result['accessToken'] ?? result['token']))
+            as String?;
+        final refreshToken = (tokens is Map
+                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                : (result['refreshToken'] ?? result['refresh_token']))
+            as String?;
 
         if (accessToken != null && refreshToken != null) {
           await UserLocalStorage.saveTokens(
@@ -502,8 +516,15 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (result['success'] == true) {
-        final newAccess = result['accessToken'] as String?;
-        final newRefresh = result['refreshToken'] as String?;
+        final tokens = result['tokens'];
+        final newAccess = (tokens is Map
+                ? (tokens['accessToken'] ?? tokens['token'])
+                : (result['accessToken'] ?? result['token']))
+            as String?;
+        final newRefresh = (tokens is Map
+                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                : (result['refreshToken'] ?? result['refresh_token']))
+            as String?;
 
         if (newAccess != null && newRefresh != null) {
           await UserLocalStorage.saveTokens(
@@ -599,8 +620,16 @@ class AuthProvider extends ChangeNotifier {
           if (result.idToken != null) {
             final authResponse = await _api.googleAuth(idToken: result.idToken!);
             if (authResponse['success'] == true) {
-              final accessToken = authResponse['accessToken'] as String?;
-              final refreshToken = authResponse['refreshToken'] as String?;
+              final tokens = authResponse['tokens'];
+              final accessToken = (tokens is Map
+                      ? (tokens['accessToken'] ?? tokens['token'])
+                      : (authResponse['accessToken'] ?? authResponse['token']))
+                  as String?;
+              final refreshToken = (tokens is Map
+                      ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                      : (authResponse['refreshToken'] ??
+                          authResponse['refresh_token']))
+                  as String?;
               if (accessToken != null) {
                 if (refreshToken != null) {
                   await UserLocalStorage.saveTokens(
@@ -730,8 +759,16 @@ class AuthProvider extends ChangeNotifier {
           if (result.idToken != null) {
             final authResponse = await _api.appleAuth(idToken: result.idToken!);
             if (authResponse['success'] == true) {
-              final accessToken = authResponse['accessToken'] as String?;
-              final refreshToken = authResponse['refreshToken'] as String?;
+              final tokens = authResponse['tokens'];
+              final accessToken = (tokens is Map
+                      ? (tokens['accessToken'] ?? tokens['token'])
+                      : (authResponse['accessToken'] ?? authResponse['token']))
+                  as String?;
+              final refreshToken = (tokens is Map
+                      ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                      : (authResponse['refreshToken'] ??
+                          authResponse['refresh_token']))
+                  as String?;
               if (accessToken != null) {
                 if (refreshToken != null) {
                   await UserLocalStorage.saveTokens(

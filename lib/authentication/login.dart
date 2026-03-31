@@ -29,7 +29,6 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   bool _isAgreed = false;
-  OverlayEntry? _overlayEntry;
   bool _isLoading = false;
   final FocusNode _mobileFocusNode = FocusNode();
   String _selectedCountryCode = '966';
@@ -44,46 +43,22 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
+    AnimatedSnackBar.dismiss();
     _mobileController.dispose();
     _emailController.dispose();
     _mobileFocusNode.dispose();
     super.dispose();
   }
 
-  void _showCustomSnackBar(String message) {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: AnimatedSnackBar(
-            message: message,
-            type: "E",
-            onDismissed: () {
-              if (mounted) {
-                _overlayEntry?.remove();
-                _overlayEntry = null;
-              }
-            },
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
+  void _showCustomSnackBar(String message, [String type = 'E']) {
+    AnimatedSnackBar.show(context, message, type);
   }
 
   /// Handle Google Sign-In button tap.
   Future<void> _handleGoogleSignIn() async {
     if (!_isAgreed) {
       _showCustomSnackBar(
-        'Please agree to the terms and conditions and privacy policy.',
+        AppLocalizations.of(context)!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
       );
       return;
     }
@@ -123,7 +98,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
   Future<void> _handleAppleSignIn() async {
     if (!_isAgreed) {
       _showCustomSnackBar(
-        'Please agree to the terms and conditions and privacy policy.',
+        AppLocalizations.of(context)!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
       );
       return;
     }
@@ -590,7 +565,8 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                         }
                                       } else if (_isAgreed == false) {
                                         _showCustomSnackBar(
-                                          'Please agree to the terms and conditions and privacy policy.',
+                                          AppLocalizations.of(context)!
+                                              .pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
                                         );
                                       }
                                     },
@@ -772,8 +748,8 @@ class _AppleSignInButton extends StatelessWidget {
                 else ...[
                   const Icon(Icons.apple, color: Colors.white, size: 24),
                   const SizedBox(width: 14),
-                  const Text(
-                    'Continue with Apple',
+                  Text(
+                    AppLocalizations.of(context)!.continueWithApple,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,

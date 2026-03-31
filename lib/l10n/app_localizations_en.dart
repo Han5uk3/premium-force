@@ -548,6 +548,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get km => 'KM';
 
   @override
+  String get discount => 'Discount';
+
+  @override
   String get charge => 'Charge';
 
   @override
@@ -759,4 +762,241 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorGettingLocation => 'Error getting location: ';
+
+  @override
+  String get trackYourDriver => 'Track Your Driver';
+
+  @override
+  String get airportArrivalSubtitle =>
+      'Airport Arrival — Driver en route to you';
+
+  @override
+  String get airportDepartureSubtitle =>
+      'Airport Departure — Driver coming to pick up';
+
+  @override
+  String get chauffeurServiceSubtitle =>
+      'Chauffeur Service — Driver en route to pickup';
+
+  @override
+  String get driverOnTheWay => 'Driver is on the way';
+
+  @override
+  String get tripEnded => 'Trip Ended';
+
+  @override
+  String get waitingForDriver => 'Waiting for driver...';
+
+  @override
+  String get waitingForLocation => 'Waiting for driver location...';
+
+  @override
+  String get etaPrefix => 'ETA:';
+
+  @override
+  String get pickupPointLabel => 'Pickup Point';
+
+  @override
+  String get airportDropoffLabel => 'Airport (Dropoff)';
+
+  @override
+  String get airportPickupLabel => 'Airport (Pickup)';
+
+  @override
+  String get dropoffPointLabel => 'Dropoff Point';
+
+  @override
+  String get driverMarkerTitle => 'Driver';
+
+  @override
+  String get extraHoursCharge => 'Extra Hours Charge';
+
+  @override
+  String get extraHours => 'Extra Hours';
+
+  @override
+  String get totalExtraDue => 'Total Extra Due';
+
+  @override
+  String get completePayment => 'Complete Payment';
+
+  @override
+  String get cancelBooking => 'Cancel Booking';
+
+  @override
+  String get cancelBookingConfirm =>
+      'Are you sure you want to cancel this booking?';
+
+  @override
+  String get viewCancellationPolicy => 'View Cancellation & Privacy Policy';
+
+  @override
+  String get yesCancel => 'Yes, Cancel';
+
+  @override
+  String get tripCompletedStatus => 'Trip Completed';
+
+  @override
+  String get bookingCanceledStatus => 'This booking has been canceled';
+
+  @override
+  String get pendingDriverStatus => 'A driver will be assigned to you soon!';
+
+  @override
+  String get driverAssignedStatus => 'A driver has been assigned!';
+
+  @override
+  String get rideInProgressStatus => 'Your ride is in progress.';
+
+  @override
+  String get paymentPendingStatus => 'Payment pending for extra hours.';
+
+  @override
+  String get tripReviewedStatus => 'Trip reviewed.';
+
+  @override
+  String get extraHoursInfo =>
+      'Any additional hours beyond the selected duration will be charged accordingly. Payment for these extra hours will be settled at the completion of your journey.';
+
+  @override
+  String get paymentOkFailedUpdate =>
+      'Payment ok, but failed to update booking.';
+
+  @override
+  String get pleaseAgreeToTerms =>
+      'Please agree to the terms and conditions and privacy policy.';
+
+  @override
+  String get trackDriver => 'Track Driver';
+
+  @override
+  String get cancelBookingButton => 'Cancel Booking';
+
+  @override
+  String get yourReview => 'Your Review';
+
+  @override
+  String get leaveAReview => 'Leave a Review';
+
+  @override
+  String get rateYourDriver => 'Rate your Driver';
+
+  @override
+  String get addAnOptionalReview => 'Add an optional review...';
+
+  @override
+  String get transactionDetails => 'Transaction Details';
+
+  @override
+  String get orderIDLabel => 'Order ID';
+
+  @override
+  String get transactionIDLabel => 'Transaction ID';
+
+  @override
+  String copiedToClipboard(Object label) {
+    return '$label copied to clipboard';
+  }
+
+  @override
+  String get driverAssigned => 'Driver Assigned';
+
+  @override
+  String get id => 'ID';
+
+  @override
+  String get riyal => 'SAR';
+
+  @override
+  String get hrs => 'hrs';
+
+  @override
+  String get extraHoursLabel => 'Extra Hours';
+
+  @override
+  String get errorLaunchingDialer => 'Error launching dialer: ';
+
+  @override
+  String get processing => 'Processing...';
+
+  @override
+  String get pickupTimeAtLeast1HourFromNow =>
+      'Pickup time must be at least 1 hour from now.';
+
+  @override
+  String get voiceNoteSaved => 'Voice note successfully saved.';
+
+  @override
+  String get noBrandsAvailable => 'No brands available';
+
+  @override
+  String get hourly => 'Hourly';
+
+  @override
+  String get eightHours => '8 Hours';
+
+  @override
+  String get twelveHours => '12 Hours';
+
+  @override
+  String get estimatedHours => 'Estimated hours';
+
+  @override
+  String rideBookingFor(Object vehicleClass) {
+    return 'Ride Booking for $vehicleClass';
+  }
+
+  @override
+  String get serviceNotAvailable => 'Service Not Available';
+
+  @override
+  String get serviceNotAvailableMessage =>
+      'Service not available for this route or vehicle. Please contact support or try another selection.';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get promoCodeExpired =>
+      'Promo code expired, please add a new promo code';
+
+  @override
+  String get promoCodeAppliedSuccessfully => 'Promo code applied successfully!';
+
+  @override
+  String get promoCodeIsInactive => 'Promo code is inactive';
+
+  @override
+  String get invalidPromoCode => 'Invalid promo code';
+
+  @override
+  String get invalidOrInactivePromoCode => 'Invalid or inactive promo code';
+
+  @override
+  String get promoCodeRemoved => 'Promo code removed';
+
+  @override
+  String get signupFailed => 'Signup failed';
+
+  @override
+  String get locationPermissionsPermanentlyDenied =>
+      'Location permissions are permanently denied. Enable from settings.';
+
+  @override
+  String get searchForALocation => 'Search for a location...';
+
+  @override
+  String get selectedLocationDisplay => 'Selected Location';
+
+  @override
+  String get gettingLocation => 'Getting location...';
+
+  @override
+  String get useCurrentLocation => 'Use Current Location';
+
+  @override
+  String get confirmLocation => 'Confirm Location';
+
+  @override
+  String get settings => 'Settings';
 }

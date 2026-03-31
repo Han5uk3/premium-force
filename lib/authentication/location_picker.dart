@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/common_widgets/snackbar.dart';
 
 class LocationPickerPage extends StatefulWidget {
   final double? initialLat;
@@ -148,11 +149,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppLocalizations.of(context)!.locationServicesAreDisabled),
-              backgroundColor: Colors.red,
-            ),
+          AnimatedSnackBar.show(
+            context,
+            AppLocalizations.of(context)!.locationServicesAreDisabled,
+            'E',
+            actionText: AppLocalizations.of(context)!.settings,
+            onAction: () => Geolocator.openLocationSettings(),
           );
         }
         setState(() => _isLoading = false);
@@ -164,12 +166,13 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(AppLocalizations.of(context)!.locationPermissionDenied),
-                backgroundColor: Colors.red,
-              ),
-            );
+          AnimatedSnackBar.show(
+            context,
+            AppLocalizations.of(context)!.locationPermissionDenied,
+            'E',
+            actionText: AppLocalizations.of(context)!.settings,
+            onAction: () => Geolocator.openAppSettings(),
+          );
           }
           setState(() => _isLoading = false);
           return;
@@ -178,13 +181,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
       if (permission == LocationPermission.deniedForever) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Location permissions are permanently denied. Enable from settings.',
-              ),
-              backgroundColor: Colors.red,
-            ),
+          AnimatedSnackBar.show(
+            context,
+            AppLocalizations.of(context)!.locationPermissionsPermanentlyDenied,
+            'E',
+            actionText: AppLocalizations.of(context)!.settings,
+            onAction: () => Geolocator.openAppSettings(),
           );
         }
         setState(() => _isLoading = false);
@@ -210,11 +212,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     } catch (e) {
       debugPrint('Error getting current location: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${AppLocalizations.of(context)!.errorGettingLocation}$e'),
-            backgroundColor: Colors.red,
-          ),
+        AnimatedSnackBar.show(
+          context,
+          '${AppLocalizations.of(context)!.errorGettingLocation}$e',
+          'E',
         );
       }
     }
@@ -359,7 +360,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                               fontSize: 15,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'Search for a location...',
+                              hintText: AppLocalizations.of(context)!.searchForALocation,
                               hintStyle: TextStyle(
                                 color: Colors.white.withAlpha(120),
                                 fontSize: 15,
@@ -534,9 +535,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Text(
-                                'Selected Location',
-                                style: TextStyle(
+                              Text(
+                                AppLocalizations.of(context)!
+                                    .selectedLocationDisplay,
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -600,8 +602,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                     const SizedBox(width: 10),
                                     Text(
                                       _isLoading
-                                          ? 'Getting location...'
-                                          : 'Use Current Location',
+                                          ? AppLocalizations.of(context)!
+                                              .gettingLocation
+                                          : AppLocalizations.of(context)!
+                                              .useCurrentLocation,
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 15,
@@ -646,10 +650,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                   ),
                                 ],
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Text(
-                                  'Confirm Location',
-                                  style: TextStyle(
+                                  AppLocalizations.of(context)!.confirmLocation,
+                                  style: const TextStyle(
                                     color: Colors.black,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w900,

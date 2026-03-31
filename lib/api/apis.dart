@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/models/booking_request_model.dart';
+import 'package:premium_force_main/services/google_sign_in_service.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 
 /// Centralised API service for the Premium Force app.
@@ -59,6 +60,13 @@ class ApiService {
     // ── Token Refresh Interceptor ──────────────
     _dio.interceptors.add(
       InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          final token = UserLocalStorage.getToken();
+          if (token != null && options.headers['Authorization'] == null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
         onError: (DioException e, ErrorInterceptorHandler handler) async {
           // Check if error is 401 Unauthorized
           if (e.response?.statusCode == 401) {
@@ -66,6 +74,9 @@ class ApiService {
             debugPrint('🔄 API │ Unauthorized. Provider: $provider');
 
             final refreshToken = UserLocalStorage.getRefreshToken();
+            String? newAccess;
+            String? newRefresh;
+
             if (refreshToken != null) {
               debugPrint('🔄 API │ Refreshing backend tokens...');
               try {
@@ -77,28 +88,112 @@ class ApiService {
 
                 if (refreshResponse.statusCode == 200 &&
                     refreshResponse.data['success'] == true) {
-                  final newAccess = refreshResponse.data['accessToken'];
-                  final newRefresh = refreshResponse.data['refreshToken'];
-
-                  if (newRefresh != null) {
-                    await UserLocalStorage.saveTokens(
-                      accessToken: newAccess,
-                      refreshToken: newRefresh,
-                    );
-                  } else {
-                    await UserLocalStorage.saveToken(newAccess);
-                  }
-
-                  debugPrint('✅ API │ Backend token refreshed. Retrying...');
-                  e.requestOptions.headers['Authorization'] =
-                      'Bearer $newAccess';
-                  return handler.resolve(await _dio.fetch(e.requestOptions));
+                  final tokens = refreshResponse.data['tokens'];
+                  newAccess = (tokens is Map
+                          ? (tokens['accessToken'] ?? tokens['token'])
+                          : (refreshResponse.data['accessToken'] ??
+                              refreshResponse.data['token']))
+                      as String?;
+                  newRefresh = (tokens is Map
+                          ? (tokens['refreshToken'] ??
+                              tokens['refresh_token'])
+                          : (refreshResponse.data['refreshToken'] ??
+                              refreshResponse.data['refresh_token']))
+                      as String?;
                 }
               } catch (reErr) {
                 debugPrint('❌ API │ Refresh failure: $reErr');
               }
-            } else {
-              debugPrint('⚠️ API │ No refresh token available.');
+            } else if (provider == 'google' || provider == 'apple') {
+              final socialIdToken = UserLocalStorage.getSocialIdToken();
+              if (socialIdToken != null) {
+                debugPrint('🔄 API │ Attempting re-auth with social token...');
+                try {
+                  final authResponse = provider == 'google'
+                      ? await googleAuth(idToken: socialIdToken)
+                      : await appleAuth(idToken: socialIdToken);
+                  
+                  if (authResponse['success'] == true) {
+                    final tokens = authResponse['tokens'];
+                    newAccess = (tokens is Map
+                            ? (tokens['accessToken'] ?? tokens['token'])
+                            : (authResponse['accessToken'] ??
+                                authResponse['token']))
+                        as String?;
+                    newRefresh = (tokens is Map
+                            ? (tokens['refreshToken'] ??
+                                tokens['refresh_token'])
+                            : (authResponse['refreshToken'] ??
+                                authResponse['refresh_token']))
+                        as String?;
+                  } else if (provider == 'google') {
+                    // If re-auth failed, maybe idToken expired. Try silent sign-in to get a fresh one.
+                    debugPrint('🔄 API │ Social re-auth failed. Trying silent Google sign-in...');
+                    final googleResult = await GoogleSignInService.instance.signInSilently();
+                    if (googleResult != null && googleResult.idToken != null) {
+                      await UserLocalStorage.saveSocialIdToken(googleResult.idToken!);
+                      final secondAuthRes = await googleAuth(idToken: googleResult.idToken!);
+                      if (secondAuthRes['success'] == true) {
+                        final tokens = secondAuthRes['tokens'];
+                        newAccess = (tokens is Map
+                                ? (tokens['accessToken'] ?? tokens['token'])
+                                : (secondAuthRes['accessToken'] ??
+                                    secondAuthRes['token']))
+                            as String?;
+                        newRefresh = (tokens is Map
+                                ? (tokens['refreshToken'] ??
+                                    tokens['refresh_token'])
+                                : (secondAuthRes['refreshToken'] ??
+                                    secondAuthRes['refresh_token']))
+                            as String?;
+                      }
+                    }
+                  }
+                } catch (reErr) {
+                  debugPrint('❌ API │ Re-auth failure: $reErr');
+                }
+              }
+            }
+
+            // If we have a new token, save and retry
+            if (newAccess != null) {
+              if (newRefresh != null) {
+                await UserLocalStorage.saveTokens(
+                  accessToken: newAccess,
+                  refreshToken: newRefresh,
+                );
+              } else {
+                await UserLocalStorage.saveToken(newAccess);
+              }
+              debugPrint('✅ API │ Tokens refreshed/re-authed.');
+
+              // Handle FormData retry by reconstructing it if source data exists
+              if (e.requestOptions.data is FormData) {
+                final originalBooking = e.requestOptions.extra['originalBooking'] as BookingRequestModel?;
+                final originalType = e.requestOptions.extra['originalType'] as String?;
+                
+                if (originalBooking != null) {
+                  debugPrint('🔄 API │ Reconstructing FormData for retry...');
+                  final formData = originalType == 'hourly' 
+                      ? await _buildHourlyFormData(originalBooking)
+                      : await _buildNormalFormData(originalBooking);
+                  
+                  e.requestOptions.data = formData;
+                } else {
+                   debugPrint('⚠️ API │ FormData retry failed: No source data in extra.');
+                   return handler.next(e);
+                }
+              }
+
+              debugPrint('🔄 API │ Retrying original request...');
+              e.requestOptions.headers['Authorization'] = 'Bearer $newAccess';
+              
+              try {
+                final response = await _dio.fetch(e.requestOptions);
+                return handler.resolve(response);
+              } catch (retryErr) {
+                return handler.next(retryErr is DioException ? retryErr : e);
+              }
             }
           }
           // If not 401 or refresh failed, pass the error along
@@ -194,7 +289,7 @@ class ApiService {
       debugPrint('🔐 Google Auth │ Sending data: $data');
 
       final response = await _dio.post(
-        'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/auth/google',
+        'https://api.premiumforcegroup.com/auth/google',
         data: data,
       );
 
@@ -218,7 +313,7 @@ class ApiService {
       debugPrint('🍎 Apple Auth │ Sending data: $data');
 
       final response = await _dio.post(
-        'http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/auth/apple',
+        'https://api.premiumforcegroup.com/auth/apple',
         data: data,
       );
 
@@ -277,6 +372,25 @@ class ApiService {
       );
       return _success(response);
     } catch (e) {
+      if (e is DioException && e.response?.statusCode == 401 && token == null) {
+        final newToken = UserLocalStorage.getToken();
+        if (newToken != null) {
+          debugPrint('🔄 API [Retry] │ Re-executing createUser...');
+          return await createUser(
+            username: username,
+            email: email,
+            countryCode: countryCode,
+            phoneNumber: phoneNumber,
+            location: location,
+            lat: lat,
+            long: long,
+            specialId: specialId,
+            role: role,
+            profileImage: profileImage,
+            token: newToken,
+          );
+        }
+      }
       return _handleError(e);
     }
   }
@@ -361,6 +475,26 @@ class ApiService {
       );
       return _success(response);
     } catch (e) {
+      if (e is DioException && e.response?.statusCode == 401 && token == null) {
+        final newToken = UserLocalStorage.getToken();
+        if (newToken != null) {
+          debugPrint('🔄 API [Retry] │ Re-executing updateUser...');
+          return await updateUser(
+            id: id,
+            username: username,
+            email: email,
+            countryCode: countryCode,
+            phoneNumber: phoneNumber,
+            location: location,
+            lat: lat,
+            long: long,
+            specialId: specialId,
+            role: role,
+            profileImage: profileImage,
+            token: newToken,
+          );
+        }
+      }
       return _handleError(e);
     }
   }
@@ -694,44 +828,54 @@ class ApiService {
       debugPrint('🚀 🌐 API │ Create Booking Payload: ${booking.toMap()}');
     }
     try {
-      final fields = booking.toMap();
-      fields.remove('carImage'); // Remove text path to prevent conflict
-
-      // Handle files separately for FormData
-      if (booking.specialRequestAudio != null) {
-        fields['specialRequestAudio'] = await MultipartFile.fromFile(
-          booking.specialRequestAudio!.path,
-          filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
-        );
-      }
-      if (booking.carImage != null) {
-        fields['carimage'] = await MultipartFile.fromFile(
-          booking.carImage!.path,
-          filename: 'car_image.jpg',
-        );
-      }
-
-      final formData = FormData.fromMap(fields);
-
-      if (kDebugMode) {
-        debugPrint('🚀 🌐 API │ FINAL FORM DATA (MULTIPART):');
-        for (var element in formData.fields) {
-          debugPrint('   📁 Field: ${element.key} -> ${element.value}');
-        }
-        for (var element in formData.files) {
-          debugPrint('   📄 File: ${element.key} -> ${element.value.filename}');
-        }
-      }
+      final formData = await _buildNormalFormData(booking);
 
       final response = await _dio.post(
-        'bookings/',
+        'bookings',
         data: formData,
-        options: token != null ? _authOptions(token) : null,
+        options: (token != null ? _authOptions(token) : Options()).copyWith(
+          extra: {
+            'originalBooking': booking,
+            'originalType': 'normal',
+          },
+        ),
       );
       return _success(response);
     } catch (e) {
       return _handleError(e);
     }
+  }
+
+  Future<FormData> _buildNormalFormData(BookingRequestModel booking) async {
+    final fields = booking.toMap();
+    fields.remove('carImage'); // Remove text path to prevent conflict
+
+    // Handle files separately for FormData
+    if (booking.specialRequestAudio != null) {
+      fields['specialRequestAudio'] = await MultipartFile.fromFile(
+        booking.specialRequestAudio!.path,
+        filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
+      );
+    }
+    if (booking.carImage != null) {
+      fields['carImage'] = await MultipartFile.fromFile(
+        booking.carImage!.path,
+        filename: 'car_image.jpg',
+      );
+    }
+
+    final formData = FormData.fromMap(fields);
+
+    if (kDebugMode) {
+      debugPrint('🚀 🌐 API │ FINAL FORM DATA (MULTIPART):');
+      for (var element in formData.fields) {
+        debugPrint('   📁 Field: ${element.key} -> ${element.value}');
+      }
+      for (var element in formData.files) {
+        debugPrint('   📄 File: ${element.key} -> ${element.value.filename}');
+      }
+    }
+    return formData;
   }
 
   /// Fetch all bookings for a specific customer.
@@ -794,7 +938,7 @@ class ApiService {
   Future<Map<String, dynamic>> getAllBookings({String? token}) async {
     try {
       final response = await _dio.get(
-        'bookings/',
+        'bookings',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -857,77 +1001,17 @@ class ApiService {
       );
     }
     try {
-      // Manual mapping to handle unique keys required by hourly-bookings API
-      final fields = <String, dynamic>{};
-      fields['hours'] =
-          booking.category == 'chauffeured' && booking.serviceDuration == 0
-          ? booking.estimatedHours?.toString() ?? '1'
-          : (booking.serviceDuration == 1
-                ? '8'
-                : (booking.serviceDuration == 2 ? '12' : '1'));
+      final formData = await _buildHourlyFormData(booking);
 
-      fields['pickupLat'] = booking.pickupLat ?? '';
-      fields['pickuplong'] = booking.pickupLong ?? ''; // Lowercase 'l'
-      fields['pickupAdddress'] = booking.pickupAddress ?? ''; // Triple 'd'
-      fields['extraHours'] = '0';
-      fields['category'] = booking.carclass ?? '';
-      fields['model'] = booking.carmodel ?? '';
-      fields['brand'] = booking.carbrand ?? '';
-      fields['carName'] = booking.carName ?? '';
-      fields['charge'] = booking.charge?.toString() ?? '0';
-      fields['customerID'] = booking.customerID ?? '';
-      fields['driverID'] = booking.driverID ?? 'null';
-      fields['passsenrgersCount'] =
-          booking.passengerCount ?? '1'; // typo: passsenrgersCount
-      fields['passengerMobile'] = booking.passengerMobile ?? '';
-      fields['carClass'] = booking.carclass ?? ''; // Upper C
-      fields['specialRequestText'] = booking.specialRequestText ?? '';
-      fields['bookingStatus'] = booking.bookingStatus ?? 'pending';
-      fields['passengerNames'] = booking.passengerNames ?? '[]';
-      fields['isActive'] = 'true';
-      if (booking.pickupdatetime != null) {
-        fields['pickupdatetime'] = booking.pickupdatetime;
-      }
-      if (booking.discountPercentage != null) {
-        fields['discountPercentage'] = booking.discountPercentage.toString();
-      }
-      if (booking.orderID != null) {
-        fields['orderID'] = booking.orderID;
-      }
-      if (booking.transactionID != null) {
-        fields['transactionID'] = booking.transactionID;
-      }
-
-      // Handle files
-      if (booking.specialRequestAudio != null) {
-        fields['specialRequestAudio'] = await MultipartFile.fromFile(
-          booking.specialRequestAudio!.path,
-          filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
-        );
-      }
-      if (booking.carImage != null) {
-        fields['carImge'] = await MultipartFile.fromFile(
-          booking.carImage!.path,
-          filename: 'car_image.jpg',
-        );
-      }
-
-      final formData = FormData.fromMap(fields);
-
-      if (kDebugMode) {
-        debugPrint('🚀 🌐 API │ FINAL HOURLY FORM DATA (MULTIPART):');
-        for (var element in formData.fields) {
-          debugPrint('   📁 Field: ${element.key} -> ${element.value}');
-        }
-        for (var element in formData.files) {
-          debugPrint('   📄 File: ${element.key} -> ${element.value.filename}');
-        }
-      }
-
-      final response = await _dio.post(
+      final response = await _dio.put(
         'hourly-bookings',
         data: formData,
-        options: token != null ? _authOptions(token) : null,
+        options: (token != null ? _authOptions(token) : Options()).copyWith(
+          extra: {
+            'originalBooking': booking,
+            'originalType': 'hourly',
+          },
+        ),
       );
       return _success(response);
     } catch (e) {
@@ -935,12 +1019,90 @@ class ApiService {
     }
   }
 
+  Future<FormData> _buildHourlyFormData(BookingRequestModel booking) async {
+    // Manual mapping to handle unique keys required by hourly-bookings API
+    final fields = <String, dynamic>{};
+    fields['hours'] =
+        booking.category == 'chauffeured' && booking.serviceDuration == 0
+            ? booking.estimatedHours?.toString() ?? '1'
+            : (booking.serviceDuration == 1
+                ? '8'
+                : (booking.serviceDuration == 2 ? '12' : '1'));
+
+    fields['pickupLat'] = booking.pickupLat ?? '';
+    fields['pickupLong'] = booking.pickupLong ?? '';
+    fields['pickupAddress'] = booking.pickupAddress ?? '';
+    fields['extraHours'] = '1';
+    fields['category'] = booking.carclass ?? '';
+    fields['model'] = booking.carmodel ?? '';
+    fields['brand'] = booking.carbrand ?? '';
+    fields['carName'] = booking.carName ?? '';
+    fields['charge'] = booking.charge?.toString() ?? '0';
+    fields['customerID'] = booking.customerID ?? '';
+    fields['driverID'] = booking.driverID ?? 'null';
+    fields['passengerCount'] = booking.passengerCount ?? '1';
+    fields['passengerMobile'] = booking.passengerMobile ?? '';
+    fields['carClass'] = booking.carclass ?? '';
+    fields['specialRequestText'] = booking.specialRequestText ?? '';
+    fields['bookingStatus'] = booking.bookingStatus ?? 'pending';
+    fields['passengerNames'] = booking.passengerNames ?? '[]';
+    fields['isActive'] = 'true';
+    if (booking.pickupdatetime != null) {
+      fields['pickupDateTime'] = booking.pickupdatetime;
+    }
+    if (booking.discountPercentage != null) {
+      fields['discountPercentage'] = booking.discountPercentage.toString();
+    }
+    if (booking.orderID != null) {
+      fields['orderID'] = booking.orderID;
+    }
+    if (booking.transactionID != null) {
+      fields['transactionID'] = booking.transactionID;
+    }
+
+    // Additional fields from Postman
+    fields['extraTransactionID'] = 'null';
+    fields['extraOrderID'] = 'null';
+    fields['extraPayment'] = 'null';
+    fields['startedAt'] = DateTime.now().toIso8601String();
+    fields['stoppedAt'] = DateTime.now().toIso8601String();
+    fields['extraDiscount'] = 'null';
+    fields['extraPaymentCompleted'] = 'null';
+
+    // Handle files
+    if (booking.specialRequestAudio != null) {
+      fields['specialRequestAudio'] = await MultipartFile.fromFile(
+        booking.specialRequestAudio!.path,
+        filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
+      );
+    }
+    if (booking.carImage != null) {
+      fields['carImage'] = await MultipartFile.fromFile(
+        booking.carImage!.path,
+        filename: 'car_image.jpg',
+      );
+    }
+
+    final formData = FormData.fromMap(fields);
+
+    if (kDebugMode) {
+      debugPrint('🚀 🌐 API │ FINAL HOURLY FORM DATA (MULTIPART):');
+      for (var element in formData.fields) {
+        debugPrint('   📁 Field: ${element.key} -> ${element.value}');
+      }
+      for (var element in formData.files) {
+        debugPrint('   📄 File: ${element.key} -> ${element.value.filename}');
+      }
+    }
+    return formData;
+  }
+
   // ---------------------------------------------------------------------------
   // Reviews
   // ---------------------------------------------------------------------------
 
   /// Add a review for a completed booking.
-  /// 
+  ///
   /// Calls `POST /api/reviews`
   Future<Map<String, dynamic>> addReview({
     required String bookingID,

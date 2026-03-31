@@ -61,8 +61,20 @@ class _SuccessPageState extends State<SuccessPage>
     final size = MediaQuery.of(context).size;
     final l10n = AppLocalizations.of(context)!;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const Home(isfromSuccessPage: false),
+          ),
+          (route) => false,
+        );
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -268,6 +280,7 @@ class _SuccessPageState extends State<SuccessPage>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -17,15 +17,14 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  final PageController _pageController = PageController();
+  late final PageController _pageController;
   int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    if (widget.isfromSuccessPage == true) {
-      _selectedIndex = 1;
-    }
+    _selectedIndex = widget.isfromSuccessPage ? 1 : 0;
+    _pageController = PageController(initialPage: _selectedIndex);
   }
 
   @override

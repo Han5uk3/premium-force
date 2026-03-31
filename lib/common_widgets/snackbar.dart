@@ -5,10 +5,56 @@ class AnimatedSnackBar extends StatefulWidget {
   final VoidCallback onDismissed;
   final String type;
 
+  static OverlayEntry? _overlayEntry;
+
+  static void show(
+    BuildContext context,
+    String message,
+    String type, {
+    String? actionText,
+    VoidCallback? onAction,
+  }) {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+
+    _overlayEntry = OverlayEntry(
+      builder: (ovContext) => Positioned(
+        bottom: MediaQuery.of(ovContext).viewInsets.bottom + 20,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: AnimatedSnackBar(
+            message: message,
+            type: type,
+            actionText: actionText,
+            onAction: onAction,
+            onDismissed: () {
+              _overlayEntry?.remove();
+              _overlayEntry = null;
+            },
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  static void dismiss() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  final String? actionText;
+  final VoidCallback? onAction;
+
   const AnimatedSnackBar({
     required this.message,
     required this.onDismissed,
     required this.type,
+    this.actionText,
+    this.onAction,
   });
 
   @override
@@ -125,6 +171,29 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
                           ),
                         ),
                       ),
+                      if (widget.actionText != null && widget.onAction != null) ...[
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: () {
+                            widget.onAction!();
+                            widget.onDismissed();
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            widget.actionText!,
+                            style: TextStyle(
+                              color: getSnackbarType(),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

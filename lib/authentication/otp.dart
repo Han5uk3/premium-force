@@ -25,43 +25,18 @@ class OTPVerificationPage extends StatefulWidget {
 class _OTPVerificationPageState extends State<OTPVerificationPage> {
   final TextEditingController _otpController = TextEditingController();
   final FocusNode _otpFocusNode = FocusNode();
-  OverlayEntry? _overlayEntry;
   bool _isVerifying = false;
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
+    AnimatedSnackBar.dismiss();
     _otpController.dispose();
     _otpFocusNode.dispose();
     super.dispose();
   }
 
-  void _showCustomSnackBar(String message) {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: AnimatedSnackBar(
-            message: message,
-            type: "E",
-            onDismissed: () {
-              if (mounted) {
-                _overlayEntry?.remove();
-                _overlayEntry = null;
-              }
-            },
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
+  void _showCustomSnackBar(String message, [String type = 'E']) {
+    AnimatedSnackBar.show(context, message, type);
   }
 
   /// Formats seconds as mm:ss (e.g. 01:05).
@@ -266,6 +241,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                                   if (success) {
                                     _showCustomSnackBar(
                                       "${AppLocalizations.of(context)!.otpHasBeenResentTo}${widget.countryCode} ${widget.phoneNumber}",
+                                      'S',
                                     );
                                   } else {
                                     final error = authProvider.errorMessage;
