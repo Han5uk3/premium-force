@@ -623,10 +623,13 @@ class AuthProvider extends ChangeNotifier {
           // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
 
-          // If there's a token in response, save it (legacy fallback)
+          // If there's a token in response, save it only if no token was saved
           final token = (userData['token'] ?? emailCheckResponse['token'])?.toString();
           if (token != null && token.isNotEmpty) {
-            await UserLocalStorage.saveToken(token);
+            final existingToken = UserLocalStorage.getToken();
+            if (existingToken == null || existingToken.isEmpty) {
+              await UserLocalStorage.saveToken(token);
+            }
           }
 
           _status = AuthStatus.authenticated;
@@ -751,10 +754,13 @@ class AuthProvider extends ChangeNotifier {
           // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
 
-          // If there's a token in response, save it (legacy fallback)
+          // If there's a token in response, save it only if no token was saved
           final token = (userData['token'] ?? emailCheckResponse['token'])?.toString();
           if (token != null && token.isNotEmpty) {
-            await UserLocalStorage.saveToken(token);
+            final existingToken = UserLocalStorage.getToken();
+            if (existingToken == null || existingToken.isEmpty) {
+              await UserLocalStorage.saveToken(token);
+            }
           }
 
           _status = AuthStatus.authenticated;

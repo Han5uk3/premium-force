@@ -74,9 +74,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final booking = widget.booking;
-    final displayDate = (booking.pickupdatetime != null && booking.pickupdatetime!.isNotEmpty)
+    final displayDate =
+        (booking.pickupdatetime != null && booking.pickupdatetime!.isNotEmpty)
         ? DateTime.tryParse(booking.pickupdatetime!)
-        : (booking.arrival != null ? DateTime.tryParse(booking.arrival!) : null);
+        : (booking.arrival != null
+              ? DateTime.tryParse(booking.arrival!)
+              : null);
 
     final dateStr = Bookingcard.formatDate(context, displayDate);
     final timeStr = Bookingcard.formatTime(context, displayDate);
@@ -351,7 +354,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             return Dialog(
               backgroundColor: const Color(0xFF1C1C1E),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
@@ -392,7 +396,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       maxLines: 3,
                       decoration: InputDecoration(
                         hintText: 'Add an optional review...',
-                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                        hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.5),
+                        ),
                         filled: true,
                         fillColor: Colors.white.withOpacity(0.05),
                         border: OutlineInputBorder(
@@ -406,9 +412,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
-                          child: Text(AppLocalizations.of(context)!.cancel,
-                              style: TextStyle(color: Colors.white54)),
+                          onPressed: isSubmitting
+                              ? null
+                              : () => Navigator.pop(ctx),
+                          child: Text(
+                            AppLocalizations.of(context)!.cancel,
+                            style: TextStyle(color: Colors.white54),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
@@ -416,7 +426,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                             backgroundColor: const Color(0xFFE4A46B),
                             foregroundColor: Colors.black,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           onPressed: isSubmitting
                               ? null
@@ -424,10 +435,18 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                                   setDialogState(() => isSubmitting = true);
                                   final token = UserLocalStorage.getToken();
                                   final driverID = widget.booking.driverID;
-                                  
-                                  if (driverID == null || driverID.isEmpty || driverID == 'null') {
+
+                                  if (driverID == null ||
+                                      driverID.isEmpty ||
+                                      driverID == 'null') {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(AppLocalizations.of(context)!.cannotReviewWithoutValidDriver)),
+                                      SnackBar(
+                                        content: Text(
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.cannotReviewWithoutValidDriver,
+                                        ),
+                                      ),
                                     );
                                     setDialogState(() => isSubmitting = false);
                                     Navigator.pop(ctx);
@@ -450,14 +469,31 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                                           'reviewText': reviewController.text,
                                         };
                                       });
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(AppLocalizations.of(context)!.reviewSubmittedSuccessfully)),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.reviewSubmittedSuccessfully,
+                                          ),
+                                        ),
                                       );
                                       Navigator.pop(ctx);
                                     } else {
-                                       setDialogState(() => isSubmitting = false);
-                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(result['message'] ?? 'Failed to submit review')),
+                                      setDialogState(
+                                        () => isSubmitting = false,
+                                      );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            result['message'] ??
+                                                'Failed to submit review',
+                                          ),
+                                        ),
                                       );
                                     }
                                   }
@@ -467,7 +503,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.black))
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
                               : Text(AppLocalizations.of(context)!.submit),
                         ),
                       ],
@@ -564,7 +603,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   isBold: true,
                   color: const Color(0xFFE4A46B),
                 ),
-                if (booking.orderID != null || booking.transactionID != null) ...[
+                if (booking.orderID != null ||
+                    booking.transactionID != null) ...[
                   const Divider(color: Colors.white10, height: 24),
                   if (booking.orderID != null)
                     _buildInfoRow('Order ID', booking.orderID!),
@@ -581,17 +621,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
-
   Widget _buildInfoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
-            fontSize: 12,
-          ),
+          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
         ),
         Text(
           value,
@@ -729,7 +765,6 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
-
   /// Simple key–value row used inside the extra-hours banner.
   Widget _extraInfoRow(
     String label,
@@ -810,7 +845,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.timer_off, color: Colors.redAccent, size: 20),
+                    const Icon(
+                      Icons.timer_off,
+                      color: Colors.redAccent,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     const Text(
                       'Extra Hours Charge',
@@ -853,10 +892,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             showLoader: _isPayingExtraHours,
             onTap: _isPayingExtraHours
                 ? () {}
-                : () => _payExtraHours(
-                      booking: booking,
-                      extraTotal: extraTotal,
-                    ),
+                : () =>
+                      _payExtraHours(booking: booking, extraTotal: extraTotal),
           ),
           const SizedBox(height: 12),
         ],
@@ -922,7 +959,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             setState(() => _extraHoursPaid = true);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(AppLocalizations.of(context)!.paymentSuccessfulBookingCompleted),
+                content: Text(
+                  AppLocalizations.of(
+                    context,
+                  )!.paymentSuccessfulBookingCompleted,
+                ),
                 backgroundColor: Colors.green,
               ),
             );
@@ -932,7 +973,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  result['message'] ?? 'Payment ok, but failed to update booking.',
+                  result['message'] ??
+                      'Payment ok, but failed to update booking.',
                 ),
                 backgroundColor: Colors.orange,
               ),
@@ -986,7 +1028,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               onTap: () {
                 // User will add link later
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppLocalizations.of(context)!.policyLinkComingSoon)),
+                  SnackBar(
+                    content: Text(
+                      AppLocalizations.of(context)!.policyLinkComingSoon,
+                    ),
+                  ),
                 );
               },
               child: const Text(
@@ -1002,7 +1048,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         ),
         actions: [
           TextButton(
-            child: Text(AppLocalizations.of(context)!.no, style: const TextStyle(color: Colors.white54)),
+            child: Text(
+              AppLocalizations.of(context)!.no,
+              style: const TextStyle(color: Colors.white54),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           TextButton(
@@ -1058,7 +1107,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(AppLocalizations.of(context)!.bookingCancelledSuccessfully),
+              content: Text(
+                AppLocalizations.of(context)!.bookingCancelledSuccessfully,
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -1078,7 +1129,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${AppLocalizations.of(context)!.error}$e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('${AppLocalizations.of(context)!.error}$e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

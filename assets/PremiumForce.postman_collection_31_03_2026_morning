@@ -724,151 +724,21 @@
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "category",
-                  "value": "airport",
-                  "type": "text"
-                },
-                {
-                  "key": "city",
-                  "value": "Abu Dhabi",
-                  "type": "text"
-                },
-                {
-                  "key": "airport",
-                  "value": "abu",
-                  "type": "text"
-                },
-                {
-                  "key": "terminal",
-                  "value": "terminal 1",
-                  "type": "text"
-                },
-                {
-                  "key": "flightNumber",
-                  "value": " dk1312335",
-                  "type": "text"
-                },
-                {
-                  "key": "arrival",
-                  "value": "2026-04-15T10:30:00.000Z",
-                  "type": "text"
-                },
-                {
-                  "key": "pickupLat",
-                  "value": " 40.7128",
-                  "type": "text"
-                },
-                {
-                  "key": "pickupLong",
-                  "value": " -74.0060",
-                  "type": "text"
-                },
-                {
-                  "key": "dropOffLat",
-                  "value": " 40.7614",
-                  "type": "text"
-                },
-                {
-                  "key": "dropOffLong",
-                  "value": " -73.9776",
-                  "type": "text"
-                },
-                {
-                  "key": "dropOffAddress",
-                  "value": " Times Square, New York",
-                  "type": "text"
-                },
-                {
-                  "key": "carclass",
-                  "value": " Luxury",
-                  "type": "text"
-                },
-                {
-                  "key": "charge",
-                  "value": " 30 SAR",
-                  "type": "text"
-                },
-                {
-                  "key": "carName",
-                  "value": " BMW",
-                  "type": "text"
-                },
-                {
-                  "key": "carbrand",
-                  "value": " BMW",
-                  "type": "text"
-                },
-                {
-                  "key": "carmodel",
-                  "value": " X5",
-                  "type": "text"
-                },
-                {
                   "key": "carimage",
                   "type": "file",
-                  "src": "/C:/Users/HP/Downloads/1771951275101-948997051-carimage1.jpg"
-                },
-                {
-                  "key": "specialRequestText",
-                  "value": " Please have water in the car",
-                  "type": "text"
-                },
-                {
-                  "key": "specialRequestAudio",
-                  "value": " [audio file]",
-                  "type": "text",
+                  "src": "/C:/Users/HP/Downloads/1771951275101-948997051-carimage1.jpg",
                   "disabled": true
                 },
                 {
-                  "key": "passengerCount",
-                  "value": " 3",
-                  "type": "text"
-                },
-                {
-                  "key": "passengerNames",
-                  "value": " [\"Thoyyib\", \"adnan\"]",
-                  "type": "text"
-                },
-                {
-                  "key": "passengerMobile",
-                  "value": " +1234567890",
-                  "type": "text"
-                },
-                {
-                  "key": "distance",
-                  "value": " 15.5 km",
-                  "type": "text"
-                },
-                {
-                  "key": "customerID",
-                  "value": "699db64a5ccf09efe306c6ac",
-                  "type": "text"
-                },
-                {
-                  "key": "driverID",
-                  "value": "699db64a5ccf09efe306c6ac",
-                  "type": "text"
-                },
-                {
                   "key": "carimage",
                   "type": "file",
-                  "value": null
-                },
-                {
-                  "key": "paymentStatus",
-                  "value": "false",
-                  "type": "default"
-                },
-                {
-                  "key": "charge",
-                  "value": "100",
-                  "type": "default",
+                  "value": null,
                   "disabled": true
                 }
               ]
             },
             "url": {
-              "raw": "http://localhost:5000/api/bookings/69ca1403724905dcd31ba7e6",
+              "raw": "http://localhost:5000/api/bookings/69ca287a91af7f3bba42546a",
               "protocol": "http",
               "host": [
                 "localhost"
@@ -877,7 +747,7 @@
               "path": [
                 "api",
                 "bookings",
-                "69ca1403724905dcd31ba7e6"
+                "69ca287a91af7f3bba42546a"
               ]
             }
           },
@@ -1252,6 +1122,47 @@
           "request": {
             "method": "GET",
             "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "update booking status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiNjlhYzc1Njc1MzA3Njg4MDQ3YzE4ZmUwIiwiZW1haWwiOiJtdHB0Lm11aGFtbWVkQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDkzNzcyMSwiZXhwIjoxNzc1MDI0MTIxfQ.wKO4qWcXoDjp6c4dGFCmtkLzxicEf5cWCy5Ydpx-5F8",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n\r\n    \"status\":\"pending\"\r\n  \r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/bookings/69ca287a91af7f3bba42546a/status",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "bookings",
+                "69ca287a91af7f3bba42546a",
+                "status"
+              ]
+            }
           },
           "response": []
         }
@@ -3732,6 +3643,16 @@
         {
           "name": "New Request",
           "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWFhZjM3ZWI3M2YxZTlkYmIyYWNiYmEiLCJwaG9uZU51bWJlciI6Ijk3NDY3OTA4OTciLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3NzQ5MzIwODksImV4cCI6MTc3NTAxODQ4OX0.2dJSOQzr0N4ktA8kw6Ulj74-IC040cowfWuFf0H5nh8",
+                  "type": "string"
+                }
+              ]
+            },
             "method": "PUT",
             "header": [],
             "body": {
@@ -3739,7 +3660,7 @@
               "formdata": [
                 {
                   "key": "hours",
-                  "value": "5",
+                  "value": "4",
                   "type": "text"
                 },
                 {
@@ -3749,100 +3670,143 @@
                 },
                 {
                   "key": "pickuplong",
-                  "value": "\t-74.0060\t",
+                  "value": "-74.0060",
                   "type": "text"
                 },
                 {
                   "key": "pickupAdddress",
-                  "value": "\t123 Main St, New York, NY\t",
+                  "value": "123 Main St, New York, NY",
                   "type": "text"
                 },
                 {
                   "key": "extraHours",
-                  "value": "\t1\t",
+                  "value": "1",
                   "type": "text"
                 },
                 {
                   "key": "category",
-                  "value": "\tLuxury\t",
+                  "value": "Luxury",
                   "type": "text"
                 },
                 {
                   "key": "model",
-                  "value": "Camry\t",
+                  "value": "Camry",
                   "type": "text"
                 },
                 {
                   "key": "brand",
-                  "value": "\tToyota\t",
+                  "value": "Toyota",
                   "type": "text"
                 },
                 {
                   "key": "carName",
-                  "value": "Toyota Camry 2023\t",
+                  "value": "Toyota Camry 2023",
                   "type": "text"
                 },
                 {
                   "key": "charge",
-                  "value": "200\t",
+                  "value": "200",
                   "type": "text"
                 },
                 {
                   "key": "customerID",
-                  "value": "\t69aaf37eb73f1e9dbb2acbba\t",
+                  "value": "69aaf37eb73f1e9dbb2acbba",
                   "type": "text"
                 },
                 {
                   "key": "driverID",
-                  "value": "\tnull\t",
+                  "value": "null",
                   "type": "text"
                 },
                 {
                   "key": "passsenrgersCount",
-                  "value": "\t3\t",
+                  "value": "4",
                   "type": "text"
                 },
                 {
                   "key": "passengerMobile",
-                  "value": "\t+1234567890\t",
+                  "value": "+1234567890",
                   "type": "text"
                 },
                 {
                   "key": "carClass",
-                  "value": "\tBusiness\t",
+                  "value": "Business",
                   "type": "text"
                 },
                 {
                   "key": "specialRequestText",
-                  "value": "\tPlease have water bottles\t",
+                  "value": "Please have water bottles",
                   "type": "text"
                 },
                 {
                   "key": "bookingStatus",
-                  "value": "\tpending\t",
+                  "value": "pending",
                   "type": "text"
                 },
                 {
                   "key": "passengerNames",
-                  "value": "\t[\"abas\",\"unais\",\"Jane Smith\"]\t",
+                  "value": "[\"John Doe\", \"Jane Smith\"]",
                   "type": "text"
                 },
                 {
                   "key": "isActive",
-                  "value": "\ttrue\t",
+                  "value": "true",
                   "type": "text"
                 },
                 {
-                  "key": "carImage",
-                  "value": "\tSelect any image file\t",
-                  "type": "text",
-                  "disabled": true
+                  "key": "specialRequestAudio",
+                  "value": "",
+                  "type": "text"
                 },
                 {
-                  "key": "specialRequestAudio",
-                  "value": "\tSelect any audio file (optional)",
-                  "type": "text",
-                  "disabled": true
+                  "key": "pickupDateTime",
+                  "value": "2026-03-31T14:30:00",
+                  "type": "text"
+                },
+                {
+                  "key": "orderID",
+                  "value": "ord001",
+                  "type": "text"
+                },
+                {
+                  "key": "transactionID",
+                  "value": "trans001",
+                  "type": "text"
+                },
+                {
+                  "key": "extraTransactionID",
+                  "value": "tr002",
+                  "type": "text"
+                },
+                {
+                  "key": "extraOrderID",
+                  "value": "ord99",
+                  "type": "text"
+                },
+                {
+                  "key": "extraPayment",
+                  "value": " 20",
+                  "type": "text"
+                },
+                {
+                  "key": "startedAt",
+                  "value": "2026-03-31T09:00:00.000Z",
+                  "type": "text"
+                },
+                {
+                  "key": "stoppedAt",
+                  "value": "2026-03-31T09:00:00.000Z",
+                  "type": "text"
+                },
+                {
+                  "key": "extraDiscount",
+                  "value": "12",
+                  "type": "text"
+                },
+                {
+                  "key": "extraPaymentCompleted",
+                  "value": "true",
+                  "type": "text"
                 },
                 {
                   "key": "carImage",
@@ -3852,7 +3816,7 @@
               ]
             },
             "url": {
-              "raw": "http://localhost:5000/api/hourly-bookings/69b82124d1fb4a721a071cbc",
+              "raw": "http://localhost:5000/api/hourly-bookings/69cb5e0afd25daef7b4a8ab4",
               "protocol": "http",
               "host": [
                 "localhost"
@@ -3861,7 +3825,7 @@
               "path": [
                 "api",
                 "hourly-bookings",
-                "69b82124d1fb4a721a071cbc"
+                "69cb5e0afd25daef7b4a8ab4"
               ]
             }
           },
@@ -4148,6 +4112,47 @@
             "header": []
           },
           "response": []
+        },
+        {
+          "name": "hourly booking status change",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiNjlhYzc1Njc1MzA3Njg4MDQ3YzE4ZmUwIiwiZW1haWwiOiJtdHB0Lm11aGFtbWVkQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDkzNzcyMSwiZXhwIjoxNzc1MDI0MTIxfQ.wKO4qWcXoDjp6c4dGFCmtkLzxicEf5cWCy5Ydpx-5F8",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n\r\n    \"bookingStatus\":\"starttrack\"\r\n  \r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/hourly-bookings/69cb5e0afd25daef7b4a8ab4/status",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "5000",
+              "path": [
+                "api",
+                "hourly-bookings",
+                "69cb5e0afd25daef7b4a8ab4",
+                "status"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -4194,14 +4199,14 @@
           "response": []
         },
         {
-          "name": "New Request",
+          "name": "Update Hourly route",
           "request": {
             "auth": {
               "type": "bearer",
               "bearer": [
                 {
                   "key": "token",
-                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiNjliMmVjNWE1ZTVkZGRmMDc5YzMyMDI2IiwiZW1haWwiOiJtdHB0Lm11aGFtbWVkQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDI0NjYzNSwiZXhwIjoxNzc0MzMzMDM1fQ.cnJi-WS5hzGpjo7eJGjVRzAyF3zDGj_ec3x73uscztc",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbklkIjoiNjlhYzc1Njc1MzA3Njg4MDQ3YzE4ZmUwIiwiZW1haWwiOiJtdHB0Lm11aGFtbWVkQGdtYWlsLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3NDg2NDQwMSwiZXhwIjoxNzc0OTUwODAxfQ.Em7PessnUlZBhC9e9OlNDC5_NAq3fxbjVnFXmjND_yA",
                   "type": "string"
                 }
               ]
@@ -4210,7 +4215,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n  \"vehicleID\": \"65f8a1b2c3d4e5f6a7b8c9d0\",\r\n  \"fromCity\": \"65f8a1b2c3d4e5f6a7b8c9d1\",\r\n  \"toCity\": \"65f8a1b2c3d4e5f6a7b8c9d2\",\r\n  \"charge\": 550,\r\n  \"hour\": 5,\r\n  \"isActive\": true\r\n}",
+              "raw": "{\r\n  \"vehicleID\": \"69c645b91bb84f28ef88240a\",\r\n  \"categoryID\": \"69ac95feaf1f894fb53d76a1\",\r\n  \"charge\": 122,\r\n  \"hour\": 2,\r\n  \"isActive\": true\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4218,16 +4223,17 @@
               }
             },
             "url": {
-              "raw": "http://localhost:5000/api/hourly-routes/69c139112e1f791fc59c4b1d",
-              "protocol": "http",
+              "raw": "https://api.premiumforcegroup.com/api/hourly-routes/69c520da52c42156bfd98c1b",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "api",
+                "premiumforcegroup",
+                "com"
               ],
-              "port": "5000",
               "path": [
                 "api",
                 "hourly-routes",
-                "69c139112e1f791fc59c4b1d"
+                "69c520da52c42156bfd98c1b"
               ]
             }
           },

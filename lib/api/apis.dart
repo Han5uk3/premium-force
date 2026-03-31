@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/models/booking_request_model.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
-import 'package:premium_force_main/services/google_sign_in_service.dart';
 
 /// Centralised API service for the Premium Force app.
 ///
@@ -66,75 +65,40 @@ class ApiService {
             final provider = UserLocalStorage.getLoginProvider();
             debugPrint('🔄 API │ Unauthorized. Provider: $provider');
 
-            // --- PATH A: PHONE LOGIN (BACKEND FOCUSED) ---
-            if (provider == 'phone' || provider == null) {
-              final refreshToken = UserLocalStorage.getRefreshToken();
-              if (refreshToken != null) {
-                debugPrint('🔄 API │ Phone Auth. Refreshing backend tokens...');
-                try {
-                  final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
-                  final refreshResponse = await refreshDio.post(
-                    '/otp/refresh-token',
-                    data: {'refreshToken': refreshToken},
-                  );
-
-                  if (refreshResponse.statusCode == 200 &&
-                      refreshResponse.data['success'] == true) {
-                    final newAccess = refreshResponse.data['accessToken'];
-                    final newRefresh = refreshResponse.data['refreshToken'];
-
-                    if (newRefresh != null) {
-                      await UserLocalStorage.saveTokens(
-                        accessToken: newAccess,
-                        refreshToken: newRefresh,
-                      );
-                    } else {
-                      await UserLocalStorage.saveToken(newAccess);
-                    }
-
-                    debugPrint('✅ API │ Backend token refreshed. Retrying...');
-                    e.requestOptions.headers['Authorization'] =
-                        'Bearer $newAccess';
-                    return handler.resolve(await _dio.fetch(e.requestOptions));
-                  }
-                } catch (reErr) {
-                  debugPrint('❌ API │ Phone refresh failure: $reErr');
-                }
-              }
-            }
-            // --- PATH B: GOOGLE LOGIN (LOCAL STORAGE FOCUSED) ---
-            else if (provider == 'google') {
-              debugPrint(
-                '🔄 API │ Google Auth. Triggering Silent NATIVE Refresh...',
-              );
+            final refreshToken = UserLocalStorage.getRefreshToken();
+            if (refreshToken != null) {
+              debugPrint('🔄 API │ Refreshing backend tokens...');
               try {
-                final silentRes = await GoogleSignInService.instance
-                    .signInSilently();
-                if (silentRes?.idToken != null) {
-                  await UserLocalStorage.saveSocialIdToken(silentRes!.idToken!);
+                final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
+                final refreshResponse = await refreshDio.post(
+                  '/otp/refresh-token',
+                  data: {'refreshToken': refreshToken},
+                );
 
-                  // For Google, we use the raw native token as our authorization bearer
-                  // If the backend expects its own token, you should call googleAuth() here instead.
-                  // For a "Local-Only" architecture, the native IdToken IS the bearer.
+                if (refreshResponse.statusCode == 200 &&
+                    refreshResponse.data['success'] == true) {
+                  final newAccess = refreshResponse.data['accessToken'];
+                  final newRefresh = refreshResponse.data['refreshToken'];
+
+                  if (newRefresh != null) {
+                    await UserLocalStorage.saveTokens(
+                      accessToken: newAccess,
+                      refreshToken: newRefresh,
+                    );
+                  } else {
+                    await UserLocalStorage.saveToken(newAccess);
+                  }
+
+                  debugPrint('✅ API │ Backend token refreshed. Retrying...');
                   e.requestOptions.headers['Authorization'] =
-                      'Bearer ${silentRes.idToken}';
-
-                  debugPrint(
-                    '✅ API │ Native token refreshed locally. Retrying...',
-                  );
+                      'Bearer $newAccess';
                   return handler.resolve(await _dio.fetch(e.requestOptions));
                 }
-              } catch (googleErr) {
-                debugPrint('❌ API │ Google silent refresh failure: $googleErr');
+              } catch (reErr) {
+                debugPrint('❌ API │ Refresh failure: $reErr');
               }
-            }
-            // --- PATH C: APPLE LOGIN (LOCAL STORAGE FOCUSED) ---
-            else if (provider == 'apple') {
-              debugPrint(
-                '🔄 API │ Apple Auth. Re-authentication check needed...',
-              );
-              // Note: Apple requires fresh user gesture or biometric often.
-              // For a silent implementation, we'd rely on Keychain storage if not expired.
+            } else {
+              debugPrint('⚠️ API │ No refresh token available.');
             }
           }
           // If not 401 or refresh failed, pass the error along
@@ -731,6 +695,7 @@ class ApiService {
     }
     try {
       final fields = booking.toMap();
+      fields.remove('carImage'); // Remove text path to prevent conflict
 
       // Handle files separately for FormData
       if (booking.specialRequestAudio != null) {
@@ -740,7 +705,7 @@ class ApiService {
         );
       }
       if (booking.carImage != null) {
-        fields['carImage'] = await MultipartFile.fromFile(
+        fields['carimage'] = await MultipartFile.fromFile(
           booking.carImage!.path,
           filename: 'car_image.jpg',
         );
@@ -845,9 +810,9 @@ class ApiService {
     String? token,
   }) async {
     try {
-      final response = await _dio.put(
-        'bookings/$bookingId',
-        data: {'bookingStatus': status},
+      final response = await _dio.patch(
+        'bookings/$bookingId/status',
+        data: {'status': status},
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -864,12 +829,12 @@ class ApiService {
     String? token,
   }) async {
     try {
-      final data = <String, dynamic>{'bookingStatus': status, 'status': status};
+      final data = <String, dynamic>{'bookingStatus': status};
       if (transactionReference != null) {
         data['transactionReference'] = transactionReference;
       }
-      final response = await _dio.put(
-        'hourly-bookings/$bookingId',
+      final response = await _dio.patch(
+        'hourly-bookings/$bookingId/status',
         data: data,
         options: token != null ? _authOptions(token) : null,
       );
@@ -923,6 +888,15 @@ class ApiService {
       if (booking.pickupdatetime != null) {
         fields['pickupdatetime'] = booking.pickupdatetime;
       }
+      if (booking.discountPercentage != null) {
+        fields['discountPercentage'] = booking.discountPercentage.toString();
+      }
+      if (booking.orderID != null) {
+        fields['orderID'] = booking.orderID;
+      }
+      if (booking.transactionID != null) {
+        fields['transactionID'] = booking.transactionID;
+      }
 
       // Handle files
       if (booking.specialRequestAudio != null) {
@@ -932,7 +906,7 @@ class ApiService {
         );
       }
       if (booking.carImage != null) {
-        fields['carImage'] = await MultipartFile.fromFile(
+        fields['carImge'] = await MultipartFile.fromFile(
           booking.carImage!.path,
           filename: 'car_image.jpg',
         );
