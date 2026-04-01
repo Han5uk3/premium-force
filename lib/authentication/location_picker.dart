@@ -29,6 +29,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
   late LatLng _selectedLocation;
   String _selectedAddress = '';
+  String _selectedCity = '';
   bool _isLoading = false;
   bool _isSearching = false;
   List<Map<String, dynamic>> _searchResults = [];
@@ -67,6 +68,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
             place.administrativeArea,
             place.country,
           ].where((e) => e != null && e.isNotEmpty).join(', ');
+          _selectedCity = place.locality ?? '';
         });
       }
     } catch (e) {
@@ -110,6 +112,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
           results.add({
             'address': address,
+            'city': place.locality ?? '',
             'lat': location.latitude,
             'lng': location.longitude,
           });
@@ -133,6 +136,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     setState(() {
       _selectedLocation = position;
       _selectedAddress = result['address'];
+      _selectedCity = result['city'] ?? '';
       _searchResults = [];
       _searchController.clear();
     });
@@ -624,6 +628,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             onTap: () {
                               Navigator.pop(context, {
                                 'address': _selectedAddress,
+                                'city': _selectedCity,
                                 'lat': _selectedLocation.latitude,
                                 'lng': _selectedLocation.longitude,
                               });

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
@@ -5,13 +6,11 @@ import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/booking_model.dart';
-import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class BookingDetailsPage extends StatefulWidget {
   final BookingModel booking;
@@ -23,7 +22,7 @@ class BookingDetailsPage extends StatefulWidget {
 }
 
 class _BookingDetailsPageState extends State<BookingDetailsPage> {
-  UserModel? _driver;
+  DriverDetails? _driver;
   bool _isLoadingDriver = false;
   bool _isPayingExtraHours = false;
   bool _extraHoursPaid = false;
@@ -59,7 +58,15 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       );
       if (mounted) {
         setState(() {
-          _driver = driver;
+          if (driver != null) {
+            _driver = DriverDetails(
+              driverName: driver.username,
+              phoneNumber: driver.phoneNumber,
+              countryCode: driver.countryCode,
+              licenseNumber: driver.specialId,
+              profileImageUrl: driver.profileImageUrl,
+            );
+          }
           _isLoadingDriver = false;
         });
       }
@@ -127,7 +134,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 dropoff: booking.dropOffAddress ?? 'N/A',
                 date: dateStr,
                 time: timeStr,
-                ride: booking.displayName,
+                ride: booking.carData?.numberOfPassengers.toString() ?? '',
                 brand: booking.displayBrand,
                 passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
               ),
@@ -147,25 +154,17 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       child: Container(
                         width: double.infinity,
 
-                        color: Colors.black,
-                        child: Image.network(
-                          booking.carimage!,
+                        child: CachedNetworkImage(
+                          imageUrl: booking.carimage!,
                           fit: BoxFit.contain,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: Color(0xFFE4A46B),
-                                strokeWidth: 2,
-                              ),
-                            );
+                          placeholder: (context, url) {
+                            return const Center(child: PremiumLoader(size: 20));
                           },
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.directions_car,
-                                size: 50,
-                                color: Colors.white24,
-                              ),
+                          errorWidget: (context, url, error) => const Icon(
+                            Icons.directions_car,
+                            size: 50,
+                            color: Colors.white24,
+                          ),
                         ),
                       ),
                     ),
@@ -180,28 +179,20 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-
-            // Payment Summary
-            _buildPaymentSummary(context, loc, booking),
-
-            // Transaction Details (New Section)
-            _buildTransactionDetails(booking),
-
-            // Driver Details (if assigned)
-            if (widget.booking.driverID != null &&
-                widget.booking.driverID != 'null' &&
-                widget.booking.driverID!.isNotEmpty) ...[
+            if ((widget.booking.driverID != null &&
+                    widget.booking.driverID != 'null' &&
+                    widget.booking.driverID!.isNotEmpty) &&
+                (_driver != null || _isLoadingDriver)) ...[
               const SizedBox(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   loc.chauffeur,
                   style: const TextStyle(
-                    color: Color(0xFFE4A46B),
+                    color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -213,6 +204,15 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 child: _buildDriverCard(),
               ),
             ],
+            const SizedBox(height: 20),
+            // Payment Summary
+            _buildPaymentSummary(context, loc, booking),
+
+            // Transaction Details (New Section)
+            _buildTransactionDetails(booking),
+
+            // Driver Details (if assigned)
+
             // Review Section (if completed)
             _buildReviewSection(),
 
@@ -755,35 +755,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     }
 
     if (_driver == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(13),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.person_outline, color: Colors.white38, size: 40),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppLocalizations.of(context)!.driverAssigned,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '${AppLocalizations.of(context)!.id}: ${widget.booking.driverID}',
-                  style: const TextStyle(color: Colors.white38, fontSize: 12),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     return Container(
@@ -795,76 +767,73 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 25,
-            backgroundColor: const Color(0xFF49280B),
-            backgroundImage: _driver!.profileImageUrl != null
-                ? NetworkImage(_driver!.profileImageUrl!)
-                : null,
-            child: _driver!.profileImageUrl == null
-                ? const Icon(Icons.person, color: Color(0xFFE4A46B))
-                : null,
+          ClipOval(
+            child: Container(
+              width: 50,
+              height: 50,
+              color: const Color(0xFF49280B),
+              child:
+                  (_driver?.profileImageUrl != null &&
+                      _driver!.profileImageUrl!.isNotEmpty)
+                  ? CachedNetworkImage(
+                      imageUrl: _driver!.profileImageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFE4A46B),
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.person, color: Color(0xFFE4A46B)),
+                    )
+                  : const Icon(Icons.person, color: Color(0xFFE4A46B)),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _driver!.username,
+                  AppLocalizations.of(context)!.driverAssigned,
+                  style: TextStyle(
+                    color: Colors.white.withAlpha(153),
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  _driver!.driverName ?? '',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  '${_driver!.countryCode} ${_driver!.phoneNumber}',
-                  style: TextStyle(
-                    color: Colors.white.withAlpha(153),
-                    fontSize: 13,
+                if (_driver!.licenseNumber != null &&
+                    _driver!.licenseNumber!.isNotEmpty)
+                  Text(
+                    '${AppLocalizations.of(context)!.licenseNumber}: ${_driver!.licenseNumber}',
+                    style: TextStyle(
+                      color: Colors.white.withAlpha(153),
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
               ],
             ),
-          ),
-          IconButton(
-            onPressed: () {
-              if (_driver != null) {
-                final phone = '${_driver!.countryCode}${_driver!.phoneNumber}';
-                _makePhoneCall(phone);
-              }
-            },
-            icon: const Icon(Icons.phone_in_talk, color: Color(0xFFE4A46B)),
           ),
         ],
       ),
     );
-  }
-
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
-    try {
-      if (await canLaunchUrl(launchUri)) {
-        await launchUrl(launchUri);
-      } else {
-        if (mounted) {
-          AnimatedSnackBar.show(
-            context,
-            AppLocalizations.of(context)!.error,
-            'E',
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        AnimatedSnackBar.show(
-          context,
-          '${AppLocalizations.of(context)!.errorLaunchingDialer}: $e',
-          'E',
-        );
-      }
-    }
   }
 
   /// Simple key–value row used inside the extra-hours banner.

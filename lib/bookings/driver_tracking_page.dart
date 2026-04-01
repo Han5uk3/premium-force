@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
@@ -7,14 +9,10 @@ import 'package:premium_force_main/models/booking_model.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Displays a live map of the driver's location for a given booking.
-///
-/// Route behaviour per booking type:
-/// - **Airport Arrival**  : driver → pickup location → airport (dropoff).
-/// - **Airport Departure**: driver → airport (pickup) → dropoff location.
-/// - **Chauffeur**        : driver → pickup location. Timer visible on screen.
-///                          No fixed dropoff. Trip ends when driver stops tracking.
 class DriverTrackingPage extends StatefulWidget {
   final BookingModel booking;
 
@@ -40,6 +38,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Timer? _chauffeurTimer;
   Duration _elapsed = Duration.zero;
   bool _tripEnded = false;
+  
+  // Location permissions
+  bool _locationPermissionGranted = false;
+  
   // Distance & ETA
   LatLng? _lastFetchLocation;
   String _currentEta = 'Calculating...';
@@ -49,55 +51,39 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 [
   {
     "elementType": "geometry",
-    "stylers": [
-      {"color": "#212121"}
-    ]
+    "stylers": [{"color": "#212121"}]
   },
   {
     "elementType": "labels.icon",
-    "stylers": [
-      {"visibility": "off"}
-    ]
+    "stylers": [{"visibility": "off"}]
   },
   {
     "elementType": "labels.text.fill",
-    "stylers": [
-      {"color": "#757575"}
-    ]
+    "stylers": [{"color": "#757575"}]
   },
   {
     "elementType": "labels.text.stroke",
-    "stylers": [
-      {"color": "#212121"}
-    ]
+    "stylers": [{"color": "#212121"}]
   },
   {
     "featureType": "administrative",
     "elementType": "geometry",
-    "stylers": [
-      {"color": "#757575"}
-    ]
+    "stylers": [{"color": "#757575"}]
   },
   {
     "featureType": "road",
     "elementType": "geometry.fill",
-    "stylers": [
-      {"color": "#2c2c2c"}
-    ]
+    "stylers": [{"color": "#2c2c2c"}]
   },
   {
     "featureType": "road.highway",
     "elementType": "geometry",
-    "stylers": [
-      {"color": "#3c3c3c"}
-    ]
+    "stylers": [{"color": "#3c3c3c"}]
   },
   {
     "featureType": "water",
     "elementType": "geometry",
-    "stylers": [
-      {"color": "#000000"}
-    ]
+    "stylers": [{"color": "#000000"}]
   }
 ]
 ''';
@@ -106,9 +92,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   void initState() {
     super.initState();
     _isChauffeur = _detectChauffeur();
-    _initStaticMarkersAndPolylines();
-    _listenToDriverLocation();
-    _listenToSessionForChauffeur();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _checkLocationPermission();
+        _initStaticMarkersAndPolylines();
+        _listenToDriverLocation();
+        _listenToSessionForChauffeur();
+      }
+    });
   }
 
   @override
@@ -123,12 +114,44 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       (widget.booking.category ?? '').toLowerCase().contains('chauffeur') ||
       widget.booking.estimatedHours != null;
 
-  // ---------------------------------------------------------------------------
-  // Markers & Polylines
-  // ---------------------------------------------------------------------------
+  // --- Permissions ---
 
-  /// Determine booking type and set up the static pickup/dropoff markers and
-  /// any polyline connecting them.
+  Future<void> _checkLocationPermission() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return;
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) _showPermissionDialog();
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _locationPermissionGranted = true);
+    }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.locationPermissionDenied),
+        content: Text(AppLocalizations.of(context)!.locationPermissionsPermanentlyDenied),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel)),
+          TextButton(onPressed: () { Geolocator.openAppSettings(); Navigator.pop(context); }, child: Text(AppLocalizations.of(context)!.settings)),
+        ],
+      ),
+    );
+  }
+
+  // --- Markers & Polylines ---
+
   void _initStaticMarkersAndPolylines() {
     final booking = widget.booking;
     final cat = (booking.category ?? '').toLowerCase();
@@ -140,201 +163,141 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     final dropoffLat = booking.dropOffLat ?? 0;
     final dropoffLng = booking.dropOffLong ?? 0;
 
-    final hasPickup = pickupLat != 0 && pickupLng != 0;
-    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
-
-    if (!hasPickup) {
-      return;
-    }
+    if (pickupLat == 0 || pickupLng == 0) return;
 
     final pickupLatLng = LatLng(pickupLat, pickupLng);
 
     if (_isChauffeur) {
-      // Chauffeur: only show the pickup marker (no fixed dropoff route)
-      _markers.add(
-        _buildMarker(
-          id: 'pickup',
-          position: pickupLatLng,
-          title: AppLocalizations.of(context)!.pickupPointLabel,
-          hue: BitmapDescriptor.hueAzure,
-        ),
-      );
-      return;
-    }
-
-    if (isArrival) {
-      // Airport Arrival: driver picks up customer at a location → drops off at airport.
-      // pickup = customer location, dropoff = airport
-      _markers.add(
-        _buildMarker(
-          id: 'pickup',
-          position: pickupLatLng,
-          title: AppLocalizations.of(context)!.pickupPointLabel,
-          hue: BitmapDescriptor.hueAzure,
-        ),
-      );
-      if (hasDropoff) {
-        final dropoffLatLng = LatLng(dropoffLat, dropoffLng);
-        _markers.add(
-          _buildMarker(
-            id: 'dropoff',
-            position: dropoffLatLng,
-            title: AppLocalizations.of(context)!.airportDropoffLabel,
-            hue: BitmapDescriptor.hueRose,
-          ),
-        );
-        _addRoutePolyline([pickupLatLng, dropoffLatLng]);
-      }
-      return;
-    }
-
-    if (isDeparture) {
-      // Airport Departure: driver picks up customer from airport → drops off at destination.
-      // pickup = airport, dropoff = customer destination
-      _markers.add(
-        _buildMarker(
-          id: 'pickup',
-          position: pickupLatLng,
-          title: AppLocalizations.of(context)!.airportPickupLabel,
-          hue: BitmapDescriptor.hueAzure,
-        ),
-      );
-      if (hasDropoff) {
-        final dropoffLatLng = LatLng(dropoffLat, dropoffLng);
-        _markers.add(
-          _buildMarker(
-            id: 'dropoff',
-            position: dropoffLatLng,
-            title: AppLocalizations.of(context)!.dropoffPointLabel,
-            hue: BitmapDescriptor.hueRose,
-          ),
-        );
-        _addRoutePolyline([pickupLatLng, dropoffLatLng]);
-      }
-      return;
-    }
-
-    // Standard / unknown: show pickup → dropoff if both available
-    _markers.add(
-      _buildMarker(
+      _addMarkerWithCustomIcon(
         id: 'pickup',
         position: pickupLatLng,
         title: AppLocalizations.of(context)!.pickupPointLabel,
-        hue: BitmapDescriptor.hueAzure,
-      ),
-    );
-    if (hasDropoff) {
-      final dropoffLatLng = LatLng(dropoffLat, dropoffLng);
-      _markers.add(
-        _buildMarker(
-          id: 'dropoff',
-          position: dropoffLatLng,
-          title: AppLocalizations.of(context)!.dropoffPointLabel,
-          hue: BitmapDescriptor.hueRose,
-        ),
+        isGrayPin: true,
       );
-      _addRoutePolyline([pickupLatLng, dropoffLatLng]);
+    } else {
+      _addMarkerWithCustomIcon(
+        id: 'pickup',
+        position: pickupLatLng,
+        title: isArrival ? AppLocalizations.of(context)!.pickupPointLabel : AppLocalizations.of(context)!.airportPickupLabel,
+        isGrayPin: true,
+      );
+      if (dropoffLat != 0 && dropoffLng != 0) {
+        _addMarkerWithCustomIcon(
+          id: 'dropoff',
+          position: LatLng(dropoffLat, dropoffLng),
+          title: isDeparture ? AppLocalizations.of(context)!.dropoffPointLabel : AppLocalizations.of(context)!.airportDropoffLabel,
+          isGrayPin: true,
+        );
+      }
     }
+    _fetchDirections();
   }
 
-  Marker _buildMarker({
+  Future<void> _addMarkerWithCustomIcon({
     required String id,
     required LatLng position,
     required String title,
-    required double hue,
-  }) => Marker(
-    markerId: MarkerId(id),
-    position: position,
-    infoWindow: InfoWindow(title: title),
-    icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-  );
-
-  void _addRoutePolyline(List<LatLng> points) {
-    _polylines.add(
-      Polyline(
-        polylineId: const PolylineId('route'),
-        points: points,
-        color: Colors.white.withValues(alpha: 0.8),
-        width: 5,
-      ),
-    );
-    // Glow effect
-    _polylines.add(
-      Polyline(
-        polylineId: const PolylineId('route_glow'),
-        points: points,
-        color: Colors.white.withValues(alpha: 0.2),
-        width: 12,
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // RTDB Listeners
-  // ---------------------------------------------------------------------------
-
-  void _listenToDriverLocation() {
-    _locationSubscription = _database
-        .ref('bookings/${widget.booking.id}/driver_location')
-        .onValue
-        .listen((event) {
-          final data = event.snapshot.value as Map<dynamic, dynamic>?;
-          if (data != null) {
-            final lat = (data['lat'] as num?)?.toDouble();
-            final lng = (data['lng'] as num?)?.toDouble();
-            if (lat != null && lng != null) {
-              setState(() {
-                _driverLocation = LatLng(lat, lng);
-                _updateDriverMarker();
-              });
-              _moveCameraToDriver();
-
-              if (_lastFetchLocation == null ||
-                  Geolocator.distanceBetween(
-                        _lastFetchLocation!.latitude,
-                        _lastFetchLocation!.longitude,
-                        lat,
-                        lng,
-                      ) >
-                      100) {
-                _lastFetchLocation = _driverLocation;
-                _fetchDirections();
-              }
-            }
-          }
-        });
-  }
-
-  /// Listen to the tracking_session node. For chauffeur bookings:
-  /// - On start: read startTime and begin the elapsed timer.
-  /// - On stop (isActive = false): stop the timer and show "Trip Ended".
-  void _listenToSessionForChauffeur() {
-    if (!_isChauffeur) {
-      return;
+    bool isGrayPin = false,
+  }) async {
+    BitmapDescriptor icon;
+    if (isGrayPin) {
+      icon = await _getGrayPinIcon();
+    } else {
+      icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
     }
 
-    _sessionSubscription = _database
-        .ref('bookings/${widget.booking.id}/tracking_session')
-        .onValue
-        .listen((event) {
-          final data = event.snapshot.value as Map<dynamic, dynamic>?;
-          if (data == null) {
-            return;
-          }
+    if (mounted) {
+      setState(() {
+        _markers.add(
+          Marker(
+            markerId: MarkerId(id),
+            position: position,
+            infoWindow: InfoWindow(title: title),
+            icon: icon,
+          ),
+        );
+      });
+    }
+  }
 
-          final isActive = data['isActive'] as bool? ?? true;
-          final startTimeStr = data['startTime'] as String?;
+  Future<BitmapDescriptor> _getGrayPinIcon() async {
+    const double size = 120.0;
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final ui.Canvas canvas = ui.Canvas(recorder);
+    final ui.Paint paint = ui.Paint()..color = const Color(0xFF2C2C2C);
+    
+    // Modern pin shape matching the reference image
+    final ui.Path path = ui.Path();
+    path.moveTo(size / 2, size);
+    path.quadraticBezierTo(size * 0.1, size * 0.6, size * 0.1, size * 0.4);
+    path.arcToPoint(Offset(size * 0.9, size * 0.4), radius: const Radius.circular(size * 0.4), clockwise: true);
+    path.quadraticBezierTo(size * 0.9, size * 0.6, size / 2, size);
+    canvas.drawPath(path, paint);
 
-          if (startTimeStr != null && _chauffeurStartTime == null) {
-            _chauffeurStartTime = DateTime.tryParse(startTimeStr);
-            _startChauffeurTimer();
-          }
+    // Inner white circle
+    canvas.drawCircle(Offset(size / 2, size * 0.4), size * 0.15, ui.Paint()..color = Colors.white);
+    
+    // Inner gray center dot for the "modern target" look
+    canvas.drawCircle(Offset(size / 2, size * 0.4), size * 0.05, ui.Paint()..color = const Color(0xFF2C2C2C));
 
-          if (!isActive && !_tripEnded) {
-            setState(() => _tripEnded = true);
-            _chauffeurTimer?.cancel();
+    final ui.Image image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+  }
+
+  void _addRoutePolyline(List<LatLng> points) {
+    // 1. Core solid line
+    _polylines.add(Polyline(polylineId: const PolylineId('route_core'), points: points, color: Colors.white, width: 3));
+    
+    // 2. High intensity inner bloom
+    _polylines.add(Polyline(polylineId: const PolylineId('route_inner_glow'), points: points, color: Colors.white.withAlpha(150), width: 7));
+    
+    // 3. Diffuse soft glow
+    _polylines.add(Polyline(polylineId: const PolylineId('route_outer_glow'), points: points, color: Colors.white.withAlpha(60), width: 12));
+    
+    // 4. Ambient aura (replicates the bloom from the user's reference image)
+    _polylines.add(Polyline(polylineId: const PolylineId('route_ambient'), points: points, color: Colors.white.withAlpha(25), width: 22));
+  }
+
+  // --- RTDB Listeners ---
+
+  void _listenToDriverLocation() {
+    _locationSubscription = _database.ref('bookings/${widget.booking.id}/driver_location').onValue.listen((event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data != null) {
+        final lat = (data['lat'] as num?)?.toDouble();
+        final lng = (data['lng'] as num?)?.toDouble();
+        if (lat != null && lng != null) {
+          setState(() {
+            _driverLocation = LatLng(lat, lng);
+            _updateDriverMarker();
+          });
+          _moveCameraToDriver();
+          if (_lastFetchLocation == null || Geolocator.distanceBetween(_lastFetchLocation!.latitude, _lastFetchLocation!.longitude, lat, lng) > 100) {
+            _lastFetchLocation = _driverLocation;
+            _fetchDirections();
           }
-        });
+        }
+      }
+    });
+  }
+
+  void _listenToSessionForChauffeur() {
+    if (!_isChauffeur) return;
+    _sessionSubscription = _database.ref('bookings/${widget.booking.id}/tracking_session').onValue.listen((event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data == null) return;
+      final isActive = data['isActive'] as bool? ?? true;
+      final startTimeStr = data['startTime'] as String?;
+      if (startTimeStr != null && _chauffeurStartTime == null) {
+        _chauffeurStartTime = DateTime.tryParse(startTimeStr);
+        _startChauffeurTimer();
+      }
+      if (!isActive && !_tripEnded) {
+        setState(() => _tripEnded = true);
+        _chauffeurTimer?.cancel();
+      }
+    });
   }
 
   void _startChauffeurTimer() {
@@ -349,151 +312,126 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   }
 
   Future<void> _updateDriverMarker() async {
-    if (_driverLocation == null) {
-      return;
-    }
-
+    if (_driverLocation == null) return;
     BitmapDescriptor icon;
     try {
-      icon = await BitmapDescriptor.asset(
-        const ImageConfiguration(size: Size(48, 48)),
-        'assets/icons/car_black.png',
-      );
+      icon = await BitmapDescriptor.asset(const ImageConfiguration(size: Size(48, 48)), 'assets/icons/car_black.png');
     } catch (_) {
       icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
     }
-
-    if (mounted) {
-      setState(() {
-        _markers.removeWhere((m) => m.markerId.value == 'driver');
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('driver'),
-            position: _driverLocation!,
-            icon: icon,
-            anchor: const Offset(0.5, 0.5),
-            infoWindow: InfoWindow(title: AppLocalizations.of(context)!.driverMarkerTitle),
-          ),
-        );
-      });
-    }
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value == 'driver');
+      _markers.add(Marker(
+        markerId: const MarkerId('driver'), 
+        position: _driverLocation!, 
+        icon: icon, 
+        anchor: const Offset(0.5, 0.5), 
+        infoWindow: InfoWindow(title: AppLocalizations.of(context)!.driverMarkerTitle),
+      ));
+    });
   }
 
   Future<void> _moveCameraToDriver() async {
-    if (_driverLocation == null) {
-      return;
+    if (_driverLocation == null) return;
+    if (_markers.any((m) => m.markerId.value == 'driver')) {
+       _zoomToFitAllPins();
+       return;
     }
-    try {
-      final controller = await _controller.future;
-      controller.animateCamera(CameraUpdate.newLatLng(_driverLocation!));
-    } catch (_) {}
+    final controller = await _controller.future;
+    controller.animateCamera(CameraUpdate.newLatLng(_driverLocation!));
   }
 
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
+  Future<void> _zoomToFitAllPins() async {
+    if (!mounted || _markers.isEmpty) return;
+    final controller = await _controller.future;
+    double minLat = _markers.first.position.latitude, maxLat = _markers.first.position.latitude;
+    double minLng = _markers.first.position.longitude, maxLng = _markers.first.position.longitude;
+    for (final m in _markers) {
+      if (m.position.latitude < minLat) minLat = m.position.latitude;
+      if (m.position.latitude > maxLat) maxLat = m.position.latitude;
+      if (m.position.longitude < minLng) minLng = m.position.longitude;
+      if (m.position.longitude > maxLng) maxLng = m.position.longitude;
+    }
+    controller.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(southwest: LatLng(minLat, minLng), northeast: LatLng(maxLat, maxLng)), 100));
+  }
+
+  // --- Directions API ---
 
   Future<void> _fetchDirections() async {
-    if (_driverLocation == null) {
-      return;
-    }
-
     final booking = widget.booking;
     final pickupLat = booking.pickupLat ?? 0;
     final pickupLng = booking.pickupLong ?? 0;
-    if (pickupLat == 0 || pickupLng == 0) {
-      return;
-    }
-
     final dropoffLat = booking.dropOffLat ?? 0;
     final dropoffLng = booking.dropOffLong ?? 0;
     final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
 
-    final String origin =
-        '${_driverLocation!.latitude},${_driverLocation!.longitude}';
-    String destination;
-    String waypoints = '';
-
-    if (_isChauffeur || !hasDropoff) {
-      destination = '$pickupLat,$pickupLng';
-    } else {
+    String origin, destination, waypoints = '';
+    if (_driverLocation == null) {
+      if (!hasDropoff) return;
+      origin = '$pickupLat,$pickupLng';
       destination = '$dropoffLat,$dropoffLng';
-      waypoints = '&waypoints=$pickupLat,$pickupLng';
+    } else {
+      origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
+      if (_isChauffeur || !hasDropoff) {
+        destination = '$pickupLat,$pickupLng';
+      } else {
+        destination = '$dropoffLat,$dropoffLng';
+        waypoints = '&waypoints=$pickupLat,$pickupLng';
+      }
     }
 
-    final apiKey =
-        dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
-    if (apiKey.isEmpty) {
-      return;
-    }
-
-    final url =
-        'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
+    final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
+    if (apiKey.isEmpty) return;
 
     try {
+      final url = 'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
       final response = await Dio().get(url);
       if (response.statusCode == 200 && response.data['status'] == 'OK') {
         final routes = response.data['routes'] as List;
         if (routes.isNotEmpty) {
           final legs = routes.first['legs'] as List;
-          int totalDistance = 0;
-          int totalDuration = 0;
-          for (final leg in legs) {
-            totalDistance += (leg['distance']['value'] as num).toInt();
-            totalDuration += (leg['duration']['value'] as num).toInt();
+          int dist = 0, dur = 0;
+          if (_driverLocation == null || legs.length < 2) {
+            for (final leg in legs) {
+              dist += (leg['distance']['value'] as num).toInt();
+              dur += (leg['duration']['value'] as num).toInt();
+            }
+          } else {
+            dist = (legs[0]['distance']['value'] as num).toInt();
+            dur = (legs[0]['duration']['value'] as num).toInt();
           }
 
-          final polylineStr =
-              routes.first['overview_polyline']['points'] as String;
-          final polyPoints = _decodePolyline(polylineStr);
+          final List<LatLng> polyPoints = [];
+          for (final leg in legs) {
+            for (final step in (leg['steps'] as List)) {
+              polyPoints.addAll(_decodePolyline(step['polyline']['points']));
+            }
+          }
 
           if (mounted) {
             setState(() {
               _polylines.clear();
               _addRoutePolyline(polyPoints);
-
-              _currentDistance =
-                  '${(totalDistance / 1000).toStringAsFixed(1)} km';
-
-              final int mins = (totalDuration / 60).round();
-              _currentEta = mins > 60
-                  ? '${mins ~/ 60} hr ${mins % 60} min'
-                  : '$mins min';
+              _currentDistance = '${(dist / 1000).toStringAsFixed(1)} km';
+              final int mins = (dur / 60).round();
+              _currentEta = mins > 60 ? '${mins ~/ 60} hr ${mins % 60} min' : '$mins min';
             });
           }
         }
       }
-    } catch (e) {
-      debugPrint('Error fetching directions: $e');
-    }
+    } catch (_) {}
   }
 
   List<LatLng> _decodePolyline(String encoded) {
     final List<LatLng> poly = [];
-    int index = 0;
-    final int len = encoded.length;
-    int lat = 0, lng = 0;
-
+    int index = 0, len = encoded.length, lat = 0, lng = 0;
     while (index < len) {
       int b, shift = 0, result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-
+      do { b = encoded.codeUnitAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      lat += ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      shift = 0; result = 0;
+      do { b = encoded.codeUnitAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      lng += ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       poly.add(LatLng(lat / 100000.0, lng / 100000.0));
     }
     return poly;
@@ -506,150 +444,105 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     return hours > 0 ? '$hours:$mins:$secs' : '$mins:$secs';
   }
 
-  String _buildSubtitle(BuildContext context) {
-    final loc = AppLocalizations.of(context)!;
-    final cat = (widget.booking.category ?? '').toLowerCase();
-    if (cat.contains('arrival')) {
-      return loc.airportArrivalSubtitle;
-    }
-    if (cat.contains('departure')) {
-      return loc.airportDepartureSubtitle;
-    }
-    if (_isChauffeur) {
-      return loc.chauffeurServiceSubtitle;
-    }
-    return loc.driverOnTheWay;
+  Future<void> _makePhoneCall(String? phoneNumber) async {
+    if (phoneNumber == null || phoneNumber.isEmpty) return;
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(launchUri)) await launchUrl(launchUri);
   }
-
-  LatLng get _initialCameraTarget {
-    final lat = widget.booking.pickupLat ?? 0;
-    final lng = widget.booking.pickupLong ?? 0;
-    if (lat != 0 && lng != 0) {
-      return LatLng(lat, lng);
-    }
-    return _driverLocation ?? const LatLng(24.7136, 46.6753); // Riyadh fallback
-  }
-
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-          title: Text(
-          AppLocalizations.of(context)!.trackYourDriver,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        title: Text(loc.trackYourDriver, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: Stack(
         children: [
-          // Map
           GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _initialCameraTarget,
-              zoom: 14,
-            ),
-            onMapCreated: (controller) {
-              _controller.complete(controller);
-              controller.setMapStyle(_mapStyle);
+            initialCameraPosition: CameraPosition(target: LatLng(widget.booking.pickupLat ?? 24.7136, widget.booking.pickupLong ?? 46.6753), zoom: 14),
+            onMapCreated: (c) { 
+              _controller.complete(c); 
+              c.setMapStyle(_mapStyle); 
+              Future.delayed(const Duration(milliseconds: 500), () => _zoomToFitAllPins()); 
             },
             markers: _markers,
             polylines: _polylines,
+            myLocationEnabled: _locationPermissionGranted,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
           ),
-
-          // Info banner at the bottom
           Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
+            bottom: 24, left: 16, right: 16,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.9),
-                    Colors.black.withValues(alpha: 0.0),
-                  ],
-                ),
+                color: const Color(0xFF1A1A1A).withAlpha(240),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [BoxShadow(color: Colors.black.withAlpha(128), blurRadius: 20, offset: const Offset(0, 10))],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Subtitle / booking type label
-                  Text(
-                    _buildSubtitle(context),
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Chauffeur timer or status line
-                  if (_isChauffeur) ...[
-                    _tripEnded
-                        ? Text(
-                            AppLocalizations.of(context)!.tripEnded,
-                            style: const TextStyle(
-                              color: Colors.greenAccent,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          )
-                        : Row(
-                            children: [
-                              const Icon(
-                                Icons.timer,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _chauffeurStartTime == null
-                                    ? AppLocalizations.of(context)!.waitingForDriver
-                                    : _formatElapsed(_elapsed),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                            ],
-                          ),
-                  ] else ...[
-                    Text(
-                      _driverLocation != null
-                          ? '${AppLocalizations.of(context)!.etaPrefix} $_currentEta • $_currentDistance'
-                          : AppLocalizations.of(context)!.waitingForLocation,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: const Color(0xFFE4A46B),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: widget.booking.driver?.profileImageUrl != null
+                              ? CachedNetworkImage(imageUrl: widget.booking.driver!.profileImageUrl!, fit: BoxFit.cover, errorWidget: (c, u, e) => const Icon(Icons.person, color: Colors.white))
+                              : const Icon(Icons.person, color: Colors.white, size: 32),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(widget.booking.driver?.driverName ?? loc.driverMarkerTitle, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                            Text(_isChauffeur ? loc.chauffeurServiceSubtitle : '${widget.booking.carName ?? ""} • ${widget.booking.driver?.licenseNumber ?? ""}', style: TextStyle(color: Colors.white.withAlpha(150), fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      Material(
+                        color: const Color(0xFFE4A46B),
+                        shape: const CircleBorder(),
+                        child: InkWell(onTap: () => _makePhoneCall(widget.booking.driver?.phoneNumber), child: const Padding(padding: EdgeInsets.all(12), child: Icon(Icons.phone, color: Colors.black))),
+                      ),
+                    ],
+                  ),
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Colors.white10, height: 1)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatColumn(Icons.timer_outlined, _isChauffeur ? (_tripEnded ? loc.tripEnded : loc.ongoing) : loc.etaPrefix, _isChauffeur ? (_chauffeurStartTime == null ? "--:--" : _formatElapsed(_elapsed)) : _currentEta),
+                      Container(width: 1, height: 32, color: Colors.white10),
+                      _buildStatColumn(Icons.map_outlined, loc.totalDistance, _driverLocation != null ? _currentDistance : "-- km"),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatColumn(IconData icon, String label, String value) {
+    return Column(
+      children: [
+        Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: Colors.white38, size: 14), const SizedBox(width: 4), Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11))]),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 }

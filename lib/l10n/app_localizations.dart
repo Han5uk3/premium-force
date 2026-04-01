@@ -254,6 +254,24 @@ abstract class AppLocalizations {
   /// **'Airport Departure'**
   String get airportDeparture;
 
+  /// No description provided for @airportServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Airport Services'**
+  String get airportServices;
+
+  /// No description provided for @privateTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Private Transfer'**
+  String get privateTransfer;
+
+  /// No description provided for @useAirportServicesWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'For airport-related bookings, please use the Airport Services section.'**
+  String get useAirportServicesWarning;
+
   /// No description provided for @goToBooking.
   ///
   /// In en, this message translates to:
@@ -469,6 +487,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ongoing'**
   String get ongoing;
+
+  /// No description provided for @trackingStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking Stopped'**
+  String get trackingStopped;
+
+  /// No description provided for @confirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed'**
+  String get confirmed;
+
+  /// No description provided for @paymentPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Pending'**
+  String get paymentPending;
 
   /// No description provided for @upcoming.
   ///
@@ -734,6 +770,12 @@ abstract class AppLocalizations {
   /// **'Please agree to the terms and conditions and privacy policy.'**
   String get pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy;
 
+  /// No description provided for @licenseNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'License Number'**
+  String get licenseNumber;
+
   /// No description provided for @tripInfo.
   ///
   /// In en, this message translates to:
@@ -745,6 +787,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Preferences'**
   String get preferences;
+
+  /// No description provided for @assigned.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned'**
+  String get assigned;
+
+  /// No description provided for @tracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking'**
+  String get tracking;
+
+  /// No description provided for @reviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewed'**
+  String get reviewed;
 
   /// No description provided for @serviceType.
   ///

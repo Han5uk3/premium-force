@@ -87,6 +87,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get airportDeparture => 'مغادرة المطار';
 
   @override
+  String get airportServices => 'خدمات المطار';
+
+  @override
+  String get privateTransfer => 'نقل خاص';
+
+  @override
+  String get useAirportServicesWarning =>
+      'للحجوزات المتعلقة بالمطار، يرجى استخدام قسم خدمات المطار.';
+
+  @override
   String get goToBooking => 'الانتقال إلى الحجز';
 
   @override
@@ -194,6 +204,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get ongoing => 'جاري';
+
+  @override
+  String get trackingStopped => 'توقف التتبع';
+
+  @override
+  String get confirmed => 'تم التأكيد';
+
+  @override
+  String get paymentPending => 'في انتظار الدفع';
 
   @override
   String get upcoming => 'قادم';
@@ -330,10 +349,22 @@ class AppLocalizationsAr extends AppLocalizations {
       'يرجى الموافقة على الشروط والأحكام وسياسة الخصوصية.';
 
   @override
+  String get licenseNumber => 'رقم الرخصة';
+
+  @override
   String get tripInfo => 'معلومات الرحلة';
 
   @override
   String get preferences => 'التفضيلات';
+
+  @override
+  String get assigned => 'Assigned';
+
+  @override
+  String get tracking => 'Tracking';
+
+  @override
+  String get reviewed => 'Reviewed';
 
   @override
   String get serviceType => 'نوع الخدمة';

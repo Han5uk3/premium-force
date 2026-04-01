@@ -14,12 +14,14 @@ class Bookingcard extends StatelessWidget {
   final int passengers;
   final bool isFromReviewAndConfirm;
   final bool isChauffeur;
+  final String? chauffeurName;
 
   const Bookingcard({
     super.key,
     this.passengers = 1,
     this.isFromReviewAndConfirm = false,
     this.isChauffeur = false,
+    this.chauffeurName,
 
     required this.status,
     required this.type,
@@ -266,7 +268,9 @@ class Bookingcard extends StatelessWidget {
                     ),
 
                     Text(
-                      isFromReviewAndConfirm ? "$passengers" : loc.notAssigned,
+                      isFromReviewAndConfirm
+                          ? "$passengers"
+                          : (chauffeurName ?? loc.notAssigned),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -310,24 +314,40 @@ class Bookingcard extends StatelessWidget {
     status = status.toLowerCase();
     if (status == "completed" || status == "c") {
       return loc.completed;
+    } else if (status == "reviewed") {
+      return loc.reviewed;
     } else if (status == "pending" || status == "p") {
       return loc.pending;
     } else if (status == "cancelled" || status == "x") {
       return loc.cancelled;
-    } else if (status == "q") {
-      return loc.pickup;
-    } else if (status == "w") {
-      return loc.dropoff;
+    } else if (status == "starttracking") {
+      return loc.tracking;
+    } else if (status == "stoptracking") {
+      return loc.trackingStopped;
+    } else if (status == "assigned") {
+      return loc.assigned;
+    } else if (status == "paymentpending" || status == "payment pending") {
+      return loc.paymentPending;
     }
-    return loc.unknown;
+    return status.isNotEmpty
+        ? status[0].toUpperCase() + status.substring(1)
+        : loc.unknown;
   }
 
   Color getColorByStatus(String status) {
     status = status.toLowerCase();
-    if (status == "completed" || status == "c") {
+    if (status == "completed" || status == "c" || status == "reviewed") {
       return Colors.green;
     } else if (status == "pending" || status == "p") {
       return Colors.orange;
+    } else if (status == "confirmed" ||
+        status == "ongoing" ||
+        status == "assigned" ||
+        status == "starttracking" ||
+        status == "stoptracking" ||
+        status == "paymentpending" ||
+        status == "payment pending") {
+      return Colors.blue;
     } else if (status == "cancelled" || status == "x") {
       return Colors.red;
     }

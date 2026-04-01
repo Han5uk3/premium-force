@@ -26,6 +26,7 @@ import 'package:premium_force_main/utils/paytabs_config.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
+import 'package:geolocator/geolocator.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -861,6 +862,23 @@ class _NewBookingState extends State<NewBooking> {
     return 0;
   }
 
+  bool _isNearAirport(double lat, double lng, String address) {
+    if (address.toLowerCase().contains('airport') || address.contains('مطار')) {
+      return true;
+    }
+
+    if (lat == 0 && lng == 0) return false;
+    for (var airport in _apiAirports) {
+      final aLat = _parseDouble(airport['lat']);
+      final aLng = _parseDouble(airport['long']);
+      if (aLat != 0 && aLng != 0) {
+        final distance = Geolocator.distanceBetween(lat, lng, aLat, aLng);
+        if (distance < 3000) return true; // 3km radius
+      }
+    }
+    return false;
+  }
+
   /// Get the list of cars to use (fetched or fallback to hardcoded)
   List<CarModel> get _carsList => _cars.isNotEmpty ? _cars : availableCars;
 
@@ -1082,6 +1100,8 @@ class _NewBookingState extends State<NewBooking> {
         return loc.airportDeparture;
       case 2:
         return loc.chauffeurService;
+      case 3:
+        return loc.privateTransfer;
       case 0:
       default:
         return loc.airportArrival;
@@ -1094,6 +1114,8 @@ class _NewBookingState extends State<NewBooking> {
         return 'airport departure';
       case 2:
         return 'chauffeured';
+      case 3:
+        return 'private transfer';
       case 0:
       default:
         return 'airport arrival';
@@ -1120,6 +1142,7 @@ class _NewBookingState extends State<NewBooking> {
     final loc = AppLocalizations.of(context)!;
     if (name == loc.airportDeparture) return 1;
     if (name == loc.chauffeurService) return 2;
+    if (name == loc.privateTransfer) return 3;
     return 0;
   }
 
@@ -1958,7 +1981,11 @@ class _NewBookingState extends State<NewBooking> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.info_outline, color: Color(0xFFE4A46B), size: 20),
+                  const Icon(
+                    Icons.info_outline,
+                    color: Color(0xFFE4A46B),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -2848,22 +2875,31 @@ class _NewBookingState extends State<NewBooking> {
           SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: PremiumDropDown(
-              title: loc.serviceType,
-              value: _getServiceName(context, _selectedCatCode),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _selectedCatCode = _getCatCode(context, val);
-                  });
-                }
-              },
-              items: [
-                loc.airportArrival,
-                loc.airportDeparture,
-                loc.chauffeurService,
-              ],
-            ),
+            child: (_selectedCatCode == 2 || _selectedCatCode == 3)
+                ? PremiumTextField(
+                    title: loc.serviceType,
+                    controller: TextEditingController(
+                      text: _getServiceName(context, _selectedCatCode),
+                    ),
+                    readOnly: true,
+                    needBorder: true,
+                    blackbg: true,
+                    borderRadius: 12,
+                    fontsize: 14,
+                    hintText: "",
+                  )
+                : PremiumDropDown(
+                    title: loc.serviceType,
+                    value: _getServiceName(context, _selectedCatCode),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedCatCode = _getCatCode(context, val);
+                        });
+                      }
+                    },
+                    items: [loc.airportArrival, loc.airportDeparture],
+                  ),
           ),
           SizedBox(height: 16),
           Padding(
@@ -2914,6 +2950,8 @@ class _NewBookingState extends State<NewBooking> {
                     return buildDepartureSection(context, loc);
                   if (_selectedCatCode == 2)
                     return buildChauffeurSection(context, loc);
+                  if (_selectedCatCode == 3)
+                    return buildPrivateTransferSection(context, loc);
                   return const SizedBox.shrink();
                 },
               ),
@@ -3028,6 +3066,23 @@ class _NewBookingState extends State<NewBooking> {
             },
           ),
         ),
+        SizedBox(height: 16),
+        buildDateTimePickers(context, loc, false),
+        SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget buildPrivateTransferSection(
+    BuildContext context,
+    AppLocalizations loc,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        buildDropLocation(context, loc, false), // Pickup
+        SizedBox(height: 16),
+        buildDropLocation(context, loc, true), // Dropoff
         SizedBox(height: 16),
         buildDateTimePickers(context, loc, false),
         SizedBox(height: 16),
@@ -3188,19 +3243,52 @@ class _NewBookingState extends State<NewBooking> {
                       ),
                     ),
                   );
-                  if (result != null && result is Map<String, dynamic>) {
-                    FocusScope.of(context).requestFocus(FocusNode());
+                    if (result != null && result is Map<String, dynamic>) {
+                      FocusScope.of(context).requestFocus(FocusNode());
+                      final double newLat = result['lat'] ?? 0;
+                      final double newLng = result['lng'] ?? 0;
+                      final String newAddress = (result['address'] ?? '')
+                          .toString();
+
+                      if (_selectedCatCode == 3) {
+                        debugPrint('📍 PREM-FORCE │ Private Transfer Location Selection:');
+                        debugPrint('   → Latitude: $newLat');
+                        debugPrint('   → Longitude: $newLng');
+                        debugPrint('   → Full Address: $newAddress');
+                        debugPrint('   → City Name: ${result['city'] ?? ''}');
+                      }
+
+                    if (_selectedCatCode == 3 &&
+                        _isNearAirport(newLat, newLng, newAddress)) {
+                      _showCustomSnackBar(loc.useAirportServicesWarning, 'E');
+                      if (isDropLocation) {
+                        setState(() {
+                          _dropAddress = null;
+                          _dropLat = null;
+                          _dropLng = null;
+                        });
+                      } else {
+                        setState(() {
+                          _pickupAddress = null;
+                          _pickupLat = null;
+                          _pickupLng = null;
+                        });
+                      }
+                      state.didChange(true);
+                      return; // Do not update state/location with new airport location
+                    }
+
                     if (isDropLocation) {
                       setState(() {
-                        _dropAddress = result['address'];
-                        _dropLat = result['lat'];
-                        _dropLng = result['lng'];
+                        _dropAddress = newAddress;
+                        _dropLat = newLat;
+                        _dropLng = newLng;
                       });
                     } else {
                       setState(() {
-                        _pickupAddress = result['address'];
-                        _pickupLat = result['lat'];
-                        _pickupLng = result['lng'];
+                        _pickupAddress = newAddress;
+                        _pickupLat = newLat;
+                        _pickupLng = newLng;
                       });
                     }
                     state.didChange(true);

@@ -922,7 +922,7 @@ class _HomepageState extends State<Homepage>
             children: [
               GestureDetector(
                 onTap: () {
-                  showCitySelectionBottomSheet(context, loc, 0);
+                  _showAirportServiceSelection(context, loc);
                 },
                 child: PremiumContainer(
                   height: 120,
@@ -937,21 +937,20 @@ class _HomepageState extends State<Homepage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
-                          height: 40,
-                          width: 40,
-                          child: Transform.scale(
-                            scaleX: isArabic ? -1 : 1,
-                            child: SvgPicture.asset(
-                              'assets/icons/arrival.svg',
-                              fit: BoxFit.fill,
-                            ),
+                          height: 44,
+                          width: 44,
+                          child: SvgPicture.asset(
+                            'assets/icons/arrival.svg',
+                            fit: BoxFit.fill,
                           ),
                         ),
                         SizedBox(height: 8),
                         Text(
-                          loc.airportArrival,
+                          loc.airportServices,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
@@ -963,7 +962,7 @@ class _HomepageState extends State<Homepage>
               ),
               GestureDetector(
                 onTap: () {
-                  showCitySelectionBottomSheet(context, loc, 1);
+                  showCitySelectionBottomSheet(context, loc, 3);
                 },
                 child: PremiumContainer(
                   height: 120,
@@ -978,21 +977,20 @@ class _HomepageState extends State<Homepage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
-                          height: 40,
-                          width: 40,
-                          child: Transform.scale(
-                            scaleX: isArabic ? -1 : 1,
-                            child: SvgPicture.asset(
-                              'assets/icons/departure.svg',
-                              fit: BoxFit.fill,
-                            ),
+                          height: 44,
+                          width: 44,
+                          child: SvgPicture.asset(
+                            'assets/icons/chauffeur.svg',
+                            fit: BoxFit.fill,
                           ),
                         ),
                         SizedBox(height: 8),
                         Text(
-                          loc.airportDeparture,
+                          loc.privateTransfer,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
@@ -1019,8 +1017,8 @@ class _HomepageState extends State<Homepage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
-                          height: 40,
-                          width: 40,
+                          height: 44,
+                          width: 44,
                           child: Transform.scale(
                             scaleX: isArabic ? 1 : -1,
                             child: SvgPicture.asset(
@@ -1032,8 +1030,10 @@ class _HomepageState extends State<Homepage>
                         SizedBox(height: 8),
                         Text(
                           loc.chauffeurService,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
@@ -1268,16 +1268,26 @@ class _HomepageState extends State<Homepage>
                         right: 24,
                         top: 24,
                       ),
-                      child: Text(
-                        loc.chooseCity,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                      child: Row(
+                        children: [
+                          Text(
+                            loc.chooseCity,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Icon(Icons.close, color: Colors.white),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 2),
                     const Divider(color: Colors.grey, thickness: 1),
                     const SizedBox(height: 8),
                     _isLoadingLocations // Changed from _isLoadingCities
@@ -1504,6 +1514,154 @@ class _HomepageState extends State<Homepage>
           ),
         ),
       ),
+    );
+  }
+
+  void _showAirportServiceSelection(
+    BuildContext context,
+    AppLocalizations loc,
+  ) {
+    bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF3E230A), Color(0xFF141313)],
+            ),
+          ),
+
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 24,
+                  right: 24,
+                  top: 24,
+                  bottom: 8,
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      loc.serviceType,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+
+              Padding(
+                padding: const EdgeInsets.only(left: 24, right: 24, top: 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          showCitySelectionBottomSheet(context, loc, 0);
+                        },
+                        child: PremiumContainer(
+                          height: 101,
+                          width: double.infinity,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 44,
+                                  width: 44,
+                                  child: Transform.scale(
+                                    scaleX: isArabic ? -1 : 1,
+                                    child: SvgPicture.asset(
+                                      'assets/icons/arrival.svg',
+                                      fit: BoxFit.fill,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  loc.airportArrival,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          showCitySelectionBottomSheet(context, loc, 1);
+                        },
+                        child: PremiumContainer(
+                          height: 101,
+                          width: MediaQuery.of(context).size.width * 0.42,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 44,
+                                  width: 44,
+                                  child: Transform.scale(
+                                    scaleX: isArabic ? -1 : 1,
+                                    child: SvgPicture.asset(
+                                      'assets/icons/departure.svg',
+                                      fit: BoxFit.fill,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  loc.airportDeparture,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 45),
+            ],
+          ),
+        );
+      },
     );
   }
 }

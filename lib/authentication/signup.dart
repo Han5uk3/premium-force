@@ -396,6 +396,7 @@ class _SignUpPageState extends State<SignUpPage>
         await UserLocalStorage.saveUserCredentials(
           userId: uid,
           phoneNumber: phoneNumber,
+          countryCode: countryCode,
         );
 
         // Persist the full user data locally

@@ -87,6 +87,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get airportDeparture => 'Airport Departure';
 
   @override
+  String get airportServices => 'Airport Services';
+
+  @override
+  String get privateTransfer => 'Private Transfer';
+
+  @override
+  String get useAirportServicesWarning =>
+      'For airport-related bookings, please use the Airport Services section.';
+
+  @override
   String get goToBooking => 'Go to booking';
 
   @override
@@ -194,6 +204,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ongoing => 'Ongoing';
+
+  @override
+  String get trackingStopped => 'Tracking Stopped';
+
+  @override
+  String get confirmed => 'Confirmed';
+
+  @override
+  String get paymentPending => 'Payment Pending';
 
   @override
   String get upcoming => 'Upcoming';
@@ -331,10 +350,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please agree to the terms and conditions and privacy policy.';
 
   @override
+  String get licenseNumber => 'License Number';
+
+  @override
   String get tripInfo => 'Trip Info';
 
   @override
   String get preferences => 'Preferences';
+
+  @override
+  String get assigned => 'Assigned';
+
+  @override
+  String get tracking => 'Tracking';
+
+  @override
+  String get reviewed => 'Reviewed';
 
   @override
   String get serviceType => 'Service Type';

@@ -97,12 +97,16 @@ class _BookingsPageState extends State<BookingsPage>
       userBookings.sort((a, b) {
         final dateA =
             a.createdAt ??
-            (a.pickupdatetime != null ? DateTime.tryParse(a.pickupdatetime!) : null) ??
+            (a.pickupdatetime != null
+                ? DateTime.tryParse(a.pickupdatetime!)
+                : null) ??
             (a.arrival != null ? DateTime.tryParse(a.arrival!) : null) ??
             DateTime(0);
         final dateB =
             b.createdAt ??
-            (b.pickupdatetime != null ? DateTime.tryParse(b.pickupdatetime!) : null) ??
+            (b.pickupdatetime != null
+                ? DateTime.tryParse(b.pickupdatetime!)
+                : null) ??
             (b.arrival != null ? DateTime.tryParse(b.arrival!) : null) ??
             DateTime(0);
         return dateB.compareTo(dateA); // Most recent first
@@ -115,16 +119,23 @@ class _BookingsPageState extends State<BookingsPage>
       _canceledBookings = [];
 
       for (final booking in userBookings) {
-        final status = booking.bookingStatus?.toLowerCase() ?? 'pending';
+        final status = (booking.bookingStatus ?? '').toLowerCase().trim();
 
-        if (status == 'pending') {
+        if (status == 'pending' ||
+            status == 'assigned' ||
+            status == 'p' ||
+            status == 'a') {
           _upcomingBookings.add(booking);
-        } else if (status == 'completed') {
+        } else if (status == 'completed' ||
+            status == 'reviewed' ||
+            status == 'c') {
           _completedBookings.add(booking);
-        } else if (status == 'cancelled') {
+        } else if (status == 'cancelled' ||
+            status == 'canceled' ||
+            status == 'x') {
           _canceledBookings.add(booking);
         } else {
-          // Ongoing is anything that is not pending, completed, or cancelled
+          // 'starttracking', 'stoptracking', 'paymentpending', 'ongoing', etc.
           _ongoingBookings.add(booking);
         }
       }
@@ -277,9 +288,13 @@ class _BookingsPageState extends State<BookingsPage>
         itemCount: bookings.length,
         itemBuilder: (context, index) {
           final booking = bookings[index];
-          final displayDate = (booking.pickupdatetime != null && booking.pickupdatetime!.isNotEmpty)
+          final displayDate =
+              (booking.pickupdatetime != null &&
+                  booking.pickupdatetime!.isNotEmpty)
               ? DateTime.tryParse(booking.pickupdatetime!)
-              : (booking.arrival != null ? DateTime.tryParse(booking.arrival!) : null);
+              : (booking.arrival != null
+                    ? DateTime.tryParse(booking.arrival!)
+                    : null);
           final dateStr = Bookingcard.formatDate(context, displayDate);
           final timeStr = Bookingcard.formatTime(context, displayDate);
 
@@ -313,6 +328,7 @@ class _BookingsPageState extends State<BookingsPage>
                       'chauffeur',
                     ) ||
                     booking.estimatedHours != null,
+                chauffeurName: booking.driver?.driverName,
               ),
             ),
           );

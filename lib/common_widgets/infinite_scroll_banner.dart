@@ -67,7 +67,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   void _updateDefaultBanner() {
     // Create or update the default static banner with current localized strings
     final loc = AppLocalizations.of(context);
-    final String title = loc?.luxuryAirportTransfers ?? 'Luxury Airport Transfers';
+    final String title =
+        loc?.luxuryAirportTransfers ?? 'Luxury Airport Transfers';
     final String description = loc?.inSaudiArabia ?? 'In Saudi Arabia';
 
     _defaultBanner = BannerModel(
@@ -159,7 +160,6 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   void _jumpToInitialPage() {
     if (!_pageController.hasClients || _banners.length <= 1) return;
 
-    
     // Only jump if we are not already at the buffer or if specifically requested
     try {
       final double currentPage = _pageController.page ?? 0.0;
@@ -169,7 +169,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     } catch (_) {
       _pageController.jumpToPage(_infiniteBuffer);
     }
-    
+
     if (mounted) {
       setState(() {
         _currentIndex = 0;
@@ -181,10 +181,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     _autoScrollTimer?.cancel();
 
     _autoScrollTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (!mounted ||
-          !_pageController.hasClients ||
-          _banners.length <= 1) return;
-
+      if (!mounted || !_pageController.hasClients || _banners.length <= 1)
+        return;
 
       int current = _pageController.page?.round() ?? _infiniteBuffer;
       int nextPage = current + 1;
@@ -217,6 +215,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     _pageController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading && _banners.isEmpty) {
@@ -236,10 +235,9 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
             children: [
               PageView.builder(
                 controller: _pageController,
-                physics:
-                    _banners.length > 1
-                        ? const BouncingScrollPhysics()
-                        : const NeverScrollableScrollPhysics(),
+                physics: _banners.length > 1
+                    ? const BouncingScrollPhysics()
+                    : const NeverScrollableScrollPhysics(),
                 pageSnapping: true,
 
                 onPageChanged: (int index) {
@@ -263,28 +261,35 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                     bannerIndex == 0,
                   );
 
-                   return AnimatedBuilder(
+                  return AnimatedBuilder(
                     animation: _pageController,
                     builder: (context, widget) {
-                      double scale = 1.0; // Default to full size instead of 0.88 to avoid shrinking
-                      
+                      double scale =
+                          1.0; // Default to full size instead of 0.88 to avoid shrinking
+
                       if (_pageController.hasClients) {
                         try {
                           // Try to get current page, fallback to a sensible default if null
-                          final double page = _pageController.page ?? _infiniteBuffer.toDouble();
+                          final double page =
+                              _pageController.page ??
+                              _infiniteBuffer.toDouble();
                           final double diff = (page - index).abs();
                           scale = (1 - diff * 0.12).clamp(0.82, 1.0);
                         } catch (_) {
                           // If page cannot be read, stay at 1.0 or based on index relative to buffer
-                          if (index == _infiniteBuffer) scale = 1.0;
-                          else scale = 0.82;
+                          if (index == _infiniteBuffer)
+                            scale = 1.0;
+                          else
+                            scale = 0.82;
                         }
                       } else {
                         // If not yet attached, we assume the first active page (index == initialPage) is full size
-                        if (index == _infiniteBuffer) scale = 1.0;
-                        else scale = 0.82;
+                        if (index == _infiniteBuffer)
+                          scale = 1.0;
+                        else
+                          scale = 0.82;
                       }
-                      
+
                       return Center(
                         child: Transform.scale(
                           scale: scale,
@@ -293,7 +298,9 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                             decoration: BoxDecoration(
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withAlpha(64), // Using alpha for stability
+                                  color: Colors.black.withAlpha(
+                                    64,
+                                  ), // Using alpha for stability
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -359,7 +366,11 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           fit: StackFit.expand,
           children: [
             if (isAsset)
-              Image.asset(banner.imageUrl, fit: BoxFit.cover)
+              Image.asset(
+                banner.imageUrl,
+                fit: BoxFit.contain,
+                alignment: Alignment.centerRight,
+              )
             else
               CachedNetworkImage(
                 imageUrl: banner.imageUrl,

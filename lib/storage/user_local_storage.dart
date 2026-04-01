@@ -32,6 +32,7 @@ class UserLocalStorage {
   // Keys
   static const String _userIdKey = 'user_id';
   static const String _phoneNumberKey = 'phone_number';
+  static const String _countryCodeKey = 'country_code';
   static const String _tokenKey = 'auth_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _fcmTokenKey = 'fcm_token';
@@ -57,14 +58,18 @@ class UserLocalStorage {
   // User Credentials (minimal — only id + phone)
   // ---------------------------------------------------------------------------
 
-  /// Save only the userId and phoneNumber after a successful login/signup.
+  /// Save only the userId, countryCode and phoneNumber after a successful login/signup.
   static Future<void> saveUserCredentials({
     required String userId,
     required String phoneNumber,
+    required String countryCode,
   }) async {
     await _box.put(_userIdKey, userId);
     await _box.put(_phoneNumberKey, phoneNumber);
-    debugPrint('💾 User credentials saved: id=$userId, phone=$phoneNumber');
+    await _box.put(_countryCodeKey, countryCode);
+    debugPrint(
+      '💾 User credentials saved: id=$userId, countryCode=$countryCode, phone=$phoneNumber',
+    );
   }
 
   /// Retrieve the stored userId, or `null` if not logged in.
@@ -77,10 +82,16 @@ class UserLocalStorage {
     return _box.get(_phoneNumberKey) as String?;
   }
 
+  /// Retrieve the stored country code, or `null`.
+  static String? getCountryCode() {
+    return _box.get(_countryCodeKey) as String?;
+  }
+
   /// Remove all stored user data (logout).
   static Future<void> clearUser() async {
     await _box.delete(_userIdKey);
     await _box.delete(_phoneNumberKey);
+    await _box.delete(_countryCodeKey);
     await _box.delete(_tokenKey);
     await _box.delete(_refreshTokenKey);
     await _box.delete(_userDataKey);

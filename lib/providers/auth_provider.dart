@@ -132,7 +132,8 @@ class AuthProvider extends ChangeNotifier {
       // Check if we have enough credentials to consider the user logged in.
       // For phone login, we need both id and token.
       // For social login, we need at least the id (tokens can be refreshed silently).
-      final isSocialLogin = loginProvider == 'google' || loginProvider == 'apple';
+      final isSocialLogin =
+          loginProvider == 'google' || loginProvider == 'apple';
       final hasUserId = storedUserId != null && storedUserId.isNotEmpty;
       final hasToken = storedToken != null && storedToken.isNotEmpty;
 
@@ -169,7 +170,7 @@ class AuthProvider extends ChangeNotifier {
               uid: storedUserId,
               username: "User",
               email: "",
-              countryCode: "",
+              countryCode: UserLocalStorage.getCountryCode() ?? "",
               phoneNumber: UserLocalStorage.getPhoneNumber() ?? "",
               createdAt: DateTime.now(),
             );
@@ -304,7 +305,8 @@ class AuthProvider extends ChangeNotifier {
           var userData = result['user'] ?? result['data'];
           if (userData is Map<String, dynamic>) {
             // Handle nested user key
-            if (userData.containsKey('user') && userData['user'] is Map<String, dynamic>) {
+            if (userData.containsKey('user') &&
+                userData['user'] is Map<String, dynamic>) {
               userData = userData['user'];
             }
 
@@ -316,6 +318,7 @@ class AuthProvider extends ChangeNotifier {
             await UserLocalStorage.saveUserCredentials(
               userId: uid,
               phoneNumber: phone,
+              countryCode: userData['countryCode']?.toString() ?? countryCode,
             );
 
             // Persist the full user data locally
@@ -470,7 +473,8 @@ class AuthProvider extends ChangeNotifier {
         var userData = result['user'] ?? result['data'] ?? result;
         if (userData is Map<String, dynamic>) {
           // Handle nested user key
-          if (userData.containsKey('user') && userData['user'] is Map<String, dynamic>) {
+          if (userData.containsKey('user') &&
+              userData['user'] is Map<String, dynamic>) {
             userData = userData['user'];
           }
 
@@ -480,6 +484,7 @@ class AuthProvider extends ChangeNotifier {
           await UserLocalStorage.saveUserCredentials(
             userId: uid,
             phoneNumber: phoneNumber,
+            countryCode: userData['countryCode']?.toString() ?? countryCode,
           );
 
           // Persist the full user data locally
@@ -594,8 +599,7 @@ class AuthProvider extends ChangeNotifier {
         '🔐 Google Sign-In │ Email check response: $emailCheckResponse',
       );
 
-      final emailExists =
-          emailCheckResponse['success'] == true &&
+      final emailExists = emailCheckResponse['success'] == true &&
           (emailCheckResponse['exists'] == true ||
               emailCheckResponse['data'] != null);
 
@@ -608,7 +612,8 @@ class AuthProvider extends ChangeNotifier {
 
         if (userData is Map<String, dynamic>) {
           // Handle nested user key
-          if (userData.containsKey('user') && userData['user'] is Map<String, dynamic>) {
+          if (userData.containsKey('user') &&
+              userData['user'] is Map<String, dynamic>) {
             userData = userData['user'];
           }
 
@@ -647,13 +652,15 @@ class AuthProvider extends ChangeNotifier {
           await UserLocalStorage.saveUserCredentials(
             userId: uid,
             phoneNumber: phone,
+            countryCode: userData['countryCode']?.toString() ?? "",
           );
 
           // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
 
           // If there's a token in response, save it only if no token was saved
-          final token = (userData['token'] ?? emailCheckResponse['token'])?.toString();
+          final token =
+              (userData['token'] ?? emailCheckResponse['token'])?.toString();
           if (token != null && token.isNotEmpty) {
             final existingToken = UserLocalStorage.getToken();
             if (existingToken == null || existingToken.isEmpty) {
@@ -733,8 +740,7 @@ class AuthProvider extends ChangeNotifier {
         '🍎 Apple Sign-In │ Email check response: $emailCheckResponse',
       );
 
-      final emailExists =
-          emailCheckResponse['success'] == true &&
+      final emailExists = emailCheckResponse['success'] == true &&
           (emailCheckResponse['exists'] == true ||
               emailCheckResponse['data'] != null);
 
@@ -747,7 +753,8 @@ class AuthProvider extends ChangeNotifier {
 
         if (userData is Map<String, dynamic>) {
           // Handle nested user key
-          if (userData.containsKey('user') && userData['user'] is Map<String, dynamic>) {
+          if (userData.containsKey('user') &&
+              userData['user'] is Map<String, dynamic>) {
             userData = userData['user'];
           }
 
@@ -786,13 +793,15 @@ class AuthProvider extends ChangeNotifier {
           await UserLocalStorage.saveUserCredentials(
             userId: uid,
             phoneNumber: phone,
+            countryCode: userData['countryCode']?.toString() ?? "",
           );
 
           // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
 
           // If there's a token in response, save it only if no token was saved
-          final token = (userData['token'] ?? emailCheckResponse['token'])?.toString();
+          final token =
+              (userData['token'] ?? emailCheckResponse['token'])?.toString();
           if (token != null && token.isNotEmpty) {
             final existingToken = UserLocalStorage.getToken();
             if (existingToken == null || existingToken.isEmpty) {
