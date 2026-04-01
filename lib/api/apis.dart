@@ -850,6 +850,24 @@ class ApiService {
     final fields = booking.toMap();
     fields.remove('carImage'); // Remove text path to prevent conflict
 
+    // Sanitize distance (Postman expects numeric-only string)
+    if (fields['distance'] != null) {
+      fields['distance'] = fields['distance']
+          .toString()
+          .replaceAll(RegExp(r'[^0-9.]'), '')
+          .trim();
+    }
+
+    // Format charge to 2 decimal places to match Postman style (e.g. 95.00)
+    if (fields['charge'] != null && fields['charge'] is num) {
+      fields['charge'] = (fields['charge'] as num).toStringAsFixed(2);
+    }
+
+    // Ensure driverID is not sent if it's 'null' string
+    if (fields['driverID'] == 'null') {
+      fields.remove('driverID');
+    }
+
     // Handle files separately for FormData
     if (booking.specialRequestAudio != null) {
       fields['specialRequestAudio'] = await MultipartFile.fromFile(
@@ -857,8 +875,10 @@ class ApiService {
         filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
       );
     }
+
+    // Postman uses lowercase 'carimage'
     if (booking.carImage != null) {
-      fields['carImage'] = await MultipartFile.fromFile(
+      fields['carimage'] = await MultipartFile.fromFile(
         booking.carImage!.path,
         filename: 'car_image.jpg',
       );
