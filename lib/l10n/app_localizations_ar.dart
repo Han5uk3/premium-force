@@ -988,4 +988,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settings => 'الإعدادات';
+
+  @override
+  String get voiceNote => 'ملاحظة صوتية';
+
+  @override
+  String get recordVoiceNote => 'تسجيل ملاحظة صوتية';
+
+  @override
+  String get saveVoiceNote => 'حفظ الملاحظة الصوتية';
 }

@@ -316,5 +316,8 @@
   "gettingLocation": "جاري الحصول على الموقع...",
   "useCurrentLocation": "استخدام الموقع الحالي",
   "confirmLocation": "تأكيد الموقع",
-  "settings": "الإعدادات"
+  "settings": "الإعدادات",
+  "voiceNote": "ملاحظة صوتية",
+  "recordVoiceNote": "تسجيل ملاحظة صوتية",
+  "saveVoiceNote": "حفظ الملاحظة الصوتية"
 }

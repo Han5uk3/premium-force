@@ -1993,6 +1993,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get settings;
+
+  /// No description provided for @voiceNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice Note'**
+  String get voiceNote;
+
+  /// No description provided for @recordVoiceNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Record voice note'**
+  String get recordVoiceNote;
+
+  /// No description provided for @saveVoiceNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Voice Note'**
+  String get saveVoiceNote;
 }
 
 class _AppLocalizationsDelegate

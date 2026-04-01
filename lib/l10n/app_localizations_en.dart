@@ -999,4 +999,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings => 'Settings';
+
+  @override
+  String get voiceNote => 'Voice Note';
+
+  @override
+  String get recordVoiceNote => 'Record voice note';
+
+  @override
+  String get saveVoiceNote => 'Save Voice Note';
 }

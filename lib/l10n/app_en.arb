@@ -315,5 +315,8 @@
   "gettingLocation": "Getting location...",
   "useCurrentLocation": "Use Current Location",
   "confirmLocation": "Confirm Location",
-  "settings": "Settings"
+  "settings": "Settings",
+  "voiceNote": "Voice Note",
+  "recordVoiceNote": "Record voice note",
+  "saveVoiceNote": "Save Voice Note"
 }

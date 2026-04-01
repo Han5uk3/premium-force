@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'dart:io';
 import 'dart:async';
 
@@ -147,6 +148,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Dialog(
       backgroundColor: const Color(0xFF141313),
       shape: RoundedRectangleBorder(
@@ -162,9 +164,9 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Voice Note',
-                  style: TextStyle(
+                Text(
+                  loc.voiceNote,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -276,12 +278,12 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                       ),
                     ),
                   ] else ...[
-                    const Expanded(
+                    Expanded(
                       child: Padding(
-                        padding: EdgeInsets.only(left: 8.0),
+                        padding: const EdgeInsets.only(left: 8.0),
                         child: Text(
-                          'Record voice note',
-                          style: TextStyle(color: Colors.white60, fontSize: 14),
+                          loc.recordVoiceNote,
+                          style: const TextStyle(color: Colors.white60, fontSize: 14),
                         ),
                       ),
                     ),
@@ -321,9 +323,9 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Save Voice Note',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: Text(
+                  loc.saveVoiceNote,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
           ],
