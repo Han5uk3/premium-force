@@ -21,6 +21,7 @@ import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
+import 'package:premium_force_main/home/fleet_list_page.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -46,15 +47,73 @@ class _HomepageState extends State<Homepage>
   @override
   void initState() {
     super.initState();
-    // Fetch location data if not already present
-    if (_apiCities.isEmpty) {
-      _fetchLocationData();
-    }
-    // Fetch fleet cars if list is empty
-    if (_fleetCars.isEmpty) {
-      _fetchFleetCars();
-    }
+    // Load from cache first for zero-latency UI
+    _loadCachedFleet();
+    // Fetch fresh data in the background
+    _fetchLocationData();
+    _fetchFleetCars();
     _fetchPastBookings();
+  }
+
+  void _loadCachedFleet() {
+    final cached = UserLocalStorage.getFleetCars();
+    if (cached != null && cached.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _fleetCars = _rearrangeFleet(cached);
+        });
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> _rearrangeFleet(List<Map<String, dynamic>> allCars) {
+    List<Map<String, dynamic>> cars = [];
+    List<Map<String, dynamic>> suvs = [];
+    List<Map<String, dynamic>> buses = [];
+
+    for (var car in allCars) {
+      final name = (car['name'] ?? '').toString().toLowerCase();
+      final brand = (car['brand'] ?? '').toString().toLowerCase();
+      final category = (car['category'] ?? '').toString().toLowerCase();
+      final passengers = int.tryParse(car['passengerCount']?.toString() ?? '0') ?? 0;
+
+      // Logic to identify Bus/Van
+      if (category.contains('bus') || 
+          category.contains('van') || 
+          category.contains('minibus') || 
+          name.contains('sprinter') || 
+          name.contains('coaster') ||
+          passengers > 7) {
+        if (buses.length < 2) buses.add(car);
+      } 
+      // Logic to identify SUV
+      else if (category.contains('suv') || 
+               name.contains('yukon') || 
+               name.contains('escalade') || 
+               name.contains('tahoe') ||
+               brand.contains('gmc')) {
+        if (suvs.length < 2) suvs.add(car);
+      } 
+      // Everything else (Sedans/Cars)
+      else {
+        if (cars.length < 2) cars.add(car);
+      }
+    }
+
+    // Combine them 2-2-2
+    List<Map<String, dynamic>> rearranged = [...cars, ...suvs, ...buses];
+    
+    // Fill up to 10 if we have more cars in cache to provide a good carousel
+    if (rearranged.length < 10) {
+      for (var car in allCars) {
+        if (!rearranged.contains(car)) {
+          rearranged.add(car);
+          if (rearranged.length >= 10) break;
+        }
+      }
+    }
+    
+    return rearranged;
   }
 
   Future<void> _handleRefresh() async {
@@ -238,20 +297,23 @@ class _HomepageState extends State<Homepage>
             );
           }
 
-          // Take only the first 5 cars IDs
-          List<String> carIds = carList
-              .take(5)
-              .map((car) {
-                return car['_id']?.toString() ?? car['id']?.toString() ?? '';
-              })
-              .where((id) => id.isNotEmpty)
-              .toList();
+          // Take up to 20 cars from the list (for reasonable detail fetch time)
+          List<String> carIds =
+              carList.reversed
+                  .take(20)
+                  .map((car) {
+                    return car['_id']?.toString() ??
+                        car['id']?.toString() ??
+                        '';
+                  })
+                  .where((id) => id.isNotEmpty)
+                  .toList();
 
           if (kDebugMode) {
             debugPrint('🌐 API │ Selected car IDs for fleet: $carIds');
           }
 
-          // Fetch full details for each car to get correct brandId
+          // Fetch full details for all selected cars
           await _fetchFleetCarsDetails(carIds);
         } else {
           if (kDebugMode) {
@@ -273,41 +335,26 @@ class _HomepageState extends State<Homepage>
       final api = ApiService();
       List<Map<String, dynamic>> detailedCars = [];
 
-      for (String carId in carIds) {
-        if (kDebugMode) {
-          debugPrint('🌐 API │ Fetching detailed info for car ID: $carId');
-        }
+      // To improve speed, fetch details in parallel
+      final detailsFutures = carIds.map(
+        (id) => api.getCarById(id).catchError((e) => <String, dynamic>{}),
+      );
+      final detailResponses = await Future.wait(detailsFutures);
 
-        final carResponse = await api.getCarById(carId).catchError((e) {
-          debugPrint('❌ Error fetching car details for $carId: $e');
-          return <String, dynamic>{};
-        });
-
-        if (kDebugMode) {
-          debugPrint('🌐 API │ Car response for $carId: $carResponse');
-        }
+      for (int i = 0; i < detailResponses.length; i++) {
+        final carResponse = detailResponses[i];
+        final carId = carIds[i];
 
         if (carResponse['success'] == true) {
           // Extract car data from response
           Map<String, dynamic>? carData;
-
           if (carResponse.containsKey('data')) {
-            final data = carResponse['data'];
-            if (data is Map) {
-              carData = Map<String, dynamic>.from(data);
-            }
+            carData = Map<String, dynamic>.from(carResponse['data']);
           } else if (carResponse.containsKey('car')) {
-            final data = carResponse['car'];
-            if (data is Map) {
-              carData = Map<String, dynamic>.from(data);
-            }
+            carData = Map<String, dynamic>.from(carResponse['car']);
           }
 
           if (carData != null) {
-            if (kDebugMode) {
-              debugPrint('🌐 API │ Car data extracted: $carData');
-            }
-
             // Handle brand information which could be an object or a string ID
             dynamic brandDataObj =
                 carData['brandID'] ?? carData['brandId'] ?? carData['brand'];
@@ -331,20 +378,9 @@ class _HomepageState extends State<Homepage>
                 if (icon is Map && icon.containsKey('url')) {
                   brandLogoUrl = icon['url']?.toString();
                 }
-              } else if (brandDataObj.containsKey('image')) {
-                final img = brandDataObj['image'];
-                if (img is Map && img.containsKey('url')) {
-                  brandLogoUrl = img['url']?.toString();
-                }
               }
             } else if (brandDataObj != null) {
               brandId = brandDataObj.toString();
-            }
-
-            if (kDebugMode) {
-              debugPrint(
-                '🌐 API │ Extracted brand info - ID: $brandId, Name: $brandName',
-              );
             }
 
             // Extract car image URL
@@ -363,17 +399,13 @@ class _HomepageState extends State<Homepage>
               'brand': brandName,
               'brandId': brandId,
               'brandLogoUrl': brandLogoUrl,
+              'category': (carData['categoryID']?['categoryName'] ?? carData['categoryID']?['name'] ?? '').toString(),
               'name':
                   carData['carName']?.toString() ??
                   carData['modelName']?.toString() ??
-                  carData['model']?.toString() ??
                   'Model',
               'passengerCount':
-                  (carData['numberOfPassengers'] ??
-                          carData['maxPassengers'] ??
-                          carData['passengers'] ??
-                          4)
-                      .toString(),
+                  (carData['numberOfPassengers'] ?? 4).toString(),
               'image': carImageUrl,
             });
           }
@@ -382,8 +414,10 @@ class _HomepageState extends State<Homepage>
 
       if (mounted) {
         setState(() {
-          _fleetCars = detailedCars;
+          _fleetCars = _rearrangeFleet(detailedCars);
         });
+        // Cache the newly fetched results (cache the whole detailed list)
+        await UserLocalStorage.saveFleetCars(detailedCars);
       }
 
       if (kDebugMode) {
@@ -839,13 +873,36 @@ class _HomepageState extends State<Homepage>
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 24, right: 24),
-            child: Text(
-              loc.premiumFleet,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  loc.premiumFleet,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FleetListPage(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    loc.showMore,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFE4A46B),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(height: 8),

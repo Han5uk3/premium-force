@@ -328,5 +328,6 @@
   "settings": "Settings",
   "voiceNote": "Voice Note",
   "recordVoiceNote": "Record voice note",
-  "saveVoiceNote": "Save Voice Note"
+  "saveVoiceNote": "Save Voice Note",
+  "showMore": "Show more"
 }

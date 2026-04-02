@@ -10,7 +10,7 @@ import 'package:premium_force_main/authentication/login.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/notifications/notification_screen.dart';
-import 'package:premium_force_main/account/admin_pricing/admin_pricing_dashboard.dart';
+// import 'package:premium_force_main/account/admin_pricing/admin_pricing_dashboard.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -118,22 +118,22 @@ class _AccountPageState extends State<AccountPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AdminPricingDashboard(),
-                    ),
-                  );
-                },
-                child: ProfileTile(
-                  loc: loc,
-                  title: "Pricing Admin",
-                  icon: Icons.admin_panel_settings,
-                  isLast: true,
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: () {
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder: (context) => const AdminPricingDashboard(),
+              //       ),
+              //     );
+              //   },
+              //   child: ProfileTile(
+              //     loc: loc,
+              //     title: "Pricing Admin",
+              //     icon: Icons.admin_panel_settings,
+              //     isLast: true,
+              //   ),
+              // ),
             ],
           ),
         ),

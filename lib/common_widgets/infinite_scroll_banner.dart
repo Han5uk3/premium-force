@@ -354,22 +354,58 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     BannerModel banner,
     bool isFirstCard,
   ) {
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final alignment = Alignment.centerRight; // Fixed alignment, let Transform handle the flip
+    final begin = isRtl ? Alignment.centerRight : Alignment.centerLeft;
+    final end = isRtl ? Alignment.centerLeft : Alignment.centerRight;
+
     final isAsset = banner.imageUrl.startsWith('assets/');
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        color: Colors.black,
+        color: const Color(0xFF49280B),
         width: double.infinity,
         height: double.infinity,
         child: Stack(
           fit: StackFit.expand,
           children: [
             if (isAsset)
-              Image.asset(
-                banner.imageUrl,
-                fit: BoxFit.contain,
-                alignment: Alignment.centerRight,
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: begin,
+                    end: end,
+                    colors: const [
+                      Color(0xFF49280B),
+                      Color(0xff1A1A1A),
+                    ],
+                    stops: [0.0, 0.8],
+                  ),
+                ),
+                child: ShaderMask(
+                  shaderCallback: (rect) {
+                    return LinearGradient(
+                      begin: begin,
+                      end: end,
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withOpacity(0.1),
+                        Colors.white
+                      ],
+                      stops: const [0.0, 0.3, 0.7],
+                    ).createShader(rect);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: Transform.flip(
+                    flipX: isRtl,
+                    child: Image.asset(
+                      banner.imageUrl,
+                      fit: BoxFit.contain,
+                      alignment: alignment,
+                    ),
+                  ),
+                ),
               )
             else
               CachedNetworkImage(
@@ -378,15 +414,18 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                 width: double.infinity,
                 height: double.infinity,
                 placeholder: (context, url) =>
-                    Container(color: Colors.grey[800]),
+                    Container(color: const Color(0xFF49280B).withAlpha(100)),
                 errorWidget: (context, url, error) =>
-                    Container(color: Colors.grey[800]),
+                    Container(color: const Color(0xFF49280B).withAlpha(100)),
                 imageBuilder: (context, imageProvider) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: imageProvider,
-                        fit: BoxFit.cover,
+                  return Transform.flip(
+                    flipX: isRtl,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: imageProvider,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   );
@@ -404,21 +443,24 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     BannerModel banner,
     bool isFirstCard,
   ) {
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final begin = isRtl ? Alignment.centerRight : Alignment.centerLeft;
+    final end = isRtl ? Alignment.centerLeft : Alignment.centerRight;
+
     return Container(
-      padding: const EdgeInsets.only(left: 16, right: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+          begin: begin,
+          end: end,
           colors: [
-            const Color(0xFF49280B).withAlpha(200),
-            const Color(0xFF49280B).withAlpha(180),
-            const Color(0xFF49280B).withAlpha(150),
-            Colors.transparent,
-            Colors.transparent,
+            const Color(0xFF49280B),
+            const Color(0xFF49280B).withOpacity(0.8),
+            const Color(0xFF49280B).withOpacity(0.0),
             Colors.transparent,
           ],
+          stops: const [0.0, 0.4, 0.8, 1.0],
         ),
       ),
       child: Column(

@@ -1039,4 +1039,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get saveVoiceNote => 'Save Voice Note';
+
+  @override
+  String get showMore => 'Show more';
 }

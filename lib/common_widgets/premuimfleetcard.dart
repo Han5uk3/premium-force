@@ -13,6 +13,8 @@ class Premuimfleetcard extends StatelessWidget {
     required this.passengerCount,
     required this.brand,
     this.brandLogoUrl,
+    this.width = 240,
+    this.height = 160,
   });
 
   final String image;
@@ -20,6 +22,8 @@ class Premuimfleetcard extends StatelessWidget {
   final String passengerCount;
   final String brand;
   final String? brandLogoUrl;
+  final double width;
+  final double height;
 
   bool _isDarkLogo(String brandName) {
     final lowerBrand = brandName.toLowerCase();
@@ -49,8 +53,8 @@ class Premuimfleetcard extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        height: 160,
-        width: 240,
+        height: height,
+        width: width,
         child: Stack(
           fit: StackFit.expand,
           children: [

@@ -40,6 +40,7 @@ class UserLocalStorage {
   static const String _notificationStatusKey = 'notification_status';
   static const String _loginProviderKey = 'login_provider';
   static const String _socialIdTokenKey = 'social_id_token';
+  static const String _fleetCarsKey = 'fleet_cars';
 
   static late Box<dynamic> _box;
 
@@ -231,5 +232,34 @@ class UserLocalStorage {
   /// Get the stored native social ID token.
   static String? getSocialIdToken() {
     return _box.get(_socialIdTokenKey) as String?;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fleet Data (JSON Caching)
+  // ---------------------------------------------------------------------------
+
+  /// Persist the fleet list as a JSON string.
+  static Future<void> saveFleetCars(List<Map<String, dynamic>> fleetCars) async {
+    final jsonString = jsonEncode(fleetCars);
+    await _box.put(_fleetCarsKey, jsonString);
+    debugPrint('💾 Fleet cars data cached locally');
+  }
+
+  /// Retrieve the cached fleet list from Hive.
+  static List<Map<String, dynamic>>? getFleetCars() {
+    final raw = _box.get(_fleetCarsKey) as String?;
+    if (raw == null) return null;
+    try {
+      final List<dynamic> decoded = jsonDecode(raw);
+      return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (e) {
+      debugPrint('⚠️ Failed to decode stored fleet data: $e');
+      return null;
+    }
+  }
+
+  /// Clear the cached fleet data.
+  static Future<void> clearFleetCars() async {
+    await _box.delete(_fleetCarsKey);
   }
 }

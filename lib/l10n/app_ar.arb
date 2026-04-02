@@ -329,5 +329,6 @@
   "licenseNumber": "رقم الرخصة",
   "assigned": "تم التعيين",
   "tracking": "تتبع",
-  "reviewed": "تم التقييم"
+  "reviewed": "تم التقييم",
+  "showMore": "عرض المزيد"
 }

@@ -1028,4 +1028,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get saveVoiceNote => 'حفظ الملاحظة الصوتية';
+
+  @override
+  String get showMore => 'عرض المزيد';
 }
