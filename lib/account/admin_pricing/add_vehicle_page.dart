@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../models/pricing/vehicle_model.dart';
 import '../../services/firebase_pricing_service.dart';
 import '../../common_widgets/button.dart';
@@ -81,7 +81,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
             const SizedBox(height: 16),
             Row(
               children: [
-                const Text("Active Status", style: TextStyle(color: Colors.white, fontSize: 16)),
+                const Text("Active Status", style: TextStyle(color: Colors.white, fontSize: 14)),
                 const Spacer(),
                 Switch(value: _active, onChanged: (v) => setState(() => _active = v)),
               ],
@@ -90,7 +90,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
             PremiumButton(
               onTap: _save,
               text: "Save Vehicle",
-              fontsize: 16,
+              fontsize: 14,
               showLoader: _loading,
             ),
           ],
@@ -99,3 +99,4 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     );
   }
 }
+

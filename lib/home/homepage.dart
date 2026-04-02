@@ -44,6 +44,12 @@ class _HomepageState extends State<Homepage>
   @override
   bool get wantKeepAlive => true;
 
+  final Gradient gradient = LinearGradient(
+    colors: [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -66,7 +72,9 @@ class _HomepageState extends State<Homepage>
     }
   }
 
-  List<Map<String, dynamic>> _rearrangeFleet(List<Map<String, dynamic>> allCars) {
+  List<Map<String, dynamic>> _rearrangeFleet(
+    List<Map<String, dynamic>> allCars,
+  ) {
     List<Map<String, dynamic>> cars = [];
     List<Map<String, dynamic>> suvs = [];
     List<Map<String, dynamic>> buses = [];
@@ -75,25 +83,26 @@ class _HomepageState extends State<Homepage>
       final name = (car['name'] ?? '').toString().toLowerCase();
       final brand = (car['brand'] ?? '').toString().toLowerCase();
       final category = (car['category'] ?? '').toString().toLowerCase();
-      final passengers = int.tryParse(car['passengerCount']?.toString() ?? '0') ?? 0;
+      final passengers =
+          int.tryParse(car['passengerCount']?.toString() ?? '0') ?? 0;
 
       // Logic to identify Bus/Van
-      if (category.contains('bus') || 
-          category.contains('van') || 
-          category.contains('minibus') || 
-          name.contains('sprinter') || 
+      if (category.contains('bus') ||
+          category.contains('van') ||
+          category.contains('minibus') ||
+          name.contains('sprinter') ||
           name.contains('coaster') ||
           passengers > 7) {
         if (buses.length < 2) buses.add(car);
-      } 
+      }
       // Logic to identify SUV
-      else if (category.contains('suv') || 
-               name.contains('yukon') || 
-               name.contains('escalade') || 
-               name.contains('tahoe') ||
-               brand.contains('gmc')) {
+      else if (category.contains('suv') ||
+          name.contains('yukon') ||
+          name.contains('escalade') ||
+          name.contains('tahoe') ||
+          brand.contains('gmc')) {
         if (suvs.length < 2) suvs.add(car);
-      } 
+      }
       // Everything else (Sedans/Cars)
       else {
         if (cars.length < 2) cars.add(car);
@@ -102,7 +111,7 @@ class _HomepageState extends State<Homepage>
 
     // Combine them 2-2-2
     List<Map<String, dynamic>> rearranged = [...cars, ...suvs, ...buses];
-    
+
     // Fill up to 10 if we have more cars in cache to provide a good carousel
     if (rearranged.length < 10) {
       for (var car in allCars) {
@@ -112,7 +121,7 @@ class _HomepageState extends State<Homepage>
         }
       }
     }
-    
+
     return rearranged;
   }
 
@@ -137,7 +146,7 @@ class _HomepageState extends State<Homepage>
             api.getAirports(),
             api.getTerminals(),
           ]).catchError((e) {
-            debugPrint('❌ Error fetching location data: $e');
+            debugPrint('âŒ Error fetching location data: $e');
             return <Map<String, dynamic>>[{}, {}, {}];
           });
 
@@ -151,7 +160,7 @@ class _HomepageState extends State<Homepage>
             if (response['success'] != true) {
               if (kDebugMode) {
                 debugPrint(
-                  '🌐 API │ Response not successful: ${response['message'] ?? 'Unknown error'}',
+                  'ðŸŒ API â”‚ Response not successful: ${response['message'] ?? 'Unknown error'}',
                 );
               }
               return [];
@@ -162,7 +171,7 @@ class _HomepageState extends State<Homepage>
               if (response.containsKey(key)) {
                 dynamic data = response[key];
                 if (kDebugMode) {
-                  debugPrint('🌐 API │ Found data in key "$key": $data');
+                  debugPrint('ðŸŒ API â”‚ Found data in key "$key": $data');
                 }
                 return rawDataToList(data);
               }
@@ -171,15 +180,15 @@ class _HomepageState extends State<Homepage>
             // If none of the known keys work, search for any array in the response
             if (kDebugMode) {
               debugPrint(
-                '🌐 API │ No known keys found. Available keys: ${response.keys.toList()}',
+                'ðŸŒ API â”‚ No known keys found. Available keys: ${response.keys.toList()}',
               );
-              debugPrint('🌐 API │ Full response: $response');
+              debugPrint('ðŸŒ API â”‚ Full response: $response');
             }
 
             for (MapEntry<String, dynamic> entry in response.entries) {
               if (entry.value is List) {
                 if (kDebugMode) {
-                  debugPrint('🌐 API │ Found array in key "${entry.key}"');
+                  debugPrint('ðŸŒ API â”‚ Found array in key "${entry.key}"');
                 }
                 return rawDataToList(entry.value);
               }
@@ -212,15 +221,15 @@ class _HomepageState extends State<Homepage>
 
         if (kDebugMode) {
           debugPrint(
-            '✅ 🌐 API │ Location Data Loaded - Cities: ${_apiCities.length}, Airports: ${_apiAirports.length}, Terminals: ${_apiTerminals.length}',
+            'âœ… ðŸŒ API â”‚ Location Data Loaded - Cities: ${_apiCities.length}, Airports: ${_apiAirports.length}, Terminals: ${_apiTerminals.length}',
           );
           if (_apiCities.isNotEmpty) {
-            debugPrint('🌐 API │ Sample city: ${_apiCities.first}');
+            debugPrint('ðŸŒ API â”‚ Sample city: ${_apiCities.first}');
           }
         }
       }
     } catch (e) {
-      debugPrint('❌ General error in _fetchLocationData: $e');
+      debugPrint('âŒ General error in _fetchLocationData: $e');
     } finally {
       if (mounted) setState(() => _isLoadingLocations = false);
     }
@@ -228,14 +237,15 @@ class _HomepageState extends State<Homepage>
 
   List<Map<String, dynamic>> rawDataToList(dynamic rawData) {
     if (rawData == null) {
-      if (kDebugMode) debugPrint('🌐 API │ rawDataToList received null data');
+      if (kDebugMode)
+        debugPrint('ðŸŒ API â”‚ rawDataToList received null data');
       return [];
     }
 
     if (rawData is List) {
       if (kDebugMode)
         debugPrint(
-          '🌐 API │ rawDataToList processing list with ${rawData.length} items',
+          'ðŸŒ API â”‚ rawDataToList processing list with ${rawData.length} items',
         );
       return rawData
           .map((item) {
@@ -248,7 +258,7 @@ class _HomepageState extends State<Homepage>
 
     if (kDebugMode)
       debugPrint(
-        '🌐 API │ rawDataToList received non-list data: ${rawData.runtimeType}',
+        'ðŸŒ API â”‚ rawDataToList received non-list data: ${rawData.runtimeType}',
       );
     return [];
   }
@@ -258,7 +268,7 @@ class _HomepageState extends State<Homepage>
     try {
       final api = ApiService();
       final response = await api.getCars().catchError((e) {
-        debugPrint('❌ Error fetching cars list: $e');
+        debugPrint('âŒ Error fetching cars list: $e');
         return <String, dynamic>{};
       });
 
@@ -283,7 +293,7 @@ class _HomepageState extends State<Homepage>
                 carList = rawDataToList(entry.value);
                 if (carList.isNotEmpty) {
                   if (kDebugMode) {
-                    debugPrint('🌐 API │ Found cars in key "${entry.key}"');
+                    debugPrint('ðŸŒ API â”‚ Found cars in key "${entry.key}"');
                   }
                   break;
                 }
@@ -293,24 +303,21 @@ class _HomepageState extends State<Homepage>
 
           if (kDebugMode) {
             debugPrint(
-              '✅ 🌐 API │ Cars list loaded: ${carList.length} cars total',
+              'âœ… ðŸŒ API â”‚ Cars list loaded: ${carList.length} cars total',
             );
           }
 
           // Take up to 20 cars from the list (for reasonable detail fetch time)
-          List<String> carIds =
-              carList.reversed
-                  .take(20)
-                  .map((car) {
-                    return car['_id']?.toString() ??
-                        car['id']?.toString() ??
-                        '';
-                  })
-                  .where((id) => id.isNotEmpty)
-                  .toList();
+          List<String> carIds = carList.reversed
+              .take(20)
+              .map((car) {
+                return car['_id']?.toString() ?? car['id']?.toString() ?? '';
+              })
+              .where((id) => id.isNotEmpty)
+              .toList();
 
           if (kDebugMode) {
-            debugPrint('🌐 API │ Selected car IDs for fleet: $carIds');
+            debugPrint('ðŸŒ API â”‚ Selected car IDs for fleet: $carIds');
           }
 
           // Fetch full details for all selected cars
@@ -318,13 +325,13 @@ class _HomepageState extends State<Homepage>
         } else {
           if (kDebugMode) {
             debugPrint(
-              '🌐 API │ Cars response not successful: ${response['message'] ?? 'Unknown error'}',
+              'ðŸŒ API â”‚ Cars response not successful: ${response['message'] ?? 'Unknown error'}',
             );
           }
         }
       }
     } catch (e) {
-      debugPrint('❌ General error in _fetchFleetCars: $e');
+      debugPrint('âŒ General error in _fetchFleetCars: $e');
     } finally {
       if (mounted) setState(() => _isLoadingCars = false);
     }
@@ -399,13 +406,16 @@ class _HomepageState extends State<Homepage>
               'brand': brandName,
               'brandId': brandId,
               'brandLogoUrl': brandLogoUrl,
-              'category': (carData['categoryID']?['categoryName'] ?? carData['categoryID']?['name'] ?? '').toString(),
+              'category':
+                  (carData['categoryID']?['categoryName'] ??
+                          carData['categoryID']?['name'] ??
+                          '')
+                      .toString(),
               'name':
                   carData['carName']?.toString() ??
                   carData['modelName']?.toString() ??
                   'Model',
-              'passengerCount':
-                  (carData['numberOfPassengers'] ?? 4).toString(),
+              'passengerCount': (carData['numberOfPassengers'] ?? 4).toString(),
               'image': carImageUrl,
             });
           }
@@ -422,17 +432,17 @@ class _HomepageState extends State<Homepage>
 
       if (kDebugMode) {
         debugPrint(
-          '✅ 🌐 API │ Fleet Cars Details Loaded: ${_fleetCars.length} cars',
+          'âœ… ðŸŒ API â”‚ Fleet Cars Details Loaded: ${_fleetCars.length} cars',
         );
         if (_fleetCars.isNotEmpty) {
-          debugPrint('🌐 API │ Sample car: ${_fleetCars.first}');
+          debugPrint('ðŸŒ API â”‚ Sample car: ${_fleetCars.first}');
         }
       }
 
       // Fetch brand logos for each car
       _fetchBrandLogos();
     } catch (e) {
-      debugPrint('❌ General error in _fetchFleetCarsDetails: $e');
+      debugPrint('âŒ General error in _fetchFleetCarsDetails: $e');
     }
   }
 
@@ -450,7 +460,7 @@ class _HomepageState extends State<Homepage>
             (existingLogo != null && existingLogo.isNotEmpty)) {
           if (kDebugMode) {
             debugPrint(
-              '🌐 API │ Skipping car at index $i - brandId empty or logo already exists',
+              'ðŸŒ API â”‚ Skipping car at index $i - brandId empty or logo already exists',
             );
           }
           continue;
@@ -458,17 +468,17 @@ class _HomepageState extends State<Homepage>
 
         if (kDebugMode) {
           debugPrint(
-            '🌐 API │ Fetching brand logo for ${car['brand']} (ID: $brandId)',
+            'ðŸŒ API â”‚ Fetching brand logo for ${car['brand']} (ID: $brandId)',
           );
         }
 
         final brandResponse = await api.getBrandById(brandId).catchError((e) {
-          debugPrint('❌ Error fetching brand details for $brandId: $e');
+          debugPrint('âŒ Error fetching brand details for $brandId: $e');
           return <String, dynamic>{};
         });
 
         if (kDebugMode) {
-          debugPrint('🌐 API │ Brand response: $brandResponse');
+          debugPrint('ðŸŒ API â”‚ Brand response: $brandResponse');
         }
 
         if (brandResponse['success'] == true) {
@@ -485,7 +495,7 @@ class _HomepageState extends State<Homepage>
 
           if (brandData != null) {
             if (kDebugMode) {
-              debugPrint('🌐 API │ Brand data extracted: $brandData');
+              debugPrint('ðŸŒ API â”‚ Brand data extracted: $brandData');
             }
 
             // Try to extract logo URL from brandInfo.icon.url (correct structure)
@@ -520,33 +530,33 @@ class _HomepageState extends State<Homepage>
 
               if (kDebugMode) {
                 debugPrint(
-                  '✅ 🌐 API │ Brand logo fetched for ${car['brand']}: $logoUrl',
+                  'âœ… ðŸŒ API â”‚ Brand logo fetched for ${car['brand']}: $logoUrl',
                 );
               }
             } else {
               if (kDebugMode) {
                 debugPrint(
-                  '🌐 API │ No logo URL found in brand data for ${car['brand']}',
+                  'ðŸŒ API â”‚ No logo URL found in brand data for ${car['brand']}',
                 );
               }
             }
           } else {
             if (kDebugMode) {
               debugPrint(
-                '🌐 API │ Could not extract brand data from response: $brandResponse',
+                'ðŸŒ API â”‚ Could not extract brand data from response: $brandResponse',
               );
             }
           }
         } else {
           if (kDebugMode) {
             debugPrint(
-              '🌐 API │ Brand fetch not successful for $brandId: ${brandResponse['message'] ?? 'Unknown error'}',
+              'ðŸŒ API â”‚ Brand fetch not successful for $brandId: ${brandResponse['message'] ?? 'Unknown error'}',
             );
           }
         }
       }
     } catch (e) {
-      debugPrint('❌ General error in _fetchBrandLogos: $e');
+      debugPrint('âŒ General error in _fetchBrandLogos: $e');
     }
   }
 
@@ -597,43 +607,43 @@ class _HomepageState extends State<Homepage>
   List bookingItemsAr = [
     {
       "status": "c",
-      "type": "وصول من المطار",
-      "pickup": "مطار الملك خالد الدولي",
-      "dropoff": "وسط المدينة، الرياض",
-      "date": "13 فبراير",
-      "time": "12:30 م",
-      "ride": "فاخر",
-      "brand": "مرسيدس-بنز",
+      "type": "ÙˆØµÙˆÙ„ Ù…Ù† Ø§Ù„Ù…Ø·Ø§Ø±",
+      "pickup": "Ù…Ø·Ø§Ø± Ø§Ù„Ù…Ù„Ùƒ Ø®Ø§Ù„Ø¯ Ø§Ù„Ø¯ÙˆÙ„ÙŠ",
+      "dropoff": "ÙˆØ³Ø· Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©ØŒ Ø§Ù„Ø±ÙŠØ§Ø¶",
+      "date": "13 ÙØ¨Ø±Ø§ÙŠØ±",
+      "time": "12:30 Ù…",
+      "ride": "ÙØ§Ø®Ø±",
+      "brand": "Ù…Ø±Ø³ÙŠØ¯Ø³-Ø¨Ù†Ø²",
     },
     {
       "status": "p",
-      "type": "مغادرة إلى المطار",
-      "pickup": "مطار الملك خالد الدولي",
-      "dropoff": "وسط المدينة، الرياض",
-      "date": "14 فبراير",
-      "time": "12:30 م",
-      "ride": "فاخر",
-      "brand": "بي إم دبليو",
+      "type": "Ù…ØºØ§Ø¯Ø±Ø© Ø¥Ù„Ù‰ Ø§Ù„Ù…Ø·Ø§Ø±",
+      "pickup": "Ù…Ø·Ø§Ø± Ø§Ù„Ù…Ù„Ùƒ Ø®Ø§Ù„Ø¯ Ø§Ù„Ø¯ÙˆÙ„ÙŠ",
+      "dropoff": "ÙˆØ³Ø· Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©ØŒ Ø§Ù„Ø±ÙŠØ§Ø¶",
+      "date": "14 ÙØ¨Ø±Ø§ÙŠØ±",
+      "time": "12:30 Ù…",
+      "ride": "ÙØ§Ø®Ø±",
+      "brand": "Ø¨ÙŠ Ø¥Ù… Ø¯Ø¨Ù„ÙŠÙˆ",
     },
     {
       "status": "x",
-      "type": "سائق خاص",
-      "pickup": "وسط المدينة، الرياض",
-      "dropoff": "فندق الفيصلية",
-      "date": "14 فبراير",
-      "time": "09:00 م",
-      "ride": "فاخر",
-      "brand": "أودي",
+      "type": "Ø³Ø§Ø¦Ù‚ Ø®Ø§Øµ",
+      "pickup": "ÙˆØ³Ø· Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©ØŒ Ø§Ù„Ø±ÙŠØ§Ø¶",
+      "dropoff": "ÙÙ†Ø¯Ù‚ Ø§Ù„ÙÙŠØµÙ„ÙŠØ©",
+      "date": "14 ÙØ¨Ø±Ø§ÙŠØ±",
+      "time": "09:00 Ù…",
+      "ride": "ÙØ§Ø®Ø±",
+      "brand": "Ø£ÙˆØ¯ÙŠ",
     },
     {
       "status": "x",
-      "type": "سائق خاص",
-      "pickup": "وسط المدينة، الرياض",
-      "dropoff": "فندق الفيصلية",
-      "date": "14 فبراير",
-      "time": "09:00 م",
-      "ride": "فاخر",
-      "brand": "رولز رويس",
+      "type": "Ø³Ø§Ø¦Ù‚ Ø®Ø§Øµ",
+      "pickup": "ÙˆØ³Ø· Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©ØŒ Ø§Ù„Ø±ÙŠØ§Ø¶",
+      "dropoff": "ÙÙ†Ø¯Ù‚ Ø§Ù„ÙÙŠØµÙ„ÙŠØ©",
+      "date": "14 ÙØ¨Ø±Ø§ÙŠØ±",
+      "time": "09:00 Ù…",
+      "ride": "ÙØ§Ø®Ø±",
+      "brand": "Ø±ÙˆÙ„Ø² Ø±ÙˆÙŠØ³",
     },
   ];
   */
@@ -722,7 +732,7 @@ class _HomepageState extends State<Homepage>
     return Scaffold(
       backgroundColor: Colors.black,
       body: RefreshIndicator(
-        color: Colors.amber,
+        color: Color(0xFFE4A46B),
         backgroundColor: Colors.black,
         onRefresh: _handleRefresh,
         child: SingleChildScrollView(
@@ -759,7 +769,7 @@ class _HomepageState extends State<Homepage>
           Text(
             loc.recentBookings,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -796,7 +806,7 @@ class _HomepageState extends State<Homepage>
                       Text(
                         loc.noRecentBookings,
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: Colors.grey.withAlpha(200),
                         ),
@@ -879,7 +889,7 @@ class _HomepageState extends State<Homepage>
                 Text(
                   loc.premiumFleet,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
@@ -896,7 +906,7 @@ class _HomepageState extends State<Homepage>
                   child: Text(
                     loc.showMore,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFFE4A46B),
                     ),
@@ -955,7 +965,6 @@ class _HomepageState extends State<Homepage>
   }
 
   Widget _buildBookService(BuildContext context, AppLocalizations loc) {
-    final bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
     return Container(
       height: 200,
       color: Color(0xFF401F02),
@@ -968,7 +977,7 @@ class _HomepageState extends State<Homepage>
           Text(
             loc.bookServices,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -996,9 +1005,15 @@ class _HomepageState extends State<Homepage>
                         SizedBox(
                           height: 44,
                           width: 44,
-                          child: SvgPicture.asset(
-                            'assets/icons/arrival.svg',
-                            fit: BoxFit.fill,
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => gradient.createShader(
+                              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                            ),
+                            blendMode: BlendMode.srcIn,
+                            child: Image.asset(
+                              "assets/icons/airportservices.png",
+                              fit: BoxFit.fill,
+                            ),
                           ),
                         ),
                         SizedBox(height: 8),
@@ -1007,7 +1022,7 @@ class _HomepageState extends State<Homepage>
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
@@ -1036,9 +1051,15 @@ class _HomepageState extends State<Homepage>
                         SizedBox(
                           height: 44,
                           width: 44,
-                          child: SvgPicture.asset(
-                            'assets/icons/chauffeur.svg',
-                            fit: BoxFit.fill,
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => gradient.createShader(
+                              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                            ),
+                            blendMode: BlendMode.srcIn,
+                            child: Image.asset(
+                              "assets/icons/chauffeur.png",
+                              fit: BoxFit.fill,
+                            ),
                           ),
                         ),
                         SizedBox(height: 8),
@@ -1047,7 +1068,7 @@ class _HomepageState extends State<Homepage>
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
@@ -1076,10 +1097,13 @@ class _HomepageState extends State<Homepage>
                         SizedBox(
                           height: 44,
                           width: 44,
-                          child: Transform.scale(
-                            scaleX: isArabic ? 1 : -1,
-                            child: SvgPicture.asset(
-                              'assets/icons/chauffeur.svg',
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => gradient.createShader(
+                              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                            ),
+                            blendMode: BlendMode.srcIn,
+                            child: Image.asset(
+                              "assets/icons/chauff.png",
                               fit: BoxFit.fill,
                             ),
                           ),
@@ -1090,7 +1114,7 @@ class _HomepageState extends State<Homepage>
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
@@ -1109,7 +1133,7 @@ class _HomepageState extends State<Homepage>
 
   Widget _buildAppbar(BuildContext context, AppLocalizations loc) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.3,
+      height: 270,
       padding: const EdgeInsets.only(top: 50),
       decoration: BoxDecoration(
         image: DecorationImage(
@@ -1138,20 +1162,21 @@ class _HomepageState extends State<Homepage>
                       Text(
                         loc.welcomeBack,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w400,
                           color: Colors.white,
                         ),
                       ),
                       LayoutBuilder(
                         builder: (context, constraints) {
+                          final auth = Provider.of<AuthProvider>(context);
                           String name =
-                              Provider.of<AuthProvider>(
-                                context,
-                              ).user?.username ??
-                              "User";
+                              auth.user?.username ??
+                              (auth.status == AuthStatus.loading
+                                  ? "..."
+                                  : "User");
                           final style = const TextStyle(
-                            fontSize: 35,
+                            fontSize: 18,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           );
@@ -1235,7 +1260,7 @@ class _HomepageState extends State<Homepage>
                                 unreadCount > 9 ? '9+' : '$unreadCount',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 textAlign: TextAlign.center,
@@ -1330,7 +1355,7 @@ class _HomepageState extends State<Homepage>
                           Text(
                             loc.chooseCity,
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
                             ),
@@ -1374,7 +1399,7 @@ class _HomepageState extends State<Homepage>
                                       child: Text(
                                         isEnglish
                                             ? "No active cities available"
-                                            : "لا توجد مدن نشطة متاحة",
+                                            : "Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¯Ù† Ù†Ø´Ø·Ø© Ù…ØªØ§Ø­Ø©",
                                         style: const TextStyle(
                                           color: Colors.white70,
                                         ),
@@ -1395,6 +1420,8 @@ class _HomepageState extends State<Homepage>
                                         final city = entry.value;
                                         final String cityName =
                                             city['cityName'] ?? 'Unknown';
+                                        final String cityNameAr =
+                                            city['cityNameAr'] ?? cityName;
 
                                         // API image handling - the 'image' field is a Map containing 'url'
                                         String? imageUrl;
@@ -1432,7 +1459,7 @@ class _HomepageState extends State<Homepage>
                                             isSelected:
                                                 selectedCityIndex == index,
                                             nameEn: cityName,
-                                            nameAr: cityName,
+                                            nameAr: cityNameAr,
                                             image: displayImage,
                                             isApiImage: imageUrl != null,
                                             onTap: () => setState(
@@ -1472,7 +1499,7 @@ class _HomepageState extends State<Homepage>
                             ),
                           );
                         },
-                        fontsize: 14,
+                        fontsize: 12,
                       ),
                     ),
                   ],
@@ -1557,7 +1584,7 @@ class _HomepageState extends State<Homepage>
                   child: Text(
                     isEnglish ? nameEn : nameAr,
                     style: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -1624,7 +1651,7 @@ class _HomepageState extends State<Homepage>
                     Text(
                       loc.serviceType,
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -1674,7 +1701,7 @@ class _HomepageState extends State<Homepage>
                                 Text(
                                   loc.airportArrival,
                                   style: const TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
@@ -1715,7 +1742,7 @@ class _HomepageState extends State<Homepage>
                                 Text(
                                   loc.airportDeparture,
                                   style: const TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),

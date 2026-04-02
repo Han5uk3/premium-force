@@ -41,7 +41,7 @@ class _BookingsPageState extends State<BookingsPage>
 
     try {
       final currentUserId = UserLocalStorage.getUserId();
-      debugPrint('👤 Customer ID │ $currentUserId');
+      debugPrint('ðŸ‘¤ Customer ID â”‚ $currentUserId');
       if (currentUserId == null) {
         setState(() {
           _isLoading = false;
@@ -51,7 +51,7 @@ class _BookingsPageState extends State<BookingsPage>
       }
 
       final token = UserLocalStorage.getToken();
-      debugPrint('🎫 Customer Token │ $token');
+      debugPrint('ðŸŽ« Customer Token â”‚ $token');
 
       // Fetch regular bookings and hourly bookings in parallel
       final results = await Future.wait([
@@ -315,6 +315,7 @@ class _BookingsPageState extends State<BookingsPage>
             padding: const EdgeInsets.only(bottom: 16),
             child: GestureDetector(
               onTap: () async {
+                debugPrint('🚗 carData │ ${booking.carData?.toJson()}');
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -333,7 +334,7 @@ class _BookingsPageState extends State<BookingsPage>
                 dropoff: booking.dropOffAddress ?? 'N/A',
                 date: dateStr,
                 time: timeStr,
-                ride: booking.displayBrand,
+                ride: booking.displayCategory,
                 brand: booking.displayBrand,
                 passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
                 isChauffeur: isChauffeur,
@@ -364,7 +365,7 @@ class _BookingsPageState extends State<BookingsPage>
             loc.bookings,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white,
               letterSpacing: 0.5,
             ),
@@ -404,7 +405,7 @@ class _BookingsPageState extends State<BookingsPage>
             title,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -514,7 +515,7 @@ class _GradientTab extends AnimatedWidget implements PreferredSizeWidget {
             child: Text(
               text,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 12,
                 color: Colors.white38,
                 fontWeight: FontWeight.normal,
               ),
@@ -530,7 +531,7 @@ class _GradientTab extends AnimatedWidget implements PreferredSizeWidget {
               child: Text(
                 text,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 12,
                   color: Colors.white38,
                   fontWeight: FontWeight.bold,
                 ),

@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
@@ -12,6 +12,9 @@ import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:premium_force_main/providers/auth_provider.dart';
+import 'package:premium_force_main/models/user.dart';
 
 class SignUpPage extends StatefulWidget {
   final String countryCode;
@@ -152,7 +155,7 @@ class _SignUpPageState extends State<SignUpPage>
                     loc.chooseProfilePicture,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -248,7 +251,7 @@ class _SignUpPageState extends State<SignUpPage>
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -389,38 +392,72 @@ class _SignUpPageState extends State<SignUpPage>
         );
       }
       // Save only userId + phoneNumber to local storage
-      final userData =
+      final userDataMap =
           (result['user'] ?? result['data']) as Map<String, dynamic>?;
-      if (userData != null) {
-        final uid = (userData['_id'] ?? userData['id'] ?? '') as String;
+      if (userDataMap != null) {
+        final uid = (userDataMap['_id'] ?? userDataMap['id'] ?? '') as String;
         await UserLocalStorage.saveUserCredentials(
           userId: uid,
           phoneNumber: phoneNumber,
           countryCode: countryCode,
         );
 
-        // Persist the full user data locally
-        await UserLocalStorage.saveUserData(userData);
-      }
+        // Save tokens if returned so they are available for the next API call (Interceptors)
+        final tokens = result['tokens'];
+        final accessToken = (tokens is Map
+                ? (tokens['accessToken'] ?? tokens['token'])
+                : (result['accessToken'] ?? result['token']))
+            as String?;
+        final refreshToken = (tokens is Map
+                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                : (result['refreshToken'] ?? result['refresh_token']))
+            as String?;
 
-      // Save tokens if returned
-      final tokens = result['tokens'];
-      final accessToken = (tokens is Map
-              ? (tokens['accessToken'] ?? tokens['token'])
-              : (result['accessToken'] ?? result['token']))
-          as String?;
-      final refreshToken = (tokens is Map
-              ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-              : (result['refreshToken'] ?? result['refresh_token']))
-          as String?;
+        if (accessToken != null && refreshToken != null) {
+          await UserLocalStorage.saveTokens(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          );
+        } else if (accessToken != null) {
+          await UserLocalStorage.saveToken(accessToken);
+        }
 
-      if (accessToken != null && refreshToken != null) {
-        await UserLocalStorage.saveTokens(
-          accessToken: accessToken,
-          refreshToken: refreshToken,
-        );
-      } else if (accessToken != null) {
-        await UserLocalStorage.saveToken(accessToken);
+        // --- Fetch full user data after creation ---
+        try {
+          final freshUser =
+              await ApiService().getUserById(id: uid, token: accessToken);
+          if (mounted) {
+            final auth = Provider.of<AuthProvider>(context, listen: false);
+            if (freshUser != null) {
+              // Best outcome: Full user data from backend
+              await auth.updateUser(freshUser);
+              debugPrint('âœ… Signup â”‚ Full user sync completed');
+            } else {
+              // Fallback 1: Use the user data returned by 'createUser'
+              final fallbackUser = UserModel.fromJson({
+                ...userDataMap,
+                'phoneNumber': phoneNumber,
+                'countryCode': countryCode,
+              });
+              await auth.updateUser(fallbackUser);
+              debugPrint('âš ï¸ Signup â”‚ Fallback sync used');
+            }
+          }
+        } catch (e) {
+          debugPrint('âŒ Fetch user after signup failed: $e');
+          // Fallback 2: Minimal sync to ensure homepage loads correctly
+          if (mounted) {
+            final fallbackUser = UserModel.fromJson({
+              ...userDataMap,
+              'phoneNumber': phoneNumber,
+              'countryCode': countryCode,
+            });
+            await Provider.of<AuthProvider>(
+              context,
+              listen: false,
+            ).updateUser(fallbackUser);
+          }
+        }
       }
 
       if (!mounted) return;
@@ -588,7 +625,7 @@ class _SignUpPageState extends State<SignUpPage>
                           hintText: AppLocalizations.of(
                             context,
                           )!.enterYourFullName,
-                          fontsize: 15,
+                          fontsize: 13,
                           keyboardType: TextInputType.name,
                           needTitle: true,
                           obscureText: false,
@@ -632,7 +669,7 @@ class _SignUpPageState extends State<SignUpPage>
                           hintText: AppLocalizations.of(
                             context,
                           )!.enterMobileNumber,
-                          fontsize: 15,
+                          fontsize: 13,
                           keyboardType: TextInputType.phone,
                           needTitle: true,
                           obscureText: false,
@@ -647,11 +684,11 @@ class _SignUpPageState extends State<SignUpPage>
                                   backgroundColor: const Color(0xFF141313),
                                   textStyle: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16,
+                                    fontSize: 14,
                                   ),
                                   searchTextStyle: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16,
+                                    fontSize: 14,
                                   ),
                                   borderRadius: const BorderRadius.only(
                                     topLeft: Radius.circular(30),
@@ -715,7 +752,7 @@ class _SignUpPageState extends State<SignUpPage>
                                     textDirection: TextDirection.ltr,
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 16,
+                                      fontSize: 14,
                                     ),
                                   ),
                                   const Icon(
@@ -758,7 +795,7 @@ class _SignUpPageState extends State<SignUpPage>
                           hintText: AppLocalizations.of(
                             context,
                           )!.enterYourEmailAddress,
-                          fontsize: 15,
+                          fontsize: 13,
                           keyboardType: TextInputType.emailAddress,
                           needTitle: true,
                           obscureText: false,
@@ -861,7 +898,7 @@ class _SignUpPageState extends State<SignUpPage>
                                   )!.iAmACorporateEmployee,
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 14,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -885,7 +922,7 @@ class _SignUpPageState extends State<SignUpPage>
                                   hintText: AppLocalizations.of(
                                     context,
                                   )!.enterYourPromoCode,
-                                  fontsize: 15,
+                                  fontsize: 13,
                                   needTitle: true,
                                   obscureText: false,
                                   readOnly: _isPromoValid, // Lock if valid
@@ -926,7 +963,7 @@ class _SignUpPageState extends State<SignUpPage>
                                     height: 59,
                                     child: PremiumButton(
                                       showLoader: _isCheckingPromo,
-                                      fontsize: 14,
+                                      fontsize: 12,
                                       text: _isPromoValid
                                           ? AppLocalizations.of(context)!.remove
                                           : AppLocalizations.of(context)!.apply,
@@ -954,7 +991,7 @@ class _SignUpPageState extends State<SignUpPage>
                         // Sign Up button
                         PremiumButton(
                           showLoader: _isLoading,
-                          fontsize: 18,
+                          fontsize: 16,
                           text: AppLocalizations.of(context)!.createAccount,
                           onTap: _isLoading ? () {} : _handleSignUp,
                         ),
@@ -984,7 +1021,7 @@ class _SignUpPageState extends State<SignUpPage>
           AppLocalizations.of(context)!.location,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 15,
+            fontSize: 13,
             fontWeight: FontWeight.w400,
           ),
         ),
@@ -1027,7 +1064,7 @@ class _SignUpPageState extends State<SignUpPage>
                       color: _locationController.text.isEmpty
                           ? Colors.white.withAlpha(180)
                           : Colors.white,
-                      fontSize: 15,
+                      fontSize: 13,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -1074,7 +1111,7 @@ class _SignUpPageState extends State<SignUpPage>
           title: Text(
             AppLocalizations.of(context)!.createAccount,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
@@ -1090,3 +1127,4 @@ class _SignUpPageState extends State<SignUpPage>
     );
   }
 }
+

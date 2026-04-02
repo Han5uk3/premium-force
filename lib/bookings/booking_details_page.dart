@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
@@ -119,7 +119,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   getBookingStatusText(booking.bookingStatus ?? ""),
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -138,7 +138,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 dropoff: booking.dropOffAddress ?? 'N/A',
                 date: dateStr,
                 time: timeStr,
-                ride: booking.displayBrand,
+                ride: booking.displayCategory,
                 brand: booking.displayBrand,
                 passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
                 chauffeurName: _driver?.driverName ?? booking.displayDriverName,
@@ -157,13 +157,20 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        width: double.infinity,
+                        color: Colors.black,
 
+                        width: double.infinity,
+                        height: 311,
                         child: CachedNetworkImage(
                           imageUrl: booking.carimage!,
                           fit: BoxFit.contain,
                           placeholder: (context, url) {
-                            return const Center(child: PremiumLoader(size: 20));
+                            return const Center(
+                              child: PremiumLoader(
+                                size: 20,
+                                color: Color(0xFFE4A46B),
+                              ),
+                            );
                           },
                           errorWidget: (context, url, error) => const Icon(
                             Icons.directions_car,
@@ -179,7 +186,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
                       ),
@@ -198,7 +205,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   loc.chauffeur,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -235,7 +242,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: PremiumButton(
-                  fontsize: 14,
+                  fontsize: 12,
                   text: loc.trackDriver,
                   showLoader: false,
                   gradient: const [Color(0xFFE4A46B), Color(0xFF49280B)],
@@ -260,7 +267,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: PremiumButton(
-                  fontsize: 14,
+                  fontsize: 12,
                   text: loc.cancelBookingButton,
                   showLoader: false,
                   gradient: [Colors.red, Colors.red.shade900],
@@ -306,7 +313,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     loc.yourReview,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -328,7 +335,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   text.toString(),
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 14,
+                    fontSize: 12,
                     height: 1.4,
                   ),
                 ),
@@ -342,7 +349,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         child: PremiumButton(
-          fontsize: 14,
+          fontsize: 12,
           text: loc.leaveAReview,
           showLoader: false,
           textColor: Colors.white,
@@ -376,7 +383,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       AppLocalizations.of(context)!.rateYourDriver,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -552,7 +559,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             loc.paymentSummary,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -580,7 +587,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                         '${loc.discount} (${discount.toStringAsFixed(0)}%)',
                         style: const TextStyle(
                           color: Colors.green,
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -588,7 +595,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                         '- ${discountSaving.toStringAsFixed(2)} SAR',
                         style: const TextStyle(
                           color: Colors.green,
-                          fontSize: 15,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -630,7 +637,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             AppLocalizations.of(context)!.transactionDetails,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -686,7 +693,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 value,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 12,
                   fontFamily: 'monospace',
                   fontWeight: FontWeight.w500,
                 ),
@@ -731,7 +738,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           label,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 15,
+            fontSize: 13,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
           ),
         ),
@@ -739,7 +746,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           "${amount.toStringAsFixed(2)} ${AppLocalizations.of(context)!.riyal}",
           style: TextStyle(
             color: color ?? Colors.white,
-            fontSize: 15,
+            fontSize: 13,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
           ),
         ),
@@ -817,7 +824,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -841,7 +848,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
-  /// Simple key–value row used inside the extra-hours banner.
+  /// Simple keyâ€“value row used inside the extra-hours banner.
   Widget _extraInfoRow(
     String label,
     String value,
@@ -855,7 +862,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           label,
           style: TextStyle(
             color: Colors.white70,
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: bold ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -863,7 +870,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           value,
           style: TextStyle(
             color: valueColor,
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: bold ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -932,7 +939,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       style: const TextStyle(
                         color: Colors.redAccent,
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 13,
                       ),
                     ),
                   ],
@@ -967,7 +974,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           ),
           const SizedBox(height: 12),
           PremiumButton(
-            fontsize: 14,
+            fontsize: 12,
             text: AppLocalizations.of(context)!.completePayment,
             showLoader: _isPayingExtraHours,
             onTap: _isPayingExtraHours
@@ -995,7 +1002,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       final orderId =
           'EXTRA_${booking.id}_${DateTime.now().millisecondsSinceEpoch}';
 
-      // ── BYPASS (same as main booking flow) ──────────────────────────────
+      // â”€â”€ BYPASS (same as main booking flow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       final paymentResult = PaymentResult(
         success: true,
         transactionReference: 'BYPASS_EXTRA_$orderId',
@@ -1007,7 +1014,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         orderID: orderId,
         transactionID: 'BYPASS_EXTRA_$orderId',
       );
-      // ── Uncomment below to enable live Paytabs payment ───────────────────
+      // â”€â”€ Uncomment below to enable live Paytabs payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // final userData2 = UserLocalStorage.getUserData();
       // final paymentResult = await PaymentService().startPayment(
       //   request: PaymentRequest(
@@ -1020,7 +1027,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       //     customerPhone: userData2?['phoneNumber'] ?? UserLocalStorage.getPhoneNumber() ?? '',
       //     cartId: orderId,
       //     cartDescription:
-      //         'Extra ${booking.extraHours} hour(s) — Chauffeur booking ${booking.id}',
+      //         'Extra ${booking.extraHours} hour(s) â€” Chauffeur booking ${booking.id}',
       //   ),
       // );
 
@@ -1106,7 +1113,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 style: const TextStyle(
                   color: Color(0xFFE4A46B),
                   decoration: TextDecoration.underline,
-                  fontSize: 13,
+                  fontSize: 11,
                 ),
               ),
             ),
@@ -1268,7 +1275,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             loc.bookingInfo,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white,
               letterSpacing: 0.5,
             ),

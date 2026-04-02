@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 class AnimatedSnackBar extends StatefulWidget {
   final String message;
@@ -167,7 +167,7 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
                           style: TextStyle(
                             color: getSnackbarType(),
                             fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                            fontSize: 12,
                           ),
                         ),
                       ),
@@ -188,7 +188,7 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
                             style: TextStyle(
                               color: getSnackbarType(),
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 12,
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -215,3 +215,4 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
     }
   }
 }
+

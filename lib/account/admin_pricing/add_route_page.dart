@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../models/pricing/city_model.dart';
 import '../../models/pricing/zone_model.dart';
 import '../../models/pricing/vehicle_model.dart';
@@ -121,7 +121,7 @@ class _AddRoutePageState extends State<AddRoutePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Vehicle *", style: TextStyle(color: Colors.white, fontSize: 14)),
+                  const Text("Vehicle *", style: TextStyle(color: Colors.white, fontSize: 12)),
                   const SizedBox(height: 8),
                   _buildDropdown<PricingVehicleModel>(
                     value: _selectedVehicle,
@@ -177,7 +177,7 @@ class _AddRoutePageState extends State<AddRoutePage> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Text("Active Status", style: TextStyle(color: Colors.white, fontSize: 16)),
+                      const Text("Active Status", style: TextStyle(color: Colors.white, fontSize: 14)),
                       const Spacer(),
                       Switch(value: _active, onChanged: (v) => setState(() => _active = v)),
                     ],
@@ -186,7 +186,7 @@ class _AddRoutePageState extends State<AddRoutePage> {
                   PremiumButton(
                     onTap: _save,
                     text: "Save Route",
-                    fontsize: 16,
+                    fontsize: 14,
                     showLoader: _loading,
                   ),
                 ],
@@ -215,3 +215,4 @@ class _AddRoutePageState extends State<AddRoutePage> {
     );
   }
 }
+

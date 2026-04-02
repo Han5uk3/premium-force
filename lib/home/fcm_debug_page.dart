@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/services/notification_service.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
@@ -67,7 +67,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header ──────────────────────────────────────────────
+              // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               Row(
                 children: [
                   Container(
@@ -93,7 +93,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                         'FCM Debug',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.95),
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.3,
                         ),
@@ -112,12 +112,12 @@ class _FcmDebugPageState extends State<FcmDebugPage>
 
               const SizedBox(height: 40),
 
-              // ── Token card ──────────────────────────────────────────
+              // â”€â”€ Token card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               if (_token == null) _buildNoTokenCard() else _buildTokenCard(),
 
               const Spacer(),
 
-              // ── Refresh button ──────────────────────────────────────
+              // â”€â”€ Refresh button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               SizedBox(
                 width: double.infinity,
                 child: TextButton.icon(
@@ -230,7 +230,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                   _token!,
                   style: const TextStyle(
                     color: Color(0xFFB0B0C8),
-                    fontSize: 11.5,
+                    fontSize: 12,
                     fontFamily: 'monospace',
                     height: 1.6,
                     letterSpacing: 0.2,
@@ -318,7 +318,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
               elevation: 0,
               textStyle: const TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
           ),
@@ -348,7 +348,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
             'No FCM token yet',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -358,7 +358,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.45),
-              fontSize: 13,
+              fontSize: 11,
               height: 1.5,
             ),
           ),
@@ -367,3 +367,4 @@ class _FcmDebugPageState extends State<FcmDebugPage>
     );
   }
 }
+

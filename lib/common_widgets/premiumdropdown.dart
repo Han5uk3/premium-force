@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class PremiumDropDown extends StatefulWidget {
@@ -48,7 +48,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
         if (widget.title.isNotEmpty) ...[
           Text(
             widget.title,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
           const SizedBox(height: 8),
         ],
@@ -72,7 +72,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
               isExpanded: true,
               dropdownColor: Colors.black,
               icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: const TextStyle(color: Colors.white, fontSize: 14),
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedValue = newValue;
@@ -136,3 +136,4 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
     );
   }
 }
+

@@ -1,8 +1,10 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
@@ -90,44 +92,61 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     setState(() => _isSearching = true);
 
     try {
-      String searchQuery = query;
-      if (!searchQuery.toLowerCase().contains('saudi')) {
-        searchQuery = '$query, Saudi Arabia';
+      final String apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+      if (apiKey.isEmpty) {
+        debugPrint('âš ï¸ Missing Google Maps API Key in .env');
+        setState(() => _isSearching = false);
+        return;
       }
-      List<Location> locations = await locationFromAddress(searchQuery);
-      List<Map<String, dynamic>> results = [];
 
-      // Force English for search results details
-      await setLocaleIdentifier('en');
-      for (var location in locations.take(5)) {
-        List<Placemark> placemarks = await placemarkFromCoordinates(
-          location.latitude,
-          location.longitude,
-        );
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks.first;
-          String address = [
-            place.street,
-            place.subLocality,
-            place.locality,
-            place.administrativeArea,
-            place.country,
-          ].where((e) => e != null && e.isNotEmpty).join(', ');
+      // NO-COST Autocomplete call (New API)
+      final Dio dio = Dio();
+      const String url = 'https://places.googleapis.com/v1/places:autocomplete';
+
+      final response = await dio.post(
+        url,
+        data: {
+          'input': query,
+          'includedRegionCodes': ['sa'],
+        },
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': apiKey,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List suggestions = response.data['suggestions'] ?? [];
+        final List<Map<String, dynamic>> results = [];
+
+        for (var sug in suggestions) {
+          final pred = sug['placePrediction'];
+          if (pred == null) continue;
 
           results.add({
-            'address': address,
-            'city': place.locality ?? '',
-            'lat': location.latitude,
-            'lng': location.longitude,
+            'address': pred['text']?['text'] ?? '',
+            'main_text': pred['structuredFormat']?['mainText']?['text'] ?? '',
+            'secondary_text':
+                pred['structuredFormat']?['secondaryText']?['text'] ?? '',
+            'place_id': pred['placeId'],
           });
         }
-      }
 
-      setState(() {
-        _searchResults = results;
-        _isSearching = false;
-      });
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+        });
+      } else {
+        debugPrint('âŒ Google Places (New) API Error: ${response.statusCode}');
+        setState(() {
+          _searchResults = [];
+          _isSearching = false;
+        });
+      }
     } catch (e) {
+      debugPrint('âŒ Search failed: $e');
       setState(() {
         _searchResults = [];
         _isSearching = false;
@@ -136,18 +155,66 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   }
 
   Future<void> _selectSearchResult(Map<String, dynamic> result) async {
-    LatLng position = LatLng(result['lat'], result['lng']);
-    setState(() {
-      _selectedLocation = position;
-      _selectedAddress = result['address'];
-      _selectedCity = result['city'] ?? '';
-      _searchResults = [];
-      _searchController.clear();
-    });
+    final String placeId = result['place_id'];
+    final String apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+
+    setState(() => _isLoading = true);
     _searchFocusNode.unfocus();
 
-    final controller = await _mapController.future;
-    controller.animateCamera(CameraUpdate.newLatLngZoom(position, 16));
+    try {
+      // Get Place details (New API)
+      final Dio dio = Dio();
+      final String url = 'https://places.googleapis.com/v1/places/$placeId';
+
+      final response = await dio.get(
+        url,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': apiKey,
+            // Only request the fields we need to save costs
+            'X-Goog-FieldMask':
+                'id,location,formattedAddress,addressComponents',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final double lat = data['location']['latitude'];
+        final double lng = data['location']['longitude'];
+        final String formattedAddress =
+            data['formattedAddress'] ?? result['address'];
+
+        // Extract city (locality)
+        String city = '';
+        final List components = data['addressComponents'] ?? [];
+        for (var comp in components) {
+          final List types = comp['types'] ?? [];
+          if (types.contains('locality') ||
+              types.contains('administrative_area_level_2')) {
+            city = comp['longText'] ?? '';
+            break;
+          }
+        }
+
+        LatLng position = LatLng(lat, lng);
+        setState(() {
+          _selectedLocation = position;
+          _selectedAddress = formattedAddress;
+          _selectedCity = city;
+          _searchResults = [];
+          _searchController.clear();
+        });
+
+        final controller = await _mapController.future;
+        controller.animateCamera(CameraUpdate.newLatLngZoom(position, 16));
+      }
+    } catch (e) {
+      debugPrint('âŒ Failed to resolve place details: $e');
+    }
+
+    setState(() => _isLoading = false);
   }
 
   Future<void> _useCurrentLocation() async {
@@ -174,13 +241,13 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) {
-          AnimatedSnackBar.show(
-            context,
-            AppLocalizations.of(context)!.locationPermissionDenied,
-            'E',
-            actionText: AppLocalizations.of(context)!.settings,
-            onAction: () => Geolocator.openAppSettings(),
-          );
+            AnimatedSnackBar.show(
+              context,
+              AppLocalizations.of(context)!.locationPermissionDenied,
+              'E',
+              actionText: AppLocalizations.of(context)!.settings,
+              onAction: () => Geolocator.openAppSettings(),
+            );
           }
           setState(() => _isLoading = false);
           return;
@@ -365,13 +432,15 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             focusNode: _searchFocusNode,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 15,
+                              fontSize: 13,
                             ),
                             decoration: InputDecoration(
-                              hintText: AppLocalizations.of(context)!.searchForALocation,
+                              hintText: AppLocalizations.of(
+                                context,
+                              )!.searchForALocation,
                               hintStyle: TextStyle(
                                 color: Colors.white.withAlpha(120),
-                                fontSize: 15,
+                                fontSize: 13,
                               ),
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(
@@ -471,15 +540,34 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                               ),
                             ),
                             title: Text(
-                              _searchResults[index]['address'],
+                              _searchResults[index]['main_text'].isNotEmpty
+                                  ? _searchResults[index]['main_text']
+                                  : _searchResults[index]['address'],
                               textAlign: TextAlign.left,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 13,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            subtitle:
+                                _searchResults[index]['secondary_text'] !=
+                                        null &&
+                                    _searchResults[index]['secondary_text']
+                                        .isNotEmpty
+                                ? Text(
+                                    _searchResults[index]['secondary_text'],
+                                    textAlign: TextAlign.left,
+                                    style: TextStyle(
+                                      color: Colors.white.withAlpha(150),
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  )
+                                : null,
                             onTap: () =>
                                 _selectSearchResult(_searchResults[index]),
                           );
@@ -544,11 +632,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                AppLocalizations.of(context)!
-                                    .selectedLocationDisplay,
+                                AppLocalizations.of(
+                                  context,
+                                )!.selectedLocationDisplay,
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 14,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -559,7 +648,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             _selectedAddress,
                             style: TextStyle(
                               color: Colors.white.withAlpha(180),
-                              fontSize: 13,
+                              fontSize: 11,
                               height: 1.4,
                             ),
                             maxLines: 2,
@@ -610,13 +699,15 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                     const SizedBox(width: 10),
                                     Text(
                                       _isLoading
-                                          ? AppLocalizations.of(context)!
-                                              .gettingLocation
-                                          : AppLocalizations.of(context)!
-                                              .useCurrentLocation,
+                                          ? AppLocalizations.of(
+                                              context,
+                                            )!.gettingLocation
+                                          : AppLocalizations.of(
+                                              context,
+                                            )!.useCurrentLocation,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 15,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -664,7 +755,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                   AppLocalizations.of(context)!.confirmLocation,
                                   style: const TextStyle(
                                     color: Colors.black,
-                                    fontSize: 18,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
@@ -699,7 +790,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           title: Text(
             AppLocalizations.of(context)!.selectLocation,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               letterSpacing: 0.5,
@@ -742,3 +833,4 @@ const String _mapDarkStyle = '''
   {"featureType": "water", "elementType": "labels.text.fill", "stylers": [{"color": "#3d3d3d"}]}
 ]
 ''';
+

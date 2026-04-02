@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
@@ -124,7 +124,7 @@ class FleetListCard extends StatelessWidget {
                                       placeholder: (context, url) => Center(
                                         child: PremiumLoader(
                                           size: 16,
-                                          color: Colors.amber,
+                                          color: Color(0xFFE4A46B),
                                         ),
                                       ),
                                     )
@@ -145,7 +145,7 @@ class FleetListCard extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
@@ -161,7 +161,7 @@ class FleetListCard extends StatelessWidget {
                                   Text(
                                     "${loc.passenger}: $passengerCount",
                                     style: const TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 12,
                                       color: Colors.white70,
                                     ),
                                   ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'add_city_page.dart';
 import 'add_zone_page.dart';
 import 'add_vehicle_page.dart';
@@ -73,9 +73,9 @@ class _AdminTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text(subtitle, style: TextStyle(color: Colors.white.withAlpha(150), fontSize: 14)),
+                  Text(subtitle, style: TextStyle(color: Colors.white.withAlpha(150), fontSize: 12)),
                 ],
               ),
             ),
@@ -86,3 +86,4 @@ class _AdminTile extends StatelessWidget {
     );
   }
 }
+

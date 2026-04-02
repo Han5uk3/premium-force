@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
@@ -193,7 +193,7 @@ class _MenuIconState extends State<MenuIcon>
                                   overflow: TextOverflow.clip,
                                   style: const TextStyle(
                                     color: Colors.black,
-                                    fontSize: 14,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
@@ -211,3 +211,4 @@ class _MenuIconState extends State<MenuIcon>
     );
   }
 }
+

@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/bookings/bookings_page.dart';
@@ -75,7 +75,7 @@ class _HomeState extends State<Home> {
             child: PremiumButton(
               text: loc.exit,
               onTap: () => Navigator.pop(context, true),
-              fontsize: 16,
+              fontsize: 14,
               showLoader: false,
               borderRadius: 8.0,
             ),
@@ -122,3 +122,4 @@ class _HomeState extends State<Home> {
     );
   }
 }
+
