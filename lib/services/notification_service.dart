@@ -309,7 +309,7 @@ class NotificationService {
       debugPrint('🔔 FCM │ Syncing token with backend for user: $uid');
       try {
         final response = await ApiService().updateFcmToken(
-          id: uid,
+          userid: uid,
           fcmToken: fcmToken,
           token: authToken,
         );

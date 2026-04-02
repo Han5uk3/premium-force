@@ -65,7 +65,8 @@ class ApiService {
           final path = options.path;
 
           // Don't attach token for auth endpoints
-          final isAuthEndpoint = path.contains('otp/') ||
+          final isAuthEndpoint =
+              path.contains('otp/') ||
               path.contains('auth/') ||
               path.contains('check-email');
 
@@ -101,15 +102,18 @@ class ApiService {
                     refreshResponse.data != null) {
                   final data = refreshResponse.data;
                   final tokens = data['tokens'];
-                  
-                  newAccess = (tokens is Map
-                          ? (tokens['accessToken'] ?? tokens['token'])
-                          : (data['accessToken'] ?? data['token']))
-                      as String?;
-                  newRefresh = (tokens is Map
-                          ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-                          : (data['refreshToken'] ?? data['refresh_token']))
-                      as String?;
+
+                  newAccess =
+                      (tokens is Map
+                              ? (tokens['accessToken'] ?? tokens['token'])
+                              : (data['accessToken'] ?? data['token']))
+                          as String?;
+                  newRefresh =
+                      (tokens is Map
+                              ? (tokens['refreshToken'] ??
+                                    tokens['refresh_token'])
+                              : (data['refreshToken'] ?? data['refresh_token']))
+                          as String?;
                 }
               } catch (reErr) {
                 debugPrint('❌ API │ Refresh failed: $reErr');
@@ -130,37 +134,48 @@ class ApiService {
 
                   if (authResponse['success'] == true) {
                     final tokens = authResponse['tokens'];
-                    newAccess = (tokens is Map
-                            ? (tokens['accessToken'] ?? tokens['token'])
-                            : (authResponse['accessToken'] ??
-                                authResponse['token']))
-                        as String?;
-                    newRefresh = (tokens is Map
-                            ? (tokens['refreshToken'] ??
-                                tokens['refresh_token'])
-                            : (authResponse['refreshToken'] ??
-                                authResponse['refresh_token']))
-                        as String?;
+                    newAccess =
+                        (tokens is Map
+                                ? (tokens['accessToken'] ?? tokens['token'])
+                                : (authResponse['accessToken'] ??
+                                      authResponse['token']))
+                            as String?;
+                    newRefresh =
+                        (tokens is Map
+                                ? (tokens['refreshToken'] ??
+                                      tokens['refresh_token'])
+                                : (authResponse['refreshToken'] ??
+                                      authResponse['refresh_token']))
+                            as String?;
                   } else if (provider == 'google') {
                     // Try silent sign-in if native token expired
-                    debugPrint('🔄 API │ Social re-auth failed. Trying silent Google sign-in...');
-                    final googleResult = await GoogleSignInService.instance.signInSilently();
+                    debugPrint(
+                      '🔄 API │ Social re-auth failed. Trying silent Google sign-in...',
+                    );
+                    final googleResult = await GoogleSignInService.instance
+                        .signInSilently();
                     if (googleResult != null && googleResult.idToken != null) {
-                      await UserLocalStorage.saveSocialIdToken(googleResult.idToken!);
-                      final secondAuthRes = await googleAuth(idToken: googleResult.idToken!);
+                      await UserLocalStorage.saveSocialIdToken(
+                        googleResult.idToken!,
+                      );
+                      final secondAuthRes = await googleAuth(
+                        idToken: googleResult.idToken!,
+                      );
                       if (secondAuthRes['success'] == true) {
                         final tokens = secondAuthRes['tokens'];
-                        newAccess = (tokens is Map
-                                ? (tokens['accessToken'] ?? tokens['token'])
-                                : (secondAuthRes['accessToken'] ??
-                                    secondAuthRes['token']))
-                            as String?;
-                        newRefresh = (tokens is Map
-                                ? (tokens['refreshToken'] ??
-                                    tokens['refresh_token'])
-                                : (secondAuthRes['refreshToken'] ??
-                                    secondAuthRes['refresh_token']))
-                            as String?;
+                        newAccess =
+                            (tokens is Map
+                                    ? (tokens['accessToken'] ?? tokens['token'])
+                                    : (secondAuthRes['accessToken'] ??
+                                          secondAuthRes['token']))
+                                as String?;
+                        newRefresh =
+                            (tokens is Map
+                                    ? (tokens['refreshToken'] ??
+                                          tokens['refresh_token'])
+                                    : (secondAuthRes['refreshToken'] ??
+                                          secondAuthRes['refresh_token']))
+                                as String?;
                       }
                     }
                   }
@@ -184,8 +199,9 @@ class ApiService {
 
               // Handle FormData retry by reconstructing logic if needed
               if (e.requestOptions.data is FormData) {
-                final originalBooking = e.requestOptions.extra['originalBooking']
-                    as BookingRequestModel?;
+                final originalBooking =
+                    e.requestOptions.extra['originalBooking']
+                        as BookingRequestModel?;
                 final originalType =
                     e.requestOptions.extra['originalType'] as String?;
 
@@ -531,13 +547,13 @@ class ApiService {
   ///
   /// Calls `PUT /api/users/:id/fcm-token`
   Future<Map<String, dynamic>> updateFcmToken({
-    required String id,
+    required String userid,
     required String fcmToken,
     String? token,
   }) async {
     try {
       final response = await _dio.put(
-        'users/$id/fcm-token',
+        'users/$userid/fcm-token',
         data: {'fcmToken': fcmToken},
         options: token != null ? _authOptions(token) : null,
       );
@@ -725,14 +741,14 @@ class ApiService {
   /// Call this after login / signup once you have both a valid user id and an
   /// FCM token.
   Future<Map<String, dynamic>> registerFcmToken({
-    required String userId,
+    required String userid,
     required String fcmToken,
     String? token,
   }) async {
     try {
       final response = await _dio.post(
-        'users/$userId/fcm-token',
-        data: {'fcmToken': fcmToken},
+        'users/$userid/fcm-token',
+        data: {'fcmToken': fcmToken, 'userid': userid},
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -866,10 +882,7 @@ class ApiService {
         'bookings',
         data: formData,
         options: (token != null ? _authOptions(token) : Options()).copyWith(
-          extra: {
-            'originalBooking': booking,
-            'originalType': 'normal',
-          },
+          extra: {'originalBooking': booking, 'originalType': 'normal'},
         ),
       );
       return _success(response);
@@ -908,7 +921,7 @@ class ApiService {
     fields['customerID'] ??= booking.customerID ?? '';
     fields['customerName'] ??= booking.customerName ?? '';
     fields['customer_name'] = fields['customerName']; // Snake case fallback
-    fields['username'] = fields['customerName'];      // Backend user field fallback
+    fields['username'] = fields['customerName']; // Backend user field fallback
 
     // Ensure numeric fields are strings for FormData consistency
     if (fields['passengerCount'] != null) {
@@ -1077,10 +1090,7 @@ class ApiService {
         'hourly-bookings',
         data: formData,
         options: (token != null ? _authOptions(token) : Options()).copyWith(
-          extra: {
-            'originalBooking': booking,
-            'originalType': 'hourly',
-          },
+          extra: {'originalBooking': booking, 'originalType': 'hourly'},
         ),
       );
       return _success(response);
@@ -1099,17 +1109,19 @@ class ApiService {
     } else {
       fields['hours'] =
           booking.category == 'chauffeured' && booking.serviceDuration == 0
-              ? booking.estimatedHours?.toString() ?? '1'
-              : (booking.serviceDuration == 1
-                  ? '8'
-                  : (booking.serviceDuration == 2 ? '12' : '1'));
+          ? booking.estimatedHours?.toString() ?? '1'
+          : (booking.serviceDuration == 1
+                ? '8'
+                : (booking.serviceDuration == 2 ? '12' : '1'));
     }
 
     fields['pickupLat'] = booking.pickupLat ?? '';
     fields['pickupLong'] = booking.pickupLong ?? '';
-    fields['pickuplong'] = booking.pickupLong ?? ''; // Postman typo compatibility
+    fields['pickuplong'] =
+        booking.pickupLong ?? ''; // Postman typo compatibility
     fields['pickupAddress'] = booking.pickupAddress ?? '';
-    fields['pickupAdddress'] = booking.pickupAddress ?? ''; // Postman typo compatibility
+    fields['pickupAdddress'] =
+        booking.pickupAddress ?? ''; // Postman typo compatibility
     fields['pickupDateTime'] = booking.pickupdatetime ?? '';
     fields['model'] = booking.carmodel ?? '';
     fields['categoryID'] = booking.categoryID ?? '';
@@ -1120,7 +1132,8 @@ class ApiService {
     fields['customerID'] = booking.customerID ?? '';
     fields['customerName'] = booking.customerName ?? '';
     fields['customer_name'] = booking.customerName ?? ''; // Snake case fallback
-    fields['username'] = booking.customerName ?? ''; // Backend user field fallback
+    fields['username'] =
+        booking.customerName ?? ''; // Backend user field fallback
     fields['passengerCount'] = booking.passengerCount ?? '1';
     fields['passsenrgersCount'] =
         booking.passengerCount ?? '1'; // Postman typo compatibility
