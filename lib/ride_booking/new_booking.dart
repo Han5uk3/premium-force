@@ -844,7 +844,11 @@ class _NewBookingState extends State<NewBooking> {
 
           if (citiesResult['success'] == true) {
             final citiesData = citiesResult['data'] ?? citiesResult['cities'];
-            if (citiesData is List) _apiCities = rawDataToList(citiesData);
+            if (citiesData is List) {
+              _apiCities = rawDataToList(
+                citiesData,
+              ).where((c) => c['isActive'] == true).toList();
+            }
           }
           if (airportsResult['success'] == true) {
             final airportsData =
@@ -4028,7 +4032,11 @@ class _NewBookingState extends State<NewBooking> {
   /// Get simplified list of city names for dropdowns
   List<String> _getAvailableCityNames(BuildContext context) {
     if (_apiCities.isNotEmpty) {
-      return _apiCities.map((c) => c['cityName'].toString()).toSet().toList();
+      return _apiCities
+          .where((c) => c['isActive'] == true)
+          .map((c) => c['cityName'].toString())
+          .toSet()
+          .toList();
     }
     return [];
   }

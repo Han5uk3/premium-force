@@ -238,7 +238,7 @@ class Bookingcard extends StatelessWidget {
                       ),
                       SizedBox(width: 5),
                       Text(
-                        "$ride.",
+                        "$ride",
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -362,7 +362,8 @@ class Bookingcard extends StatelessWidget {
       return loc.airportDeparture;
     } else if (type == "chauffeur" ||
         type == "chauffeur service" ||
-        type.contains("chauffeur")) {
+        type.contains("chauffeur") ||
+        type == "hourly") {
       return loc.chauffeur;
     } else if (type == "private transfer") {
       return loc.privateTransfer;

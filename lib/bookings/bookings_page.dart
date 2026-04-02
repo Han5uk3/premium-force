@@ -41,6 +41,7 @@ class _BookingsPageState extends State<BookingsPage>
 
     try {
       final currentUserId = UserLocalStorage.getUserId();
+      debugPrint('👤 Customer ID │ $currentUserId');
       if (currentUserId == null) {
         setState(() {
           _isLoading = false;
@@ -50,6 +51,7 @@ class _BookingsPageState extends State<BookingsPage>
       }
 
       final token = UserLocalStorage.getToken();
+      debugPrint('🎫 Customer Token │ $token');
 
       // Fetch regular bookings and hourly bookings in parallel
       final results = await Future.wait([
@@ -80,7 +82,14 @@ class _BookingsPageState extends State<BookingsPage>
         final List<dynamic> hourlyBookingsJson =
             hourlyResponse['data'] ?? hourlyResponse['bookings'] ?? [];
         userBookings.addAll(
-          hourlyBookingsJson.map((json) => BookingModel.fromJson(json)),
+          hourlyBookingsJson.map((json) {
+            final model = BookingModel.fromJson(json);
+            // Explicitly set bookingType to 'hourly' for these results
+            if (model.bookingType == null || model.bookingType!.isEmpty) {
+              return model.copyWith(bookingType: 'hourly');
+            }
+            return model;
+          }),
         );
       }
 
@@ -297,6 +306,10 @@ class _BookingsPageState extends State<BookingsPage>
                     : null);
           final dateStr = Bookingcard.formatDate(context, displayDate);
           final timeStr = Bookingcard.formatTime(context, displayDate);
+          final isChauffeur =
+              (booking.category ?? '').toLowerCase().contains('chauffeur') ||
+              booking.estimatedHours != null ||
+              booking.bookingType == 'hourly';
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
@@ -315,20 +328,16 @@ class _BookingsPageState extends State<BookingsPage>
               child: Bookingcard(
                 isFromReviewAndConfirm: false,
                 status: booking.bookingStatus ?? 'Pending',
-                type: _getBookingName(booking.category ?? "", context),
+                type: _getBookingCategoryName(booking, context),
                 pickup: booking.pickupAddress ?? booking.airport ?? 'N/A',
                 dropoff: booking.dropOffAddress ?? 'N/A',
                 date: dateStr,
                 time: timeStr,
-                ride: booking.displayName,
+                ride: booking.displayBrand,
                 brand: booking.displayBrand,
                 passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
-                isChauffeur:
-                    (booking.category ?? '').toLowerCase().contains(
-                      'chauffeur',
-                    ) ||
-                    booking.estimatedHours != null,
-                chauffeurName: booking.driver?.driverName,
+                isChauffeur: isChauffeur,
+                chauffeurName: booking.displayDriverName,
               ),
             ),
           );
@@ -406,20 +415,34 @@ class _BookingsPageState extends State<BookingsPage>
     );
   }
 
-  String _getBookingName(String category, BuildContext context) {
+  String _getBookingCategoryName(BookingModel booking, BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    category = category.toLowerCase();
+
+    // Check booking type first
+    final bType = (booking.bookingType ?? '').toLowerCase().trim();
+    if (bType == 'hourly') return loc.chauffeur;
+
+    // Check category string
+    String category = (booking.category ?? "").toLowerCase().trim();
+
     if (category == "airport arrival" || category == "arrival") {
       return loc.airportArrival;
     } else if (category == "airport departure" || category == "departure") {
       return loc.airportDeparture;
     } else if (category == "chauffeur" ||
         category == "chauffeur service" ||
-        category.contains("chauffeur")) {
+        category.contains("chauffeur") ||
+        booking.estimatedHours != null) {
       return loc.chauffeur;
-    } else if (category == "private transfer") {
+    } else if (category == "private transfer" || category.contains("private")) {
       return loc.privateTransfer;
     }
+
+    // Final fallback for hourly if not caught above
+    if (booking.estimatedHours != null && booking.estimatedHours! > 0) {
+      return loc.chauffeur;
+    }
+
     return category.isNotEmpty
         ? category[0].toUpperCase() + category.substring(1)
         : loc.unknown;

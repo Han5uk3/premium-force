@@ -62,6 +62,9 @@ class ApiService {
       InterceptorsWrapper(
         onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
           final token = UserLocalStorage.getToken();
+          final currentUserId = UserLocalStorage.getUserId();
+          if (token != null) debugPrint('🎫 Token │ $token');
+          if (currentUserId != null) debugPrint('👤 User ID │ $currentUserId');
           final path = options.path;
 
           // Don't attach token for auth endpoints

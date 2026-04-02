@@ -33,11 +33,14 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   void initState() {
     super.initState();
     _currentRating = widget.booking.rating;
-    if (widget.booking.driver != null) {
+    if (widget.booking.driver != null &&
+        widget.booking.driver!.driverName != null &&
+        widget.booking.driver!.driverName!.isNotEmpty) {
       _driver = widget.booking.driver;
     } else if (widget.booking.driverID != null &&
         widget.booking.driverID != 'null' &&
         widget.booking.driverID!.isNotEmpty) {
+      // Name is missing or driver object is null - fetch full details
       _fetchDriverDetails();
     }
   }
@@ -97,7 +100,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     // AI Check for Chauffeur Category
     final isChauffeur =
         (booking.category ?? '').toLowerCase().contains('chauffeur') ||
-        booking.estimatedHours != null;
+        booking.estimatedHours != null ||
+        booking.bookingType == 'hourly';
 
     return Scaffold(
       backgroundColor: const Color(0xFF1E1105),
@@ -129,14 +133,15 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 isFromReviewAndConfirm: true,
                 status: booking.bookingStatus ?? 'Pending',
                 isChauffeur: isChauffeur,
-                type: _getBookingCategoryName(booking.category, context),
+                type: _getBookingCategoryName(booking, context),
                 pickup: booking.pickupAddress ?? booking.airport ?? 'N/A',
                 dropoff: booking.dropOffAddress ?? 'N/A',
                 date: dateStr,
                 time: timeStr,
-                ride: booking.carclass ?? '',
-                brand: booking.carclass ?? '',
+                ride: booking.displayBrand,
+                brand: booking.displayBrand,
                 passengers: int.tryParse(booking.passengerCount ?? '1') ?? 1,
+                chauffeurName: _driver?.driverName ?? booking.displayDriverName,
               ),
             ),
             const SizedBox(height: 12),
@@ -170,7 +175,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      booking.displayName,
+                      booking.displayBrand + " " + booking.displayName,
 
                       style: const TextStyle(
                         color: Colors.white,
@@ -1208,20 +1213,37 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     }
   }
 
-  String _getBookingCategoryName(String? category, BuildContext context) {
+  String _getBookingCategoryName(BookingModel booking, BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    if (category == null) return 'Booking';
-    switch (category.toLowerCase()) {
-      case 'chauffeur':
-      case 'chauffeured':
-        return loc.chauffeur;
-      case 'airport arrival':
-        return loc.airportArrival;
-      case 'airport departure':
-        return loc.airportDeparture;
-      default:
-        return category;
+
+    // Check booking type first
+    final bType = (booking.bookingType ?? '').toLowerCase().trim();
+    if (bType == 'hourly') return loc.chauffeur;
+
+    // Check category string
+    String category = (booking.category ?? "").toLowerCase().trim();
+
+    if (category == "airport arrival" || category == "arrival") {
+      return loc.airportArrival;
+    } else if (category == "airport departure" || category == "departure") {
+      return loc.airportDeparture;
+    } else if (category == "chauffeur" ||
+        category == "chauffeur service" ||
+        category.contains("chauffeur") ||
+        booking.estimatedHours != null) {
+      return loc.chauffeur;
+    } else if (category == "private transfer" || category.contains("private")) {
+      return loc.privateTransfer;
     }
+
+    // Final fallback for hourly if not caught above
+    if (booking.estimatedHours != null && booking.estimatedHours! > 0) {
+      return loc.chauffeur;
+    }
+
+    return category.isNotEmpty
+        ? category[0].toUpperCase() + category.substring(1)
+        : loc.unknown;
   }
 
   PreferredSizeWidget buidAppBar(BuildContext context) {

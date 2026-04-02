@@ -60,6 +60,8 @@ class BookingModel {
   final String? carID;
   final String? brandID;
   final String? categoryID;
+  final String? bookingType;
+  final String? bookingNumber;
 
   BookingModel({
     required this.id,
@@ -115,42 +117,75 @@ class BookingModel {
     this.discountPercentage,
     this.orderID,
     this.transactionID,
+    this.bookingType,
+    this.bookingNumber,
   });
 
   String get displayBrand {
-    if (carbrand != null && carbrand!.isNotEmpty) return carbrand!;
     if (carData != null && carData!.brandName != null)
       return carData!.brandName!;
     return 'N/A';
   }
 
   String get displayName {
-    if (estimatedHours != null) {
-      final name = carName ?? carData?.carName ?? '';
-      return '$name ($estimatedHours Hours)'.trim();
-    }
-    if (carName != null && carName!.isNotEmpty) return carName!;
     if (carData != null && carData!.carName != null) return carData!.carName!;
-    if (carbrand != null || carmodel != null) {
-      return '${carbrand ?? ''} ${carmodel ?? ''}'.trim();
-    }
     return 'N/A';
+  }
+
+  String get displayCategory {
+    if (category != null && category!.isNotEmpty) return category!;
+    if (carData != null && carData!.categoryName != null)
+      return carData!.categoryName!;
+    return 'N/A';
+  }
+
+  String get displayDriverName {
+    if (driver != null &&
+        driver!.driverName != null &&
+        driver!.driverName!.isNotEmpty) {
+      return driver!.driverName!;
+    }
+    // If status is assigned but name is missing
+    if (bookingStatus?.toLowerCase() == 'assigned' ||
+        bookingStatus?.toLowerCase() == 'starttracking' ||
+        bookingStatus?.toLowerCase() == 'ongoing') {
+      return 'Driver Assigned'; // Localized version will be used in UI if needed
+    }
+    return 'Not Assigned';
   }
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     // Helper to parse nested objects
-    final cityDetails = json['city'] is Map<String, dynamic>
-        ? CityDetails.fromJson(json['city'])
+    final cityDetails = (json['city'] ?? json['cityID']) is Map<String, dynamic>
+        ? CityDetails.fromJson(json['city'] ?? json['cityID'])
         : null;
-    final airportDetails = json['airport'] is Map<String, dynamic>
-        ? AirportDetails.fromJson(json['airport'])
+    final airportDetails =
+        (json['airport'] ?? json['airportID']) is Map<String, dynamic>
+        ? AirportDetails.fromJson(json['airport'] ?? json['airportID'])
         : null;
-    final terminalDetails = json['terminal'] is Map<String, dynamic>
-        ? TerminalDetails.fromJson(json['terminal'])
+    final terminalDetails =
+        (json['terminal'] ?? json['terminalID']) is Map<String, dynamic>
+        ? TerminalDetails.fromJson(json['terminal'] ?? json['terminalID'])
         : null;
-    final carDetails = json['car'] is Map<String, dynamic>
-        ? CarDetails.fromJson(json['car'])
+
+    // Hourly bookings use 'carID' as the vehicle object; normal bookings use 'car'
+    final carMap = json['car'] ?? json['carID'];
+    final carDetails = carMap is Map<String, dynamic>
+        ? CarDetails.fromJson({
+            ...carMap,
+            // Merge root level fields that hourly booking provides
+            'carImage': json['carImage'] ?? carMap['carImage'],
+            'model': json['model'] ?? carMap['model'],
+            'brand': json['brandID'] ?? carMap['brand'],
+            'category': json['categoryID'] ?? carMap['category'],
+            'numberOfPassengers':
+                json['passsenrgersCount'] ??
+                json['passengerCount'] ??
+                carMap['numberOfPassengers'],
+            'carName': json['model'] ?? json['carClass'] ?? carMap['carName'],
+          })
         : null;
+
     final customerObj = json['customer'] is Map<String, dynamic>
         ? UserModel.fromJson(json['customer'])
         : (json['customerID'] is Map<String, dynamic>
@@ -175,7 +210,22 @@ class BookingModel {
 
     return BookingModel(
       id: json['_id'] ?? json['id'] ?? '',
-      category: json['category']?.toString(),
+      category:
+          (json['category'] is Map
+                  ? (json['category']['name'] ??
+                        json['category']['categoryName'] ??
+                        json['category']['displayName'])
+                  : (json['categoryID'] is Map
+                        ? (json['categoryID']['name'] ??
+                              json['categoryID']['categoryName'] ??
+                              json['categoryID']['displayName'])
+                        : json['category']))
+              ?.toString() ??
+          carDetails?.categoryName,
+      bookingType:
+          json['bookingType']?.toString() ?? json['booking_type']?.toString(),
+      bookingNumber:
+          json['bookingNumber']?.toString() ?? json['bookingID']?.toString(),
       cityData: cityDetails,
       airportData: airportDetails,
       terminalData: terminalDetails,
@@ -190,7 +240,10 @@ class BookingModel {
       terminal: terminalDetails?.terminalName ?? json['terminal']?.toString(),
 
       arrival: json['arrival']?.toString(),
-      pickupdatetime: json['pickupdatetime']?.toString(),
+      pickupdatetime:
+          json['pickupdatetime']?.toString() ??
+          json['pickupDateTime']?.toString() ??
+          json['startedAt']?.toString(),
       pickupLat: (json['pickupLat'] ?? json['pickuplat']) != null
           ? double.tryParse(json['pickupLat'].toString())
           : null,
@@ -208,8 +261,9 @@ class BookingModel {
           json['pickupAddress']?.toString() ??
           json['pickupAdddress']?.toString(),
 
-      carclass: json['carclass']?.toString(),
+      carclass: json['carclass']?.toString() ?? carDetails?.categoryName,
       carName:
+          json['model']?.toString() ??
           json['carName']?.toString() ??
           carDetails?.carName ??
           (json['vehicleID'] is Map
@@ -220,14 +274,20 @@ class BookingModel {
           : null,
       carbrand:
           json['carbrand']?.toString() ??
-          json['brand']?.toString() ??
-          carDetails?.brandName ??
           (json['brandID'] is Map
               ? (json['brandID']['brandName'] ?? json['brandID']['name'])
                     ?.toString()
-              : null),
-      carmodel: json['carmodel']?.toString() ?? carDetails?.model,
+              : (json['brand'] is Map
+                    ? (json['brand']['brandName'] ?? json['brand']['name'])
+                          ?.toString()
+                    : json['brand']?.toString())) ??
+          carDetails?.brandName,
+      carmodel:
+          json['model']?.toString() ??
+          json['carmodel']?.toString() ??
+          carDetails?.model,
       carimage:
+          json['carImage']?.toString() ??
           (json['carimage'] is Map
                   ? json['carimage']['url']
                   : (json['carImage'] is Map
@@ -243,6 +303,7 @@ class BookingModel {
       specialRequestText: json['specialRequestText']?.toString(),
       specialRequestAudio: json['specialRequestAudio']?.toString(),
       passengerCount:
+          json['passsenrgersCount']?.toString() ??
           json['passengerCount']?.toString() ??
           carDetails?.numberOfPassengers?.toString(),
       passengerNames: json['passengerNames'],
@@ -271,8 +332,11 @@ class BookingModel {
       airportID: originalIdsObj?.airportID ?? json['airportID']?.toString(),
       terminalID: originalIdsObj?.terminalID ?? json['terminalID']?.toString(),
       carID: originalIdsObj?.carID ?? json['carID']?.toString(),
-      brandID: originalIdsObj?.brandID ?? json['brandID']?.toString(),
-      categoryID: json['categoryID']?.toString(),
+      brandID:
+          originalIdsObj?.brandID ??
+          json['brandID']?.toString() ??
+          carDetails?.brandID,
+      categoryID: json['categoryID']?.toString() ?? carDetails?.categoryID,
 
       flightNumber: json['flightNumber']?.toString(),
       serviceDuration: json['serviceDuration'] != null
@@ -303,6 +367,122 @@ class BookingModel {
           : null,
       orderID: json['orderID']?.toString(),
       transactionID: json['transactionID']?.toString(),
+    );
+  }
+
+  BookingModel copyWith({
+    String? id,
+    String? category,
+    CityDetails? cityData,
+    AirportDetails? airportData,
+    TerminalDetails? terminalData,
+    CarDetails? carData,
+    UserModel? customer,
+    DriverDetails? driver,
+    OriginalIds? originalIds,
+    String? city,
+    String? airport,
+    String? terminal,
+    String? arrival,
+    String? pickupdatetime,
+    double? pickupLat,
+    double? pickupLong,
+    double? dropOffLat,
+    double? dropOffLong,
+    String? pickupAddress,
+    String? dropOffAddress,
+    String? carclass,
+    String? carName,
+    double? charge,
+    String? carbrand,
+    String? carmodel,
+    String? carimage,
+    String? specialRequestText,
+    String? specialRequestAudio,
+    String? passengerCount,
+    dynamic passengerNames,
+    String? passengerMobile,
+    String? distance,
+    String? bookingStatus,
+    String? paymentStatus,
+    String? flightNumber,
+    int? serviceDuration,
+    int? estimatedHours,
+    int? extraHours,
+    List<String>? trackingTimeline,
+    Map<String, dynamic>? rating,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    double? discountPercentage,
+    String? orderID,
+    String? transactionID,
+    String? customerID,
+    String? driverID,
+    String? cityID,
+    String? airportID,
+    String? terminalID,
+    String? carID,
+    String? brandID,
+    String? categoryID,
+    String? bookingType,
+    String? bookingNumber,
+  }) {
+    return BookingModel(
+      id: id ?? this.id,
+      category: category ?? this.category,
+      cityData: cityData ?? this.cityData,
+      airportData: airportData ?? this.airportData,
+      terminalData: terminalData ?? this.terminalData,
+      carData: carData ?? this.carData,
+      customer: customer ?? this.customer,
+      driver: driver ?? this.driver,
+      originalIds: originalIds ?? this.originalIds,
+      city: city ?? this.city,
+      airport: airport ?? this.airport,
+      terminal: terminal ?? this.terminal,
+      arrival: arrival ?? this.arrival,
+      pickupdatetime: pickupdatetime ?? this.pickupdatetime,
+      pickupLat: pickupLat ?? this.pickupLat,
+      pickupLong: pickupLong ?? this.pickupLong,
+      dropOffLat: dropOffLat ?? this.dropOffLat,
+      dropOffLong: dropOffLong ?? this.dropOffLong,
+      pickupAddress: pickupAddress ?? this.pickupAddress,
+      dropOffAddress: dropOffAddress ?? this.dropOffAddress,
+      carclass: carclass ?? this.carclass,
+      carName: carName ?? this.carName,
+      charge: charge ?? this.charge,
+      carbrand: carbrand ?? this.carbrand,
+      carmodel: carmodel ?? this.carmodel,
+      carimage: carimage ?? this.carimage,
+      specialRequestText: specialRequestText ?? this.specialRequestText,
+      specialRequestAudio: specialRequestAudio ?? this.specialRequestAudio,
+      passengerCount: passengerCount ?? this.passengerCount,
+      passengerNames: passengerNames ?? this.passengerNames,
+      passengerMobile: passengerMobile ?? this.passengerMobile,
+      distance: distance ?? this.distance,
+      bookingStatus: bookingStatus ?? this.bookingStatus,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      flightNumber: flightNumber ?? this.flightNumber,
+      serviceDuration: serviceDuration ?? this.serviceDuration,
+      estimatedHours: estimatedHours ?? this.estimatedHours,
+      extraHours: extraHours ?? this.extraHours,
+      trackingTimeline: trackingTimeline ?? this.trackingTimeline,
+      rating: rating ?? this.rating,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      discountPercentage: discountPercentage ?? this.discountPercentage,
+      orderID: orderID ?? this.orderID,
+      transactionID: transactionID ?? this.transactionID,
+      customerID: customerID ?? this.customerID,
+      driverID: driverID ?? this.driverID,
+      cityID: cityID ?? this.cityID,
+      airportID: airportID ?? this.airportID,
+      terminalID: terminalID ?? this.terminalID,
+      carID: carID ?? this.carID,
+      brandID: brandID ?? this.brandID,
+      categoryID: categoryID ?? this.categoryID,
+      bookingType: bookingType ?? this.bookingType,
+      bookingNumber: bookingNumber ?? this.bookingNumber,
     );
   }
 
@@ -351,6 +531,8 @@ class BookingModel {
       'discountPercentage': discountPercentage,
       'orderID': orderID,
       'transactionID': transactionID,
+      'bookingType': bookingType,
+      'bookingNumber': bookingNumber,
     };
   }
 }
@@ -430,6 +612,9 @@ class CarDetails {
   final int? numberOfPassengers;
   final String? carImageUrl;
   final String? brandName;
+  final String? brandID;
+  final String? categoryName;
+  final String? categoryID;
 
   CarDetails({
     required this.id,
@@ -438,20 +623,64 @@ class CarDetails {
     this.numberOfPassengers,
     this.carImageUrl,
     this.brandName,
+    this.brandID,
+    this.categoryName,
+    this.categoryID,
   });
 
   factory CarDetails.fromJson(Map<String, dynamic> json) {
+    // Handle nested brand
+    String? bName;
+    String? bID;
+    if (json['brand'] is Map) {
+      bName = json['brand']['brandName'] ?? json['brand']['name'];
+      bID = (json['brand']['_id'] ?? json['brand']['id'])?.toString();
+    } else if (json['brandDetails'] is Map) {
+      bName = json['brandDetails']['brandName'];
+      bID = (json['brandDetails']['_id'] ?? json['brandDetails']['id'])
+          ?.toString();
+    } else if (json['brandID'] is Map) {
+      bName = json['brandID']['brandName'];
+      bID = (json['brandID']['_id'] ?? json['brandID']['id'])?.toString();
+    }
+
+    // Handle nested category
+    String? cName;
+    String? cID;
+    if (json['category'] is Map) {
+      cName =
+          json['category']['categoryName'] ??
+          json['category']['name'] ??
+          json['category']['displayName'];
+      cID = (json['category']['_id'] ?? json['category']['id'])?.toString();
+    } else if (json['categoryID'] is Map) {
+      cName =
+          json['categoryID']['categoryName'] ??
+          json['categoryID']['name'] ??
+          json['categoryID']['displayName'];
+      cID = (json['categoryID']['_id'] ?? json['categoryID']['id'])?.toString();
+    }
+
     return CarDetails(
-      id: json['_id'] ?? '',
-      carName: json['carName'],
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      carName: json['carName']?.toString(),
       model: json['model']?.toString(),
       numberOfPassengers: json['numberOfPassengers'] is int
           ? json['numberOfPassengers']
           : int.tryParse(json['numberOfPassengers']?.toString() ?? ''),
-      carImageUrl: json['carImage'] is Map ? json['carImage']['url'] : null,
-      brandName: json['brandDetails'] is Map
-          ? json['brandDetails']['brandName']
-          : (json['brandID'] is Map ? json['brandID']['brandName'] : null),
+      carImageUrl:
+          (json['carImage'] is Map
+                  ? json['carImage']['url']
+                  : (json['image'] is Map
+                        ? json['image']['url']
+                        : (json['carimage'] ??
+                              json['carImage'] ??
+                              json['image'])))
+              ?.toString(),
+      brandName: bName?.toString(),
+      brandID: bID,
+      categoryName: cName?.toString(),
+      categoryID: cID,
     );
   }
 }
@@ -494,6 +723,7 @@ class DriverDetails {
   final String? countryCode;
   final String? licenseNumber;
   final String? profileImageUrl;
+  final double? rating;
 
   DriverDetails({
     this.driverName,
@@ -501,18 +731,22 @@ class DriverDetails {
     this.countryCode,
     this.licenseNumber,
     this.profileImageUrl,
+    this.rating,
   });
 
   factory DriverDetails.fromJson(Map<String, dynamic> json) {
     return DriverDetails(
       driverName: (json['driverName'] ?? json['name'] ?? json['username'])
           ?.toString(),
-      phoneNumber: json['phoneNumber']?.toString(),
+      phoneNumber: (json['phoneNumber'] ?? json['phone'])?.toString(),
       countryCode: json['countryCode']?.toString(),
       licenseNumber: (json['licenseNumber'] ?? json['specialId'])?.toString(),
       profileImageUrl: json['profileImage'] is Map<String, dynamic>
           ? json['profileImage']['url']?.toString()
           : (json['profileImage']?.toString()),
+      rating: json['rating'] != null
+          ? double.tryParse(json['rating'].toString())
+          : null,
     );
   }
 
@@ -523,6 +757,7 @@ class DriverDetails {
       'countryCode': countryCode,
       'licenseNumber': licenseNumber,
       'profileImageUrl': profileImageUrl,
+      'rating': rating,
     };
   }
 }
