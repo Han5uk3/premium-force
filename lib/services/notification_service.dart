@@ -9,6 +9,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/storage/notification_storage.dart';
 import 'package:premium_force_main/models/notification_model.dart';
+import 'package:premium_force_main/api/apis.dart';
 import 'package:uuid/uuid.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -119,6 +120,7 @@ class NotificationService {
       debugPrint('🔔 FCM │ Token refreshed');
       _fcmToken = newToken;
       await UserLocalStorage.saveFcmToken(newToken);
+      await _updateTokenOnBackend(newToken);
       onTokenRefresh?.call(newToken);
     });
   }
@@ -261,6 +263,7 @@ class NotificationService {
       // Persist immediately so the rest of the app can read it via Hive
       if (_fcmToken != null) {
         await UserLocalStorage.saveFcmToken(_fcmToken!);
+        await _updateTokenOnBackend(_fcmToken!);
       }
     } on FirebaseException catch (e) {
       if (e.code == 'apns-token-not-set') {
@@ -294,6 +297,32 @@ class NotificationService {
       debugPrint('🔔 FCM │ Token deleted');
     } catch (e) {
       debugPrint('🔔 FCM │ Token delete error: $e');
+    }
+  }
+
+  /// Synchronise the local FCM token with the backend if the user is logged in.
+  Future<void> _updateTokenOnBackend(String fcmToken) async {
+    final uid = UserLocalStorage.getUserId();
+    final authToken = UserLocalStorage.getToken();
+
+    if (uid != null && uid.isNotEmpty) {
+      debugPrint('🔔 FCM │ Syncing token with backend for user: $uid');
+      try {
+        final response = await ApiService().updateFcmToken(
+          id: uid,
+          fcmToken: fcmToken,
+          token: authToken,
+        );
+        if (response['success'] == true) {
+          debugPrint('✅ FCM │ Token synced with backend');
+        } else {
+          debugPrint('⚠️ FCM │ Token sync failed: ${response['message']}');
+        }
+      } catch (e) {
+        debugPrint('❌ FCM │ Token sync error: $e');
+      }
+    } else {
+      debugPrint('🔔 FCM │ User not logged in, skipping backend sync');
     }
   }
 }

@@ -326,5 +326,8 @@
   "voiceNote": "ملاحظة صوتية",
   "recordVoiceNote": "تسجيل ملاحظة صوتية",
   "saveVoiceNote": "حفظ الملاحظة الصوتية",
-  "licenseNumber": "رقم الرخصة"
+  "licenseNumber": "رقم الرخصة",
+  "assigned": "تم التعيين",
+  "tracking": "تتبع",
+  "reviewed": "تم التقييم"
 }

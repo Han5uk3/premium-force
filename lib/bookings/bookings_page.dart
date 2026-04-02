@@ -315,7 +315,7 @@ class _BookingsPageState extends State<BookingsPage>
               child: Bookingcard(
                 isFromReviewAndConfirm: false,
                 status: booking.bookingStatus ?? 'Pending',
-                type: _getBookingName(booking.category, context),
+                type: _getBookingName(booking.category ?? "", context),
                 pickup: booking.pickupAddress ?? booking.airport ?? 'N/A',
                 dropoff: booking.dropOffAddress ?? 'N/A',
                 date: dateStr,
@@ -406,20 +406,23 @@ class _BookingsPageState extends State<BookingsPage>
     );
   }
 
-  String _getBookingName(String? category, BuildContext context) {
+  String _getBookingName(String category, BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    if (category == null) return 'Booking';
-    switch (category.toLowerCase()) {
-      case 'chauffeur':
-        return loc.chauffeur;
-      case 'airport arrival':
-        return loc.airportArrival;
-      case 'airport departure':
-        return loc.airportDeparture;
-
-      default:
-        return 'invalid';
+    category = category.toLowerCase();
+    if (category == "airport arrival" || category == "arrival") {
+      return loc.airportArrival;
+    } else if (category == "airport departure" || category == "departure") {
+      return loc.airportDeparture;
+    } else if (category == "chauffeur" ||
+        category == "chauffeur service" ||
+        category.contains("chauffeur")) {
+      return loc.chauffeur;
+    } else if (category == "private transfer") {
+      return loc.privateTransfer;
     }
+    return category.isNotEmpty
+        ? category[0].toUpperCase() + category.substring(1)
+        : loc.unknown;
   }
 }
 

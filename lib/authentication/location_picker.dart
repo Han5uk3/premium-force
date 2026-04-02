@@ -54,6 +54,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
   Future<void> _getAddressFromLatLng(LatLng position) async {
     try {
+      // Force English for address results
+      await setLocaleIdentifier('en');
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
@@ -95,6 +97,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       List<Location> locations = await locationFromAddress(searchQuery);
       List<Map<String, dynamic>> results = [];
 
+      // Force English for search results details
+      await setLocaleIdentifier('en');
       for (var location in locations.take(5)) {
         List<Placemark> placemarks = await placemarkFromCoordinates(
           location.latitude,

@@ -87,7 +87,7 @@ class Bookingcard extends StatelessWidget {
                           ),
                           SizedBox(height: 5),
                           Text(
-                            type,
+                            getServiceType(type, loc),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
@@ -238,7 +238,7 @@ class Bookingcard extends StatelessWidget {
                       ),
                       SizedBox(width: 5),
                       Text(
-                        "$ride",
+                        "$ride.",
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -352,5 +352,23 @@ class Bookingcard extends StatelessWidget {
       return Colors.red;
     }
     return Colors.grey;
+  }
+
+  String getServiceType(String type, AppLocalizations loc) {
+    type = type.toLowerCase();
+    if (type == "airport arrival" || type == "arrival") {
+      return loc.airportArrival;
+    } else if (type == "airport departure" || type == "departure") {
+      return loc.airportDeparture;
+    } else if (type == "chauffeur" ||
+        type == "chauffeur service" ||
+        type.contains("chauffeur")) {
+      return loc.chauffeur;
+    } else if (type == "private transfer") {
+      return loc.privateTransfer;
+    }
+    return type.isNotEmpty
+        ? type[0].toUpperCase() + type.substring(1)
+        : loc.unknown;
   }
 }

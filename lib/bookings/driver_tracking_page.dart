@@ -38,10 +38,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Timer? _chauffeurTimer;
   Duration _elapsed = Duration.zero;
   bool _tripEnded = false;
-  
+
   // Location permissions
   bool _locationPermissionGranted = false;
-  
+
   // Distance & ETA
   LatLng? _lastFetchLocation;
   String _currentEta = 'Calculating...';
@@ -141,10 +141,21 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.locationPermissionDenied),
-        content: Text(AppLocalizations.of(context)!.locationPermissionsPermanentlyDenied),
+        content: Text(
+          AppLocalizations.of(context)!.locationPermissionsPermanentlyDenied,
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel)),
-          TextButton(onPressed: () { Geolocator.openAppSettings(); Navigator.pop(context); }, child: Text(AppLocalizations.of(context)!.settings)),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Geolocator.openAppSettings();
+              Navigator.pop(context);
+            },
+            child: Text(AppLocalizations.of(context)!.settings),
+          ),
         ],
       ),
     );
@@ -178,14 +189,18 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       _addMarkerWithCustomIcon(
         id: 'pickup',
         position: pickupLatLng,
-        title: isArrival ? AppLocalizations.of(context)!.pickupPointLabel : AppLocalizations.of(context)!.airportPickupLabel,
+        title: isArrival
+            ? AppLocalizations.of(context)!.pickupPointLabel
+            : AppLocalizations.of(context)!.airportPickupLabel,
         isGrayPin: true,
       );
       if (dropoffLat != 0 && dropoffLng != 0) {
         _addMarkerWithCustomIcon(
           id: 'dropoff',
           position: LatLng(dropoffLat, dropoffLng),
-          title: isDeparture ? AppLocalizations.of(context)!.dropoffPointLabel : AppLocalizations.of(context)!.airportDropoffLabel,
+          title: isDeparture
+              ? AppLocalizations.of(context)!.dropoffPointLabel
+              : AppLocalizations.of(context)!.airportDropoffLabel,
           isGrayPin: true,
         );
       }
@@ -225,79 +240,137 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     final ui.PictureRecorder recorder = ui.PictureRecorder();
     final ui.Canvas canvas = ui.Canvas(recorder);
     final ui.Paint paint = ui.Paint()..color = const Color(0xFF2C2C2C);
-    
+
     // Modern pin shape matching the reference image
     final ui.Path path = ui.Path();
     path.moveTo(size / 2, size);
     path.quadraticBezierTo(size * 0.1, size * 0.6, size * 0.1, size * 0.4);
-    path.arcToPoint(Offset(size * 0.9, size * 0.4), radius: const Radius.circular(size * 0.4), clockwise: true);
+    path.arcToPoint(
+      Offset(size * 0.9, size * 0.4),
+      radius: const Radius.circular(size * 0.4),
+      clockwise: true,
+    );
     path.quadraticBezierTo(size * 0.9, size * 0.6, size / 2, size);
     canvas.drawPath(path, paint);
 
     // Inner white circle
-    canvas.drawCircle(Offset(size / 2, size * 0.4), size * 0.15, ui.Paint()..color = Colors.white);
-    
-    // Inner gray center dot for the "modern target" look
-    canvas.drawCircle(Offset(size / 2, size * 0.4), size * 0.05, ui.Paint()..color = const Color(0xFF2C2C2C));
+    canvas.drawCircle(
+      Offset(size / 2, size * 0.4),
+      size * 0.15,
+      ui.Paint()..color = Colors.white,
+    );
 
-    final ui.Image image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
-    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    // Inner gray center dot for the "modern target" look
+    canvas.drawCircle(
+      Offset(size / 2, size * 0.4),
+      size * 0.05,
+      ui.Paint()..color = const Color(0xFF2C2C2C),
+    );
+
+    final ui.Image image = await recorder.endRecording().toImage(
+      size.toInt(),
+      size.toInt(),
+    );
+    final ByteData? byteData = await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
     return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
   }
 
   void _addRoutePolyline(List<LatLng> points) {
     // 1. Core solid line
-    _polylines.add(Polyline(polylineId: const PolylineId('route_core'), points: points, color: Colors.white, width: 3));
-    
+    _polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route_core'),
+        points: points,
+        color: Colors.white,
+        width: 3,
+      ),
+    );
+
     // 2. High intensity inner bloom
-    _polylines.add(Polyline(polylineId: const PolylineId('route_inner_glow'), points: points, color: Colors.white.withAlpha(150), width: 7));
-    
+    _polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route_inner_glow'),
+        points: points,
+        color: Colors.white.withAlpha(150),
+        width: 7,
+      ),
+    );
+
     // 3. Diffuse soft glow
-    _polylines.add(Polyline(polylineId: const PolylineId('route_outer_glow'), points: points, color: Colors.white.withAlpha(60), width: 12));
-    
+    _polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route_outer_glow'),
+        points: points,
+        color: Colors.white.withAlpha(60),
+        width: 12,
+      ),
+    );
+
     // 4. Ambient aura (replicates the bloom from the user's reference image)
-    _polylines.add(Polyline(polylineId: const PolylineId('route_ambient'), points: points, color: Colors.white.withAlpha(25), width: 22));
+    _polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route_ambient'),
+        points: points,
+        color: Colors.white.withAlpha(25),
+        width: 22,
+      ),
+    );
   }
 
   // --- RTDB Listeners ---
 
   void _listenToDriverLocation() {
-    _locationSubscription = _database.ref('bookings/${widget.booking.id}/driver_location').onValue.listen((event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (data != null) {
-        final lat = (data['lat'] as num?)?.toDouble();
-        final lng = (data['lng'] as num?)?.toDouble();
-        if (lat != null && lng != null) {
-          setState(() {
-            _driverLocation = LatLng(lat, lng);
-            _updateDriverMarker();
-          });
-          _moveCameraToDriver();
-          if (_lastFetchLocation == null || Geolocator.distanceBetween(_lastFetchLocation!.latitude, _lastFetchLocation!.longitude, lat, lng) > 100) {
-            _lastFetchLocation = _driverLocation;
-            _fetchDirections();
+    _locationSubscription = _database
+        .ref('bookings/${widget.booking.id}/driver_location')
+        .onValue
+        .listen((event) {
+          final data = event.snapshot.value as Map<dynamic, dynamic>?;
+          if (data != null) {
+            final lat = (data['lat'] as num?)?.toDouble();
+            final lng = (data['lng'] as num?)?.toDouble();
+            if (lat != null && lng != null) {
+              setState(() {
+                _driverLocation = LatLng(lat, lng);
+                _updateDriverMarker();
+              });
+              _moveCameraToDriver();
+              if (_lastFetchLocation == null ||
+                  Geolocator.distanceBetween(
+                        _lastFetchLocation!.latitude,
+                        _lastFetchLocation!.longitude,
+                        lat,
+                        lng,
+                      ) >
+                      100) {
+                _lastFetchLocation = _driverLocation;
+                _fetchDirections();
+              }
+            }
           }
-        }
-      }
-    });
+        });
   }
 
   void _listenToSessionForChauffeur() {
     if (!_isChauffeur) return;
-    _sessionSubscription = _database.ref('bookings/${widget.booking.id}/tracking_session').onValue.listen((event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (data == null) return;
-      final isActive = data['isActive'] as bool? ?? true;
-      final startTimeStr = data['startTime'] as String?;
-      if (startTimeStr != null && _chauffeurStartTime == null) {
-        _chauffeurStartTime = DateTime.tryParse(startTimeStr);
-        _startChauffeurTimer();
-      }
-      if (!isActive && !_tripEnded) {
-        setState(() => _tripEnded = true);
-        _chauffeurTimer?.cancel();
-      }
-    });
+    _sessionSubscription = _database
+        .ref('bookings/${widget.booking.id}/tracking_session')
+        .onValue
+        .listen((event) {
+          final data = event.snapshot.value as Map<dynamic, dynamic>?;
+          if (data == null) return;
+          final isActive = data['isActive'] as bool? ?? true;
+          final startTimeStr = data['startTime'] as String?;
+          if (startTimeStr != null && _chauffeurStartTime == null) {
+            _chauffeurStartTime = DateTime.tryParse(startTimeStr);
+            _startChauffeurTimer();
+          }
+          if (!isActive && !_tripEnded) {
+            setState(() => _tripEnded = true);
+            _chauffeurTimer?.cancel();
+          }
+        });
   }
 
   void _startChauffeurTimer() {
@@ -315,27 +388,34 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     if (_driverLocation == null) return;
     BitmapDescriptor icon;
     try {
-      icon = await BitmapDescriptor.asset(const ImageConfiguration(size: Size(48, 48)), 'assets/icons/car_black.png');
+      icon = await BitmapDescriptor.asset(
+        const ImageConfiguration(size: Size(48, 48)),
+        'assets/icons/car_black.png',
+      );
     } catch (_) {
       icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
     }
     setState(() {
       _markers.removeWhere((m) => m.markerId.value == 'driver');
-      _markers.add(Marker(
-        markerId: const MarkerId('driver'), 
-        position: _driverLocation!, 
-        icon: icon, 
-        anchor: const Offset(0.5, 0.5), 
-        infoWindow: InfoWindow(title: AppLocalizations.of(context)!.driverMarkerTitle),
-      ));
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('driver'),
+          position: _driverLocation!,
+          icon: icon,
+          anchor: const Offset(0.5, 0.5),
+          infoWindow: InfoWindow(
+            title: AppLocalizations.of(context)!.driverMarkerTitle,
+          ),
+        ),
+      );
     });
   }
 
   Future<void> _moveCameraToDriver() async {
     if (_driverLocation == null) return;
     if (_markers.any((m) => m.markerId.value == 'driver')) {
-       _zoomToFitAllPins();
-       return;
+      _zoomToFitAllPins();
+      return;
     }
     final controller = await _controller.future;
     controller.animateCamera(CameraUpdate.newLatLng(_driverLocation!));
@@ -344,15 +424,25 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Future<void> _zoomToFitAllPins() async {
     if (!mounted || _markers.isEmpty) return;
     final controller = await _controller.future;
-    double minLat = _markers.first.position.latitude, maxLat = _markers.first.position.latitude;
-    double minLng = _markers.first.position.longitude, maxLng = _markers.first.position.longitude;
+    double minLat = _markers.first.position.latitude,
+        maxLat = _markers.first.position.latitude;
+    double minLng = _markers.first.position.longitude,
+        maxLng = _markers.first.position.longitude;
     for (final m in _markers) {
       if (m.position.latitude < minLat) minLat = m.position.latitude;
       if (m.position.latitude > maxLat) maxLat = m.position.latitude;
       if (m.position.longitude < minLng) minLng = m.position.longitude;
       if (m.position.longitude > maxLng) maxLng = m.position.longitude;
     }
-    controller.animateCamera(CameraUpdate.newLatLngBounds(LatLngBounds(southwest: LatLng(minLat, minLng), northeast: LatLng(maxLat, maxLng)), 100));
+    controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        100,
+      ),
+    );
   }
 
   // --- Directions API ---
@@ -380,11 +470,13 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       }
     }
 
-    final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
+    final apiKey =
+        dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
     if (apiKey.isEmpty) return;
 
     try {
-      final url = 'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
+      final url =
+          'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
       final response = await Dio().get(url);
       if (response.statusCode == 200 && response.data['status'] == 'OK') {
         final routes = response.data['routes'] as List;
@@ -414,7 +506,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
               _addRoutePolyline(polyPoints);
               _currentDistance = '${(dist / 1000).toStringAsFixed(1)} km';
               final int mins = (dur / 60).round();
-              _currentEta = mins > 60 ? '${mins ~/ 60} hr ${mins % 60} min' : '$mins min';
+              _currentEta = mins > 60
+                  ? '${mins ~/ 60} hr ${mins % 60} min'
+                  : '$mins min';
             });
           }
         }
@@ -427,10 +521,19 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     int index = 0, len = encoded.length, lat = 0, lng = 0;
     while (index < len) {
       int b, shift = 0, result = 0;
-      do { b = encoded.codeUnitAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
       lat += ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      shift = 0; result = 0;
-      do { b = encoded.codeUnitAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
       lng += ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
       poly.add(LatLng(lat / 100000.0, lng / 100000.0));
     }
@@ -458,18 +561,37 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), onPressed: () => Navigator.pop(context)),
-        title: Text(loc.trackYourDriver, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          loc.trackYourDriver,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: CameraPosition(target: LatLng(widget.booking.pickupLat ?? 24.7136, widget.booking.pickupLong ?? 46.6753), zoom: 14),
-            onMapCreated: (c) { 
-              _controller.complete(c); 
-              c.setMapStyle(_mapStyle); 
-              Future.delayed(const Duration(milliseconds: 500), () => _zoomToFitAllPins()); 
+            initialCameraPosition: CameraPosition(
+              target: LatLng(
+                widget.booking.pickupLat ?? 24.7136,
+                widget.booking.pickupLong ?? 46.6753,
+              ),
+              zoom: 14,
+            ),
+            onMapCreated: (c) {
+              _controller.complete(c);
+              c.setMapStyle(_mapStyle);
+              Future.delayed(
+                const Duration(milliseconds: 500),
+                () => _zoomToFitAllPins(),
+              );
             },
+
             markers: _markers,
             polylines: _polylines,
             myLocationEnabled: _locationPermissionGranted,
@@ -478,13 +600,21 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
             mapToolbarEnabled: false,
           ),
           Positioned(
-            bottom: 24, left: 16, right: 16,
+            bottom: 24,
+            left: 16,
+            right: 16,
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color(0xFF1A1A1A).withAlpha(240),
                 borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(color: Colors.black.withAlpha(128), blurRadius: 20, offset: const Offset(0, 10))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(128),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -497,8 +627,20 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(28),
                           child: widget.booking.driver?.profileImageUrl != null
-                              ? CachedNetworkImage(imageUrl: widget.booking.driver!.profileImageUrl!, fit: BoxFit.cover, errorWidget: (c, u, e) => const Icon(Icons.person, color: Colors.white))
-                              : const Icon(Icons.person, color: Colors.white, size: 32),
+                              ? CachedNetworkImage(
+                                  imageUrl:
+                                      widget.booking.driver!.profileImageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (c, u, e) => const Icon(
+                                    Icons.person,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 32,
+                                ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -506,25 +648,66 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(widget.booking.driver?.driverName ?? loc.driverMarkerTitle, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                            Text(_isChauffeur ? loc.chauffeurServiceSubtitle : '${widget.booking.carName ?? ""} • ${widget.booking.driver?.licenseNumber ?? ""}', style: TextStyle(color: Colors.white.withAlpha(150), fontSize: 13)),
+                            Text(
+                              widget.booking.driver?.driverName ??
+                                  loc.driverMarkerTitle,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              _isChauffeur
+                                  ? loc.chauffeurServiceSubtitle
+                                  : '${widget.booking.carName ?? ""} • ${widget.booking.driver?.licenseNumber ?? ""}',
+                              style: TextStyle(
+                                color: Colors.white.withAlpha(150),
+                                fontSize: 13,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       Material(
                         color: const Color(0xFFE4A46B),
                         shape: const CircleBorder(),
-                        child: InkWell(onTap: () => _makePhoneCall(widget.booking.driver?.phoneNumber), child: const Padding(padding: EdgeInsets.all(12), child: Icon(Icons.phone, color: Colors.black))),
+                        child: InkWell(
+                          onTap: () => _makePhoneCall(
+                            widget.booking.driver?.phoneNumber,
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Icon(Icons.phone, color: Colors.black),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Colors.white10, height: 1)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Divider(color: Colors.white10, height: 1),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatColumn(Icons.timer_outlined, _isChauffeur ? (_tripEnded ? loc.tripEnded : loc.ongoing) : loc.etaPrefix, _isChauffeur ? (_chauffeurStartTime == null ? "--:--" : _formatElapsed(_elapsed)) : _currentEta),
+                      _buildStatColumn(
+                        Icons.timer_outlined,
+                        _isChauffeur
+                            ? (_tripEnded ? loc.tripEnded : loc.ongoing)
+                            : loc.etaPrefix,
+                        _isChauffeur
+                            ? (_chauffeurStartTime == null
+                                  ? "--:--"
+                                  : _formatElapsed(_elapsed))
+                            : _currentEta,
+                      ),
                       Container(width: 1, height: 32, color: Colors.white10),
-                      _buildStatColumn(Icons.map_outlined, loc.totalDistance, _driverLocation != null ? _currentDistance : "-- km"),
+                      _buildStatColumn(
+                        Icons.map_outlined,
+                        loc.totalDistance,
+                        _driverLocation != null ? _currentDistance : "-- km",
+                      ),
                     ],
                   ),
                 ],
@@ -539,9 +722,26 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Widget _buildStatColumn(IconData icon, String label, String value) {
     return Column(
       children: [
-        Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, color: Colors.white38, size: 14), const SizedBox(width: 4), Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11))]),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white38, size: 14),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white38, fontSize: 11),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }

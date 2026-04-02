@@ -43,6 +43,7 @@ class BookingRequestModel {
   double? discountPercentage;
   String? orderID;
   String? transactionID;
+  String? customerName;
 
   BookingRequestModel({
     this.category,
@@ -86,6 +87,7 @@ class BookingRequestModel {
     this.discountPercentage,
     this.orderID,
     this.transactionID,
+    this.customerName,
   });
 
   Map<String, dynamic> toMap() {
@@ -132,6 +134,7 @@ class BookingRequestModel {
       if (discountPercentage != null) 'discountPercentage': discountPercentage,
       if (orderID != null) 'orderID': orderID,
       if (transactionID != null) 'transactionID': transactionID,
+      if (customerName != null) 'customerName': customerName,
     };
   }
 

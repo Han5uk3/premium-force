@@ -269,30 +269,11 @@ class Premuimfleetcard extends StatelessWidget {
                                   ),
                                 ),
                               )
-                            : brand.toLowerCase() == 'unknown'
-                            ? Center(
+                            : Center(
                                 child: Icon(
                                   Icons.directions_car,
                                   color: Colors.grey,
                                   size: 24,
-                                ),
-                              )
-                            : CachedNetworkImage(
-                                imageUrl:
-                                    "https://raw.githubusercontent.com/filippofilip95/car-logos-dataset/master/logos/thumb/${brand.toLowerCase()}.png",
-                                fit: BoxFit.contain,
-                                placeholder: (context, url) => Center(
-                                  child: PremiumLoader(
-                                    size: 24,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Center(
-                                  child: Icon(
-                                    Icons.directions_car,
-                                    color: Colors.grey,
-                                    size: 24,
-                                  ),
                                 ),
                               ),
                       ),

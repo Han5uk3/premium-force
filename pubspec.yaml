@@ -37,6 +37,7 @@ dependencies:
   flutter_paytabs_bridge: ^2.7.2
   shimmer: ^3.0.0
   firebase_database: ^12.1.3
+  cloud_firestore: ^6.1.2
   url_launcher: ^6.3.1
 
 

@@ -62,7 +62,16 @@ class ApiService {
       InterceptorsWrapper(
         onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
           final token = UserLocalStorage.getToken();
-          if (token != null && options.headers['Authorization'] == null) {
+          final path = options.path;
+
+          // Don't attach token for auth endpoints
+          final isAuthEndpoint = path.contains('otp/') ||
+              path.contains('auth/') ||
+              path.contains('check-email');
+
+          if (token != null &&
+              options.headers['Authorization'] == null &&
+              !isAuthEndpoint) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           return handler.next(options);
@@ -71,48 +80,54 @@ class ApiService {
           // Check if error is 401 Unauthorized
           if (e.response?.statusCode == 401) {
             final provider = UserLocalStorage.getLoginProvider();
-            debugPrint('🔄 API │ Unauthorized. Provider: $provider');
+            debugPrint('🔄 API │ Unauthorized (401). Provider: $provider');
 
             final refreshToken = UserLocalStorage.getRefreshToken();
             String? newAccess;
             String? newRefresh;
 
-            if (refreshToken != null) {
-              debugPrint('🔄 API │ Refreshing backend tokens...');
+            // 1. Attempt Backend Refresh
+            if (refreshToken != null && refreshToken.isNotEmpty) {
+              debugPrint('🔄 API │ Attempting backend token refresh...');
               try {
+                // Use a separate Dio instance to avoid interceptor loop
                 final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
                 final refreshResponse = await refreshDio.post(
-                  '/otp/refresh-token',
+                  'otp/refresh-token',
                   data: {'refreshToken': refreshToken},
                 );
 
                 if (refreshResponse.statusCode == 200 &&
-                    refreshResponse.data['success'] == true) {
-                  final tokens = refreshResponse.data['tokens'];
+                    refreshResponse.data != null) {
+                  final data = refreshResponse.data;
+                  final tokens = data['tokens'];
+                  
                   newAccess = (tokens is Map
                           ? (tokens['accessToken'] ?? tokens['token'])
-                          : (refreshResponse.data['accessToken'] ??
-                              refreshResponse.data['token']))
+                          : (data['accessToken'] ?? data['token']))
                       as String?;
                   newRefresh = (tokens is Map
-                          ? (tokens['refreshToken'] ??
-                              tokens['refresh_token'])
-                          : (refreshResponse.data['refreshToken'] ??
-                              refreshResponse.data['refresh_token']))
+                          ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                          : (data['refreshToken'] ?? data['refresh_token']))
                       as String?;
                 }
               } catch (reErr) {
-                debugPrint('❌ API │ Refresh failure: $reErr');
+                debugPrint('❌ API │ Refresh failed: $reErr');
               }
-            } else if (provider == 'google' || provider == 'apple') {
+            }
+
+            // 2. Fallback for Social Login (if backend refresh failed)
+            if (newAccess == null &&
+                (provider == 'google' || provider == 'apple') &&
+                !e.requestOptions.path.contains('auth/')) {
               final socialIdToken = UserLocalStorage.getSocialIdToken();
-              if (socialIdToken != null) {
-                debugPrint('🔄 API │ Attempting re-auth with social token...');
+              if (socialIdToken != null && socialIdToken.isNotEmpty) {
+                debugPrint('🔄 API │ Attempting social re-auth ($provider)...');
                 try {
                   final authResponse = provider == 'google'
                       ? await googleAuth(idToken: socialIdToken)
                       : await appleAuth(idToken: socialIdToken);
-                  
+
                   if (authResponse['success'] == true) {
                     final tokens = authResponse['tokens'];
                     newAccess = (tokens is Map
@@ -127,7 +142,7 @@ class ApiService {
                                 authResponse['refresh_token']))
                         as String?;
                   } else if (provider == 'google') {
-                    // If re-auth failed, maybe idToken expired. Try silent sign-in to get a fresh one.
+                    // Try silent sign-in if native token expired
                     debugPrint('🔄 API │ Social re-auth failed. Trying silent Google sign-in...');
                     final googleResult = await GoogleSignInService.instance.signInSilently();
                     if (googleResult != null && googleResult.idToken != null) {
@@ -150,14 +165,14 @@ class ApiService {
                     }
                   }
                 } catch (reErr) {
-                  debugPrint('❌ API │ Re-auth failure: $reErr');
+                  debugPrint('❌ API │ Social re-auth failed: $reErr');
                 }
               }
             }
 
-            // If we have a new token, save and retry
-            if (newAccess != null) {
-              if (newRefresh != null) {
+            // 3. If we got new tokens, save them and retry original request
+            if (newAccess != null && newAccess.isNotEmpty) {
+              if (newRefresh != null && newRefresh.isNotEmpty) {
                 await UserLocalStorage.saveTokens(
                   accessToken: newAccess,
                   refreshToken: newRefresh,
@@ -165,29 +180,27 @@ class ApiService {
               } else {
                 await UserLocalStorage.saveToken(newAccess);
               }
-              debugPrint('✅ API │ Tokens refreshed/re-authed.');
+              debugPrint('✅ API │ Tokens refreshed successfully.');
 
-              // Handle FormData retry by reconstructing it if source data exists
+              // Handle FormData retry by reconstructing logic if needed
               if (e.requestOptions.data is FormData) {
-                final originalBooking = e.requestOptions.extra['originalBooking'] as BookingRequestModel?;
-                final originalType = e.requestOptions.extra['originalType'] as String?;
-                
+                final originalBooking = e.requestOptions.extra['originalBooking']
+                    as BookingRequestModel?;
+                final originalType =
+                    e.requestOptions.extra['originalType'] as String?;
+
                 if (originalBooking != null) {
                   debugPrint('🔄 API │ Reconstructing FormData for retry...');
-                  final formData = originalType == 'hourly' 
+                  final formData = originalType == 'hourly'
                       ? await _buildHourlyFormData(originalBooking)
                       : await _buildNormalFormData(originalBooking);
-                  
                   e.requestOptions.data = formData;
-                } else {
-                   debugPrint('⚠️ API │ FormData retry failed: No source data in extra.');
-                   return handler.next(e);
                 }
               }
 
               debugPrint('🔄 API │ Retrying original request...');
               e.requestOptions.headers['Authorization'] = 'Bearer $newAccess';
-              
+
               try {
                 final response = await _dio.fetch(e.requestOptions);
                 return handler.resolve(response);
@@ -196,7 +209,6 @@ class ApiService {
               }
             }
           }
-          // If not 401 or refresh failed, pass the error along
           return handler.next(e);
         },
       ),
@@ -507,6 +519,26 @@ class ApiService {
     try {
       final response = await _dio.delete(
         'users/$id',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Update a user's FCM registration token.
+  ///
+  /// Calls `PUT /api/users/:id/fcm-token`
+  Future<Map<String, dynamic>> updateFcmToken({
+    required String id,
+    required String fcmToken,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.put(
+        'users/$id/fcm-token',
+        data: {'fcmToken': fcmToken},
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -858,14 +890,32 @@ class ApiService {
           .trim();
     }
 
-    // Format charge to 2 decimal places to match Postman style (e.g. 95.00)
-    if (fields['charge'] != null && fields['charge'] is num) {
-      fields['charge'] = (fields['charge'] as num).toStringAsFixed(2);
+    // Format charge to 2 decimal places string (e.g. 95.00)
+    if (fields['charge'] != null) {
+      if (fields['charge'] is num) {
+        fields['charge'] = (fields['charge'] as num).toStringAsFixed(2);
+      } else {
+        fields['charge'] = fields['charge'].toString();
+      }
     }
 
     // Ensure driverID is not sent if it's 'null' string
     if (fields['driverID'] == 'null') {
       fields.remove('driverID');
+    }
+
+    // Ensure customer info is present
+    fields['customerID'] ??= booking.customerID ?? '';
+    fields['customerName'] ??= booking.customerName ?? '';
+    fields['customer_name'] = fields['customerName']; // Snake case fallback
+    fields['username'] = fields['customerName'];      // Backend user field fallback
+
+    // Ensure numeric fields are strings for FormData consistency
+    if (fields['passengerCount'] != null) {
+      fields['passengerCount'] = fields['passengerCount'].toString();
+    }
+    if (fields['discountPercentage'] != null) {
+      fields['discountPercentage'] = fields['discountPercentage'].toString();
     }
 
     // Handle files separately for FormData
@@ -1042,42 +1092,56 @@ class ApiService {
   Future<FormData> _buildHourlyFormData(BookingRequestModel booking) async {
     // Manual mapping to handle unique keys required by hourly-bookings API
     final fields = <String, dynamic>{};
-    fields['hours'] =
-        booking.category == 'chauffeured' && booking.serviceDuration == 0
-            ? booking.estimatedHours?.toString() ?? '1'
-            : (booking.serviceDuration == 1
-                ? '8'
-                : (booking.serviceDuration == 2 ? '12' : '1'));
+
+    // Use estimatedHours if available (e.g. 4), otherwise calculate from serviceDuration
+    if (booking.estimatedHours != null && booking.estimatedHours != 0) {
+      fields['hours'] = booking.estimatedHours.toString();
+    } else {
+      fields['hours'] =
+          booking.category == 'chauffeured' && booking.serviceDuration == 0
+              ? booking.estimatedHours?.toString() ?? '1'
+              : (booking.serviceDuration == 1
+                  ? '8'
+                  : (booking.serviceDuration == 2 ? '12' : '1'));
+    }
 
     fields['pickupLat'] = booking.pickupLat ?? '';
     fields['pickupLong'] = booking.pickupLong ?? '';
+    fields['pickuplong'] = booking.pickupLong ?? ''; // Postman typo compatibility
     fields['pickupAddress'] = booking.pickupAddress ?? '';
-    fields['extraHours'] = '1';
-    fields['category'] = booking.carclass ?? '';
+    fields['pickupAdddress'] = booking.pickupAddress ?? ''; // Postman typo compatibility
+    fields['pickupDateTime'] = booking.pickupdatetime ?? '';
     fields['model'] = booking.carmodel ?? '';
-    fields['brand'] = booking.carbrand ?? '';
-    fields['carName'] = booking.carName ?? '';
-    fields['charge'] = booking.charge?.toString() ?? '0';
+    fields['categoryID'] = booking.categoryID ?? '';
+    fields['brandID'] = booking.brandID ?? '';
+    fields['carID'] = booking.carID ?? '';
+    fields['cityID'] = booking.cityID ?? '';
+    fields['charge'] = booking.charge?.toStringAsFixed(2) ?? '0.00';
     fields['customerID'] = booking.customerID ?? '';
-    fields['driverID'] = booking.driverID ?? 'null';
+    fields['customerName'] = booking.customerName ?? '';
+    fields['customer_name'] = booking.customerName ?? ''; // Snake case fallback
+    fields['username'] = booking.customerName ?? ''; // Backend user field fallback
     fields['passengerCount'] = booking.passengerCount ?? '1';
+    fields['passsenrgersCount'] =
+        booking.passengerCount ?? '1'; // Postman typo compatibility
     fields['passengerMobile'] = booking.passengerMobile ?? '';
     fields['carClass'] = booking.carclass ?? '';
+    fields['transactionID'] = booking.transactionID ?? '';
+    fields['orderID'] = booking.orderID ?? '';
+    fields['passengerNames'] = booking.passengerNames ?? '[]';
+
+    // Legacy/Additional fields for safety
+    fields['extraHours'] = '1';
+    fields['category'] = booking.carclass ?? '';
+    fields['brand'] = booking.carbrand ?? '';
+    fields['carName'] = booking.carName ?? '';
+    fields['driverID'] = booking.driverID ?? 'null';
     fields['specialRequestText'] = booking.specialRequestText ?? '';
     fields['bookingStatus'] = booking.bookingStatus ?? 'pending';
-    fields['passengerNames'] = booking.passengerNames ?? '[]';
     fields['isActive'] = 'true';
-    if (booking.pickupdatetime != null) {
-      fields['pickupDateTime'] = booking.pickupdatetime;
-    }
+
     if (booking.discountPercentage != null) {
       fields['discountPercentage'] = booking.discountPercentage.toString();
-    }
-    if (booking.orderID != null) {
-      fields['orderID'] = booking.orderID;
-    }
-    if (booking.transactionID != null) {
-      fields['transactionID'] = booking.transactionID;
     }
 
     // Additional fields from Postman

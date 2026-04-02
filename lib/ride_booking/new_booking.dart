@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
@@ -27,6 +28,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:premium_force_main/services/firebase_pricing_service.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -67,6 +69,9 @@ class _NewBookingState extends State<NewBooking> {
   Map<String, String> _brandIcons = {}; // Added this
   double? _routePrice;
   bool _isCheckingRoute = false;
+  final _firebasePricingService = FirebasePricingService();
+  String? _pickupCityName;
+  String? _dropCityName;
 
   final _tripInfoFormKey = GlobalKey<FormState>();
   final _preferencesFormKey = GlobalKey<FormState>();
@@ -131,6 +136,11 @@ class _NewBookingState extends State<NewBooking> {
       }
     }
 
+    // For Private Transfer (CatCode 3)
+    if (_selectedCatCode == 3) {
+      return _routePrice ?? 0.0;
+    }
+
     // Distance-based pricing for Airport service if no route price found
     double distance = _totalDistance;
     double minCharge = car.price;
@@ -143,6 +153,40 @@ class _NewBookingState extends State<NewBooking> {
       // Extra charge per km
       double pricePerExtraKm = (minCharge / minDistance) * 1.2;
       return minCharge + (extraDistance * pricePerExtraKm);
+    }
+  }
+
+  /// Helper to trigger price re-fetch
+  Future<void> _updatePricing() async {
+    if (_selectedCatCode != 3) return;
+
+    // Check if we have all needed data
+    bool hasLocations =
+        _pickupLat != null &&
+        _pickupLng != null &&
+        _dropLat != null &&
+        _dropLng != null;
+    if (!hasLocations) return;
+
+    if (mounted) setState(() => _isCheckingRoute = true);
+
+    try {
+      final res = await _fetchRouteDetails(withVehicle: true);
+      if (mounted) {
+        setState(() {
+          _isCheckingRoute = false;
+          if (res['success'] == true && res['data'] != null) {
+            _routePrice = _parseDouble(
+              res['data']['charge'] ?? res['data']['price'] ?? 0,
+            );
+          } else {
+            _routePrice = null;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Firebase Pricing Error: $e');
+      if (mounted) setState(() => _isCheckingRoute = false);
     }
   }
 
@@ -324,6 +368,38 @@ class _NewBookingState extends State<NewBooking> {
       }
     }
 
+    if (_selectedCatCode == 3) {
+      // Use Firebase Pricing Engine for Private Transfer
+      if (_pickupLat != null &&
+          _pickupLng != null &&
+          _dropLat != null &&
+          _dropLng != null &&
+          carId != null) {
+        final price = await _firebasePricingService.getPrice(
+          pickup: LatLng(_pickupLat!, _pickupLng!),
+          drop: LatLng(_dropLat!, _dropLng!),
+          pickupCityName: _pickupCityName ?? "",
+          dropCityName: _dropCityName ?? "",
+          vehicleId: carId,
+        );
+        if (price != null) {
+          return {
+            'success': true,
+            'data': {'charge': price},
+          };
+        } else {
+          return {
+            'success': false,
+            'message': 'No matching route found in pricing system.',
+          };
+        }
+      }
+      return {
+        'success': false,
+        'message': 'Incomplete location or vehicle data.',
+      };
+    }
+
     if (withVehicle && carId != null) {
       final priceRes = await api.getRoutePrice(
         fromCityId: fromCity,
@@ -462,8 +538,7 @@ class _NewBookingState extends State<NewBooking> {
 
     // Set initial class based on catcode
     if (_selectedCatCode == 2) {
-      _selectedVehicleClass =
-          "Luxury Sedan"; // Will be updated to "Chauffeured Class" once API loads
+      _selectedVehicleClass = "Luxury Sedan";
     } else {
       _selectedVehicleClass = "Luxury Sedan";
     }
@@ -1473,7 +1548,9 @@ class _NewBookingState extends State<NewBooking> {
                                 final userId = UserLocalStorage.getUserId();
                                 final userEmail = userData?['email'] ?? "";
                                 final userName =
-                                    userData?['name'] ?? "Customer";
+                                    userData?['name'] ??
+                                    userData?['username'] ??
+                                    "Customer";
                                 final userPhone =
                                     userData?['phoneNumber'] ??
                                     UserLocalStorage.getPhoneNumber() ??
@@ -1635,7 +1712,7 @@ class _NewBookingState extends State<NewBooking> {
                                     terminalID: _getSelectedTerminalId(),
                                     terminal:
                                         _getSelectedTerminalName(context) ?? "",
-                                    arrival: _selectedCatCode != 2
+                                    arrival: (_selectedCatCode != 2)
                                         ? getIsoDateTime(
                                             _selectedDate,
                                             _selectedTime,
@@ -1645,6 +1722,11 @@ class _NewBookingState extends State<NewBooking> {
                                         ? getIsoDateTime(
                                             _selectedPickupDate,
                                             _selectedPickupTime,
+                                          )
+                                        : (_selectedCatCode == 3)
+                                        ? getIsoDateTime(
+                                            _selectedDate,
+                                            _selectedTime,
                                           )
                                         : null,
                                     pickupLat: finalPickupLat
@@ -1690,6 +1772,7 @@ class _NewBookingState extends State<NewBooking> {
                                     brandID: _getSelectedBrandId(),
                                     categoryID: _getSelectedCategoryId(),
                                     specialId: _appliedPromoId,
+                                    customerName: userName,
                                     carclass: _selectedVehicleClass,
                                     carName: _selectedVehicleModel,
                                     carbrand: _selectedVehicleBrand,
@@ -1784,7 +1867,10 @@ class _NewBookingState extends State<NewBooking> {
                             }
                           },
                     fontsize: 16,
-                    showLoader: _isCalculatingDistance || _isBooking,
+                    showLoader:
+                        _isCalculatingDistance ||
+                        _isBooking ||
+                        _isCheckingRoute,
                   ),
                 ),
                 SizedBox(height: 32),
@@ -1831,7 +1917,7 @@ class _NewBookingState extends State<NewBooking> {
             builder: (context) {
               String getDisplayDate() {
                 DateTime? date;
-                if (_selectedCatCode == 0) {
+                if (_selectedCatCode == 0 || _selectedCatCode == 3) {
                   date = _selectedDate;
                 } else {
                   date = _selectedPickupDate;
@@ -1840,7 +1926,8 @@ class _NewBookingState extends State<NewBooking> {
               }
 
               String getDisplayTime() {
-                TimeOfDay? timeOfDay = (_selectedCatCode == 0)
+                TimeOfDay? timeOfDay =
+                    (_selectedCatCode == 0 || _selectedCatCode == 3)
                     ? _selectedTime
                     : _selectedPickupTime;
                 if (timeOfDay == null) return "";
@@ -1884,7 +1971,7 @@ class _NewBookingState extends State<NewBooking> {
                 dropoff: getDropoff(),
                 date: getDisplayDate(),
                 time: getDisplayTime(),
-                ride: _selectedVehicleClass ?? "",
+                ride: _selectedVehicleModel ?? "",
                 brand: _selectedVehicleBrand ?? "",
                 passengers: int.tryParse(_numberOfPassengers ?? "1") ?? 1,
               );
@@ -2114,14 +2201,22 @@ class _NewBookingState extends State<NewBooking> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const RiyalSymbol(color: Colors.white, size: 16),
-                        Text(
-                          " ${_calculatedCharge.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        _isCheckingRoute && _selectedCatCode == 3
+                            ? const Padding(
+                                padding: EdgeInsets.only(left: 8),
+                                child: PremiumLoader(
+                                  size: 16,
+                                  color: Colors.amber,
+                                ),
+                              )
+                            : Text(
+                                " ${_calculatedCharge.toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                       ],
                     ),
                   ],
@@ -2148,14 +2243,22 @@ class _NewBookingState extends State<NewBooking> {
                             style: TextStyle(color: Colors.green, fontSize: 16),
                           ),
                           const RiyalSymbol(color: Colors.green, size: 16),
-                          Text(
-                            " ${(_calculatedCharge * (_discountPercentage / 100)).toStringAsFixed(2)}",
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          _isCheckingRoute && _selectedCatCode == 3
+                              ? const Padding(
+                                  padding: EdgeInsets.only(left: 8),
+                                  child: PremiumLoader(
+                                    size: 16,
+                                    color: Colors.green,
+                                  ),
+                                )
+                              : Text(
+                                  " ${(_calculatedCharge * (_discountPercentage / 100)).toStringAsFixed(2)}",
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                         ],
                       ),
                     ],
@@ -2179,14 +2282,22 @@ class _NewBookingState extends State<NewBooking> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const RiyalSymbol(color: Colors.white, size: 16),
-                        Text(
-                          " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 0.15).toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        _isCheckingRoute && _selectedCatCode == 3
+                            ? const Padding(
+                                padding: EdgeInsets.only(left: 8),
+                                child: PremiumLoader(
+                                  size: 16,
+                                  color: Colors.amber,
+                                ),
+                              )
+                            : Text(
+                                " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 0.15).toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                       ],
                     ),
                   ],
@@ -2211,14 +2322,22 @@ class _NewBookingState extends State<NewBooking> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const RiyalSymbol(color: Colors.white, size: 16),
-                        Text(
-                          " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 1.15).toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        _isCheckingRoute && _selectedCatCode == 3
+                            ? const Padding(
+                                padding: EdgeInsets.only(left: 8),
+                                child: PremiumLoader(
+                                  size: 16,
+                                  color: Colors.amber,
+                                ),
+                              )
+                            : Text(
+                                " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 1.15).toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                       ],
                     ),
                   ],
@@ -2372,6 +2491,7 @@ class _NewBookingState extends State<NewBooking> {
                       setState(() {
                         _selectedPassengerCountryCode = country.phoneCode;
                       });
+                      if (_selectedCatCode == 3) _updatePricing();
                     },
                   );
                 },
@@ -2604,6 +2724,7 @@ class _NewBookingState extends State<NewBooking> {
                     _selectedVehicleBrand = null;
                     _selectedVehicleModel = null;
                   }
+                  if (_selectedCatCode == 3) _updatePricing();
                 });
               }
             },
@@ -2666,6 +2787,7 @@ class _NewBookingState extends State<NewBooking> {
                     } else {
                       _selectedVehicleModel = null;
                     }
+                    if (_selectedCatCode == 3) _updatePricing();
                   });
                 },
                 child: Container(
@@ -2764,6 +2886,7 @@ class _NewBookingState extends State<NewBooking> {
             setState(() {
               _selectedVehicleModel = value;
             });
+            if (_selectedCatCode == 3) _updatePricing();
           }
         },
       ),
@@ -3243,20 +3366,22 @@ class _NewBookingState extends State<NewBooking> {
                       ),
                     ),
                   );
-                    if (result != null && result is Map<String, dynamic>) {
-                      FocusScope.of(context).requestFocus(FocusNode());
-                      final double newLat = result['lat'] ?? 0;
-                      final double newLng = result['lng'] ?? 0;
-                      final String newAddress = (result['address'] ?? '')
-                          .toString();
+                  if (result != null && result is Map<String, dynamic>) {
+                    FocusScope.of(context).requestFocus(FocusNode());
+                    final double newLat = result['lat'] ?? 0;
+                    final double newLng = result['lng'] ?? 0;
+                    final String newAddress = (result['address'] ?? '')
+                        .toString();
 
-                      if (_selectedCatCode == 3) {
-                        debugPrint('📍 PREM-FORCE │ Private Transfer Location Selection:');
-                        debugPrint('   → Latitude: $newLat');
-                        debugPrint('   → Longitude: $newLng');
-                        debugPrint('   → Full Address: $newAddress');
-                        debugPrint('   → City Name: ${result['city'] ?? ''}');
-                      }
+                    if (_selectedCatCode == 3) {
+                      debugPrint(
+                        '📍 PREM-FORCE │ Private Transfer Location Selection:',
+                      );
+                      debugPrint('   → Latitude: $newLat');
+                      debugPrint('   → Longitude: $newLng');
+                      debugPrint('   → Full Address: $newAddress');
+                      debugPrint('   → City Name: ${result['city'] ?? ''}');
+                    }
 
                     if (_selectedCatCode == 3 &&
                         _isNearAirport(newLat, newLng, newAddress)) {
@@ -3283,15 +3408,18 @@ class _NewBookingState extends State<NewBooking> {
                         _dropAddress = newAddress;
                         _dropLat = newLat;
                         _dropLng = newLng;
+                        _dropCityName = result['city']?.toString();
                       });
                     } else {
                       setState(() {
                         _pickupAddress = newAddress;
                         _pickupLat = newLat;
                         _pickupLng = newLng;
+                        _pickupCityName = result['city']?.toString();
                       });
                     }
                     state.didChange(true);
+                    if (_selectedCatCode == 3) _updatePricing();
                   }
                 },
                 child: ConstrainedBox(

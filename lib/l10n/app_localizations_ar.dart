@@ -358,13 +358,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get preferences => 'التفضيلات';
 
   @override
-  String get assigned => 'Assigned';
+  String get assigned => 'تم التعيين';
 
   @override
-  String get tracking => 'Tracking';
+  String get tracking => 'تتبع';
 
   @override
-  String get reviewed => 'Reviewed';
+  String get reviewed => 'تم التقييم';
 
   @override
   String get serviceType => 'نوع الخدمة';

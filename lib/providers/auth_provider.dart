@@ -275,68 +275,37 @@ class AuthProvider extends ChangeNotifier {
       _cancelResendTimer();
 
       if (result['success'] == true) {
-        final tokens = result['tokens'];
-        final accessToken = (tokens is Map
-                ? (tokens['accessToken'] ?? tokens['token'])
-                : (result['accessToken'] ?? result['token']))
-            as String?;
-        final refreshToken = (tokens is Map
-                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-                : (result['refreshToken'] ?? result['refresh_token']))
-            as String?;
+        // Consolidate token extraction and saving
+        await _saveAuthTokens(result);
 
-        final isRegistered = accessToken != null && accessToken.isNotEmpty;
+        // Mark provider as phone
+        await UserLocalStorage.saveLoginProvider('phone');
 
-        if (isRegistered) {
-          // --- Save tokens ---
-          if (refreshToken != null) {
-            await UserLocalStorage.saveTokens(
-              accessToken: accessToken,
-              refreshToken: refreshToken,
-            );
-          } else {
-            await UserLocalStorage.saveToken(accessToken);
+        // --- Handle user data ---
+        var userData = result['user'] ?? result['data'];
+        if (userData is Map<String, dynamic>) {
+          if (userData.containsKey('user') &&
+              userData['user'] is Map<String, dynamic>) {
+            userData = userData['user'];
           }
 
-          // Mark provider as phone
-          await UserLocalStorage.saveLoginProvider('phone');
+          _user = UserModel.fromJson(userData);
+          final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
+          final phone = (userData['phoneNumber'] ?? phoneNumber).toString();
 
-          // --- Check if user exists ---
-          var userData = result['user'] ?? result['data'];
-          if (userData is Map<String, dynamic>) {
-            // Handle nested user key
-            if (userData.containsKey('user') &&
-                userData['user'] is Map<String, dynamic>) {
-              userData = userData['user'];
-            }
+          await UserLocalStorage.saveUserCredentials(
+            userId: uid,
+            phoneNumber: phone,
+            countryCode: userData['countryCode']?.toString() ?? countryCode,
+          );
 
-            // Existing user → save only userId + phoneNumber
-            _user = UserModel.fromJson(userData);
-            final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
-            final phone = (userData['phoneNumber'] ?? phoneNumber).toString();
-
-            await UserLocalStorage.saveUserCredentials(
-              userId: uid,
-              phoneNumber: phone,
-              countryCode: userData['countryCode']?.toString() ?? countryCode,
-            );
-
-            // Persist the full user data locally
-            await UserLocalStorage.saveUserData(userData);
-          }
-
-          _status = AuthStatus.authenticated;
-          _phoneNumber = phoneNumber;
-          _resendCountdown = 0;
-          debugPrint('✅ Existing user logged in: ${_user?.username ?? ''}');
-        } else {
-          // New user → navigate to signup
-          _status = AuthStatus.otpVerified;
-          _phoneNumber = phoneNumber;
-          _resendCountdown = 0;
-          debugPrint('🆕 New user — redirecting to signup');
+          await UserLocalStorage.saveUserData(userData);
         }
 
+        _status = AuthStatus.authenticated;
+        _phoneNumber = phoneNumber;
+        _resendCountdown = 0;
+        debugPrint('✅ Existing user logged in: ${_user?.username ?? ''}');
         notifyListeners();
       } else {
         // Check if this is a "user not found" scenario — OTP was valid but
@@ -346,17 +315,8 @@ class AuthProvider extends ChangeNotifier {
             message.contains('not registered') ||
             message.contains('register first') ||
             message.contains('not exist')) {
-          // Save tokens if the backend returned them even on "failure"
-          final accessToken = result['accessToken'] as String?;
-          final refreshToken = result['refreshToken'] as String?;
-          if (accessToken != null && refreshToken != null) {
-            await UserLocalStorage.saveTokens(
-              accessToken: accessToken,
-              refreshToken: refreshToken,
-            );
-          } else if (accessToken != null) {
-            await UserLocalStorage.saveToken(accessToken);
-          }
+          
+          await _saveAuthTokens(result);
 
           _status = AuthStatus.otpVerified;
           _phoneNumber = phoneNumber;
@@ -450,29 +410,11 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (result['success'] == true) {
-        // --- Save tokens ---
-        final tokens = result['tokens'];
-        final accessToken = (tokens is Map
-                ? (tokens['accessToken'] ?? tokens['token'])
-                : (result['accessToken'] ?? result['token']))
-            as String?;
-        final refreshToken = (tokens is Map
-                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-                : (result['refreshToken'] ?? result['refresh_token']))
-            as String?;
-
-        if (accessToken != null && refreshToken != null) {
-          await UserLocalStorage.saveTokens(
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-          );
-        } else if (accessToken != null) {
-          await UserLocalStorage.saveToken(accessToken);
-        }
+        // Consolidate token extraction and saving
+        await _saveAuthTokens(result);
 
         var userData = result['user'] ?? result['data'] ?? result;
         if (userData is Map<String, dynamic>) {
-          // Handle nested user key
           if (userData.containsKey('user') &&
               userData['user'] is Map<String, dynamic>) {
             userData = userData['user'];
@@ -487,7 +429,6 @@ class AuthProvider extends ChangeNotifier {
             countryCode: userData['countryCode']?.toString() ?? countryCode,
           );
 
-          // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
         }
 
@@ -521,30 +462,38 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (result['success'] == true) {
-        final tokens = result['tokens'];
-        final newAccess = (tokens is Map
-                ? (tokens['accessToken'] ?? tokens['token'])
-                : (result['accessToken'] ?? result['token']))
-            as String?;
-        final newRefresh = (tokens is Map
-                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-                : (result['refreshToken'] ?? result['refresh_token']))
-            as String?;
-
-        if (newAccess != null && newRefresh != null) {
-          await UserLocalStorage.saveTokens(
-            accessToken: newAccess,
-            refreshToken: newRefresh,
-          );
-        } else if (newAccess != null) {
-          await UserLocalStorage.saveToken(newAccess);
-        }
+        await _saveAuthTokens(result);
         return true;
       }
       return false;
     } catch (e) {
       debugPrint('Token refresh error: $e');
       return false;
+    }
+  }
+
+  /// Extracts tokens from API response and saves them to local storage.
+  Future<void> _saveAuthTokens(Map<String, dynamic> result) async {
+    final tokens = result['tokens'];
+    final accessToken = (tokens is Map
+            ? (tokens['accessToken'] ?? tokens['token'])
+            : (result['accessToken'] ?? result['token']))
+        as String?;
+    final refreshToken = (tokens is Map
+            ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+            : (result['refreshToken'] ?? result['refresh_token']))
+        as String?;
+
+    if (accessToken != null && accessToken.isNotEmpty) {
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await UserLocalStorage.saveTokens(
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+        );
+      } else {
+        await UserLocalStorage.saveToken(accessToken);
+      }
+      debugPrint('💾 AuthProvider │ Tokens saved to Hive');
     }
   }
 
@@ -604,14 +553,10 @@ class AuthProvider extends ChangeNotifier {
               emailCheckResponse['data'] != null);
 
       if (emailExists) {
-        // Step 3a: Email exists → Fetch full user data
         debugPrint('🔐 Google Sign-In │ Email exists. Fetching user data...');
 
-        // Try to get user data from the response or by email
         var userData = emailCheckResponse['user'] ?? emailCheckResponse['data'];
-
         if (userData is Map<String, dynamic>) {
-          // Handle nested user key
           if (userData.containsKey('user') &&
               userData['user'] is Map<String, dynamic>) {
             userData = userData['user'];
@@ -621,31 +566,12 @@ class AuthProvider extends ChangeNotifier {
           final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
           final phone = (userData['phoneNumber'] ?? '').toString();
 
-          // Step 3a(ii): Call googleAuth to get session tokens for persistence
+          // Step 3a(ii): Backend login using Google token
           if (result.idToken != null) {
             final authResponse = await _api.googleAuth(idToken: result.idToken!);
             if (authResponse['success'] == true) {
-              final tokens = authResponse['tokens'];
-              final accessToken = (tokens is Map
-                      ? (tokens['accessToken'] ?? tokens['token'])
-                      : (authResponse['accessToken'] ?? authResponse['token']))
-                  as String?;
-              final refreshToken = (tokens is Map
-                      ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-                      : (authResponse['refreshToken'] ??
-                          authResponse['refresh_token']))
-                  as String?;
-              if (accessToken != null) {
-                if (refreshToken != null) {
-                  await UserLocalStorage.saveTokens(
-                    accessToken: accessToken,
-                    refreshToken: refreshToken,
-                  );
-                } else {
-                  await UserLocalStorage.saveToken(accessToken);
-                }
-                debugPrint('✅ Google Sign-In │ Tokens saved for persistence');
-              }
+              await _saveAuthTokens(authResponse);
+              debugPrint('✅ Google Sign-In │ Tokens saved for persistence');
             }
           }
 
@@ -655,33 +581,19 @@ class AuthProvider extends ChangeNotifier {
             countryCode: userData['countryCode']?.toString() ?? "",
           );
 
-          // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
-
-          // If there's a token in response, save it only if no token was saved
-          final token =
-              (userData['token'] ?? emailCheckResponse['token'])?.toString();
-          if (token != null && token.isNotEmpty) {
-            final existingToken = UserLocalStorage.getToken();
-            if (existingToken == null || existingToken.isEmpty) {
-              await UserLocalStorage.saveToken(token);
-            }
-          }
 
           _status = AuthStatus.authenticated;
           debugPrint(
             '✅ Google Sign-In │ Existing user authenticated: ${_user?.username}',
           );
         } else {
-          // Email exists but we couldn't get user data from response
-          // This shouldn't happen in normal flow but treating as new user
           _status = AuthStatus.otpVerified;
           debugPrint(
             '⚠️ Google Sign-In │ Email exists but no user data. Going to signup.',
           );
         }
       } else {
-        // Step 3b: Email doesn't exist → Navigate to signup
         _status = AuthStatus.otpVerified;
         debugPrint('🆕 Google Sign-In │ New user email. Going to signup.');
       }
@@ -745,14 +657,10 @@ class AuthProvider extends ChangeNotifier {
               emailCheckResponse['data'] != null);
 
       if (emailExists) {
-        // Step 3a: Email exists → Fetch full user data
         debugPrint('🍎 Apple Sign-In │ Email exists. Fetching user data...');
 
-        // Try to get user data from the response or by email
         var userData = emailCheckResponse['user'] ?? emailCheckResponse['data'];
-
         if (userData is Map<String, dynamic>) {
-          // Handle nested user key
           if (userData.containsKey('user') &&
               userData['user'] is Map<String, dynamic>) {
             userData = userData['user'];
@@ -762,31 +670,12 @@ class AuthProvider extends ChangeNotifier {
           final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
           final phone = (userData['phoneNumber'] ?? '').toString();
 
-          // Step 3a(ii): Call appleAuth to get session tokens for persistence
+          // Step 3a(ii): Backend login using Apple token
           if (result.idToken != null) {
             final authResponse = await _api.appleAuth(idToken: result.idToken!);
             if (authResponse['success'] == true) {
-              final tokens = authResponse['tokens'];
-              final accessToken = (tokens is Map
-                      ? (tokens['accessToken'] ?? tokens['token'])
-                      : (authResponse['accessToken'] ?? authResponse['token']))
-                  as String?;
-              final refreshToken = (tokens is Map
-                      ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-                      : (authResponse['refreshToken'] ??
-                          authResponse['refresh_token']))
-                  as String?;
-              if (accessToken != null) {
-                if (refreshToken != null) {
-                  await UserLocalStorage.saveTokens(
-                    accessToken: accessToken,
-                    refreshToken: refreshToken,
-                  );
-                } else {
-                  await UserLocalStorage.saveToken(accessToken);
-                }
-                debugPrint('🍎 Apple Sign-In │ Tokens saved for persistence');
-              }
+              await _saveAuthTokens(authResponse);
+              debugPrint('🍎 Apple Sign-In │ Tokens saved for persistence');
             }
           }
 
@@ -796,32 +685,19 @@ class AuthProvider extends ChangeNotifier {
             countryCode: userData['countryCode']?.toString() ?? "",
           );
 
-          // Persist the full user data locally
           await UserLocalStorage.saveUserData(userData);
-
-          // If there's a token in response, save it only if no token was saved
-          final token =
-              (userData['token'] ?? emailCheckResponse['token'])?.toString();
-          if (token != null && token.isNotEmpty) {
-            final existingToken = UserLocalStorage.getToken();
-            if (existingToken == null || existingToken.isEmpty) {
-              await UserLocalStorage.saveToken(token);
-            }
-          }
 
           _status = AuthStatus.authenticated;
           debugPrint(
             '✅ Apple Sign-In │ Existing user authenticated: ${_user?.username}',
           );
         } else {
-          // Email exists but we couldn't get user data from response
           _status = AuthStatus.otpVerified;
           debugPrint(
             '⚠️ Apple Sign-In │ Email exists but no user data. Going to signup.',
           );
         }
       } else {
-        // Step 3b: Email doesn't exist → Navigate to signup
         _status = AuthStatus.otpVerified;
         debugPrint('🆕 Apple Sign-In │ New user email. Going to signup.');
       }
