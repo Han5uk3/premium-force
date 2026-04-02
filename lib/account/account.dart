@@ -117,22 +117,22 @@ class _AccountPageState extends State<AccountPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AdminPricingDashboard(),
-                    ),
-                  );
-                },
-                child: ProfileTile(
-                  loc: loc,
-                  title: "Pricing Admin",
-                  icon: Icons.admin_panel_settings,
-                  isLast: true,
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: () {
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder: (context) => const AdminPricingDashboard(),
+              //       ),
+              //     );
+              //   },
+              //   child: ProfileTile(
+              //     loc: loc,
+              //     title: "Pricing Admin",
+              //     icon: Icons.admin_panel_settings,
+              //     isLast: true,
+              //   ),
+              // ),
             ],
           ),
         ),
