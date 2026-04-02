@@ -250,11 +250,11 @@ class Premuimfleetcard extends StatelessWidget {
                               ? Colors.white.withAlpha(128)
                               : Colors.black.withAlpha(128),
                         ),
-                        padding: const EdgeInsets.all(4.0),
+
                         child: brandLogoUrl != null
                             ? CachedNetworkImage(
                                 imageUrl: brandLogoUrl!,
-                                fit: BoxFit.contain,
+                                fit: BoxFit.fill,
                                 placeholder: (context, url) => Center(
                                   child: PremiumLoader(
                                     size: 24,

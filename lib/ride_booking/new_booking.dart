@@ -2796,16 +2796,16 @@ class _NewBookingState extends State<NewBooking> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isSelected ? Colors.green : Colors.black,
-                      width: isSelected ? 2 : 1,
+                      width: 2,
                     ),
                   ),
                   child: Stack(
                     children: [
                       Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: iconUrl != null && iconUrl.isNotEmpty
-                              ? CachedNetworkImage(
+                        child: iconUrl != null && iconUrl.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(9),
+                                child: CachedNetworkImage(
                                   imageUrl: iconUrl,
                                   fit: BoxFit.contain,
                                   placeholder: (context, url) =>
@@ -2818,20 +2818,20 @@ class _NewBookingState extends State<NewBooking> {
                                     color: Colors.white24,
                                     size: 24,
                                   ),
-                                )
-                              : const Icon(
-                                  Icons.directions_car,
-                                  color: Colors.white24,
-                                  size: 24,
                                 ),
-                        ),
+                              )
+                            : const Icon(
+                                Icons.directions_car,
+                                color: Colors.white24,
+                                size: 24,
+                              ),
                       ),
                       Positioned(
                         top: 6,
                         right: 6,
                         child: Container(
-                          width: 16,
-                          height: 16,
+                          width: 13,
+                          height: 13,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
@@ -2842,8 +2842,8 @@ class _NewBookingState extends State<NewBooking> {
                           child: isSelected
                               ? Center(
                                   child: Container(
-                                    width: 8,
-                                    height: 8,
+                                    width: 6,
+                                    height: 6,
                                     decoration: const BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: Colors.green,

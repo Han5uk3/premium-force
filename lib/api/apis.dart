@@ -1086,7 +1086,7 @@ class ApiService {
     try {
       final formData = await _buildHourlyFormData(booking);
 
-      final response = await _dio.put(
+      final response = await _dio.post(
         'hourly-bookings',
         data: formData,
         options: (token != null ? _authOptions(token) : Options()).copyWith(
