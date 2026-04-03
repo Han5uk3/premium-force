@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
@@ -112,37 +111,45 @@ class _FleetListCardState extends State<FleetListCard>
 
                     // Content: Brand Icon + Info
                     Padding(
-                      padding: const EdgeInsets.all(12.0),
+                      padding: const EdgeInsetsDirectional.only(
+                        top: 0,
+                        bottom: 12,
+                        start: 18,
+                        end: 18,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Brand Badge
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              height: 44,
-                              width: 44,
-                              decoration: BoxDecoration(
-                                color: _isDarkLogo(widget.brand)
-                                    ? Colors.white.withAlpha(128)
-                                    : Colors.black.withAlpha(128),
-                              ),
-                              child: widget.brandLogoUrl != null
-                                  ? CachedNetworkImage(
-                                      imageUrl: widget.brandLogoUrl!,
-                                      fit: BoxFit.fill,
-                                      placeholder: (context, url) => Center(
-                                        child: PremiumLoader(
-                                          size: 16,
-                                          color: Color(0xFFE4A46B),
+                          Align(
+                            alignment: AlignmentDirectional.topEnd,
+                            child: ClipPath(
+                              clipper: _CardClipper(),
+                              child: Container(
+                                height: 44,
+                                width: 44,
+                                decoration: BoxDecoration(
+                                  color: _isDarkLogo(widget.brand)
+                                      ? Colors.white.withAlpha(128)
+                                      : Colors.black.withAlpha(128),
+                                ),
+                                child: widget.brandLogoUrl != null
+                                    ? CachedNetworkImage(
+                                        imageUrl: widget.brandLogoUrl!,
+                                        fit: BoxFit.fill,
+                                        placeholder: (context, url) => Center(
+                                          child: PremiumLoader(
+                                            size: 16,
+                                            color: Color(0xFFE4A46B),
+                                          ),
                                         ),
+                                      )
+                                    : const Icon(
+                                        Icons.directions_car,
+                                        color: Colors.grey,
+                                        size: 24,
                                       ),
-                                    )
-                                  : const Icon(
-                                      Icons.directions_car,
-                                      color: Colors.grey,
-                                      size: 24,
-                                    ),
+                              ),
                             ),
                           ),
                           const Spacer(),
@@ -150,14 +157,16 @@ class _FleetListCardState extends State<FleetListCard>
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                "${widget.brand} ${widget.name}",
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                              Expanded(
+                                child: Text(
+                                  "${widget.brand} ${widget.name}",
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                               Row(
@@ -191,4 +200,30 @@ class _FleetListCardState extends State<FleetListCard>
       ),
     );
   }
+}
+
+class _CardClipper extends CustomClipper<Path> {
+  const _CardClipper();
+
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    // Start way above the top to achieve "no clipping on top"
+    path.moveTo(0, -999);
+    path.lineTo(size.width, -999);
+    path.lineTo(size.width, size.height - 10);
+    path.quadraticBezierTo(
+      size.width,
+      size.height,
+      size.width - 10,
+      size.height,
+    );
+    path.lineTo(10, size.height);
+    path.quadraticBezierTo(0, size.height, 0, size.height - 10);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

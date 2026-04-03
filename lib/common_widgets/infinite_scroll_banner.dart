@@ -319,7 +319,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
         height: double.infinity,
         child: CachedNetworkImage(
           imageUrl: banner.imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           width: double.infinity,
           height: double.infinity,
           placeholder: (context, url) =>

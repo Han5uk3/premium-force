@@ -24,8 +24,7 @@ class ApiService {
   static const String _baseUrl = 'https://api.premiumforcegroup.com/api/';
 
   // ---------------------------------------------------------------------------
-  // Singleton + Dio instance
-  // --------http://ec2-54-252-191-113.ap-southeast-2.compute.amazonaws.com:5000/api/-------------------------------------------------------------------
+ 
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -784,7 +783,7 @@ class ApiService {
     try {
       final response = await _dio.get(
         'routes/FromcityToCity/vehicleRoutePrice',
-        data: payload,
+        queryParameters: payload,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -803,24 +802,45 @@ class ApiService {
     String? vehicleId,
     String? token,
   }) async {
-    final payload = {
+    final query = {
       'fromCity': fromCityId,
       'toCity': toCityId,
       if (vehicleId != null) 'vehicleID': vehicleId,
     };
     if (kDebugMode) {
-      debugPrint('🚀 🌐 API │ Filter Routes Request: $payload');
+      debugPrint('🚀 🌐 API │ Filter Routes Request: $query');
     }
     try {
-      final response = await _dio.post(
-        'routes/city-to-city/filter',
-        data: payload,
+      final response = await _dio.get(
+        'routes',
+        queryParameters: query,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
     } catch (e) {
-      // Try again with the double slash if it fails?
-      // Actually, let's keep it simple first.
+      return _handleError(e);
+    }
+  }
+
+  /// NEW: Get vehicles and routes between cities
+  /// Calls `GET /api/routes/between/{fromCityId}/{toCityId}/cars`
+  Future<Map<String, dynamic>> getRoutesBetweenCities({
+    required String fromCityId,
+    required String toCityId,
+    String? token,
+  }) async {
+    if (kDebugMode) {
+      debugPrint(
+        '🚀 🌐 API │ GET Routes Between Cities: $fromCityId to $toCityId',
+      );
+    }
+    try {
+      final response = await _dio.get(
+        'routes/between/$fromCityId/$toCityId/cars',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
       return _handleError(e);
     }
   }
@@ -860,6 +880,42 @@ class ApiService {
     try {
       final response = await _dio.get(
         'hourly-routes/vehicle/$vehicleId',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch all hourly routes for calculations.
+  ///
+  /// Calls `GET /api/hourly-routes`
+  Future<Map<String, dynamic>> getHourlyRoutes({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'hourly-routes',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch cars available for a specific hourly duration.
+  ///
+  /// Calls `GET /api/hourly-routes/cars/{hours}`
+  Future<Map<String, dynamic>> getHourlyCars({
+    required int hours,
+    String? token,
+  }) async {
+    if (kDebugMode) {
+      debugPrint('🚀 🌐 API │ GET Hourly Cars for: $hours hours');
+    }
+    try {
+      final response = await _dio.get(
+        'hourly-routes/cars/$hours',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -1135,6 +1191,7 @@ class ApiService {
     fields['customerID'] = booking.customerID ?? '';
     fields['customerName'] = booking.customerName ?? '';
     fields['customer_name'] = booking.customerName ?? ''; // Snake case fallback
+    fields['extrahours'] = '0'; // Default value as requested
     fields['username'] =
         booking.customerName ?? ''; // Backend user field fallback
     fields['passengerCount'] = booking.passengerCount ?? '1';

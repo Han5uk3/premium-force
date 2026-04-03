@@ -1,8 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumdropdown.dart';
@@ -29,6 +30,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:premium_force_main/services/firebase_pricing_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -72,6 +74,9 @@ class _NewBookingState extends State<NewBooking> {
   final _firebasePricingService = FirebasePricingService();
   String? _pickupCityName;
   String? _dropCityName;
+
+  Set<String>? _supportedCarIds; // IDs of cars that have valid routes
+  bool _isFilteringCars = false;
 
   final _tripInfoFormKey = GlobalKey<FormState>();
   final _preferencesFormKey = GlobalKey<FormState>();
@@ -402,26 +407,51 @@ class _NewBookingState extends State<NewBooking> {
     }
 
     if (withVehicle && carId != null) {
-      final priceRes = await api.getRoutePrice(
-        fromCityId: fromCity,
-        toCityId: toCity,
-        vehicleId: carId,
-        token: token,
-      );
+      Map<String, dynamic> priceRes;
 
-      if (priceRes['success'] == true && priceRes['data'] is List) {
-        final routes = priceRes['data'] as List;
+      if (_selectedCatCode == 0 || _selectedCatCode == 1) {
+        // --- ✈️ Airport Service: Use the same filtering endpoint that showed the car ---
+        priceRes = await api.getRoutesBetweenCities(
+          fromCityId: fromCity,
+          toCityId: toCity,
+          token: token,
+        );
+      } else {
+        // Fallback or other specific price fetching
+        priceRes = await api.getRoutePrice(
+          fromCityId: fromCity,
+          toCityId: toCity,
+          vehicleId: carId,
+          token: token,
+        );
+      }
+
+      if (priceRes['success'] == true && priceRes['data'] != null) {
+        // Handle both direct List or Map (with 'cars' list) from getRoutesBetweenCities
+        final List routes = (priceRes['data'] is Map)
+            ? (priceRes['data']['cars'] ?? [])
+            : (priceRes['data'] is List ? priceRes['data'] : []);
+
+        if (routes.isEmpty) {
+          return {
+            'success': false,
+            'message': 'Selected route is not available for this vehicle.',
+          };
+        }
+
         try {
           final match = routes.firstWhere((r) {
-            final rFrom =
-                (r['fromCity'] is Map ? r['fromCity']['_id'] : r['fromCity'])
-                    .toString();
-            final rTo = (r['toCity'] is Map ? r['toCity']['_id'] : r['toCity'])
-                .toString();
-            final rVehicle =
-                (r['vehicleID'] is Map ? r['vehicleID']['_id'] : r['vehicleID'])
-                    .toString();
-            return rFrom == fromCity && rTo == toCity && rVehicle == carId;
+            String? vId;
+            if (r['carDetails'] is Map) {
+              vId = r['carDetails']['_id']?.toString();
+            } else {
+              vId =
+                  (r['vehicleID'] is Map
+                          ? r['vehicleID']['_id']
+                          : (r['vehicle_id'] ?? r['vehicleID'] ?? ''))
+                      .toString();
+            }
+            return vId == carId;
           });
           return {'success': true, 'data': match};
         } catch (_) {
@@ -436,26 +466,29 @@ class _NewBookingState extends State<NewBooking> {
       }
       return priceRes;
     } else {
-      final filterRes = await api.filterRoutes(
-        fromCityId: fromCity,
-        toCityId: toCity,
-        vehicleId: null,
-        token: token,
-      );
+      Map<String, dynamic> filterRes;
+      if (_selectedCatCode == 0 || _selectedCatCode == 1) {
+        filterRes = await api.getRoutesBetweenCities(
+          fromCityId: fromCity,
+          toCityId: toCity,
+          token: token,
+        );
+      } else {
+        filterRes = await api.filterRoutes(
+          fromCityId: fromCity,
+          toCityId: toCity,
+          vehicleId: null,
+          token: token,
+        );
+      }
 
-      if (filterRes['success'] == true && filterRes['data'] is List) {
-        final routes = filterRes['data'] as List;
-        final matches = routes.where((r) {
-          final rFrom =
-              (r['fromCity'] is Map ? r['fromCity']['_id'] : r['fromCity'])
-                  .toString();
-          final rTo = (r['toCity'] is Map ? r['toCity']['_id'] : r['toCity'])
-              .toString();
-          return rFrom == fromCity && rTo == toCity;
-        }).toList();
+      if (filterRes['success'] == true && filterRes['data'] != null) {
+        final List routes = (filterRes['data'] is Map)
+            ? (filterRes['data']['cars'] ?? [])
+            : (filterRes['data'] is List ? filterRes['data'] : []);
 
-        if (matches.isNotEmpty) {
-          return {'success': true, 'data': matches};
+        if (routes.isNotEmpty) {
+          return {'success': true, 'data': routes};
         } else {
           return {'success': false, 'message': 'Route not available.'};
         }
@@ -976,9 +1009,6 @@ class _NewBookingState extends State<NewBooking> {
     return false;
   }
 
-  /// Get the list of cars to use (fetched or fallback to hardcoded)
-  List<CarModel> get _carsList => _cars.isNotEmpty ? _cars : availableCars;
-
   /// Get available brands for a given car class (category)
   List<String> _getAvailableBrands(String? className) {
     if (className == null) return [];
@@ -987,8 +1017,10 @@ class _NewBookingState extends State<NewBooking> {
       '🔍 Filter │ Getting brands for Class: $className (ID: $categoryId)',
     );
 
+    List<String> candidateBrands = [];
+
     if (_brands.isNotEmpty) {
-      final filteredBrands = _brands
+      candidateBrands = _brands
           .where((brand) {
             // Primary Check: Match by categoryId if available
             final categories =
@@ -1039,26 +1071,41 @@ class _NewBookingState extends State<NewBooking> {
           .where((name) => name != 'Unknown')
           .toSet()
           .toList();
-
-      debugPrint('🔍 Filter │ Filtered Brands result: $filteredBrands');
-      if (filteredBrands.isNotEmpty) return filteredBrands;
     }
 
     // Fallback: Match brands by ID from cars in this class
-    final brandsFromCars = _carsList
-        .where(
+    if (candidateBrands.isEmpty) {
+      candidateBrands = _cars
+          .where(
+            (c) =>
+                (categoryId != null && c.categoryId == categoryId) ||
+                c.className.toLowerCase().trim() ==
+                    className.toLowerCase().trim(),
+          )
+          .map((c) => c.brand)
+          .where((b) => b != 'Unknown')
+          .toSet()
+          .toList();
+    }
+
+    debugPrint('🔍 Filter │ Candidate Brands before check: $candidateBrands');
+
+    // 🏎️ FILTER: Hide brands that have no supported cars if filtering is active
+    if (_supportedCarIds != null) {
+      final supportedResults = candidateBrands.where((brandName) {
+        return _cars.any(
           (c) =>
-              (categoryId != null && c.categoryId == categoryId) ||
+              _supportedCarIds!.contains(c.id) &&
+              c.brand.toLowerCase().trim() == brandName.toLowerCase().trim() &&
               c.className.toLowerCase().trim() ==
                   className.toLowerCase().trim(),
-        )
-        .map((c) => c.brand)
-        .where((b) => b != 'Unknown')
-        .toSet()
-        .toList();
+        );
+      }).toList();
+      debugPrint('🔍 Filter │ Supported Brands result: $supportedResults');
+      return supportedResults;
+    }
 
-    debugPrint('🔍 Filter │ Brands from cars fallback: $brandsFromCars');
-    return brandsFromCars;
+    return candidateBrands;
   }
 
   /// Get available models for a given class and brand
@@ -1078,7 +1125,7 @@ class _NewBookingState extends State<NewBooking> {
     final lowerClass = className.toLowerCase().trim();
     final lowerBrand = brand.toLowerCase().trim();
 
-    final results = _carsList
+    final results = _cars
         .where((c) {
           // ID-based matching is more reliable than name-based strings
           if (categoryId != null && brandId != null) {
@@ -1094,6 +1141,23 @@ class _NewBookingState extends State<NewBooking> {
         .toList();
 
     debugPrint('🔍 Filter │ Filtered Models result: $results');
+
+    // 🏎️ FILTER: Hide models that have no supported cars if filtering is active
+    if (_supportedCarIds != null) {
+      final supportedResults = results.where((modelName) {
+        return _cars.any(
+          (c) =>
+              _supportedCarIds!.contains(c.id) &&
+              c.modelName.trim().toLowerCase() == modelName.toLowerCase() &&
+              c.className.toLowerCase().trim() ==
+                  className.toLowerCase().trim() &&
+              c.brand.toLowerCase().trim() == brand.toLowerCase().trim(),
+        );
+      }).toList();
+      debugPrint('🔍 Filter │ Supported Models result: $supportedResults');
+      return supportedResults;
+    }
+
     return results;
   }
 
@@ -1189,6 +1253,179 @@ class _NewBookingState extends State<NewBooking> {
 
   void _showCustomSnackBar(String message, String type) {
     AnimatedSnackBar.show(context, message, type);
+  }
+
+  /// 🏎️ NEW: Check car availability for the selected route/trip parameters
+  Future<void> _checkCarAvailability() async {
+    setState(() {
+      _isFilteringCars = true;
+      _supportedCarIds = null;
+    });
+
+    final Set<String> supportedIds = {};
+    final token = UserLocalStorage.getToken();
+    final api = ApiService();
+
+    try {
+      if (_selectedCatCode == 0 || _selectedCatCode == 1) {
+        // --- ✈️ Airport Service (Regular Routes) ---
+        final cityId = _getSelectedCityId();
+        final airportCityId = _getAirportCityId();
+        String fromCity = cityId ?? '';
+        String toCity = cityId ?? '';
+
+        if (_selectedCatCode == 0) {
+          // Arrival: Airport -> City
+          fromCity = airportCityId ?? cityId ?? '';
+        } else {
+          // Departure: City -> Airport
+          toCity = airportCityId ?? cityId ?? '';
+        }
+
+        if (fromCity.isNotEmpty && toCity.isNotEmpty) {
+          debugPrint(
+            '🏎️ Filtering │ Checking Airport routes (From: $fromCity, To: $toCity)',
+          );
+          final res = await api.getRoutesBetweenCities(
+            fromCityId: fromCity,
+            toCityId: toCity,
+            token: token,
+          );
+          if (res['success'] == true && res['data'] != null) {
+            // Updated to handle the new Map structure: {"success":true, "data":{"totalCars":10, "cars":[...]}}
+            final List routes = (res['data'] is Map)
+                ? (res['data']['cars'] ?? [])
+                : (res['data'] is List ? res['data'] : []);
+
+            for (var r in routes) {
+              final price =
+                  double.tryParse(
+                    (r['price'] ?? r['charge'] ?? '0').toString(),
+                  ) ??
+                  0;
+              if (price > 0) {
+                // The new API uses carDetails._id as shown in logs
+                String? vId;
+                if (r['carDetails'] is Map) {
+                  vId = r['carDetails']['_id']?.toString();
+                } else {
+                  vId =
+                      (r['vehicleID'] is Map
+                              ? r['vehicleID']['_id']
+                              : (r['vehicle_id'] ?? r['vehicleID']))
+                          ?.toString();
+                }
+
+                if (vId != null) supportedIds.add(vId);
+              }
+            }
+          }
+        }
+      } else if (_selectedCatCode == 2) {
+        // --- ⏱️ Hourly Service ---
+        // Map duration selection to hour count requested by API
+        // 0: Hourly (pass 1), 1: 8 Hours (pass 8), 2: 12 Hours (pass 12)
+        final int hoursToPass = (_selectedServiceDuration == 1)
+            ? 8
+            : (_selectedServiceDuration == 2 ? 12 : 1);
+
+        debugPrint(
+          '🏎️ Filtering │ Checking Hourly cars (Duration: $_selectedServiceDuration, Hours: $hoursToPass)',
+        );
+
+        final res = await api.getHourlyCars(hours: hoursToPass, token: token);
+
+        if (res['success'] == true && res['data'] != null) {
+          // The API returns a list of cars/routes as shown in previous airport logs
+          // We handle both Map (with 'cars' list) or direct List
+          final List routes = (res['data'] is Map)
+              ? (res['data']['cars'] ?? [])
+              : (res['data'] is List ? res['data'] : []);
+
+          for (var r in routes) {
+            final price =
+                double.tryParse(
+                  (r['price'] ?? r['charge'] ?? '0').toString(),
+                ) ??
+                0;
+            if (price > 0) {
+              String? vId;
+              if (r['carDetails'] is Map) {
+                vId = r['carDetails']['_id']?.toString();
+              } else {
+                vId =
+                    (r['vehicleID'] is Map
+                            ? r['vehicleID']['_id']
+                            : (r['vehicle_id'] ?? r['vehicleID']))
+                        ?.toString();
+              }
+              if (vId != null) supportedIds.add(vId);
+            }
+          }
+        }
+      } else if (_selectedCatCode == 3) {
+        // --- 🏎️ Private Transfer (Zone-based / Firestore) ---
+        debugPrint(
+          '🏎️ Filtering │ Checking Private Transfer routes (P: $_pickupCityName, D: $_dropCityName)',
+        );
+        final pickupCity = await _firebasePricingService.findCityByName(
+          _pickupCityName ?? "",
+        );
+        final dropCity = await _firebasePricingService.findCityByName(
+          _dropCityName ?? "",
+        );
+
+        if (pickupCity != null && dropCity != null) {
+          // Querying Firestore directly for vehicles having routes between these cities
+          final snapshot = await FirebaseFirestore.instance
+              .collection('routes')
+              .where('active', isEqualTo: true)
+              .where('from_city_id', isEqualTo: pickupCity.id)
+              .where('to_city_id', isEqualTo: dropCity.id)
+              .get();
+
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
+            final priceValue =
+                double.tryParse(data['price']?.toString() ?? '0') ?? 0;
+            if (priceValue > 0) {
+              final vId = data['vehicle_id']?.toString();
+              if (vId != null) supportedIds.add(vId);
+            }
+          }
+
+          // Bidirectional check
+          if (pickupCity.id != dropCity.id) {
+            final revSnapshot = await FirebaseFirestore.instance
+                .collection('routes')
+                .where('active', isEqualTo: true)
+                .where('from_city_id', isEqualTo: dropCity.id)
+                .where('to_city_id', isEqualTo: pickupCity.id)
+                .get();
+            for (var doc in revSnapshot.docs) {
+              final data = doc.data();
+              final priceValue =
+                  double.tryParse(data['price']?.toString() ?? '0') ?? 0;
+              if (priceValue > 0) {
+                final vId = data['vehicle_id']?.toString();
+                if (vId != null) supportedIds.add(vId);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Error checking car availability: $e");
+    }
+
+    debugPrint('🏎️ Filtering │ Final Supported Vehicle IDs: $supportedIds');
+
+    if (mounted) {
+      setState(() {
+        _supportedCarIds = supportedIds;
+        _isFilteringCars = false;
+      });
+    }
   }
 
   String _getServiceName(BuildContext context, int code) {
@@ -1407,12 +1644,18 @@ class _NewBookingState extends State<NewBooking> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: PremiumButton(
-                    text: (_isCalculatingDistance || _isCheckingRoute)
+                    text:
+                        (_isCalculatingDistance ||
+                            _isCheckingRoute ||
+                            _isFilteringCars)
                         ? loc.processing
                         : showReviewAndConfirm
                         ? loc.bookService
                         : loc.continueText,
-                    onTap: _isCalculatingDistance || _isCheckingRoute
+                    onTap:
+                        _isCalculatingDistance ||
+                            _isCheckingRoute ||
+                            _isFilteringCars
                         ? () {}
                         : () async {
                             if (showTripInfo) {
@@ -1473,6 +1716,18 @@ class _NewBookingState extends State<NewBooking> {
                                     );
                                     return;
                                   }
+                                }
+
+                                // 🏎️ NEW: Check car availability before going to step 2
+                                await _checkCarAvailability();
+
+                                if (_supportedCarIds != null &&
+                                    _supportedCarIds!.isEmpty) {
+                                  _showNoServiceAlert(
+                                    message:
+                                        "No vehicles available for the selected route. Please try another selection.",
+                                  );
+                                  return;
                                 }
 
                                 setState(() {
@@ -2034,41 +2289,38 @@ class _NewBookingState extends State<NewBooking> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: double.infinity,
-
-                      color: Colors.black,
-                      child: carImageUrl.startsWith('http')
-                          ? CachedNetworkImage(
-                              imageUrl: carImageUrl,
-                              fit: BoxFit.contain,
-                              errorWidget: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.directions_car,
-                                    size: 50,
-                                    color: Colors.white24,
-                                  ),
-                              placeholder: (context, url) => const Center(
-                                child: PremiumLoader(
-                                  size: 20,
-                                  color: Color(0xFFE4A46B),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        color: Colors.black,
+                        width: double.infinity,
+                        child: AspectRatio(
+                          aspectRatio: 1.7,
+                          child: CachedNetworkImage(
+                            imageUrl: carImageUrl,
+                            fit: BoxFit.cover,
+                            errorWidget: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.directions_car,
+                                  size: 50,
+                                  color: Colors.white24,
+                                ),
+                            placeholder: (context, url) => Shimmer.fromColors(
+                              baseColor: Colors.white.withAlpha(5),
+                              highlightColor: Colors.white.withAlpha(15),
+                              child: Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                            )
-                          : Image.asset(
-                              carImageUrl,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.directions_car,
-                                    size: 50,
-                                    color: Colors.white24,
-                                  ),
                             ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 8),
                   Text(
                     "${_selectedVehicleBrand ?? ""} ${_selectedVehicleModel ?? ""}",
@@ -2238,6 +2490,7 @@ class _NewBookingState extends State<NewBooking> {
                     ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
+                      textDirection: TextDirection.ltr,
                       children: [
                         const RiyalSymbol(color: Colors.white, size: 16),
                         _isCheckingRoute && _selectedCatCode == 3
@@ -2276,6 +2529,7 @@ class _NewBookingState extends State<NewBooking> {
                       ),
                       Row(
                         mainAxisSize: MainAxisSize.min,
+                        textDirection: TextDirection.ltr,
                         children: [
                           const Text(
                             "-",
@@ -2319,6 +2573,7 @@ class _NewBookingState extends State<NewBooking> {
                     ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
+                      textDirection: TextDirection.ltr,
                       children: [
                         const RiyalSymbol(color: Colors.white, size: 16),
                         _isCheckingRoute && _selectedCatCode == 3
@@ -2359,6 +2614,7 @@ class _NewBookingState extends State<NewBooking> {
                     ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
+                      textDirection: TextDirection.ltr,
                       children: [
                         const RiyalSymbol(color: Colors.white, size: 16),
                         _isCheckingRoute && _selectedCatCode == 3
@@ -2690,24 +2946,46 @@ class _NewBookingState extends State<NewBooking> {
   List<String> _getAvailableVehicleClasses() {
     // Approach requested: Fetch all categories from backend
     if (_apiCategories.isNotEmpty) {
-      final names =
-          _apiCategories
-              .map(
-                (cat) => (cat['name'] ?? cat['categoryName'] ?? 'Unknown')
-                    .toString()
-                    .trim(),
-              )
-              .where((name) => name != 'Unknown')
-              .toSet()
-              .toList()
-            ..sort();
+      final names = _apiCategories
+          .map(
+            (cat) => (cat['name'] ?? cat['categoryName'] ?? 'Unknown')
+                .toString()
+                .trim(),
+          )
+          .where((name) => name != 'Unknown')
+          .toSet()
+          .toList();
 
-      if (names.isNotEmpty) return names;
+      if (names.isNotEmpty) {
+        // 🏎️ FILTER: Hide categories that have no supported cars if filtering is active
+        if (_supportedCarIds != null) {
+          final supportedNames = names.where((name) {
+            return _cars.any(
+              (c) =>
+                  _supportedCarIds!.contains(c.id) &&
+                  c.className.toLowerCase().trim() == name.toLowerCase().trim(),
+            );
+          }).toList();
+          supportedNames.sort();
+          return supportedNames;
+        }
+
+        names.sort();
+        return names;
+      }
     }
 
     // Fallback: If no categories loaded, get categories from cars
     if (_cars.isNotEmpty) {
-      final classes = _cars.map((c) => c.className).toSet().toList()..sort();
+      var classes = _supportedCarIds != null
+          ? _cars
+                .where((c) => _supportedCarIds!.contains(c.id))
+                .map((c) => c.className)
+                .toSet()
+                .toList()
+          : _cars.map((c) => c.className).toSet().toList();
+
+      classes.sort();
 
       if (classes.length > 1) {
         classes.removeWhere((c) => c.toLowerCase() == 'unknown');
@@ -2954,46 +3232,37 @@ class _NewBookingState extends State<NewBooking> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Car Image
-          Container(
-            width: double.infinity,
-            height: 311,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.grey.shade800,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: selectedCar.imagePath.startsWith('http')
-                  ? CachedNetworkImage(
-                      imageUrl: selectedCar.imagePath,
-                      fit: BoxFit.contain,
-                      placeholder: (context, url) => const Center(
-                        child: PremiumLoader(
-                          size: 32,
-                          color: Color(0xFFE4A46B),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              color: Colors.black,
+              width: double.infinity,
+              child: AspectRatio(
+                aspectRatio: 1.7,
+                child: CachedNetworkImage(
+                  imageUrl: selectedCar.imagePath,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) {
+                    return Shimmer.fromColors(
+                      baseColor: Colors.white.withAlpha(5),
+                      highlightColor: Colors.white.withAlpha(15),
+                      child: Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      errorWidget: (context, url, error) => Center(
-                        child: Icon(
-                          Icons.car_rental,
-                          color: Colors.grey.shade600,
-                          size: 64,
-                        ),
-                      ),
-                    )
-                  : Image.asset(
-                      selectedCar.imagePath,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Icon(
-                            Icons.car_rental,
-                            color: Colors.grey.shade600,
-                            size: 64,
-                          ),
-                        );
-                      },
-                    ),
+                    );
+                  },
+                  errorWidget: (context, url, error) => const Icon(
+                    Icons.directions_car,
+                    size: 50,
+                    color: Colors.white24,
+                  ),
+                ),
+              ),
             ),
           ),
           SizedBox(height: 16),
@@ -3075,9 +3344,20 @@ class _NewBookingState extends State<NewBooking> {
               onChanged: (val) {
                 if (val != null) {
                   setState(() {
-                    _selectedCityCode = _getAvailableCityNames(
-                      context,
-                    ).indexOf(val);
+                    final cityName = val;
+                    final cityIndex = _apiCities.indexWhere(
+                      (c) {
+                        final isArabic =
+                            Localizations.localeOf(context).languageCode == 'ar';
+                        final name =
+                            (isArabic
+                                ? (c['cityNameAr'] ?? c['cityName'])
+                                : c['cityName'])
+                            .toString();
+                        return name == cityName;
+                      },
+                    );
+                    _selectedCityCode = (cityIndex != -1) ? cityIndex : 0;
                     _selectedAirportCode = 0;
                     _selectedTerminalCode = 0;
                   });
@@ -3367,32 +3647,67 @@ class _NewBookingState extends State<NewBooking> {
                   double initLat = 24.7136; // Default: Riyadh
                   double initLng = 46.6753;
 
-                  if (_apiCities.isNotEmpty &&
-                      _selectedCityCode < _apiCities.length) {
-                    final cityData = _apiCities[_selectedCityCode];
+                  if (_apiCities.isNotEmpty) {
+                    final cityName = _getCityName(context, _selectedCityCode);
+                    // Find actual city data by name to avoid index mismatch
+                    final cityData = _apiCities.firstWhere(
+                      (c) {
+                        final isArabic =
+                            Localizations.localeOf(context).languageCode == 'ar';
+                        final name =
+                            (isArabic
+                                ? (c['cityNameAr'] ?? c['cityName'])
+                                : c['cityName'])
+                            .toString();
+                        return name == cityName;
+                      },
+                      orElse: () => _apiCities.first,
+                    );
+
                     final latVal = cityData['lat'] ?? cityData['latitude'];
                     final lngVal =
                         cityData['long'] ??
                         cityData['lng'] ??
                         cityData['longitude'];
 
-                    if (latVal != null && lngVal != null) {
+                    if (latVal != null &&
+                        lngVal != null &&
+                        double.tryParse(latVal.toString()) != 0) {
                       initLat = double.tryParse(latVal.toString()) ?? 24.7136;
                       initLng = double.tryParse(lngVal.toString()) ?? 46.6753;
                     } else {
-                      // Fallback name-based lookup
-                      String selectedCity = _getCityName(
-                        context,
-                        _selectedCityCode,
-                      );
-                      if (selectedCity.toLowerCase().contains("dammam")) {
+                      // Extended fallback name-based lookup
+                      String nameKey =
+                          (cityData['cityName'] ?? "").toString().toLowerCase();
+                      if (nameKey.contains("dammam")) {
                         initLat = 26.3927;
                         initLng = 49.9777;
-                      } else if (selectedCity.toLowerCase().contains(
-                        "jeddah",
-                      )) {
+                      } else if (nameKey.contains("jeddah")) {
                         initLat = 21.4858;
                         initLng = 39.1925;
+                      } else if (nameKey.contains("mecca") ||
+                          nameKey.contains("makkah")) {
+                        initLat = 21.3891;
+                        initLng = 39.8579;
+                      } else if (nameKey.contains("medina") ||
+                          nameKey.contains("madinah")) {
+                        initLat = 24.4673;
+                        initLng = 39.6107;
+                      } else if (nameKey.contains("khobar")) {
+                        initLat = 26.2172;
+                        initLng = 50.1971;
+                      } else if (nameKey.contains("abha")) {
+                        initLat = 18.2164;
+                        initLng = 42.5053;
+                      } else if (nameKey.contains("tabuk")) {
+                        initLat = 28.3835;
+                        initLng = 36.5662;
+                      } else if (nameKey.contains("taif")) {
+                        initLat = 21.2854;
+                        initLng = 40.4258;
+                      } else if (nameKey.contains("riyadh")) {
+                        initLat = 24.7136;
+                        initLng = 46.6753;
                       }
                     }
                   }

@@ -111,82 +111,80 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
               left: 0,
               right: 0,
               bottom: 0,
-              height: 55,
+              height: 40,
               child: ClipRect(
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Blurred copy of the same image, aligned to match the
-                    // position it would occupy behind this region.
-                    imageProvider.isNotEmpty
-                        ? Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            height: 160,
-                            child: ImageFiltered(
-                              imageFilter: ImageFilter.blur(
-                                sigmaX: 5,
-                                sigmaY: 5,
-                              ),
-                              child: CachedNetworkImage(
-                                imageUrl: imageProvider,
-                                fit: BoxFit.cover,
-                                width: 240,
-                                height: 160,
-                              ),
-                            ),
-                          )
-                        : Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            height: 160,
-                            child: Container(color: Colors.grey[800]),
-                          ),
-                    // Tinted overlay
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color.fromARGB(255, 213, 132, 61).withAlpha(130),
-                            Colors.transparent,
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                        ),
+                    // Blurred background with top fade
+                    ShaderMask(
+                      shaderCallback: (rect) {
+                        return LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.black.withAlpha(0), Colors.black],
+                          stops: [0.0, 0.4],
+                        ).createShader(rect);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          imageProvider.isNotEmpty
+                              ? Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  height: widget.height,
+                                  child: ImageFiltered(
+                                    imageFilter: ImageFilter.blur(
+                                      sigmaX: 10,
+                                      sigmaY: 10,
+                                    ),
+                                    child: CachedNetworkImage(
+                                      imageUrl: imageProvider,
+                                      fit: BoxFit.cover,
+                                      width: widget.width,
+                                      height: widget.height,
+                                    ),
+                                  ),
+                                )
+                              : Container(color: Colors.grey[800]),
+                          // Subtle dark tint for better legibility
+                          Container(color: Colors.black.withAlpha(40)),
+                        ],
                       ),
                     ),
                     // Text content
                     Padding(
-                      padding: const EdgeInsets.only(
-                        top: 2,
-                        left: 8,
-                        right: 8,
-                        bottom: 8,
-                      ),
-                      child: Column(
-                        spacing: 3,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "${widget.brand} ${widget.name}",
-                            style: TextStyle(fontSize: 13, color: Colors.white),
+                          Expanded(
+                            child: Text(
+                              "${widget.brand} ${widget.name}",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           Row(
-                            spacing: 5,
-                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.group_outlined,
-                                color: Colors.white54,
-                                size: 16,
+                                color: Colors.white70,
+                                size: 14,
                               ),
+                              const SizedBox(width: 4),
                               Text(
                                 "${loc.passenger}: ${widget.passengerCount}",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white54,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white70,
                                 ),
                               ),
                             ],
@@ -202,14 +200,16 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
             // Brand badge (top-right) â€” uses ImageFiltered instead of
             // BackdropFilter so it is scroll-safe.
             Positioned(
-              top: 5,
-              right: Directionality.of(context) == TextDirection.ltr ? 5 : null,
-              left: Directionality.of(context) == TextDirection.rtl ? 5 : null,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+              top: 0,
+              right: Directionality.of(context) == TextDirection.ltr
+                  ? 15
+                  : null,
+              left: Directionality.of(context) == TextDirection.rtl ? 15 : null,
+              child: ClipPath(
+                clipper: _CardClipper(),
                 child: SizedBox(
-                  height: 50,
-                  width: 50,
+                  height: 30,
+                  width: 30,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -301,4 +301,30 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
       ),
     );
   }
+}
+
+class _CardClipper extends CustomClipper<Path> {
+  const _CardClipper();
+
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    // Start way above the top to achieve "no clipping on top"
+    path.moveTo(0, -999);
+    path.lineTo(size.width, -999);
+    path.lineTo(size.width, size.height - 10);
+    path.quadraticBezierTo(
+      size.width,
+      size.height,
+      size.width - 10,
+      size.height,
+    );
+    path.lineTo(10, size.height);
+    path.quadraticBezierTo(0, size.height, 0, size.height - 10);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

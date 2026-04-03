@@ -1,9 +1,11 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart' show Shimmer;
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/common_widgets/riyal_symbol.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/models/payment_model.dart';
@@ -158,24 +160,31 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
                         color: Colors.black,
-
                         width: double.infinity,
-                        height: 311,
-                        child: CachedNetworkImage(
-                          imageUrl: booking.carimage!,
-                          fit: BoxFit.contain,
-                          placeholder: (context, url) {
-                            return const Center(
-                              child: PremiumLoader(
-                                size: 20,
-                                color: Color(0xFFE4A46B),
-                              ),
-                            );
-                          },
-                          errorWidget: (context, url, error) => const Icon(
-                            Icons.directions_car,
-                            size: 50,
-                            color: Colors.white24,
+                        child: AspectRatio(
+                          aspectRatio: 1.7,
+                          child: CachedNetworkImage(
+                            imageUrl: booking.carimage!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) {
+                              return Shimmer.fromColors(
+                                baseColor: Colors.white.withAlpha(5),
+                                highlightColor: Colors.white.withAlpha(15),
+                                child: Container(
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            },
+                            errorWidget: (context, url, error) => const Icon(
+                              Icons.directions_car,
+                              size: 50,
+                              color: Colors.white24,
+                            ),
                           ),
                         ),
                       ),
@@ -591,13 +600,21 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-                      Text(
-                        '- ${discountSaving.toStringAsFixed(2)} SAR',
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        textDirection: TextDirection.ltr,
+                        children: [
+                          RiyalSymbol(color: Colors.green, size: 13),
+                          const SizedBox(width: 4),
+                          Text(
+                            discountSaving.toStringAsFixed(2),
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -742,13 +759,21 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
           ),
         ),
-        Text(
-          "${amount.toStringAsFixed(2)} ${AppLocalizations.of(context)!.riyal}",
-          style: TextStyle(
-            color: color ?? Colors.white,
-            fontSize: 13,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          textDirection: TextDirection.ltr,
+          children: [
+            RiyalSymbol(color: color ?? Colors.white, size: 13),
+            const SizedBox(width: 4),
+            Text(
+              amount.toStringAsFixed(2),
+              style: TextStyle(
+                color: color ?? Colors.white,
+                fontSize: 13,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -866,14 +891,35 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             fontWeight: bold ? FontWeight.bold : FontWeight.normal,
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            color: valueColor,
-            fontSize: 11,
-            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        if (value.toString().contains(AppLocalizations.of(context)!.riyal))
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            textDirection: TextDirection.ltr,
+            children: [
+              RiyalSymbol(color: valueColor, size: 11),
+              const SizedBox(width: 4),
+              Text(
+                value
+                    .toString()
+                    .replaceAll(AppLocalizations.of(context)!.riyal, '')
+                    .trim(),
+                style: TextStyle(
+                  color: valueColor,
+                  fontSize: 11,
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          )
+        else
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 11,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
-        ),
       ],
     );
   }
