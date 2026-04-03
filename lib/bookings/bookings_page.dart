@@ -515,7 +515,7 @@ class _GradientTab extends AnimatedWidget implements PreferredSizeWidget {
             child: Text(
               text,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: Colors.white38,
                 fontWeight: FontWeight.normal,
               ),
@@ -531,7 +531,7 @@ class _GradientTab extends AnimatedWidget implements PreferredSizeWidget {
               child: Text(
                 text,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: Colors.white38,
                   fontWeight: FontWeight.bold,
                 ),

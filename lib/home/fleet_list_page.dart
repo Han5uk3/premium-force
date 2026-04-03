@@ -236,6 +236,7 @@ class _FleetListPageState extends State<FleetListPage> {
                   horizontal: 16,
                   vertical: 12,
                 ),
+                cacheExtent: 1000,
                 itemCount: _allFleetCars.length,
                 itemBuilder: (context, index) {
                   final car = _allFleetCars[index];
@@ -292,7 +293,7 @@ class _FleetListPageState extends State<FleetListPage> {
         child: AppBar(
           centerTitle: true,
           title: Text(
-            loc.bookings,
+            loc.premiumFleet,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,

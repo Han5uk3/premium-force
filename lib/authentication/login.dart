@@ -58,7 +58,9 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
   Future<void> _handleGoogleSignIn() async {
     if (!_isAgreed) {
       _showCustomSnackBar(
-        AppLocalizations.of(context)!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
+        AppLocalizations.of(
+          context,
+        )!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
       );
       return;
     }
@@ -98,7 +100,9 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
   Future<void> _handleAppleSignIn() async {
     if (!_isAgreed) {
       _showCustomSnackBar(
-        AppLocalizations.of(context)!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
+        AppLocalizations.of(
+          context,
+        )!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
       );
       return;
     }
@@ -226,7 +230,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const SizedBox(height: 40),
+                                  const SizedBox(height: 20),
                                   // Sign In Title
                                   Row(
                                     mainAxisAlignment:
@@ -565,8 +569,9 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                         }
                                       } else if (_isAgreed == false) {
                                         _showCustomSnackBar(
-                                          AppLocalizations.of(context)!
-                                              .pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
                                         );
                                       }
                                     },
@@ -766,4 +771,3 @@ class _AppleSignInButton extends StatelessWidget {
     );
   }
 }
-

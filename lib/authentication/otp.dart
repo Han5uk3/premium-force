@@ -115,7 +115,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
             ),
             backgroundColor: Colors.transparent,
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.white),
+              icon: Icon(Icons.arrow_back_ios, size: 16, color: Colors.white),
               onPressed: () {
                 Navigator.pop(context);
               },
@@ -294,4 +294,3 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     );
   }
 }
-

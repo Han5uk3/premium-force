@@ -1,11 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/models/banner_model.dart';
-import 'package:premium_force_main/l10n/app_localizations.dart';
-import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:shimmer/shimmer.dart';
 import 'dart:async';
 
@@ -26,8 +24,6 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   bool _isLoading = true;
   int _currentIndex = 0;
 
-  // Static default banner shown on app open
-  late BannerModel _defaultBanner;
   bool _isInitialized = false;
 
   // Timer for continuous auto-scroll
@@ -47,9 +43,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Update localizations whenever dependencies change (e.g., locale change)
-    if (_isInitialized) {
-      _updateDefaultBanner();
-    } else {
+    if (!_isInitialized) {
       _initializeBanners();
     }
   }
@@ -58,39 +52,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     if (_isInitialized) return;
     _isInitialized = true;
 
-    _updateDefaultBanner();
-
     // Fetch banners from the backend
     _fetchBanners();
-  }
-
-  void _updateDefaultBanner() {
-    // Create or update the default static banner with current localized strings
-    final loc = AppLocalizations.of(context);
-    final String title =
-        loc?.luxuryAirportTransfers ?? 'Luxury Airport Transfers';
-    final String description = loc?.inSaudiArabia ?? 'In Saudi Arabia';
-
-    _defaultBanner = BannerModel(
-      id: 'default-banner',
-      title: title,
-      description: description,
-      imageUrl: 'assets/images/banner.png',
-      isActive: true,
-      createdAt: _isInitialized && _banners.isNotEmpty
-          ? _defaultBanner.createdAt
-          : DateTime.now(),
-    );
-
-    // If banners list is already populated, update the default banner in the list
-    if (_banners.isNotEmpty) {
-      final int index = _banners.indexWhere((b) => b.id == 'default-banner');
-      if (index != -1) {
-        setState(() {
-          _banners[index] = _defaultBanner;
-        });
-      }
-    }
   }
 
   Future<void> _fetchBanners() async {
@@ -120,9 +83,9 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
               .toList();
         }
 
-        // Combine default banner with fetched banners
+        // Use only fetched banners
         setState(() {
-          _banners = [_defaultBanner, ...fetchedBanners];
+          _banners = fetchedBanners;
           _isLoading = false;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -132,9 +95,9 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
         // Auto-scroll banners after a delay
         _startAutoScroll();
       } else {
-        // If API fails, just use the default banner
+        // If API fails, show nothing or empty state
         setState(() {
-          _banners = [_defaultBanner];
+          _banners = [];
           _isLoading = false;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -146,7 +109,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
       debugPrint('Error fetching banners: $e');
       if (mounted) {
         setState(() {
-          _banners = [_defaultBanner];
+          _banners = [];
           _isLoading = false;
         });
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -229,8 +192,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          height: 140,
+        AspectRatio(
+          aspectRatio: 2.5, // width / height = 2.5
           child: Stack(
             children: [
               PageView.builder(
@@ -255,11 +218,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                       : index % _banners.length;
                   final BannerModel banner = _banners[bannerIndex];
 
-                  final Widget child = _buildBannerItem(
-                    context,
-                    banner,
-                    bannerIndex == 0,
-                  );
+                  final Widget child = _buildBannerItem(context, banner);
 
                   return AnimatedBuilder(
                     animation: _pageController,
@@ -349,18 +308,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     );
   }
 
-  Widget _buildBannerItem(
-    BuildContext context,
-    BannerModel banner,
-    bool isFirstCard,
-  ) {
+  Widget _buildBannerItem(BuildContext context, BannerModel banner) {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
-    final alignment =
-        Alignment.centerRight; // Fixed alignment, let Transform handle the flip
-    final begin = isRtl ? Alignment.centerRight : Alignment.centerLeft;
-    final end = isRtl ? Alignment.centerLeft : Alignment.centerRight;
-
-    final isAsset = banner.imageUrl.startsWith('assets/');
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -368,125 +317,29 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
         color: const Color(0xFF49280B),
         width: double.infinity,
         height: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (isAsset)
-              Container(
+        child: CachedNetworkImage(
+          imageUrl: banner.imageUrl,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          placeholder: (context, url) =>
+              Container(color: const Color(0xFF49280B).withAlpha(100)),
+          errorWidget: (context, url, error) =>
+              Container(color: const Color(0xFF49280B).withAlpha(100)),
+          imageBuilder: (context, imageProvider) {
+            return Transform.flip(
+              flipX: isRtl,
+              child: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: begin,
-                    end: end,
-                    colors: const [Color(0xFF49280B), Color(0xff1A1A1A)],
-                    stops: [0.0, 0.8],
+                  image: DecorationImage(
+                    image: imageProvider,
+                    fit: BoxFit.cover,
                   ),
                 ),
-                child: ShaderMask(
-                  shaderCallback: (rect) {
-                    return LinearGradient(
-                      begin: begin,
-                      end: end,
-                      colors: [
-                        Colors.transparent,
-                        Colors.white.withOpacity(0.1),
-                        Colors.white,
-                      ],
-                      stops: const [0.0, 0.3, 0.7],
-                    ).createShader(rect);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: Transform.flip(
-                    flipX: isRtl,
-                    child: Image.asset(
-                      banner.imageUrl,
-                      fit: BoxFit.contain,
-                      alignment: alignment,
-                    ),
-                  ),
-                ),
-              )
-            else
-              CachedNetworkImage(
-                imageUrl: banner.imageUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-                placeholder: (context, url) =>
-                    Container(color: const Color(0xFF49280B).withAlpha(100)),
-                errorWidget: (context, url, error) =>
-                    Container(color: const Color(0xFF49280B).withAlpha(100)),
-                imageBuilder: (context, imageProvider) {
-                  return Transform.flip(
-                    flipX: isRtl,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: imageProvider,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  );
-                },
               ),
-            _buildBannerOverlay(context, banner, isFirstCard),
-          ],
+            );
+          },
         ),
-      ),
-    );
-  }
-
-  Widget _buildBannerOverlay(
-    BuildContext context,
-    BannerModel banner,
-    bool isFirstCard,
-  ) {
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
-    final begin = isRtl ? Alignment.centerRight : Alignment.centerLeft;
-    final end = isRtl ? Alignment.centerLeft : Alignment.centerRight;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          begin: begin,
-          end: end,
-          colors: [
-            const Color(0xFF49280B),
-            const Color(0xFF49280B).withOpacity(0.8),
-            const Color(0xFF49280B).withOpacity(0.0),
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.4, 0.8, 1.0],
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            banner.title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            banner.description,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              color: Colors.white,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
       ),
     );
   }
@@ -496,8 +349,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     return Shimmer.fromColors(
       baseColor: Colors.grey[800]!,
       highlightColor: Colors.grey[700]!,
-      child: SizedBox(
-        height: 140,
+      child: AspectRatio(
+        aspectRatio: 2.5,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -546,4 +399,3 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     );
   }
 }
-

@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
@@ -511,7 +511,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                         const SizedBox(height: 8),
                         Center(
                           child: Text(
-                            AppLocalizations.of(context)!.tapToAddPhoto,
+                            AppLocalizations.of(context)!.tapToAddPhotoOptional,
                             style: TextStyle(
                               color: Colors.white.withAlpha(100),
                               fontSize: 12,

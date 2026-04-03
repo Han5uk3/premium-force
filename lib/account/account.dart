@@ -1,6 +1,5 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:premium_force_main/account/admin_pricing/admin_pricing_dashboard.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
@@ -95,17 +94,6 @@ class _AccountPageState extends State<AccountPage> {
               ),
               GestureDetector(
                 onTap: () {
-                  _showLogoutBottomSheet(context, loc);
-                },
-                child: ProfileTile(
-                  loc: loc,
-                  isLogout: true,
-                  title: loc.logout,
-                  icon: Icons.logout,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
                   _showDeleteAccountBottomSheet(context, loc);
                 },
                 child: ProfileTile(
@@ -113,9 +101,22 @@ class _AccountPageState extends State<AccountPage> {
                   isDelete: true,
                   title: loc.deleteAccount,
                   icon: Icons.delete,
+                  isLast: false,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  _showLogoutBottomSheet(context, loc);
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  isLogout: true,
+                  title: loc.logout,
+                  icon: Icons.logout,
                   isLast: true,
                 ),
               ),
+
               const SizedBox(height: 20),
               // GestureDetector(
               //   onTap: () {
@@ -190,7 +191,7 @@ class _AccountPageState extends State<AccountPage> {
       ),
       minTileHeight: 80,
       leading: isSvg
-          ? SvgPicture.asset(svgPath!, width: 24, height: 24)
+          ? SvgPicture.asset(svgPath!, width: 20, height: 20)
           : ShaderMask(
               shaderCallback: (Rect bounds) {
                 return const LinearGradient(
@@ -282,7 +283,7 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                   )
           : null,
-      title: Text(title, style: TextStyle(color: Colors.white)),
+      title: Text(title, style: TextStyle(color: Colors.white, fontSize: 14)),
     );
   }
 

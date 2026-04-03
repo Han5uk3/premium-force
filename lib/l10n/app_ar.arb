@@ -86,6 +86,8 @@
   "pleaseSelectYourLocation": "يرجى اختيار موقعك",
   "completeYourProfileToGetStarted": "أكمل ملفك الشخصي للبدء",
   "tapToAddPhoto": "اضغط لإضافة صورة",
+  "tapToAddPhotoOptional": "اضغط لإضافة صورة (اختياري)",
+
   "fullName": "الاسم الكامل",
   "enterYourFullName": "أدخل اسمك الكامل",
   "emailAddress": "عنوان البريد الإلكتروني",

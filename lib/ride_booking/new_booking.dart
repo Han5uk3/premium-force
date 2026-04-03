@@ -76,6 +76,7 @@ class _NewBookingState extends State<NewBooking> {
   final _tripInfoFormKey = GlobalKey<FormState>();
   final _preferencesFormKey = GlobalKey<FormState>();
   final _passengerFormKey = GlobalKey<FormState>();
+  final ScrollController _scrollController = ScrollController();
 
   bool showPreferances = false;
   bool showTripInfo = true;
@@ -1122,6 +1123,7 @@ class _NewBookingState extends State<NewBooking> {
     AnimatedSnackBar.dismiss();
     flightNumberController.dispose();
     specialRequestsController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -1297,6 +1299,7 @@ class _NewBookingState extends State<NewBooking> {
         showTripInfo = false;
         showPreferances = false;
       });
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
     } else if (showPassenger) {
       setState(() {
         showReviewAndConfirm = false;
@@ -1304,6 +1307,7 @@ class _NewBookingState extends State<NewBooking> {
         showTripInfo = false;
         showPreferances = true;
       });
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
     } else if (showPreferances) {
       setState(() {
         showReviewAndConfirm = false;
@@ -1311,6 +1315,7 @@ class _NewBookingState extends State<NewBooking> {
         showTripInfo = true;
         showPassenger = false;
       });
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
     } else if (showTripInfo) {
       Navigator.of(context).pop();
     }
@@ -1337,6 +1342,7 @@ class _NewBookingState extends State<NewBooking> {
           appBar: buidAppBar(context),
           backgroundColor: Colors.transparent,
           body: SingleChildScrollView(
+            controller: _scrollController,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1475,6 +1481,9 @@ class _NewBookingState extends State<NewBooking> {
                                   showPassenger = false;
                                   showReviewAndConfirm = false;
                                 });
+                                if (_scrollController.hasClients) {
+                                  _scrollController.jumpTo(0);
+                                }
                               }
                             } else if (showPreferances) {
                               if (_preferencesFormKey.currentState
@@ -1544,6 +1553,9 @@ class _NewBookingState extends State<NewBooking> {
                                   showPreferances = false;
                                   showReviewAndConfirm = false;
                                 });
+                                if (_scrollController.hasClients) {
+                                  _scrollController.jumpTo(0);
+                                }
                               }
                             } else if (showPassenger) {
                               if (_passengerFormKey.currentState?.validate() ??
@@ -1560,6 +1572,9 @@ class _NewBookingState extends State<NewBooking> {
                                   showPassenger = false;
                                   _isCalculatingDistance = false;
                                 });
+                                if (_scrollController.hasClients) {
+                                  _scrollController.jumpTo(0);
+                                }
                               }
                             } else if (showReviewAndConfirm) {
                               if (_isBooking) return;

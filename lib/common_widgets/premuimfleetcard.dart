@@ -1,11 +1,11 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 
-class Premuimfleetcard extends StatelessWidget {
+class Premuimfleetcard extends StatefulWidget {
   const Premuimfleetcard({
     super.key,
     required this.image,
@@ -24,6 +24,15 @@ class Premuimfleetcard extends StatelessWidget {
   final String? brandLogoUrl;
   final double width;
   final double height;
+
+  @override
+  State<Premuimfleetcard> createState() => _PremuimfleetcardState();
+}
+
+class _PremuimfleetcardState extends State<Premuimfleetcard>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
   bool _isDarkLogo(String brandName) {
     final lowerBrand = brandName.toLowerCase();
@@ -47,14 +56,15 @@ class Premuimfleetcard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final loc = AppLocalizations.of(context)!;
-    final imageProvider = image;
+    final imageProvider = widget.image;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        height: height,
-        width: width,
+        height: widget.height,
+        width: widget.width,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -80,7 +90,7 @@ class Premuimfleetcard extends StatelessWidget {
                       child: Center(
                         child: PremiumLoader(
                           size: 24,
-                          color: Colors.grey[600]!,
+                          color: Color(0xFFE4A46B),
                         ),
                       ),
                     ),
@@ -160,7 +170,7 @@ class Premuimfleetcard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "$brand $name",
+                            "${widget.brand} ${widget.name}",
                             style: TextStyle(fontSize: 13, color: Colors.white),
                           ),
                           Row(
@@ -173,7 +183,7 @@ class Premuimfleetcard extends StatelessWidget {
                                 size: 16,
                               ),
                               Text(
-                                "${loc.passenger}: $passengerCount",
+                                "${loc.passenger}: ${widget.passengerCount}",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.white54,
@@ -246,22 +256,22 @@ class Premuimfleetcard extends StatelessWidget {
                                   : null,
                               width: 240,
                               height: 160,
-                              child: Container(color: Colors.grey[700]),
+                              child: Container(color: Colors.grey[800]),
                             ),
                       Container(
                         decoration: BoxDecoration(
-                          color: _isDarkLogo(brand)
+                          color: _isDarkLogo(widget.brand)
                               ? Colors.white.withAlpha(128)
                               : Colors.black.withAlpha(128),
                         ),
 
-                        child: brandLogoUrl != null
+                        child: widget.brandLogoUrl != null
                             ? CachedNetworkImage(
-                                imageUrl: brandLogoUrl!,
+                                imageUrl: widget.brandLogoUrl!,
                                 fit: BoxFit.fill,
                                 placeholder: (context, url) => Center(
                                   child: PremiumLoader(
-                                    size: 24,
+                                    size: 12,
                                     color: Color(0xFFE4A46B),
                                   ),
                                 ),

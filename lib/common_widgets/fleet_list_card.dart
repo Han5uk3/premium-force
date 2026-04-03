@@ -1,10 +1,10 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 
-class FleetListCard extends StatelessWidget {
+class FleetListCard extends StatefulWidget {
   const FleetListCard({
     super.key,
     required this.image,
@@ -19,6 +19,15 @@ class FleetListCard extends StatelessWidget {
   final String passengerCount;
   final String brand;
   final String? brandLogoUrl;
+
+  @override
+  State<FleetListCard> createState() => _FleetListCardState();
+}
+
+class _FleetListCardState extends State<FleetListCard>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
 
   bool _isDarkLogo(String brandName) {
     final lowerBrand = brandName.toLowerCase();
@@ -42,6 +51,7 @@ class FleetListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final loc = AppLocalizations.of(context)!;
 
     return ClipRRect(
@@ -52,7 +62,7 @@ class FleetListCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             // Base image
-            image.isEmpty
+            widget.image.isEmpty
                 ? Container(
                     color: Colors.grey[800],
                     child: Center(
@@ -64,7 +74,7 @@ class FleetListCard extends StatelessWidget {
                     ),
                   )
                 : CachedNetworkImage(
-                    imageUrl: image,
+                    imageUrl: widget.image,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
                       color: Colors.grey[800],
@@ -113,13 +123,13 @@ class FleetListCard extends StatelessWidget {
                               height: 44,
                               width: 44,
                               decoration: BoxDecoration(
-                                color: _isDarkLogo(brand)
+                                color: _isDarkLogo(widget.brand)
                                     ? Colors.white.withAlpha(128)
                                     : Colors.black.withAlpha(128),
                               ),
-                              child: brandLogoUrl != null
+                              child: widget.brandLogoUrl != null
                                   ? CachedNetworkImage(
-                                      imageUrl: brandLogoUrl!,
+                                      imageUrl: widget.brandLogoUrl!,
                                       fit: BoxFit.fill,
                                       placeholder: (context, url) => Center(
                                         child: PremiumLoader(
@@ -141,7 +151,7 @@ class FleetListCard extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "$brand $name",
+                                "${widget.brand} ${widget.name}",
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -159,7 +169,7 @@ class FleetListCard extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    "${loc.passenger}: $passengerCount",
+                                    "${loc.passenger}: ${widget.passengerCount}",
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Colors.white70,

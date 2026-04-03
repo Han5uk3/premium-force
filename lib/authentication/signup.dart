@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
@@ -341,13 +341,8 @@ class _SignUpPageState extends State<SignUpPage>
   Future<void> _handleSignUp() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_profileImage == null) {
-      _showCustomSnackBar(
-        AppLocalizations.of(context)!.pleaseAddAProfilePicture,
-        type: "E",
-      );
-      return;
-    }
+    // Profile image is now optional
+
 
     if (_locationController.text.isEmpty) {
       _showCustomSnackBar(
@@ -607,7 +602,7 @@ class _SignUpPageState extends State<SignUpPage>
                         const SizedBox(height: 8),
                         Center(
                           child: Text(
-                            AppLocalizations.of(context)!.tapToAddPhoto,
+                            AppLocalizations.of(context)!.tapToAddPhotoOptional,
                             style: TextStyle(
                               color: Colors.white.withAlpha(100),
                               fontSize: 12,

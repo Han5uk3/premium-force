@@ -632,6 +632,12 @@ abstract class AppLocalizations {
   /// **'Tap to add photo'**
   String get tapToAddPhoto;
 
+  /// No description provided for @tapToAddPhotoOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add photo (Optional)'**
+  String get tapToAddPhotoOptional;
+
   /// No description provided for @fullName.
   ///
   /// In en, this message translates to:

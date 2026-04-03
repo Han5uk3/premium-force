@@ -278,6 +278,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tapToAddPhoto => 'اضغط لإضافة صورة';
 
   @override
+  String get tapToAddPhotoOptional => 'اضغط لإضافة صورة (اختياري)';
+
+  @override
   String get fullName => 'الاسم الكامل';
 
   @override

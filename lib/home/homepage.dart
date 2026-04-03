@@ -940,8 +940,9 @@ class _HomepageState extends State<Homepage>
                     ),
                   )
                 : ListView.builder(
-                    itemCount: _fleetCars.length,
+                    itemCount: 5,
                     scrollDirection: Axis.horizontal,
+                    cacheExtent: 1000,
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: EdgeInsetsDirectional.only(
@@ -1133,7 +1134,7 @@ class _HomepageState extends State<Homepage>
 
   Widget _buildAppbar(BuildContext context, AppLocalizations loc) {
     return Container(
-      height: 270,
+      height: 290,
       padding: const EdgeInsets.only(top: 50),
       decoration: BoxDecoration(
         image: DecorationImage(
@@ -1304,7 +1305,7 @@ class _HomepageState extends State<Homepage>
               ],
             ),
           ),
-          SizedBox(height: 8),
+          SizedBox(height: 16),
           const InfiniteScrollBanner(),
         ],
       ),
@@ -1679,7 +1680,7 @@ class _HomepageState extends State<Homepage>
                           showCitySelectionBottomSheet(context, loc, 0);
                         },
                         child: PremiumContainer(
-                          height: 101,
+                          height: 130,
                           width: double.infinity,
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -1697,12 +1698,11 @@ class _HomepageState extends State<Homepage>
                                     ),
                                   ),
                                 ),
-                                const Spacer(),
+                                SizedBox(height: 12),
                                 Text(
                                   loc.airportArrival,
                                   style: const TextStyle(
                                     fontSize: 14,
-                                    fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
@@ -1720,7 +1720,7 @@ class _HomepageState extends State<Homepage>
                           showCitySelectionBottomSheet(context, loc, 1);
                         },
                         child: PremiumContainer(
-                          height: 101,
+                          height: 130,
                           width: MediaQuery.of(context).size.width * 0.42,
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -1738,12 +1738,11 @@ class _HomepageState extends State<Homepage>
                                     ),
                                   ),
                                 ),
-                                const Spacer(),
+                                SizedBox(height: 12),
                                 Text(
                                   loc.airportDeparture,
                                   style: const TextStyle(
                                     fontSize: 14,
-                                    fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),

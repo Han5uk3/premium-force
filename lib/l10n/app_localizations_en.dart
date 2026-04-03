@@ -279,6 +279,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tapToAddPhoto => 'Tap to add photo';
 
   @override
+  String get tapToAddPhotoOptional => 'Tap to add photo (Optional)';
+
+  @override
   String get fullName => 'Full Name';
 
   @override
