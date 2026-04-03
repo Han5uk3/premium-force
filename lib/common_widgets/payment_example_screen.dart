@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/payment_provider.dart';
 import 'package:premium_force_main/models/payment_model.dart';
@@ -135,7 +135,7 @@ class _PaymentExampleScreenState extends State<PaymentExampleScreen> {
                           const Text(
                             'Order Total',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               color: Colors.grey,
                             ),
                           ),
@@ -143,7 +143,7 @@ class _PaymentExampleScreenState extends State<PaymentExampleScreen> {
                           Text(
                             '${widget.amount} ${PaytabsConfig.defaultCurrency}',
                             style: const TextStyle(
-                              fontSize: 32,
+                              fontSize: 30,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -238,3 +238,4 @@ class _PaymentExampleScreenState extends State<PaymentExampleScreen> {
     );
   }
 }
+

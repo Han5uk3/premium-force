@@ -548,6 +548,23 @@ class _NewBookingState extends State<NewBooking> {
     _apiAirports = widget.preloadedAirports ?? [];
     _apiTerminals = widget.preloadedTerminals ?? [];
 
+    // Autofill passenger details using customer data
+    final userDataMap = UserLocalStorage.getUserData();
+    if (userDataMap != null) {
+      _passengerNameController.text =
+          (userDataMap['username'] ?? userDataMap['name'] ?? '').toString();
+    }
+
+    final savedPhoneNumber = UserLocalStorage.getPhoneNumber();
+    if (savedPhoneNumber != null && savedPhoneNumber.isNotEmpty) {
+      _mobileNumberController.text = savedPhoneNumber;
+    }
+
+    final savedCCode = UserLocalStorage.getCountryCode();
+    if (savedCCode != null && savedCCode.isNotEmpty) {
+      _selectedPassengerCountryCode = savedCCode.replaceAll('+', '').trim();
+    }
+
     _loadCarData();
     _loadUserPromoCode();
   }
@@ -1203,7 +1220,12 @@ class _NewBookingState extends State<NewBooking> {
 
   String _getCityName(BuildContext context, int code) {
     if (_apiCities.isNotEmpty && code < _apiCities.length) {
-      return _apiCities[code]['cityName'].toString();
+      final city = _apiCities[code];
+      final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+      return (isArabic
+              ? (city['cityNameAr'] ?? city['cityName'])
+              : city['cityName'])
+          .toString();
     }
     final loc = AppLocalizations.of(context)!;
     switch (code) {
@@ -1870,7 +1892,7 @@ class _NewBookingState extends State<NewBooking> {
                               }
                             }
                           },
-                    fontsize: 16,
+                    fontsize: 14,
                     showLoader:
                         _isCalculatingDistance ||
                         _isBooking ||
@@ -1896,7 +1918,7 @@ class _NewBookingState extends State<NewBooking> {
             loc.reviewAndConfirm,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1908,7 +1930,7 @@ class _NewBookingState extends State<NewBooking> {
             loc.reviewAndConfirmYourRequest,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -1975,7 +1997,7 @@ class _NewBookingState extends State<NewBooking> {
                 dropoff: getDropoff(),
                 date: getDisplayDate(),
                 time: getDisplayTime(),
-                ride: _selectedVehicleModel ?? "",
+                ride: _selectedVehicleClass ?? "",
                 brand: _selectedVehicleBrand ?? "",
                 passengers: int.tryParse(_numberOfPassengers ?? "1") ?? 1,
               );
@@ -2004,25 +2026,21 @@ class _NewBookingState extends State<NewBooking> {
 
                       color: Colors.black,
                       child: carImageUrl.startsWith('http')
-                          ? Image.network(
-                              carImageUrl,
+                          ? CachedNetworkImage(
+                              imageUrl: carImageUrl,
                               fit: BoxFit.contain,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Center(
-                                      child: CircularProgressIndicator(
-                                        color: Color(0xFFE4A46B),
-                                        strokeWidth: 2,
-                                      ),
-                                    );
-                                  },
-                              errorBuilder: (context, error, stackTrace) =>
+                              errorWidget: (context, error, stackTrace) =>
                                   const Icon(
                                     Icons.directions_car,
                                     size: 50,
                                     color: Colors.white24,
                                   ),
+                              placeholder: (context, url) => const Center(
+                                child: PremiumLoader(
+                                  size: 20,
+                                  color: Color(0xFFE4A46B),
+                                ),
+                              ),
                             )
                           : Image.asset(
                               carImageUrl,
@@ -2042,7 +2060,7 @@ class _NewBookingState extends State<NewBooking> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     ),
@@ -2107,7 +2125,7 @@ class _NewBookingState extends State<NewBooking> {
             loc.paymentSummary,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -2134,7 +2152,7 @@ class _NewBookingState extends State<NewBooking> {
                       loc.totalDistance,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -2142,7 +2160,7 @@ class _NewBookingState extends State<NewBooking> {
                       "${_totalDistance.toStringAsFixed(2)} ${loc.km}",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -2187,18 +2205,20 @@ class _NewBookingState extends State<NewBooking> {
                         ),
                 ),
                 */
-                const SizedBox(height: 24),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+
                   children: [
-                    Text(
-                      getBaseChargeText(loc),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Text(
+                        maxLines: 2,
+                        getBaseChargeText(loc),
+                        style: const TextStyle(
+                          overflow: TextOverflow.ellipsis,
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     Row(
@@ -2210,14 +2230,14 @@ class _NewBookingState extends State<NewBooking> {
                                 padding: EdgeInsets.only(left: 8),
                                 child: PremiumLoader(
                                   size: 16,
-                                  color: Colors.amber,
+                                  color: Color(0xFFE4A46B),
                                 ),
                               )
                             : Text(
                                 " ${_calculatedCharge.toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 16,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -2235,7 +2255,7 @@ class _NewBookingState extends State<NewBooking> {
                         "${loc.discount} (${_discountPercentage.toStringAsFixed(0)}%)",
                         style: const TextStyle(
                           color: Colors.green,
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -2259,7 +2279,7 @@ class _NewBookingState extends State<NewBooking> {
                                   " ${(_calculatedCharge * (_discountPercentage / 100)).toStringAsFixed(2)}",
                                   style: const TextStyle(
                                     color: Colors.green,
-                                    fontSize: 16,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -2278,7 +2298,7 @@ class _NewBookingState extends State<NewBooking> {
                       loc.vat,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -2291,14 +2311,14 @@ class _NewBookingState extends State<NewBooking> {
                                 padding: EdgeInsets.only(left: 8),
                                 child: PremiumLoader(
                                   size: 16,
-                                  color: Colors.amber,
+                                  color: Color(0xFFE4A46B),
                                 ),
                               )
                             : Text(
                                 " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 0.15).toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 16,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -2318,7 +2338,7 @@ class _NewBookingState extends State<NewBooking> {
                       loc.total,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -2331,14 +2351,14 @@ class _NewBookingState extends State<NewBooking> {
                                 padding: EdgeInsets.only(left: 8),
                                 child: PremiumLoader(
                                   size: 16,
-                                  color: Colors.amber,
+                                  color: Color(0xFFE4A46B),
                                 ),
                               )
                             : Text(
                                 " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 1.15).toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 16,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -2452,11 +2472,11 @@ class _NewBookingState extends State<NewBooking> {
                       backgroundColor: const Color(0xFF141313),
                       textStyle: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                       ),
                       searchTextStyle: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 14,
                       ),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(30),
@@ -2512,7 +2532,7 @@ class _NewBookingState extends State<NewBooking> {
                         '+$_selectedPassengerCountryCode',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                       const Icon(Icons.arrow_drop_down, color: Colors.white),
@@ -2920,8 +2940,8 @@ class _NewBookingState extends State<NewBooking> {
         children: [
           // Car Image
           Container(
-            // width: double.infinity,
-            // height: 259,
+            width: double.infinity,
+            height: 311,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: Colors.grey.shade800,
@@ -2933,7 +2953,10 @@ class _NewBookingState extends State<NewBooking> {
                       imageUrl: selectedCar.imagePath,
                       fit: BoxFit.contain,
                       placeholder: (context, url) => const Center(
-                        child: PremiumLoader(size: 32, color: Colors.amber),
+                        child: PremiumLoader(
+                          size: 32,
+                          color: Color(0xFFE4A46B),
+                        ),
                       ),
                       errorWidget: (context, url, error) => Center(
                         child: Icon(
@@ -3966,7 +3989,10 @@ class _NewBookingState extends State<NewBooking> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 buildCompletedCheckMark(context),
-                Text(loc.tripInfo, style: TextStyle(color: Colors.white)),
+                Text(
+                  loc.tripInfo,
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
               ],
             ),
             Expanded(
@@ -3989,6 +4015,7 @@ class _NewBookingState extends State<NewBooking> {
                 Text(
                   loc.preferences,
                   style: TextStyle(
+                    fontSize: 12,
                     color: isPrefActiveOrPassed
                         ? Colors.white
                         : Colors.grey.shade700,
@@ -4016,6 +4043,7 @@ class _NewBookingState extends State<NewBooking> {
                 Text(
                   loc.passenger,
                   style: TextStyle(
+                    fontSize: 12,
                     color: isPassActiveOrPassed
                         ? Colors.white
                         : Colors.grey.shade700,
@@ -4032,9 +4060,14 @@ class _NewBookingState extends State<NewBooking> {
   /// Get simplified list of city names for dropdowns
   List<String> _getAvailableCityNames(BuildContext context) {
     if (_apiCities.isNotEmpty) {
+      final isArabic = Localizations.localeOf(context).languageCode == 'ar';
       return _apiCities
           .where((c) => c['isActive'] == true)
-          .map((c) => c['cityName'].toString())
+          .map(
+            (c) =>
+                (isArabic ? (c['cityNameAr'] ?? c['cityName']) : c['cityName'])
+                    .toString(),
+          )
           .toSet()
           .toList();
     }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
@@ -104,7 +104,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
       final response = await api.getBanners(token: token);
 
       if (kDebugMode) {
-        debugPrint('🌐 API │ Banners Response: $response');
+        debugPrint('ðŸŒ API â”‚ Banners Response: $response');
       }
 
       if (!mounted) return;
@@ -355,7 +355,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     bool isFirstCard,
   ) {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
-    final alignment = Alignment.centerRight; // Fixed alignment, let Transform handle the flip
+    final alignment =
+        Alignment.centerRight; // Fixed alignment, let Transform handle the flip
     final begin = isRtl ? Alignment.centerRight : Alignment.centerLeft;
     final end = isRtl ? Alignment.centerLeft : Alignment.centerRight;
 
@@ -376,10 +377,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                   gradient: LinearGradient(
                     begin: begin,
                     end: end,
-                    colors: const [
-                      Color(0xFF49280B),
-                      Color(0xff1A1A1A),
-                    ],
+                    colors: const [Color(0xFF49280B), Color(0xff1A1A1A)],
                     stops: [0.0, 0.8],
                   ),
                 ),
@@ -391,7 +389,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                       colors: [
                         Colors.transparent,
                         Colors.white.withOpacity(0.1),
-                        Colors.white
+                        Colors.white,
                       ],
                       stops: const [0.0, 0.3, 0.7],
                     ).createShader(rect);
@@ -471,7 +469,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           Text(
             banner.title,
             style: const TextStyle(
-              fontSize: 15,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -481,31 +479,13 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           Text(
             banner.description,
             style: const TextStyle(
-              fontSize: 15,
+              fontSize: 13,
               fontWeight: FontWeight.w400,
               color: Colors.white,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          if (isFirstCard) ...[
-            const SizedBox(height: 8),
-            IgnorePointer(
-              ignoring: true,
-              child: SizedBox(
-                width: 90,
-                height: 26,
-                child: PremiumButton(
-                  showLoader: false,
-                  borderRadius: 18,
-                  textColor: Colors.white,
-                  text: AppLocalizations.of(context)?.bookNow ?? 'Book Now',
-                  onTap: () {},
-                  fontsize: 12,
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -566,3 +546,4 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
     );
   }
 }
+

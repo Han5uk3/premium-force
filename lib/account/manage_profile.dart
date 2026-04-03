@@ -1,7 +1,8 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
+import 'package:premium_force_main/common_widgets/borderedcontainer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
@@ -131,68 +132,81 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.only(bottom: 24, top: 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(60),
-                      borderRadius: BorderRadius.circular(2),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 24, right: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          loc.chooseProfilePicture,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    loc.chooseProfilePicture,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 8),
+                  Divider(thickness: 1),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildImageSourceOption(
+                            icon: Icons.camera_alt_rounded,
+                            label: loc.camera,
+                            onTap: () async {
+                              Navigator.pop(context);
+                              final XFile? image = await picker.pickImage(
+                                source: ImageSource.camera,
+                                maxWidth: 800,
+                                maxHeight: 800,
+                                imageQuality: 85,
+                              );
+                              if (image != null) {
+                                setState(() {
+                                  _profileImage = File(image.path);
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildImageSourceOption(
+                            icon: Icons.photo_library_rounded,
+                            label: loc.gallery,
+                            onTap: () async {
+                              Navigator.pop(context);
+                              final XFile? image = await picker.pickImage(
+                                source: ImageSource.gallery,
+                                maxWidth: 800,
+                                maxHeight: 800,
+                                imageQuality: 85,
+                              );
+                              if (image != null) {
+                                setState(() {
+                                  _profileImage = File(image.path);
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildImageSourceOption(
-                        icon: Icons.camera_alt_rounded,
-                        label: loc.camera,
-                        onTap: () async {
-                          Navigator.pop(context);
-                          final XFile? image = await picker.pickImage(
-                            source: ImageSource.camera,
-                            maxWidth: 800,
-                            maxHeight: 800,
-                            imageQuality: 85,
-                          );
-                          if (image != null) {
-                            setState(() {
-                              _profileImage = File(image.path);
-                            });
-                          }
-                        },
-                      ),
-                      _buildImageSourceOption(
-                        icon: Icons.photo_library_rounded,
-                        label: loc.gallery,
-                        onTap: () async {
-                          Navigator.pop(context);
-                          final XFile? image = await picker.pickImage(
-                            source: ImageSource.gallery,
-                            maxWidth: 800,
-                            maxHeight: 800,
-                            imageQuality: 85,
-                          );
-                          if (image != null) {
-                            setState(() {
-                              _profileImage = File(image.path);
-                            });
-                          }
-                        },
-                      ),
-                    ],
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -211,44 +225,33 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF49280B),
-                  Color(0xFFE4A46B),
-                  Color(0xFF60350F),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Center(
-              child: Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D0A08),
-                  borderRadius: BorderRadius.circular(15),
+      child: PremiumContainer(
+        height: 115,
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: Icon(icon, color: const Color(0xFFE4A46B), size: 30),
                 ),
-                child: Icon(icon, color: const Color(0xFFE4A46B), size: 30),
               ),
-            ),
+
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -526,7 +529,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                           hintText: AppLocalizations.of(
                             context,
                           )!.enterYourFullName,
-                          fontsize: 15,
+                          fontsize: 13,
                           keyboardType: TextInputType.name,
                           needTitle: true,
                           obscureText: false,
@@ -568,7 +571,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                           title: AppLocalizations.of(context)!.phoneNumber,
                           controller: _phoneController,
                           hintText: "",
-                          fontsize: 15,
+                          fontsize: 13,
                           needTitle: true,
                           obscureText: false,
                           enabled: false,
@@ -600,7 +603,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                           hintText: AppLocalizations.of(
                             context,
                           )!.enterYourEmailAddress,
-                          fontsize: 15,
+                          fontsize: 13,
                           keyboardType: TextInputType.emailAddress,
                           needTitle: true,
                           obscureText: false,
@@ -685,7 +688,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                   )!.iAmACorporateEmployee,
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 14,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -710,7 +713,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                   hintText: AppLocalizations.of(
                                     context,
                                   )!.enterYourPromoCode,
-                                  fontsize: 15,
+                                  fontsize: 13,
                                   needTitle: true,
                                   obscureText: false,
                                   readOnly: _isPromoValid,
@@ -751,7 +754,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                     height: 59,
                                     child: PremiumButton(
                                       showLoader: _isCheckingPromo,
-                                      fontsize: 14,
+                                      fontsize: 12,
                                       text: _isPromoValid
                                           ? AppLocalizations.of(context)!.remove
                                           : AppLocalizations.of(context)!.apply,
@@ -779,7 +782,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                         // Save Changes button
                         PremiumButton(
                           showLoader: _isLoading,
-                          fontsize: 18,
+                          fontsize: 16,
                           text: AppLocalizations.of(context)!.saveChanges,
                           onTap: _isLoading ? () {} : _handleUpdateProfile,
                         ),
@@ -829,7 +832,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           title: Text(
             AppLocalizations.of(context)!.manageProfile,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
@@ -837,7 +840,11 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           ),
           backgroundColor: Colors.transparent,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              size: 16,
+              color: Colors.white,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),

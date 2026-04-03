@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:premium_force_main/common_widgets/borderedcontainer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/home/home.dart';
@@ -167,7 +167,7 @@ class _SuccessPageState extends State<SuccessPage>
                         "${l10n.bookingConfirmed}!",
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: 26,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.2,
                         ),
@@ -193,7 +193,7 @@ class _SuccessPageState extends State<SuccessPage>
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 16,
+                          fontSize: 14,
                           height: 1.5,
                           fontWeight: FontWeight.w300,
                         ),
@@ -248,7 +248,7 @@ class _SuccessPageState extends State<SuccessPage>
                           l10n.backToHome,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -271,7 +271,7 @@ class _SuccessPageState extends State<SuccessPage>
                         (route) => false,
                       );
                     },
-                    fontsize: 16,
+                    fontsize: 14,
                     showLoader: false,
                   ),
                 ),
@@ -284,3 +284,4 @@ class _SuccessPageState extends State<SuccessPage>
   );
 }
 }
+

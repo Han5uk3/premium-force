@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -161,7 +161,7 @@ class Premuimfleetcard extends StatelessWidget {
                         children: [
                           Text(
                             "$brand $name",
-                            style: TextStyle(fontSize: 15, color: Colors.white),
+                            style: TextStyle(fontSize: 13, color: Colors.white),
                           ),
                           Row(
                             spacing: 5,
@@ -189,7 +189,7 @@ class Premuimfleetcard extends StatelessWidget {
               ),
             ),
 
-            // Brand badge (top-right) — uses ImageFiltered instead of
+            // Brand badge (top-right) â€” uses ImageFiltered instead of
             // BackdropFilter so it is scroll-safe.
             Positioned(
               top: 5,
@@ -262,7 +262,7 @@ class Premuimfleetcard extends StatelessWidget {
                                 placeholder: (context, url) => Center(
                                   child: PremiumLoader(
                                     size: 24,
-                                    color: Colors.amber,
+                                    color: Color(0xFFE4A46B),
                                   ),
                                 ),
                                 errorWidget: (context, url, error) => Center(

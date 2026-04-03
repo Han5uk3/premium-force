@@ -103,6 +103,9 @@ class AuthProvider extends ChangeNotifier {
 
     if (result != null) {
       _user = result;
+      _status = AuthStatus.authenticated;
+      // Persist to local storage to keep cache fresh
+      await UserLocalStorage.saveUserData(result.toJson());
       notifyListeners();
       debugPrint('✅ Fetched user from backend: ${result.username}');
     } else {
@@ -110,6 +113,16 @@ class AuthProvider extends ChangeNotifier {
     }
 
     return result;
+  }
+
+  /// Update the current user data manually, persist it, and notify listeners.
+  ///
+  /// Useful after registration or profile updates to ensure immediate UI sync.
+  Future<void> updateUser(UserModel user) async {
+    _user = user;
+    _status = AuthStatus.authenticated;
+    await UserLocalStorage.saveUserData(user.toJson());
+    notifyListeners();
   }
 
   // ---------------------------------------------------------------------------

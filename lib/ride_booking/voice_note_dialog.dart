@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
@@ -168,7 +168,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                   loc.voiceNote,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -236,7 +236,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                           : _formatDuration(_recordDuration),
                       style: const TextStyle(
                         color: Colors.white60,
-                        fontSize: 13,
+                        fontSize: 11,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -256,7 +256,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                       _formatDuration(_recordDuration),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 15,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -283,7 +283,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                         padding: const EdgeInsets.only(left: 8.0),
                         child: Text(
                           loc.recordVoiceNote,
-                          style: const TextStyle(color: Colors.white60, fontSize: 14),
+                          style: const TextStyle(color: Colors.white60, fontSize: 12),
                         ),
                       ),
                     ),
@@ -325,7 +325,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                 ),
                 child: Text(
                   loc.saveVoiceNote,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
               ),
           ],
@@ -334,3 +334,4 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
     );
   }
 }
+

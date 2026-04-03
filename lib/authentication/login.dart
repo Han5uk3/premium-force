@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:premium_force_main/main.dart';
@@ -69,13 +69,13 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
     if (!mounted) return;
 
     if (authProvider.status == AuthStatus.authenticated) {
-      // Existing user — go to home
+      // Existing user â€” go to home
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => Home()),
         (route) => false,
       );
     } else if (authProvider.status == AuthStatus.otpVerified) {
-      // New user — go to signup with pre-filled data
+      // New user â€” go to signup with pre-filled data
       final googleResult = authProvider.googleResult;
       Navigator.of(context).push(
         SmoothNavigation.route(
@@ -109,13 +109,13 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
     if (!mounted) return;
 
     if (authProvider.status == AuthStatus.authenticated) {
-      // Existing user — go to home
+      // Existing user â€” go to home
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => Home()),
         (route) => false,
       );
     } else if (authProvider.status == AuthStatus.otpVerified) {
-      // New user — go to signup with pre-filled data
+      // New user â€” go to signup with pre-filled data
       final appleResult = authProvider.appleResult;
       Navigator.of(context).push(
         SmoothNavigation.route(
@@ -236,7 +236,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                         AppLocalizations.of(context)!.signIn,
                                         style: const TextStyle(
                                           color: Colors.white,
-                                          fontSize: 28,
+                                          fontSize: 26,
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 1.2,
                                         ),
@@ -311,7 +311,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                     hintText: AppLocalizations.of(
                                       context,
                                     )!.enterMobileNumber,
-                                    fontsize: 16,
+                                    fontsize: 14,
 
                                     keyboardType: TextInputType.phone,
                                     needTitle: true,
@@ -329,11 +329,11 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                             ),
                                             textStyle: const TextStyle(
                                               color: Colors.white,
-                                              fontSize: 16,
+                                              fontSize: 14,
                                             ),
                                             searchTextStyle: const TextStyle(
                                               color: Colors.white,
-                                              fontSize: 16,
+                                              fontSize: 14,
                                             ),
                                             borderRadius:
                                                 const BorderRadius.only(
@@ -409,7 +409,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                               textDirection: TextDirection.ltr,
                                               style: const TextStyle(
                                                 color: Colors.white,
-                                                fontSize: 16,
+                                                fontSize: 14,
                                               ),
                                             ),
                                             const Icon(
@@ -454,7 +454,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                           text: TextSpan(
                                             style: TextStyle(
                                               color: Color(0xFFB0B0B0),
-                                              fontSize: 13,
+                                              fontSize: 11,
                                               height: 1.4,
                                             ),
                                             children: [
@@ -464,7 +464,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                 )!.byClickingContinueButton,
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 14,
+                                                  fontSize: 12,
                                                   fontWeight: FontWeight.w500,
                                                   decoration:
                                                       TextDecoration.none,
@@ -475,7 +475,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                     " ${AppLocalizations.of(context)!.termsAndConditions}",
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 14,
+                                                  fontSize: 12,
                                                   fontWeight: FontWeight.w900,
                                                   decoration:
                                                       TextDecoration.none,
@@ -486,7 +486,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                     " ${AppLocalizations.of(context)!.and} ",
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 14,
+                                                  fontSize: 12,
                                                   fontWeight: FontWeight.w500,
                                                   decoration:
                                                       TextDecoration.none,
@@ -498,7 +498,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                 )!.privacyPolicy,
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 14,
+                                                  fontSize: 12,
                                                   fontWeight: FontWeight.w900,
                                                   decoration:
                                                       TextDecoration.none,
@@ -513,7 +513,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                   SizedBox(height: 25),
                                   PremiumButton(
                                     showLoader: _isLoading,
-                                    fontsize: 18,
+                                    fontsize: 16,
                                     text: AppLocalizations.of(
                                       context,
                                     )!.continueText,
@@ -574,7 +574,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
                                   const SizedBox(height: 24),
 
-                                  // ── OR divider ─────────────────────────────────
+                                  // â”€â”€ OR divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                   Row(
                                     children: [
                                       Expanded(
@@ -598,7 +598,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                           AppLocalizations.of(context)!.or,
                                           style: TextStyle(
                                             color: Colors.white.withAlpha(150),
-                                            fontSize: 14,
+                                            fontSize: 12,
                                             fontWeight: FontWeight.w500,
                                             letterSpacing: 1.5,
                                           ),
@@ -622,7 +622,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
                                   const SizedBox(height: 24),
 
-                                  // ── Google Sign-In button ──────────────────────
+                                  // â”€â”€ Google Sign-In button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                   _GoogleSignInButton(
                                     isLoading: authProvider.isGoogleLoading,
                                     onTap: _handleGoogleSignIn,
@@ -631,7 +631,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                   if (!Platform.isAndroid) ...[
                                     const SizedBox(height: 12),
 
-                                    // ── Apple Sign-In button ───────────────────────
+                                    // â”€â”€ Apple Sign-In button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                     _AppleSignInButton(
                                       isLoading: authProvider.isAppleLoading,
                                       onTap: _handleAppleSignIn,
@@ -699,7 +699,7 @@ class _GoogleSignInButton extends StatelessWidget {
                     AppLocalizations.of(context)!.continueWithGoogle,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
                     ),
@@ -752,7 +752,7 @@ class _AppleSignInButton extends StatelessWidget {
                     AppLocalizations.of(context)!.continueWithApple,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
                     ),
@@ -766,3 +766,4 @@ class _AppleSignInButton extends StatelessWidget {
     );
   }
 }
+

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../models/pricing/city_model.dart';
 import '../../models/pricing/zone_model.dart';
 import '../../services/firebase_pricing_service.dart';
@@ -186,7 +186,7 @@ class _AddZonePageState extends State<AddZonePage> {
                   PremiumButton(
                     onTap: _save,
                     text: "Save Zone",
-                    fontsize: 16,
+                    fontsize: 14,
                     showLoader: _loading,
                   ),
                 ],
@@ -195,3 +195,4 @@ class _AddZonePageState extends State<AddZonePage> {
     );
   }
 }
+

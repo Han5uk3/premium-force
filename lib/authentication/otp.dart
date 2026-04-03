@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pinput/pinput.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
@@ -66,15 +66,15 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     setState(() => _isVerifying = false);
 
     if (authProvider.status == AuthStatus.authenticated) {
-      // ── Existing user → go straight to Home ──
-      debugPrint('✅ Existing user — navigating to Home');
+      // â”€â”€ Existing user â†’ go straight to Home â”€â”€
+      debugPrint('âœ… Existing user â€” navigating to Home');
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => Home()),
         (route) => false,
       );
     } else if (authProvider.status == AuthStatus.otpVerified) {
-      // ── New user → go to SignUp ──
-      debugPrint('🆕 New user — navigating to SignUp');
+      // â”€â”€ New user â†’ go to SignUp â”€â”€
+      debugPrint('ðŸ†• New user â€” navigating to SignUp');
       Navigator.of(context).push(
         SmoothNavigation.route(
           SignUpPage(
@@ -107,7 +107,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
             title: Text(
               AppLocalizations.of(context)!.enterOtp,
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 18,
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
@@ -129,7 +129,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       width: 55,
       height: 55,
       textStyle: const TextStyle(
-        fontSize: 22,
+        fontSize: 20,
         color: Colors.white,
         fontWeight: FontWeight.w600,
       ),
@@ -171,7 +171,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                     TextSpan(
                       text: AppLocalizations.of(context)!.otpHasBeenSentTo,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w400,
                         color: Colors.white,
                       ),
@@ -179,7 +179,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                     TextSpan(
                       text: '${widget.countryCode} ${widget.phoneNumber}',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
@@ -211,7 +211,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
               const SizedBox(height: 24),
 
-              // ── Resend OTP row ──────────────────────────────────
+              // â”€â”€ Resend OTP row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               Consumer<AuthProvider>(
                 builder: (context, authProvider, child) {
                   final canResend = authProvider.resendCountdown == 0;
@@ -222,7 +222,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                       Text(
                         AppLocalizations.of(context)!.didntReceiveTheCode,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: Colors.white.withAlpha(180),
                         ),
                       ),
@@ -265,7 +265,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                               ? AppLocalizations.of(context)!.resendOtp
                               : '${AppLocalizations.of(context)!.resendIn}${_formatCountdown(authProvider.resendCountdown)}',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: canResend
                                 ? const Color(0xFFD4A574)
@@ -283,7 +283,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
               // Verify Button
               PremiumButton(
                 showLoader: _isVerifying,
-                fontsize: 18,
+                fontsize: 16,
                 text: AppLocalizations.of(context)!.verify,
                 onTap: _isVerifying ? () {} : _handleVerify,
               ),
@@ -294,3 +294,4 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     );
   }
 }
+

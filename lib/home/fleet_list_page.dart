@@ -206,49 +206,52 @@ class _FleetListPageState extends State<FleetListPage> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        title: Text(
-          loc.premiumFleet,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF1E1105),
+            Color(0xFF1E1105),
+            Color.fromARGB(255, 26, 23, 23),
+            Color.fromARGB(255, 26, 23, 23),
+          ],
         ),
       ),
-      body: _isLoading && _allFleetCars.isEmpty
-          ? _buildLoadingGrid()
-          : _allFleetCars.isEmpty
-          ? Center(
-              child: Text(
-                loc.noCarsAvailable,
-                style: const TextStyle(color: Colors.white),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: buildAppBar(context),
+        body: _isLoading && _allFleetCars.isEmpty
+            ? _buildLoadingGrid()
+            : _allFleetCars.isEmpty
+            ? Center(
+                child: Text(
+                  loc.noCarsAvailable,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                itemCount: _allFleetCars.length,
+                itemBuilder: (context, index) {
+                  final car = _allFleetCars[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: FleetListCard(
+                      brand: car['brand'],
+                      name: car['name'],
+                      passengerCount: car['passengerCount'],
+                      image: car['image'],
+                      brandLogoUrl: car['brandLogoUrl'],
+                    ),
+                  );
+                },
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: _allFleetCars.length,
-              itemBuilder: (context, index) {
-                final car = _allFleetCars[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: FleetListCard(
-                    brand: car['brand'],
-                    name: car['name'],
-                    passengerCount: car['passengerCount'],
-                    image: car['image'],
-                    brandLogoUrl: car['brandLogoUrl'],
-                  ),
-                );
-              },
-            ),
+      ),
     );
   }
 
@@ -265,7 +268,43 @@ class _FleetListPageState extends State<FleetListPage> {
               color: Colors.grey[900],
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Center(child: PremiumLoader(size: 32, color: Colors.amber)),
+            child: Center(
+              child: PremiumLoader(size: 32, color: Color(0xFFE4A46B)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget buildAppBar(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    return PreferredSize(
+      preferredSize: Size.fromHeight(kToolbarHeight),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [Colors.black.withAlpha(100), Colors.transparent],
+          ),
+        ),
+        child: AppBar(
+          centerTitle: true,
+          title: Text(
+            loc.bookings,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: Icon(Icons.arrow_back_ios, size: 16, color: Colors.white),
           ),
         ),
       ),

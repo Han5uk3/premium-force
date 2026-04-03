@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:premium_force_main/account/admin_pricing/admin_pricing_dashboard.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
@@ -9,8 +10,6 @@ import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/authentication/login.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
-import 'package:premium_force_main/notifications/notification_screen.dart';
-// import 'package:premium_force_main/account/admin_pricing/admin_pricing_dashboard.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -61,22 +60,22 @@ class _AccountPageState extends State<AccountPage> {
                   svgPath: "assets/icons/person.svg",
                 ),
               ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationScreen(),
-                    ),
-                  );
-                },
-                child: ProfileTile(
-                  loc: loc,
-                  isNotification: true,
-                  title: loc.notifications,
-                  icon: Icons.notifications,
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: () {
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder: (context) => const NotificationScreen(),
+              //       ),
+              //     );
+              //   },
+              //   child: ProfileTile(
+              //     loc: loc,
+              //     isNotification: true,
+              //     title: loc.notifications,
+              //     icon: Icons.notifications,
+              //   ),
+              // ),
               GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -158,7 +157,7 @@ class _AccountPageState extends State<AccountPage> {
             loc.account,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white,
               letterSpacing: 0.5,
             ),
@@ -332,7 +331,7 @@ class _AccountPageState extends State<AccountPage> {
                         loc.logout,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 18,
                         ),
                       ),
                     ),
@@ -350,7 +349,7 @@ class _AccountPageState extends State<AccountPage> {
                 child: Text(
                   loc.logoutConfirm,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
               Padding(
@@ -358,7 +357,7 @@ class _AccountPageState extends State<AccountPage> {
                 child: Text(
                   loc.loginAgainMessage,
                   textAlign: TextAlign.start,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 80),
@@ -381,7 +380,7 @@ class _AccountPageState extends State<AccountPage> {
                             loc.cancel,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -406,7 +405,7 @@ class _AccountPageState extends State<AccountPage> {
                           }
                         },
                         text: loc.logout,
-                        fontsize: 16,
+                        fontsize: 14,
                         showLoader: false,
                       ),
                     ),
@@ -454,7 +453,7 @@ class _AccountPageState extends State<AccountPage> {
                         loc.deleteAccount,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 18,
                         ),
                       ),
                     ),
@@ -472,7 +471,7 @@ class _AccountPageState extends State<AccountPage> {
                 child: Text(
                   loc.deleteAccountConfirm,
                   textAlign: TextAlign.start,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 12),
@@ -481,7 +480,7 @@ class _AccountPageState extends State<AccountPage> {
                 child: Text(
                   loc.deleteAccountMessage,
                   textAlign: TextAlign.start,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 80),
@@ -504,7 +503,7 @@ class _AccountPageState extends State<AccountPage> {
                             loc.cancel,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -529,7 +528,7 @@ class _AccountPageState extends State<AccountPage> {
                             );
                           }
                         },
-                        fontsize: 16,
+                        fontsize: 14,
                         showLoader: false,
                       ),
                     ),

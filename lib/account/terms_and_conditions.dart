@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class TermsAndConditionsPage extends StatelessWidget {
@@ -31,7 +31,7 @@ class TermsAndConditionsPage extends StatelessWidget {
                 AppLocalizations.of(context)!.termsIntro,
                 style: const TextStyle(
                   color: Colors.white70,
-                  fontSize: 16,
+                  fontSize: 14,
                   height: 1.5,
                 ),
               ),
@@ -81,7 +81,7 @@ class TermsAndConditionsPage extends StatelessWidget {
             title,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -90,7 +90,7 @@ class TermsAndConditionsPage extends StatelessWidget {
             content,
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 16,
+              fontSize: 14,
               height: 1.5,
             ),
           ),
@@ -115,7 +115,7 @@ class TermsAndConditionsPage extends StatelessWidget {
           title: Text(
             AppLocalizations.of(context)!.termsAndConditions,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
@@ -124,7 +124,11 @@ class TermsAndConditionsPage extends StatelessWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(
+              Icons.arrow_back_ios,
+              size: 16,
+              color: Colors.white,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),

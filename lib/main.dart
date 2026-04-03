@@ -72,12 +72,24 @@ class _MainAppState extends State<MainApp> {
     super.initState();
     _authProvider = AuthProvider();
     _userProvider = UserProvider();
+    
+    // Load the previously selected language from persistence
+    _loadSavedLanguage();
+  }
+
+  void _loadSavedLanguage() {
+    final langCode = UserLocalStorage.getLanguage();
+    setState(() {
+      _locale = Locale(langCode);
+    });
   }
 
   void setLocale(Locale locale) {
     setState(() {
       _locale = locale;
     });
+    // Persist the selected language to Hive
+    UserLocalStorage.saveLanguage(locale.languageCode);
   }
 
   @override

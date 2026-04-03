@@ -132,26 +132,24 @@ class BookingModel {
     return 'N/A';
   }
 
-  String get displayCategory {
+  String get displayBookingCategory {
     if (category != null && category!.isNotEmpty) return category!;
+    return 'N/A';
+  }
+
+  String get displayCategory {
     if (carData != null && carData!.categoryName != null)
       return carData!.categoryName!;
     return 'N/A';
   }
 
-  String get displayDriverName {
+  String? get displayDriverName {
     if (driver != null &&
         driver!.driverName != null &&
         driver!.driverName!.isNotEmpty) {
       return driver!.driverName!;
     }
-    // If status is assigned but name is missing
-    if (bookingStatus?.toLowerCase() == 'assigned' ||
-        bookingStatus?.toLowerCase() == 'starttracking' ||
-        bookingStatus?.toLowerCase() == 'ongoing') {
-      return 'Driver Assigned'; // Localized version will be used in UI if needed
-    }
-    return 'Not Assigned';
+    return null;
   }
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -653,6 +651,14 @@ class CarDetails {
           json['category']['name'] ??
           json['category']['displayName'];
       cID = (json['category']['_id'] ?? json['category']['id'])?.toString();
+    } else if (json['categoryDetails'] is Map) {
+      cName =
+          json['categoryDetails']['categoryName'] ??
+          json['categoryDetails']['name'] ??
+          json['categoryDetails']['displayName'];
+      cID =
+          (json['categoryDetails']['_id'] ?? json['categoryDetails']['id'])
+              ?.toString();
     } else if (json['categoryID'] is Map) {
       cName =
           json['categoryID']['categoryName'] ??
@@ -682,6 +688,20 @@ class CarDetails {
       categoryName: cName?.toString(),
       categoryID: cID,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'carName': carName,
+      'model': model,
+      'numberOfPassengers': numberOfPassengers,
+      'carImageUrl': carImageUrl,
+      'brandName': brandName,
+      'brandID': brandID,
+      'categoryName': categoryName,
+      'categoryID': categoryID,
+    };
   }
 }
 

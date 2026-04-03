@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -653,17 +653,17 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                                   loc.driverMarkerTitle,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
                               _isChauffeur
                                   ? loc.chauffeurServiceSubtitle
-                                  : '${widget.booking.carName ?? ""} • ${widget.booking.driver?.licenseNumber ?? ""}',
+                                  : '${widget.booking.carName ?? ""} â€¢ ${widget.booking.driver?.licenseNumber ?? ""}',
                               style: TextStyle(
                                 color: Colors.white.withAlpha(150),
-                                fontSize: 13,
+                                fontSize: 11,
                               ),
                             ),
                           ],
@@ -729,7 +729,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
             ),
           ],
         ),
@@ -738,7 +738,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -746,3 +746,4 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     );
   }
 }
+

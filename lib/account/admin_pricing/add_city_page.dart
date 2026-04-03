@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../models/pricing/city_model.dart';
 import '../../services/firebase_pricing_service.dart';
 import '../../common_widgets/button.dart';
@@ -90,7 +90,7 @@ class _AddCityPageState extends State<AddCityPage> {
             PremiumButton(
               onTap: _save,
               text: "Save City",
-              fontsize: 16,
+              fontsize: 14,
               showLoader: _loading,
             ),
           ],
@@ -99,3 +99,4 @@ class _AddCityPageState extends State<AddCityPage> {
     );
   }
 }
+

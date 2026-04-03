@@ -41,6 +41,7 @@ class UserLocalStorage {
   static const String _loginProviderKey = 'login_provider';
   static const String _socialIdTokenKey = 'social_id_token';
   static const String _fleetCarsKey = 'fleet_cars';
+  static const String _languageKey = 'app_language';
 
   static late Box<dynamic> _box;
 
@@ -208,6 +209,21 @@ class UserLocalStorage {
   /// Retrieve the notification status, defaults to true.
   static bool getNotificationStatus() {
     return _box.get(_notificationStatusKey, defaultValue: true) as bool;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Language Persistence
+  // ---------------------------------------------------------------------------
+
+  /// Persist the selected application language.
+  static Future<void> saveLanguage(String languageCode) async {
+    await _box.put(_languageKey, languageCode);
+    debugPrint('💾 App language saved: $languageCode');
+  }
+
+  /// Retrieve the persisted language code, defaults to 'en'.
+  static String getLanguage() {
+    return _box.get(_languageKey, defaultValue: 'en') as String;
   }
 
   // ---------------------------------------------------------------------------

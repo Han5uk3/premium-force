@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/storage/helpers.dart';
 
@@ -37,7 +37,7 @@ class PremiumTextField extends StatelessWidget {
     this.suffixIcon,
     this.isPhoneNumber = false,
     this.validator,
-    this.fontsize = 16,
+    this.fontsize = 14,
     this.enabled = true,
     this.onTap,
     this.readOnly = false,
@@ -75,7 +75,7 @@ class PremiumTextField extends StatelessWidget {
               const SizedBox(height: 8),
             ],
 
-            // ── Styled input container ─────────────────────────
+            // â”€â”€ Styled input container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             GestureDetector(
               onTap: onTap,
               child: Container(
@@ -162,7 +162,7 @@ class PremiumTextField extends StatelessWidget {
               ),
             ),
 
-            // ── Error text below the container ─────────────────
+            // â”€â”€ Error text below the container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (hasError)
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 4),
@@ -181,3 +181,4 @@ class PremiumTextField extends StatelessWidget {
     );
   }
 }
+

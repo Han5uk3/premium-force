@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/notification_model.dart';
@@ -21,7 +21,7 @@ class NotificationScreen extends StatelessWidget {
           loc.notifications,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -41,7 +41,7 @@ class NotificationScreen extends StatelessWidget {
               return TextButton(
                 onPressed: () => _showClearConfirmation(context, loc),
                 child: Text(
-                  isArabic ? 'مسح الكل' : 'Clear All',
+                  isArabic ? 'Ù…Ø³Ø­ Ø§Ù„ÙƒÙ„' : 'Clear All',
                   style: const TextStyle(color: Color(0xFFE4A46B)),
                 ),
               );
@@ -100,22 +100,22 @@ class NotificationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            isArabic ? 'لا توجد تنبيهات' : 'No Notifications Yet',
+            isArabic ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ ØªÙ†Ø¨ÙŠÙ‡Ø§Øª' : 'No Notifications Yet',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             isArabic 
-                ? 'ستظهر التنبيهات المتعلقة بحجوزاتك هنا' 
+                ? 'Ø³ØªØ¸Ù‡Ø± Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ù…ØªØ¹Ù„Ù‚Ø© Ø¨Ø­Ø¬ÙˆØ²Ø§ØªÙƒ Ù‡Ù†Ø§' 
                 : 'Updates about your bookings will appear here.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.grey.withValues(alpha: 0.7),
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
         ],
@@ -130,12 +130,12 @@ class NotificationScreen extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
         title: Text(
-          isArabic ? 'مسح الكل' : 'Clear All',
+          isArabic ? 'Ù…Ø³Ø­ Ø§Ù„ÙƒÙ„' : 'Clear All',
           style: const TextStyle(color: Colors.white),
         ),
         content: Text(
           isArabic 
-              ? 'هل أنت متأكد من مسح جميع التنبيهات؟' 
+              ? 'Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ù…Ø³Ø­ Ø¬Ù…ÙŠØ¹ Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§ØªØŸ' 
               : 'Are you sure you want to clear all notifications?',
           style: const TextStyle(color: Colors.grey),
         ),
@@ -153,7 +153,7 @@ class NotificationScreen extends StatelessWidget {
               Navigator.pop(context);
             },
             child: Text(
-              isArabic ? 'مسح' : 'Clear',
+              isArabic ? 'Ù…Ø³Ø­' : 'Clear',
               style: const TextStyle(color: Colors.redAccent),
             ),
           ),
@@ -240,7 +240,7 @@ class _NotificationItem extends StatelessWidget {
                             notification.title,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 15,
+                              fontSize: 13,
                               fontWeight: notification.isRead 
                                   ? FontWeight.w500 
                                   : FontWeight.bold,
@@ -251,7 +251,7 @@ class _NotificationItem extends StatelessWidget {
                           timeStr,
                           style: TextStyle(
                             color: Colors.grey.withValues(alpha: 0.6),
-                            fontSize: 11,
+                            fontSize: 12,
                           ),
                         ),
                       ],
@@ -261,7 +261,7 @@ class _NotificationItem extends StatelessWidget {
                       notification.body,
                       style: TextStyle(
                         color: Colors.grey.withValues(alpha: 0.8),
-                        fontSize: 13,
+                        fontSize: 11,
                         height: 1.4,
                       ),
                     ),
@@ -275,3 +275,4 @@ class _NotificationItem extends StatelessWidget {
     );
   }
 }
+

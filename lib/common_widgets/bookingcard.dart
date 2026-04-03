@@ -22,7 +22,6 @@ class Bookingcard extends StatelessWidget {
     this.isFromReviewAndConfirm = false,
     this.isChauffeur = false,
     this.chauffeurName,
-
     required this.status,
     required this.type,
     required this.pickup,
@@ -64,7 +63,6 @@ class Bookingcard extends StatelessWidget {
           color: Colors.black,
           borderRadius: BorderRadius.circular(12),
         ),
-
         width: MediaQuery.of(context).size.width,
         child: Column(
           spacing: 10,
@@ -75,35 +73,35 @@ class Bookingcard extends StatelessWidget {
               children: [
                 isFromReviewAndConfirm
                     ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            loc.service,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
-                            ),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          loc.service,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
                           ),
-                          SizedBox(height: 5),
-                          Text(
-                            getServiceType(type, loc),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Text(
-                        type,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
                         ),
+                        SizedBox(height: 5),
+                        Text(
+                          getServiceType(type, loc),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    )
+                    : Text(
+                      type,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
+                    ),
                 !isFromReviewAndConfirm
                     ? buildContainerText(true, false, loc)
                     : SizedBox.shrink(),
@@ -112,9 +110,9 @@ class Bookingcard extends StatelessWidget {
 
             isFromReviewAndConfirm
                 ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [Divider(color: Colors.grey.shade700, height: 5)],
-                  )
+                  mainAxisSize: MainAxisSize.min,
+                  children: [Divider(color: Colors.grey.shade700, height: 5)],
+                )
                 : SizedBox.shrink(),
 
             Row(
@@ -131,7 +129,7 @@ class Bookingcard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         pickup,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
@@ -142,38 +140,35 @@ class Bookingcard extends StatelessWidget {
                 isChauffeur ? SizedBox.shrink() : SizedBox(width: 4),
                 isChauffeur
                     ? SizedBox.shrink()
-                    : Transform.flip(
-                        flipX: Directionality.of(context) == TextDirection.rtl,
-                        child: Image.asset(
-                          "assets/icons/pixel_arrow.png",
-                          height: 30,
-                          width: 30,
-                          fit: BoxFit.contain,
-                        ),
+                    : CircleAvatar(
+                      backgroundColor: Colors.grey.shade900.withValues(
+                        alpha: 0.6,
                       ),
+                      child: Icon(Icons.arrow_forward, color: Colors.white),
+                    ),
                 isChauffeur ? SizedBox.shrink() : SizedBox(width: 8),
                 isChauffeur
                     ? SizedBox.shrink()
                     : Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            buildContainerText(false, true, loc),
-                            SizedBox(height: 8),
-                            Text(
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              dropoff,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          buildContainerText(false, true, loc),
+                          SizedBox(height: 8),
+                          Text(
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            dropoff,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
+                    ),
               ],
             ),
 
@@ -211,11 +206,7 @@ class Bookingcard extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.access_time_outlined,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      Icon(Icons.access_time_outlined, color: Colors.white, size: 18),
                       SizedBox(width: 5),
                       Text(
                         time,
@@ -231,11 +222,7 @@ class Bookingcard extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.drive_eta_outlined,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      Icon(Icons.drive_eta_outlined, color: Colors.white, size: 18),
                       SizedBox(width: 5),
                       Text(
                         "$ride",
@@ -261,18 +248,15 @@ class Bookingcard extends StatelessWidget {
                     Text(
                       isFromReviewAndConfirm ? loc.passengers : loc.chauffeur,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
                       ),
                     ),
-
                     Text(
-                      isFromReviewAndConfirm
-                          ? "$passengers"
-                          : (chauffeurName ?? loc.notAssigned),
+                      isFromReviewAndConfirm ? "$passengers" : _getChauffeurDisplay(loc),
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: Colors.white,
                       ),
@@ -288,6 +272,23 @@ class Bookingcard extends StatelessWidget {
     );
   }
 
+  String _getChauffeurDisplay(AppLocalizations loc) {
+    if (chauffeurName != null &&
+        chauffeurName!.isNotEmpty &&
+        chauffeurName != 'Not Assigned' &&
+        chauffeurName != 'Driver Assigned') {
+      return chauffeurName!;
+    }
+
+    final lowerStatus = status.toLowerCase().trim();
+    if (lowerStatus == 'assigned' ||
+        lowerStatus == 'starttracking' ||
+        lowerStatus == 'ongoing') {
+      return loc.driverAssigned;
+    }
+    return loc.notAssigned;
+  }
+
   Widget buildContainerText(bool isPickup, bool isGrey, AppLocalizations loc) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -298,8 +299,8 @@ class Bookingcard extends StatelessWidget {
       child: Text(
         isGrey
             ? isPickup
-                  ? loc.pickup
-                  : loc.dropoff
+              ? loc.pickup
+              : loc.dropoff
             : getStatusText(status, loc),
         style: TextStyle(
           fontSize: 10,
@@ -329,9 +330,7 @@ class Bookingcard extends StatelessWidget {
     } else if (status == "paymentpending" || status == "payment pending") {
       return loc.paymentPending;
     }
-    return status.isNotEmpty
-        ? status[0].toUpperCase() + status.substring(1)
-        : loc.unknown;
+    return status.isNotEmpty ? status[0].toUpperCase() + status.substring(1) : loc.unknown;
   }
 
   Color getColorByStatus(String status) {
@@ -368,8 +367,6 @@ class Bookingcard extends StatelessWidget {
     } else if (type == "private transfer") {
       return loc.privateTransfer;
     }
-    return type.isNotEmpty
-        ? type[0].toUpperCase() + type.substring(1)
-        : loc.unknown;
+    return type.isNotEmpty ? type[0].toUpperCase() + type.substring(1) : loc.unknown;
   }
 }
