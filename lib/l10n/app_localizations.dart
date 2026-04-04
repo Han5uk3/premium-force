@@ -1205,7 +1205,7 @@ abstract class AppLocalizations {
   /// No description provided for @vat.
   ///
   /// In en, this message translates to:
-  /// **'VAT (15%)'**
+  /// **'VAT'**
   String get vat;
 
   /// No description provided for @paymentSummary.
@@ -2083,6 +2083,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show more'**
   String get showMore;
+
+  /// No description provided for @accountBlockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Blocked'**
+  String get accountBlockedTitle;
+
+  /// No description provided for @accountBlockedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been deactivated. Please contact support for assistance.'**
+  String get accountBlockedMessage;
+
+  /// No description provided for @contactSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Support'**
+  String get contactSupport;
+
+  /// No description provided for @backToLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Login'**
+  String get backToLogin;
 }
 
 class _AppLocalizationsDelegate

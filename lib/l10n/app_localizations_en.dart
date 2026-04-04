@@ -573,7 +573,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get total => 'Total';
 
   @override
-  String get vat => 'VAT (15%)';
+  String get vat => 'VAT';
 
   @override
   String get paymentSummary => 'Payment Summary';
@@ -1045,4 +1045,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showMore => 'Show more';
+
+  @override
+  String get accountBlockedTitle => 'Account Blocked';
+
+  @override
+  String get accountBlockedMessage =>
+      'Your account has been deactivated. Please contact support for assistance.';
+
+  @override
+  String get contactSupport => 'Contact Support';
+
+  @override
+  String get backToLogin => 'Back to Login';
 }

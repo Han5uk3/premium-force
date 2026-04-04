@@ -569,7 +569,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get total => 'المجموع';
 
   @override
-  String get vat => 'ضريبة القيمة المضافة (١٥٪)';
+  String get vat => 'ضريبة القيمة المضافة';
 
   @override
   String get paymentSummary => 'ملخص الدفع';
@@ -1034,4 +1034,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get showMore => 'عرض المزيد';
+
+  @override
+  String get accountBlockedTitle => 'تم حظر الحساب';
+
+  @override
+  String get accountBlockedMessage =>
+      'تم إلغاء تنشيط حسابك. يرجى الاتصال بالدعم للمساعدة.';
+
+  @override
+  String get contactSupport => 'اتصل بالدعم';
+
+  @override
+  String get backToLogin => 'العودة إلى تسجيل الدخول';
 }

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pinput/pinput.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
@@ -8,6 +8,7 @@ import 'package:premium_force_main/authentication/signup.dart';
 import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/authentication/blocked_page.dart';
 
 class OTPVerificationPage extends StatefulWidget {
   final String countryCode;
@@ -66,12 +67,20 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     setState(() => _isVerifying = false);
 
     if (authProvider.status == AuthStatus.authenticated) {
-      // â”€â”€ Existing user â†’ go straight to Home â”€â”€
-      debugPrint('âœ… Existing user â€” navigating to Home');
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => Home()),
-        (route) => false,
-      );
+      // â”€â”€ Existing user â†’ check if active â”€â”€
+      if (authProvider.user?.isActive ?? true) {
+        debugPrint('âœ… Existing user & active â€” navigating to Home');
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => Home()),
+          (route) => false,
+        );
+      } else {
+        debugPrint('â›” Existing user but blocked â€” navigating to BlockedPage');
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const BlockedPage()),
+          (route) => false,
+        );
+      }
     } else if (authProvider.status == AuthStatus.otpVerified) {
       // â”€â”€ New user â†’ go to SignUp â”€â”€
       debugPrint('ðŸ†• New user â€” navigating to SignUp');

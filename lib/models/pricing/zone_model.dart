@@ -20,15 +20,22 @@ class ZoneModel {
   });
 
   factory ZoneModel.fromJson(Map<String, dynamic> json) {
+    // Robustly extract center coordinates
+    final rawCenter = json['center'] as Map<String, dynamic>;
+    final centerMap = {
+      'lat': (rawCenter['lat'] as num).toDouble(),
+      'lng': (rawCenter['lng'] as num).toDouble(),
+    };
+
     return ZoneModel(
-      id: json['id'] as String,
-      cityId: json['city_id'] as String,
-      nameEn: json['name_en'] as String,
-      nameAr: json['name_ar'] as String,
-      type: json['type'] as String,
-      center: Map<String, double>.from(json['center']),
-      radiusKm: (json['radius_km'] as num).toDouble(),
-      priority: json['priority'] as int,
+      id: (json['id'] ?? '').toString(),
+      cityId: (json['city_id'] ?? json['cityId'] ?? '').toString(),
+      nameEn: (json['name_en'] ?? json['nameEn'] ?? '').toString(),
+      nameAr: (json['name_ar'] ?? json['nameAr'] ?? '').toString(),
+      type: (json['type'] ?? 'radius').toString(),
+      center: centerMap,
+      radiusKm: (json['radius_km'] as num? ?? 0.0).toDouble(),
+      priority: (json['priority'] as num? ?? 0).toInt(),
     );
   }
 

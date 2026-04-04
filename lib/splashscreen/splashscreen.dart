@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:premium_force_main/authentication/blocked_page.dart';
 import 'package:premium_force_main/authentication/login.dart';
 import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
@@ -34,9 +35,17 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (authProvider.status == AuthStatus.authenticated &&
         authProvider.user != null) {
-      // User is logged in and data was fetched → go to Home
-      debugPrint('💾 User already logged in — skipping login');
-      Navigator.pushReplacement(context, SmoothNavigation.route(Home()));
+      // User is logged in and data was fetched → check if active
+      if (authProvider.user!.isActive) {
+        debugPrint('💾 User already logged in & active — skipping login');
+        Navigator.pushReplacement(context, SmoothNavigation.route(Home()));
+      } else {
+        debugPrint('⛔ User is blocked — redirecting to BlockedPage');
+        Navigator.pushReplacement(
+          context,
+          SmoothNavigation.route(const BlockedPage()),
+        );
+      }
     } else {
       // Not logged in or fetch failed → go to Login
       Navigator.pushReplacement(

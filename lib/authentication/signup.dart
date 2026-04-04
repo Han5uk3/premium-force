@@ -14,7 +14,7 @@ import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
-import 'package:premium_force_main/models/user.dart';
+
 
 class SignUpPage extends StatefulWidget {
   final String countryCode;
@@ -354,7 +354,6 @@ class _SignUpPageState extends State<SignUpPage>
 
     setState(() => _isLoading = true);
 
-    final token = UserLocalStorage.getToken();
     final phoneNumber = _phoneController.text.trim();
     final countryCode = '+$_selectedCountryCode';
 
@@ -363,7 +362,14 @@ class _SignUpPageState extends State<SignUpPage>
         ? _specialIdController.text.trim()
         : null;
 
-    final result = await ApiService().createUser(
+    // Delegate everything to AuthProvider.submitSignUp() which handles:
+    // - API call to createUser
+    // - Token extraction and saving
+    // - Fetching full user profile from backend (getUserById)
+    // - Setting AuthProvider._user and notifying listeners
+    // - Saving user data + credentials to local storage
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final result = await auth.submitSignUp(
       username: _nameController.text.trim(),
       email: _emailController.text.trim(),
       countryCode: countryCode,
@@ -373,7 +379,6 @@ class _SignUpPageState extends State<SignUpPage>
       long: _longitude,
       profileImage: _profileImage,
       specialId: specialId,
-      token: token,
     );
 
     if (!mounted) return;
@@ -381,79 +386,16 @@ class _SignUpPageState extends State<SignUpPage>
     if (result['success'] == true) {
       // If promo was used, increment its count
       if (_isPromoValid && _appliedPromoId != null) {
+        final token = UserLocalStorage.getToken();
         await ApiService().incrementSpecialContentCount(
           id: _appliedPromoId!,
           token: token,
         );
       }
-      // Save only userId + phoneNumber to local storage
-      final userDataMap =
-          (result['user'] ?? result['data']) as Map<String, dynamic>?;
-      if (userDataMap != null) {
-        final uid = (userDataMap['_id'] ?? userDataMap['id'] ?? '') as String;
-        await UserLocalStorage.saveUserCredentials(
-          userId: uid,
-          phoneNumber: phoneNumber,
-          countryCode: countryCode,
-        );
 
-        // Save tokens if returned so they are available for the next API call (Interceptors)
-        final tokens = result['tokens'];
-        final accessToken = (tokens is Map
-                ? (tokens['accessToken'] ?? tokens['token'])
-                : (result['accessToken'] ?? result['token']))
-            as String?;
-        final refreshToken = (tokens is Map
-                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-                : (result['refreshToken'] ?? result['refresh_token']))
-            as String?;
-
-        if (accessToken != null && refreshToken != null) {
-          await UserLocalStorage.saveTokens(
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-          );
-        } else if (accessToken != null) {
-          await UserLocalStorage.saveToken(accessToken);
-        }
-
-        // --- Fetch full user data after creation ---
-        try {
-          final freshUser =
-              await ApiService().getUserById(id: uid, token: accessToken);
-          if (mounted) {
-            final auth = Provider.of<AuthProvider>(context, listen: false);
-            if (freshUser != null) {
-              // Best outcome: Full user data from backend
-              await auth.updateUser(freshUser);
-              debugPrint('âœ… Signup â”‚ Full user sync completed');
-            } else {
-              // Fallback 1: Use the user data returned by 'createUser'
-              final fallbackUser = UserModel.fromJson({
-                ...userDataMap,
-                'phoneNumber': phoneNumber,
-                'countryCode': countryCode,
-              });
-              await auth.updateUser(fallbackUser);
-              debugPrint('âš ï¸ Signup â”‚ Fallback sync used');
-            }
-          }
-        } catch (e) {
-          debugPrint('âŒ Fetch user after signup failed: $e');
-          // Fallback 2: Minimal sync to ensure homepage loads correctly
-          if (mounted) {
-            final fallbackUser = UserModel.fromJson({
-              ...userDataMap,
-              'phoneNumber': phoneNumber,
-              'countryCode': countryCode,
-            });
-            await Provider.of<AuthProvider>(
-              context,
-              listen: false,
-            ).updateUser(fallbackUser);
-          }
-        }
-      }
+      debugPrint(
+        '✅ Signup │ Navigating to Home with user: ${auth.user?.username}',
+      );
 
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(

@@ -180,7 +180,7 @@
   "chauffeur": "سائق",
   "totalDistance": "إجمالي المسافة",
   "total": "المجموع",
-  "vat": "ضريبة القيمة المضافة (١٥٪)",
+  "vat": "ضريبة القيمة المضافة",
   "paymentSummary": "ملخص الدفع",
   "km": "كم",
   "discount": "خصم",
@@ -332,5 +332,9 @@
   "assigned": "تم التعيين",
   "tracking": "تتبع",
   "reviewed": "تم التقييم",
-  "showMore": "عرض المزيد"
+  "showMore": "عرض المزيد",
+  "accountBlockedTitle": "تم حظر الحساب",
+  "accountBlockedMessage": "تم إلغاء تنشيط حسابك. يرجى الاتصال بالدعم للمساعدة.",
+  "contactSupport": "اتصل بالدعم",
+  "backToLogin": "العودة إلى تسجيل الدخول"
 }

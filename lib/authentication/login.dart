@@ -1,8 +1,9 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:premium_force_main/main.dart';
 import 'package:provider/provider.dart';
+import 'package:premium_force_main/authentication/blocked_page.dart';
 import 'package:premium_force_main/authentication/otp.dart';
 import 'package:premium_force_main/authentication/signup.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
@@ -72,10 +73,17 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
     if (authProvider.status == AuthStatus.authenticated) {
       // Existing user â€” go to home
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => Home()),
-        (route) => false,
-      );
+      if (authProvider.user?.isActive ?? true) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => Home()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const BlockedPage()),
+          (route) => false,
+        );
+      }
     } else if (authProvider.status == AuthStatus.otpVerified) {
       // New user â€” go to signup with pre-filled data
       final googleResult = authProvider.googleResult;
@@ -114,10 +122,17 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
     if (authProvider.status == AuthStatus.authenticated) {
       // Existing user â€” go to home
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => Home()),
-        (route) => false,
-      );
+      if (authProvider.user?.isActive ?? true) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => Home()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const BlockedPage()),
+          (route) => false,
+        );
+      }
     } else if (authProvider.status == AuthStatus.otpVerified) {
       // New user â€” go to signup with pre-filled data
       final appleResult = authProvider.appleResult;

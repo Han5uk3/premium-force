@@ -1,4 +1,4 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class PremiumDropDown extends StatefulWidget {
@@ -53,7 +53,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
           const SizedBox(height: 8),
         ],
         Container(
-          height: 60,
+          constraints: const BoxConstraints(minHeight: 60),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.black,
@@ -63,6 +63,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedValue,
+              itemHeight: null,
               hint: widget.hint != null
                   ? Text(
                       widget.hint!,
@@ -90,7 +91,12 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
                         _buildThumbnail(imageUrl),
                         const SizedBox(width: 12),
                       ],
-                      Text(item, style: const TextStyle(color: Colors.white)),
+                      Expanded(
+                        child: Text(
+                          item, 
+                          style: const TextStyle(color: Colors.white)
+                        )
+                      ),
                     ],
                   );
                 }).toList();
@@ -105,7 +111,12 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
                         _buildThumbnail(imageUrl),
                         const SizedBox(width: 12),
                       ],
-                      Text(item, style: const TextStyle(color: Colors.white)),
+                      Expanded(
+                        child: Text(
+                          item, 
+                          style: const TextStyle(color: Colors.white)
+                        )
+                      ),
                     ],
                   ),
                 );

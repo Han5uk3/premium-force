@@ -106,7 +106,9 @@ class UserModel {
       profileImageUrl: imageUrl,
       specialId: json['specialId']?.toString(),
       role: (json['role'] ?? 'customer').toString(),
-      isActive: (json['isActive'] is bool) ? json['isActive'] as bool : true,
+      isActive: (json['isActive'] is bool)
+          ? json['isActive'] as bool
+          : (json['isactive'] is bool ? json['isactive'] as bool : true),
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] is DateTime
                 ? json['createdAt'] as DateTime

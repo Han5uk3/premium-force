@@ -184,7 +184,7 @@
   "chauffeur": "Chauffeur",
   "totalDistance": "Total Distance",
   "total": "Total",
-  "vat": "VAT (15%)",
+  "vat": "VAT",
   "paymentSummary": "Payment Summary",
   "km": "KM",
   "discount": "Discount",
@@ -330,5 +330,9 @@
   "voiceNote": "Voice Note",
   "recordVoiceNote": "Record voice note",
   "saveVoiceNote": "Save Voice Note",
-  "showMore": "Show more"
+  "showMore": "Show more",
+  "accountBlockedTitle": "Account Blocked",
+  "accountBlockedMessage": "Your account has been deactivated. Please contact support for assistance.",
+  "contactSupport": "Contact Support",
+  "backToLogin": "Back to Login"
 }

@@ -44,7 +44,11 @@ class FirebasePricingService {
           .collection('zones')
           .where('city_id', isEqualTo: cityId)
           .get();
-      final zones = snapshot.docs.map((doc) => ZoneModel.fromJson(doc.data())).toList();
+      final zones = snapshot.docs.map((doc) {
+        final data = doc.data();
+        if (data['id'] == null) data['id'] = doc.id;
+        return ZoneModel.fromJson(data);
+      }).toList();
       _cachedZonesByCity[cityId] = zones;
       return zones;
     } catch (e) {
@@ -67,7 +71,11 @@ class FirebasePricingService {
           .where('from_city_id', isEqualTo: fromCityId)
           .where('to_city_id', isEqualTo: toCityId)
           .get();
-      final routes = snapshot.docs.map((doc) => RouteModel.fromJson(doc.data())).toList();
+      final routes = snapshot.docs.map((doc) {
+        final data = doc.data();
+        if (data['id'] == null) data['id'] = doc.id;
+        return RouteModel.fromJson(data);
+      }).toList();
       _cachedRoutesByQuery[queryKey] = routes;
       return routes;
     } catch (e) {
@@ -78,62 +86,76 @@ class FirebasePricingService {
 
   /// Maps a reverse-geocoded city name to its Firestore city object.
   Future<CityModel?> findCityByName(String geocodedCityName) async {
-    final cities = await fetchCities();
-    String normGeocoded = _normalizeForComparison(geocodedCityName);
-    
-    print("🌍 FirebasePricingService: Attempting to match city '$geocodedCityName' (Normalized: '$normGeocoded')");
-    print("   🏙️ Cities available in cache: ${cities.length}");
+    if (geocodedCityName.isEmpty) return null;
 
-    // PRIORITY 1: Exact Match
+    final cities = await fetchCities();
+    final normGeocoded = _normalizeForComparison(geocodedCityName);
+
+    print("🌍 FirebasePricingService: Attempting to match city '$geocodedCityName' (Normalized: '$normGeocoded')");
+
+    // Common Saudi city variants (lowercase normalized)
+    final Map<String, List<String>> cityVariants = {
+      'madinah': ['medina', 'madinah', 'al madinah', 'al madinah al munawwarah', 'madina'],
+      'makkah': ['mecca', 'makkah', 'al makkah', 'al makkah al mukarramah'],
+      'jeddah': ['jeddah', 'jiddah'],
+      'riyadh': ['riyadh', 'ar riyadh'],
+      'dammam': ['dammam', 'ad dammam'],
+      'khobar': ['khobar', 'al khobar'],
+    };
+
+    // Priority 0: Exact Document ID Match
     for (var city in cities) {
-      String dbEn = _normalizeForComparison(city.nameEn);
-      String dbAr = _normalizeForComparison(city.nameAr);
-      
-      if (dbEn == normGeocoded || dbAr == normGeocoded) {
-        print("✅ FirebasePricingService: Match found [Exact] -> ${city.nameEn}");
+      if (city.id.toLowerCase().trim() == normGeocoded) {
+        print("✅ FirebasePricingService: Matched Document ID: '${city.id}'");
         return city;
       }
     }
 
-    // PRIORITY 2: Geocoded name contains DB name
+    // Priority 1: Exact Name Match (Normalized)
+    for (var city in cities) {
+      String dbEn = _normalizeForComparison(city.nameEn);
+      String dbAr = _normalizeForComparison(city.nameAr);
+
+      if (dbEn == normGeocoded || dbAr == normGeocoded) {
+        print("✅ FirebasePricingService: Matched Exact Name: '$dbEn' / '$dbAr'");
+        return city;
+      }
+    }
+
+    // Priority 2: Variant Match (Check if normGeocoded or parts of it match known variants)
+    for (var cityEntry in cityVariants.entries) {
+      final canonical = cityEntry.key;
+      final aliases = cityEntry.value;
+
+      bool isVariantMatch = aliases.any((alias) =>
+          normGeocoded == alias ||
+          normGeocoded.contains(alias) ||
+          alias.contains(normGeocoded));
+
+      if (isVariantMatch) {
+        // Find the city in DB that matches the canonical name or has a matching ID
+        for (var city in cities) {
+          if (city.id.toLowerCase() == canonical ||
+              _normalizeForComparison(city.nameEn) == canonical) {
+            print("✅ FirebasePricingService: Matched via Variant Logic: '$geocodedCityName' -> '$canonical'");
+            return city;
+          }
+        }
+      }
+    }
+
+    // Priority 3: Contains Match (Fallback)
     for (var city in cities) {
       String dbEn = _normalizeForComparison(city.nameEn);
       String dbAr = _normalizeForComparison(city.nameAr);
 
       if (dbEn.isNotEmpty && normGeocoded.contains(dbEn)) {
-        print("✅ FirebasePricingService: Match found [Sub-Geocode] -> ${city.nameEn} (Matches DB EN: '$dbEn')");
+        print("✅ FirebasePricingService: Matched via Contains (DB EN): '$dbEn'");
         return city;
       }
       if (dbAr.isNotEmpty && normGeocoded.contains(dbAr)) {
-        print("✅ FirebasePricingService: Match found [Sub-Geocode] -> ${city.nameEn} (Matches DB AR: '$dbAr')");
+        print("✅ FirebasePricingService: Matched via Contains (DB AR): '$dbAr'");
         return city;
-      }
-    }
-
-    // PRIORITY 3: DB name contains Geocoded name
-    for (var city in cities) {
-      String dbEn = _normalizeForComparison(city.nameEn);
-      String dbAr = _normalizeForComparison(city.nameAr);
-
-      if (normGeocoded.isNotEmpty && dbEn.contains(normGeocoded)) {
-        print("✅ FirebasePricingService: Match found [Sub-DB] -> ${city.nameEn} (DB EN: '$dbEn' contains '$normGeocoded')");
-        return city;
-      }
-      if (normGeocoded.isNotEmpty && dbAr.contains(normGeocoded)) {
-        print("✅ FirebasePricingService: Match found [Sub-DB] -> ${city.nameEn} (DB AR: '$dbAr' contains '$normGeocoded')");
-        return city;
-      }
-    }
-
-    // PRIORITY 4: Space-insensitive Match (Ignore all spaces in both names)
-    String superNormGeocoded = _normalizeForComparison(geocodedCityName, stripAllSpaces: true);
-    if (superNormGeocoded.isNotEmpty) {
-      for (var city in cities) {
-        if (_normalizeForComparison(city.nameEn, stripAllSpaces: true) == superNormGeocoded ||
-            _normalizeForComparison(city.nameAr, stripAllSpaces: true) == superNormGeocoded) {
-          print("✅ FirebasePricingService: Match found [Space-Insensitive] -> ${city.nameEn}");
-          return city;
-        }
       }
     }
 
@@ -177,8 +199,8 @@ class FirebasePricingService {
     required String vehicleId,
   }) async {
     // 1. Detect Pickup & Drop Cities
-    CityModel? pickupCity = await findCityByName(pickupCityName);
-    CityModel? dropCity = await findCityByName(dropCityName);
+    final pickupCity = await findCityByName(pickupCityName);
+    final dropCity = await findCityByName(dropCityName);
 
     if (pickupCity == null || dropCity == null) {
       print("❌ FirebasePricingService: City not matched in Firestore. (Pickup: '$pickupCityName', Drop: '$dropCityName')");
@@ -221,52 +243,47 @@ class FirebasePricingService {
 
     // 4. Match using Matching Logic priorities (Bidirectional)
     
-    // PRIORITY 1: Exact Match (Direct: P->D)
-    final directExact = availableRoutes.cast<RouteModel?>().firstWhere(
-      (r) => r!.fromCityId == pickupCity.id && r.toCityId == dropCity.id &&
-             r.fromZoneId == pZoneId && r.toZoneId == dZoneId,
+    // 5. Ranking Match Priorities (Direct & Reversed)
+    // Level 1: Exact Zone-to-Zone Match
+    // Level 2: City-Level Match (No Zones in Route Document)
+    // Level 3: Broad Intra-City Fallback (If same city, and ANY route exists for that city)
+
+    print("🏎️ FirebasePricingService: Ranking ${availableRoutes.length} potential routes...");
+
+    // Priority 1: Exact Match
+    RouteModel? match = availableRoutes.cast<RouteModel?>().firstWhere(
+      (r) =>
+          ((r!.fromCityId == pickupCity.id && r.toCityId == dropCity.id && r.fromZoneId == pZoneId && r.toZoneId == dZoneId) ||
+           (r.fromCityId == dropCity.id && r.toCityId == pickupCity.id && r.fromZoneId == dZoneId && r.toZoneId == pZoneId)),
       orElse: () => null,
     );
-    if (directExact != null) {
-      print("💎 FirebasePricingService: Match Found! [Exact Direct] Price: ${directExact.price}");
-      return directExact.price;
+
+    // Priority 2: City-Level Fallback (No zones defined in document)
+    if (match == null) {
+      match = availableRoutes.cast<RouteModel?>().firstWhere(
+        (r) =>
+            ((r!.fromCityId == pickupCity.id && r.toCityId == dropCity.id && (r.fromZoneId == null || r.fromZoneId!.isEmpty) && (r.toZoneId == null || r.toZoneId!.isEmpty)) ||
+             (r.fromCityId == dropCity.id && r.toCityId == pickupCity.id && (r.fromZoneId == null || r.fromZoneId!.isEmpty) && (r.toZoneId == null || r.toZoneId!.isEmpty))),
+        orElse: () => null,
+      );
+      if (match != null) print("ℹ️ FirebasePricingService: Used Priority 2 (City Level Fallback)");
     }
 
-    // PRIORITY 1b: Exact Match (Reversed: D->P)
-    final reversedExact = availableRoutes.cast<RouteModel?>().firstWhere(
-      (r) => r!.fromCityId == dropCity.id && r.toCityId == pickupCity.id && 
-             r.fromZoneId == dZoneId && r.toZoneId == pZoneId,
-      orElse: () => null,
-    );
-    if (reversedExact != null) {
-      print("💎 FirebasePricingService: Match Found! [Exact Reversed] Price: ${reversedExact.price}");
-      return reversedExact.price;
+    // Priority 3: Broad Intra-City Fallback (Same city, any available internal route)
+    if (match == null && pickupCity.id == dropCity.id) {
+      match = availableRoutes.cast<RouteModel?>().firstWhere(
+        (r) => (r!.fromCityId == pickupCity.id && r.toCityId == pickupCity.id),
+        orElse: () => null,
+      );
+      if (match != null) print("ℹ️ FirebasePricingService: Used Priority 3 (Broad Intra-City Fallback)");
     }
 
-    // PRIORITY 2: Fallback Match (Direct: City P -> City D)
-    final directFallback = availableRoutes.cast<RouteModel?>().firstWhere(
-      (r) => r!.fromCityId == pickupCity.id && r.toCityId == dropCity.id && 
-             r.fromZoneId == null && r.toZoneId == null,
-      orElse: () => null,
-    );
-    if (directFallback != null) {
-      print("💎 FirebasePricingService: Match Found! [City Fallback Direct] Price: ${directFallback.price}");
-      return directFallback.price;
+    if (match == null) {
+      print("❌ FirebasePricingService: No suitable route found for pZone: $pZoneId, dZone: $dZoneId");
+      return null;
     }
 
-    // PRIORITY 2b: Fallback Match (Reversed: City D -> City P)
-    final reversedFallback = availableRoutes.cast<RouteModel?>().firstWhere(
-      (r) => r!.fromCityId == dropCity.id && r.toCityId == pickupCity.id && 
-             r.fromZoneId == null && r.toZoneId == null,
-      orElse: () => null,
-    );
-    if (reversedFallback != null) {
-      print("💎 FirebasePricingService: Match Found! [City Fallback Reversed] Price: ${reversedFallback.price}");
-      return reversedFallback.price;
-    }
-
-    print("❌ FirebasePricingService: No match found among available routes.");
-    return null;
+    return match.price;
   }
 
   // Admin CRUD operations (Simplified for use in the Flutter Admin pages)
@@ -280,7 +297,11 @@ class FirebasePricingService {
 
   Future<List<PricingVehicleModel>> fetchVehicles() async {
     final snapshot = await _firestore.collection('vehicles').get();
-    return snapshot.docs.map((doc) => PricingVehicleModel.fromJson(doc.data())).toList();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      if (data['id'] == null) data['id'] = doc.id;
+      return PricingVehicleModel.fromJson(data);
+    }).toList();
   }
 
   void clearCache() {

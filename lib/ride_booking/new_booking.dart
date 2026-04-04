@@ -29,6 +29,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:premium_force_main/utils/zone_helper.dart';
 import 'package:premium_force_main/services/firebase_pricing_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -120,6 +121,8 @@ class _NewBookingState extends State<NewBooking> {
   int _selectedServiceDuration =
       0; // 0 for hourly, 1 for 8 hours, 2 for 12 hours
   int _selectedEstimatedHours = 1; // 1 to 12
+  double _vatPercentage = 15.0;
+  final Map<String, double> _hourlyPrices = {};
 
   double get _calculatedCharge {
     if (_routePrice != null && _routePrice! > 0) return _routePrice!;
@@ -129,17 +132,16 @@ class _NewBookingState extends State<NewBooking> {
 
     // For Chauffeur Service
     if (_selectedCatCode == 2) {
-      double basePrice = car.price;
+      double basePrice = _hourlyPrices[car.id] ?? car.price;
+      
+      // If we are in "Hourly" mode (duration 0), we multiply by the number of hours.
+      // The API returns the price for 1 hour when we pass 1.
       if (_selectedServiceDuration == 0) {
-        // Hourly: Charge per hour (minimum 1, max 12)
         return basePrice * _selectedEstimatedHours;
-      } else if (_selectedServiceDuration == 1) {
-        // 8 Hours: Potentially a discounted rate
-        return basePrice * 8;
-      } else {
-        // 12 Hours
-        return basePrice * 12;
-      }
+      } 
+      
+      // For fixed packages (8h, 12h, 999), the API returns the package price.
+      return basePrice;
     }
 
     // For Private Transfer (CatCode 3)
@@ -601,6 +603,7 @@ class _NewBookingState extends State<NewBooking> {
 
     _loadCarData();
     _loadUserPromoCode();
+    _loadVat();
   }
 
   Future<void> _loadUserPromoCode() async {
@@ -629,6 +632,21 @@ class _NewBookingState extends State<NewBooking> {
           );
         }
       }
+    }
+  }
+
+  Future<void> _loadVat() async {
+    try {
+      final res = await ApiService().getVat(token: UserLocalStorage.getToken());
+      if (res['success'] == true && res['data'] != null) {
+        if (mounted) {
+          setState(() {
+            _vatPercentage = _parseDouble(res['data']['vat'] ?? 15);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ VAT Fetch Error: $e');
     }
   }
 
@@ -868,7 +886,7 @@ class _NewBookingState extends State<NewBooking> {
                       );
 
                       return CarModel(
-                        id: map['_id']?.toString() ?? '',
+                        id: (map['_id'] ?? map['id'] ?? '').toString(),
                         className: apiCategory,
                         brand: apiBrand,
                         brandId: bid,
@@ -1304,27 +1322,26 @@ class _NewBookingState extends State<NewBooking> {
                   ) ??
                   0;
               if (price > 0) {
-                // The new API uses carDetails._id as shown in logs
                 String? vId;
                 if (r['carDetails'] is Map) {
                   vId = r['carDetails']['_id']?.toString();
+                } else if (r['vehicleID'] is Map) {
+                  vId = r['vehicleID']['_id']?.toString();
                 } else {
-                  vId =
-                      (r['vehicleID'] is Map
-                              ? r['vehicleID']['_id']
-                              : (r['vehicle_id'] ?? r['vehicleID']))
-                          ?.toString();
+                  vId = (r['vehicle_id'] ?? r['vehicleID'] ?? r['_id'] ?? r['id'])?.toString();
                 }
 
-                if (vId != null) supportedIds.add(vId);
+                if (vId != null) {
+                  supportedIds.add(vId);
+                  debugPrint('🏎️ Filtering │ Airport car found: $vId');
+                }
               }
             }
           }
         }
       } else if (_selectedCatCode == 2) {
         // --- ⏱️ Hourly Service ---
-        // Map duration selection to hour count requested by API
-        // 0: Hourly (pass 1), 1: 8 Hours (pass 8), 2: 12 Hours (pass 12)
+        // Pass hour value as requested: 1 (hourly), 8 (8h), 12 (12h), 999 (extra)
         final int hoursToPass = (_selectedServiceDuration == 1)
             ? 8
             : (_selectedServiceDuration == 2 ? 12 : 1);
@@ -1335,31 +1352,32 @@ class _NewBookingState extends State<NewBooking> {
 
         final res = await api.getHourlyCars(hours: hoursToPass, token: token);
 
-        if (res['success'] == true && res['data'] != null) {
-          // The API returns a list of cars/routes as shown in previous airport logs
-          // We handle both Map (with 'cars' list) or direct List
-          final List routes = (res['data'] is Map)
-              ? (res['data']['cars'] ?? [])
-              : (res['data'] is List ? res['data'] : []);
+        if (res['success'] == true && res['cars'] != null) {
+          final List routes = res['cars'];
+          _hourlyPrices.clear(); // Refresh prices
 
           for (var r in routes) {
-            final price =
-                double.tryParse(
-                  (r['price'] ?? r['charge'] ?? '0').toString(),
-                ) ??
-                0;
-            if (price > 0) {
-              String? vId;
-              if (r['carDetails'] is Map) {
-                vId = r['carDetails']['_id']?.toString();
-              } else {
-                vId =
-                    (r['vehicleID'] is Map
-                            ? r['vehicleID']['_id']
-                            : (r['vehicle_id'] ?? r['vehicleID']))
-                        ?.toString();
+            if (r is! Map) continue;
+            
+            final carData = r['car'];
+            final routeData = r['route'];
+            
+            if (carData is Map && carData.isNotEmpty) {
+              final vId = (carData['id'] ?? carData['_id'])?.toString();
+              if (vId != null) {
+                supportedIds.add(vId);
+                
+                // Store the price from the route object
+                if (routeData is Map) {
+                  final double price = _parseDouble(
+                    routeData['hourlyPrice'] ?? routeData['price'] ?? 0,
+                  );
+                  if (price > 0) {
+                    _hourlyPrices[vId] = price;
+                  }
+                }
+                debugPrint('🏎️ Filtering │ Hourly car found: $vId (Price: ${_hourlyPrices[vId]})');
               }
-              if (vId != null) supportedIds.add(vId);
             }
           }
         }
@@ -1375,41 +1393,120 @@ class _NewBookingState extends State<NewBooking> {
           _dropCityName ?? "",
         );
 
+        if (pickupCity == null) {
+          debugPrint('❌ Filtering │ Pickup city not matched: $_pickupCityName');
+        }
+        if (dropCity == null) {
+          debugPrint('❌ Filtering │ Drop city not matched: $_dropCityName');
+        }
+
         if (pickupCity != null && dropCity != null) {
-          // Querying Firestore directly for vehicles having routes between these cities
-          final snapshot = await FirebaseFirestore.instance
+          // Detect Zones
+          final pickupZones = await _firebasePricingService.fetchZones(pickupCity.id);
+          final dropZones = await _firebasePricingService.fetchZones(dropCity.id);
+
+          final pZone = ZoneHelper.detectZone(
+            LatLng(_pickupLat ?? 0, _pickupLng ?? 0),
+            pickupZones,
+          );
+          final dZone = ZoneHelper.detectZone(
+            LatLng(_dropLat ?? 0, _dropLng ?? 0),
+            dropZones,
+          );
+
+          final pZoneId = pZone?.id;
+          final dZoneId = dZone?.id;
+
+          debugPrint('🏎️ Filtering │ Detected Zones -> P: ${pZoneId ?? 'None'}, D: ${dZoneId ?? 'None'}');
+          debugPrint('🏎️ Filtering │ Pickup: ${pickupCity.nameEn} (${pickupCity.id}), Drop: ${dropCity.nameEn} (${dropCity.id})');
+
+          // Fetch all active routes between these two cities (both directions)
+          final query1 = FirebaseFirestore.instance
               .collection('routes')
               .where('active', isEqualTo: true)
               .where('from_city_id', isEqualTo: pickupCity.id)
               .where('to_city_id', isEqualTo: dropCity.id)
               .get();
 
-          for (var doc in snapshot.docs) {
-            final data = doc.data();
-            final priceValue =
-                double.tryParse(data['price']?.toString() ?? '0') ?? 0;
-            if (priceValue > 0) {
-              final vId = data['vehicle_id']?.toString();
-              if (vId != null) supportedIds.add(vId);
+          List<Future<QuerySnapshot<Map<String, dynamic>>>> queries = [query1];
+          if (pickupCity.id != dropCity.id) {
+            queries.add(
+              FirebaseFirestore.instance
+                  .collection('routes')
+                  .where('active', isEqualTo: true)
+                  .where('from_city_id', isEqualTo: dropCity.id)
+                  .where('to_city_id', isEqualTo: pickupCity.id)
+                  .get(),
+            );
+          }
+
+          final snapshots = await Future.wait(queries);
+          final List<Map<String, dynamic>> allRoutes = [];
+          for (var s in snapshots) {
+            for (var doc in s.docs) {
+              final data = doc.data();
+              if (data['id'] == null) data['id'] = doc.id;
+              allRoutes.add(data);
+            }
+          }
+          debugPrint('🏎️ Filtering │ Total routes fetched from Firestore: ${allRoutes.length}');
+
+          // Group routes by vehicleId and find if any match the trip (bidirectional/fallback)
+          final Map<String, List<Map<String, dynamic>>> routesByVehicle = {};
+          for (var r in allRoutes) {
+            final vId = r['vehicle_id']?.toString();
+            if (vId != null) {
+              routesByVehicle.putIfAbsent(vId, () => []).add(r);
             }
           }
 
-          // Bidirectional check
-          if (pickupCity.id != dropCity.id) {
-            final revSnapshot = await FirebaseFirestore.instance
-                .collection('routes')
-                .where('active', isEqualTo: true)
-                .where('from_city_id', isEqualTo: dropCity.id)
-                .where('to_city_id', isEqualTo: pickupCity.id)
-                .get();
-            for (var doc in revSnapshot.docs) {
-              final data = doc.data();
-              final priceValue =
-                  double.tryParse(data['price']?.toString() ?? '0') ?? 0;
-              if (priceValue > 0) {
-                final vId = data['vehicle_id']?.toString();
-                if (vId != null) supportedIds.add(vId);
-              }
+          debugPrint('🏎️ Filtering │ Available app car IDs: ${_cars.map((c) => c.id).toList()}');
+
+          for (var vId in routesByVehicle.keys) {
+            final vehicleRoutes = routesByVehicle[vId]!;
+
+            // Check if ANY route matches this trip (Direct or Reversed, Exact or City Fallback)
+            final bool hasMatch = vehicleRoutes.any((r) {
+              final rFromCity = r['from_city_id']?.toString();
+              final rToCity = r['to_city_id']?.toString();
+              // Normalize: convert empty strings to null for consistent matching
+              final dynamic rFromZoneRaw = r['from_zone_id'];
+              final String? rFromZone = (rFromZoneRaw == null || rFromZoneRaw.toString().isEmpty) ? null : rFromZoneRaw.toString();
+              
+              final dynamic rToZoneRaw = r['to_zone_id'];
+              final String? rToZone = (rToZoneRaw == null || rToZoneRaw.toString().isEmpty) ? null : rToZoneRaw.toString();
+              
+              final rPrice = double.tryParse(r['price']?.toString() ?? '0') ?? 0;
+
+              if (rPrice <= 0) return false;
+
+              // 1. Exact Zone Match (Direct or Reversed)
+              bool exactMatch = (rFromCity == pickupCity.id && rToCity == dropCity.id && rFromZone == pZoneId && rToZone == dZoneId) ||
+                                (rFromCity == dropCity.id && rToCity == pickupCity.id && rFromZone == dZoneId && rToZone == pZoneId);
+              
+              if (exactMatch) return true;
+
+              // 2. City Level Fallback (No zones in Firestore doc)
+              bool cityLevelMatch = (rFromCity == pickupCity.id && rToCity == dropCity.id && rFromZone == null && rToZone == null) ||
+                                    (rFromCity == dropCity.id && rToCity == pickupCity.id && rFromZone == null && rToZone == null);
+              
+              if (cityLevelMatch) return true;
+
+              // 3. Broad Intra-City Fallback (Same city, ANY internal route exists)
+              // This handles cases like Downtown-to-Innercity being used for Downtown-to-Downtown
+              bool isIntraCityFallback = (pickupCity.id == dropCity.id) && 
+                                         (rFromCity == pickupCity.id && rToCity == pickupCity.id);
+              
+              if (isIntraCityFallback) return true;
+
+              return false;
+            });
+
+            if (hasMatch) {
+              debugPrint('✅ Filtering │ Vehicle $vId marked as SUPPORTED');
+              supportedIds.add(vId);
+            } else {
+              debugPrint('ℹ️ Filtering │ Vehicle $vId does NOT match current zones (P: $pZoneId, D: $dZoneId)');
             }
           }
         }
@@ -1424,7 +1521,51 @@ class _NewBookingState extends State<NewBooking> {
       setState(() {
         _supportedCarIds = supportedIds;
         _isFilteringCars = false;
+
+        // ── Auto-select the first supported class → brand → model ──
+        _syncSelectionToSupportedCars();
       });
+    }
+  }
+
+  /// Sync the selected class/brand/model to only show supported vehicles.
+  /// Called after `_supportedCarIds` is populated.
+  void _syncSelectionToSupportedCars() {
+    if (_supportedCarIds == null || _supportedCarIds!.isEmpty) return;
+
+    final availableClasses = _getAvailableVehicleClasses();
+    if (availableClasses.isEmpty) return;
+
+    // If current class is not available, switch to first available
+    if (_selectedVehicleClass == null ||
+        !availableClasses.contains(_selectedVehicleClass)) {
+      _selectedVehicleClass = availableClasses.first;
+    }
+
+    // Cascade: Pick first supported brand in this class
+    final availableBrands = _getAvailableBrands(_selectedVehicleClass);
+    if (availableBrands.isEmpty) {
+      _selectedVehicleBrand = null;
+      _selectedVehicleModel = null;
+      return;
+    }
+    if (_selectedVehicleBrand == null ||
+        !availableBrands.contains(_selectedVehicleBrand)) {
+      _selectedVehicleBrand = availableBrands.first;
+    }
+
+    // Cascade: Pick first supported model for this class+brand
+    final availableModels = _getAvailableModels(
+      _selectedVehicleClass,
+      _selectedVehicleBrand,
+    );
+    if (availableModels.isEmpty) {
+      _selectedVehicleModel = null;
+      return;
+    }
+    if (_selectedVehicleModel == null ||
+        !availableModels.contains(_selectedVehicleModel)) {
+      _selectedVehicleModel = availableModels.first;
     }
   }
 
@@ -1857,7 +1998,7 @@ class _NewBookingState extends State<NewBooking> {
                                     (_isPromoValid
                                         ? (1 - _discountPercentage / 100)
                                         : 1) *
-                                    1.15; // Including 15% VAT
+                                    (1 + _vatPercentage / 100); // Including VAT
                                 final orderId =
                                     "BOOK_${DateTime.now().millisecondsSinceEpoch}";
 
@@ -2289,38 +2430,38 @@ class _NewBookingState extends State<NewBooking> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        color: Colors.black,
-                        width: double.infinity,
-                        child: AspectRatio(
-                          aspectRatio: 1.7,
-                          child: CachedNetworkImage(
-                            imageUrl: carImageUrl,
-                            fit: BoxFit.cover,
-                            errorWidget: (context, error, stackTrace) =>
-                                const Icon(
-                                  Icons.directions_car,
-                                  size: 50,
-                                  color: Colors.white24,
-                                ),
-                            placeholder: (context, url) => Shimmer.fromColors(
-                              baseColor: Colors.white.withAlpha(5),
-                              highlightColor: Colors.white.withAlpha(15),
-                              child: Container(
-                                width: double.infinity,
-                                height: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Colors.black,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      color: Colors.black,
+                      width: double.infinity,
+                      child: AspectRatio(
+                        aspectRatio: 1.7,
+                        child: CachedNetworkImage(
+                          imageUrl: carImageUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.directions_car,
+                                size: 50,
+                                color: Colors.white24,
+                              ),
+                          placeholder: (context, url) => Shimmer.fromColors(
+                            baseColor: Colors.white.withAlpha(5),
+                            highlightColor: Colors.white.withAlpha(15),
+                            child: Container(
+                              width: double.infinity,
+                              height: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     "${_selectedVehicleBrand ?? ""} ${_selectedVehicleModel ?? ""}",
@@ -2564,7 +2705,7 @@ class _NewBookingState extends State<NewBooking> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      loc.vat,
+                      "${loc.vat} (${_vatPercentage.toStringAsFixed(0)}%)",
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -2585,7 +2726,7 @@ class _NewBookingState extends State<NewBooking> {
                                 ),
                               )
                             : Text(
-                                " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 0.15).toStringAsFixed(2)}",
+                                " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * (_vatPercentage / 100)).toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -2626,7 +2767,7 @@ class _NewBookingState extends State<NewBooking> {
                                 ),
                               )
                             : Text(
-                                " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * 1.15).toStringAsFixed(2)}",
+                                " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * (1 + _vatPercentage / 100)).toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -3001,14 +3142,33 @@ class _NewBookingState extends State<NewBooking> {
     // Get available classes from API or fallback to hardcoded
     final availableClasses = _getAvailableVehicleClasses();
 
-    // Ensure the selected value is in the available classes, otherwise use first
-    String? validSelectedClass = _selectedVehicleClass;
-    if (validSelectedClass != null &&
-        !availableClasses.contains(validSelectedClass)) {
-      validSelectedClass = availableClasses.isNotEmpty
-          ? availableClasses.first
-          : null;
+    // Ensure the selected value is in the available classes, otherwise update state
+    if (_selectedVehicleClass != null &&
+        !availableClasses.contains(_selectedVehicleClass)) {
+      // Schedule a post-frame state sync so we don't setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _selectedVehicleClass = availableClasses.isNotEmpty
+              ? availableClasses.first
+              : null;
+          // Cascade brand & model
+          final brands = _getAvailableBrands(_selectedVehicleClass);
+          _selectedVehicleBrand = brands.isNotEmpty ? brands.first : null;
+          final models = _getAvailableModels(
+            _selectedVehicleClass,
+            _selectedVehicleBrand,
+          );
+          _selectedVehicleModel = models.isNotEmpty ? models.first : null;
+        });
+      });
     }
+
+    final displayClass =
+        (_selectedVehicleClass != null &&
+            availableClasses.contains(_selectedVehicleClass))
+        ? _selectedVehicleClass
+        : (availableClasses.isNotEmpty ? availableClasses.first : null);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -3016,7 +3176,7 @@ class _NewBookingState extends State<NewBooking> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PremiumDropDown(
-            value: validSelectedClass,
+            value: displayClass,
             onChanged: (value) {
               if (value != null) {
                 setState(() {
@@ -3345,18 +3505,16 @@ class _NewBookingState extends State<NewBooking> {
                 if (val != null) {
                   setState(() {
                     final cityName = val;
-                    final cityIndex = _apiCities.indexWhere(
-                      (c) {
-                        final isArabic =
-                            Localizations.localeOf(context).languageCode == 'ar';
-                        final name =
-                            (isArabic
-                                ? (c['cityNameAr'] ?? c['cityName'])
-                                : c['cityName'])
-                            .toString();
-                        return name == cityName;
-                      },
-                    );
+                    final cityIndex = _apiCities.indexWhere((c) {
+                      final isArabic =
+                          Localizations.localeOf(context).languageCode == 'ar';
+                      final name =
+                          (isArabic
+                                  ? (c['cityNameAr'] ?? c['cityName'])
+                                  : c['cityName'])
+                              .toString();
+                      return name == cityName;
+                    });
                     _selectedCityCode = (cityIndex != -1) ? cityIndex : 0;
                     _selectedAirportCode = 0;
                     _selectedTerminalCode = 0;
@@ -3409,31 +3567,37 @@ class _NewBookingState extends State<NewBooking> {
 
   Widget buildArrivalSection(BuildContext context, AppLocalizations loc) {
     final terminals = _getAvailableTerminals(context);
+    final airports = _getAvailableAirports(context);
+    final bool showTerminals =
+        airports.isNotEmpty && airports.first != "0 airports available";
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         buildAirportName(context, loc),
-        SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: PremiumDropDown(
-            title: loc.terminal,
-            value: terminals.isNotEmpty
-                ? (_selectedTerminalCode < terminals.length
-                      ? terminals[_selectedTerminalCode]
-                      : terminals.first)
-                : "",
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _selectedTerminalCode = terminals.indexOf(val);
-                });
-              }
-            },
-            items: terminals,
+        if (showTerminals) ...[
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: PremiumDropDown(
+              title: loc.terminal,
+              value: terminals.isNotEmpty
+                  ? (_selectedTerminalCode < terminals.length
+                        ? terminals[_selectedTerminalCode]
+                        : terminals.first)
+                  : "",
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedTerminalCode = terminals.indexOf(val);
+                  });
+                }
+              },
+              items: terminals,
+            ),
           ),
-        ),
-        SizedBox(height: 16),
+        ],
+        const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: PremiumTextField(
@@ -3464,33 +3628,39 @@ class _NewBookingState extends State<NewBooking> {
 
   Widget buildDepartureSection(BuildContext context, AppLocalizations loc) {
     final terminals = _getAvailableTerminals(context);
+    final airports = _getAvailableAirports(context);
+    final bool showTerminals =
+        airports.isNotEmpty && airports.first != "0 airports available";
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         buildDropLocation(context, loc, false),
-        SizedBox(height: 16),
+        const SizedBox(height: 16),
         buildAirportName(context, loc),
-        SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: PremiumDropDown(
-            title: loc.terminal,
-            value: terminals.isNotEmpty
-                ? (_selectedTerminalCode < terminals.length
-                      ? terminals[_selectedTerminalCode]
-                      : terminals.first)
-                : "",
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _selectedTerminalCode = terminals.indexOf(val);
-                });
-              }
-            },
-            items: terminals,
+        if (showTerminals) ...[
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: PremiumDropDown(
+              title: loc.terminal,
+              value: terminals.isNotEmpty
+                  ? (_selectedTerminalCode < terminals.length
+                        ? terminals[_selectedTerminalCode]
+                        : terminals.first)
+                  : "",
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedTerminalCode = terminals.indexOf(val);
+                  });
+                }
+              },
+              items: terminals,
+            ),
           ),
-        ),
-        SizedBox(height: 16),
+        ],
+        const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: PremiumTextField(
@@ -3650,19 +3820,16 @@ class _NewBookingState extends State<NewBooking> {
                   if (_apiCities.isNotEmpty) {
                     final cityName = _getCityName(context, _selectedCityCode);
                     // Find actual city data by name to avoid index mismatch
-                    final cityData = _apiCities.firstWhere(
-                      (c) {
-                        final isArabic =
-                            Localizations.localeOf(context).languageCode == 'ar';
-                        final name =
-                            (isArabic
-                                ? (c['cityNameAr'] ?? c['cityName'])
-                                : c['cityName'])
-                            .toString();
-                        return name == cityName;
-                      },
-                      orElse: () => _apiCities.first,
-                    );
+                    final cityData = _apiCities.firstWhere((c) {
+                      final isArabic =
+                          Localizations.localeOf(context).languageCode == 'ar';
+                      final name =
+                          (isArabic
+                                  ? (c['cityNameAr'] ?? c['cityName'])
+                                  : c['cityName'])
+                              .toString();
+                      return name == cityName;
+                    }, orElse: () => _apiCities.first);
 
                     final latVal = cityData['lat'] ?? cityData['latitude'];
                     final lngVal =
@@ -3677,8 +3844,9 @@ class _NewBookingState extends State<NewBooking> {
                       initLng = double.tryParse(lngVal.toString()) ?? 46.6753;
                     } else {
                       // Extended fallback name-based lookup
-                      String nameKey =
-                          (cityData['cityName'] ?? "").toString().toLowerCase();
+                      String nameKey = (cityData['cityName'] ?? "")
+                          .toString()
+                          .toLowerCase();
                       if (nameKey.contains("dammam")) {
                         initLat = 26.3927;
                         initLng = 49.9777;
@@ -4419,19 +4587,22 @@ class _NewBookingState extends State<NewBooking> {
                   aCityId = aCityId['_id'] ?? aCityId['id'];
                 }
                 final aCityIdStr = aCityId?.toString();
-                return aCityIdStr != null && aCityIdStr == cityId;
+                // Check if the airport is active
+                final bool isActive = a['isActive'] == true;
+                return aCityIdStr != null && aCityIdStr == cityId && isActive;
               })
               .map((a) => a['airportName'].toString())
               .toSet()
               .toList();
 
           if (filtered.isNotEmpty) return filtered;
+          return ["0 airports available"];
         }
       } catch (e) {
         debugPrint('Error filtering airports: $e');
       }
     }
-    return [];
+    return ["0 airports available"];
   }
 
   /// Get terminals based on selected airport
@@ -4439,7 +4610,8 @@ class _NewBookingState extends State<NewBooking> {
     if (_apiAirports.isNotEmpty && _apiTerminals.isNotEmpty) {
       try {
         final airportNames = _getAvailableAirports(context);
-        if (airportNames.isNotEmpty) {
+        if (airportNames.isNotEmpty &&
+            airportNames.first != "0 airports available") {
           // Find the selected airport object to get its ID
           final selectedAirportName =
               airportNames[_selectedAirportCode < airportNames.length
@@ -4448,10 +4620,7 @@ class _NewBookingState extends State<NewBooking> {
 
           final airport = _apiAirports.firstWhere(
             (a) => a['airportName']?.toString() == selectedAirportName,
-            orElse: () => _apiAirports.firstWhere(
-              (a) => true, // Just to have a fallback if names don't match
-              orElse: () => {},
-            ),
+            orElse: () => {},
           );
 
           if (airport.isNotEmpty) {
@@ -4465,7 +4634,11 @@ class _NewBookingState extends State<NewBooking> {
                     tAirportId = tAirportId['_id'] ?? tAirportId['id'];
                   }
                   final tAirportIdStr = tAirportId?.toString();
-                  return tAirportIdStr != null && tAirportIdStr == airportId;
+                  // Check if the terminal is active
+                  final bool isActive = t['isActive'] == true;
+                  return tAirportIdStr != null &&
+                      tAirportIdStr == airportId &&
+                      isActive;
                 })
                 .map((t) => t['terminalName'].toString())
                 .toSet()
@@ -4478,7 +4651,7 @@ class _NewBookingState extends State<NewBooking> {
         debugPrint('Error filtering terminals: $e');
       }
     }
-    return [];
+    return ["no terminals"];
   }
 
   String? _getSelectedTerminalName(BuildContext context) {

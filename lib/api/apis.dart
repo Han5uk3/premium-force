@@ -531,12 +531,12 @@ class ApiService {
 
   /// Delete a user by [id].
   Future<Map<String, dynamic>> deleteUser({
-    required String id,
+    required String userid,
     String? token,
   }) async {
     try {
       final response = await _dio.delete(
-        'users/$id',
+        'users/$userid',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -1388,6 +1388,20 @@ class ApiService {
       final response = await _dio.patch(
         'special-content/$id/increment',
         data: {'usedCount': 1},
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch the current VAT percentage.
+  /// Calls GET /api/vat
+  Future<Map<String, dynamic>> getVat({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'vat',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);

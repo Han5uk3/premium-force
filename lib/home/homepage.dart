@@ -1,4 +1,5 @@
 import 'package:premium_force_main/common_widgets/fleet_card_shimmer.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/notifications/notification_screen.dart';
@@ -37,7 +38,7 @@ class _HomepageState extends State<Homepage>
   List<Map<String, dynamic>> _apiAirports = [];
   List<Map<String, dynamic>> _apiTerminals = [];
   List<BookingModel> _pastBookings = [];
-  bool _isLoadingLocations = false;
+  final ValueNotifier<bool> _isLoadingLocations = ValueNotifier(false);
   bool _isLoadingCars = false;
   bool _isLoadingBookings = false;
 
@@ -135,7 +136,9 @@ class _HomepageState extends State<Homepage>
   }
 
   Future<void> _fetchLocationData() async {
-    if (mounted) setState(() => _isLoadingLocations = true);
+    if (mounted) {
+      _isLoadingLocations.value = true;
+    }
     try {
       final api = ApiService();
 
@@ -197,13 +200,6 @@ class _HomepageState extends State<Homepage>
             return [];
           }
 
-          // Process Cities
-          _apiCities = extractListData(results[0], [
-            'cities',
-            'data',
-            'result',
-          ]).where((c) => c['isActive'] == true).toList();
-
           // Process Airports
           _apiAirports = extractListData(results[1], [
             'airports',
@@ -217,6 +213,13 @@ class _HomepageState extends State<Homepage>
             'data',
             'result',
           ]);
+
+          // Process Cities - only include cities that are active
+          _apiCities = extractListData(results[0], [
+            'cities',
+            'data',
+            'result',
+          ]).where((c) => c['isActive'] == true).toList();
         });
 
         if (kDebugMode) {
@@ -231,7 +234,10 @@ class _HomepageState extends State<Homepage>
     } catch (e) {
       debugPrint('âŒ General error in _fetchLocationData: $e');
     } finally {
-      if (mounted) setState(() => _isLoadingLocations = false);
+      if (mounted) {
+        _isLoadingLocations.value = false;
+        setState(() {}); // Still call setState for other data (cities/airports)
+      }
     }
   }
 
@@ -1134,7 +1140,7 @@ class _HomepageState extends State<Homepage>
 
   Widget _buildAppbar(BuildContext context, AppLocalizations loc) {
     return Container(
-      height: 290,
+      height: 301,
       padding: const EdgeInsets.only(top: 50),
       decoration: BoxDecoration(
         image: DecorationImage(
@@ -1307,6 +1313,7 @@ class _HomepageState extends State<Homepage>
           ),
           SizedBox(height: 16),
           const InfiniteScrollBanner(),
+          SizedBox(height: 8),
         ],
       ),
     );
@@ -1317,6 +1324,9 @@ class _HomepageState extends State<Homepage>
     AppLocalizations loc,
     int catcode,
   ) {
+    if (catcode == 0 || catcode == 1) {
+      _fetchLocationData();
+    }
     bool isEnglish = Localizations.localeOf(context).languageCode == 'en';
     int selectedCityIndex = 0; // default to Riyadh
 
@@ -1373,108 +1383,133 @@ class _HomepageState extends State<Homepage>
                     ),
                     const Divider(color: Colors.grey, thickness: 1),
                     const SizedBox(height: 8),
-                    _isLoadingLocations // Changed from _isLoadingCities
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 40),
-                              child: PremiumLoader(color: Color(0xFFE4A46B)),
-                            ),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 24,
-                            ),
-                            child: Builder(
-                              builder: (context) {
-                                final activeCities = _apiCities
-                                    .where((c) => c['isActive'] == true)
-                                    .toList();
-
-                                if (activeCities.isEmpty) {
-                                  return Center(
-                                    child: Padding(
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return ValueListenableBuilder<bool>(
+                          valueListenable: _isLoadingLocations,
+                          builder: (context, isLoading, child) {
+                            return AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 600),
+                              switchInCurve: Curves.easeIn,
+                              switchOutCurve: Curves.easeOut,
+                              child: isLoading
+                                  ? _buildCityGridShimmer(
+                                      constraints.maxWidth,
+                                      count:
+                                          _getFilteredCities(catcode).length > 0
+                                          ? _getFilteredCities(catcode).length
+                                          : 6,
+                                    )
+                                  : Padding(
+                                      key: const ValueKey('city_grid_content'),
                                       padding: const EdgeInsets.symmetric(
-                                        vertical: 20,
+                                        horizontal: 24,
+                                        vertical: 24,
                                       ),
-                                      child: Text(
-                                        isEnglish
-                                            ? "No active cities available"
-                                            : "Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¯Ù† Ù†Ø´Ø·Ø© Ù…ØªØ§Ø­Ø©",
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                        ),
+                                      child: Builder(
+                                        builder: (context) {
+                                          final activeCities =
+                                              _getFilteredCities(catcode);
+
+                                          if (activeCities.isEmpty) {
+                                            return Center(
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 20,
+                                                    ),
+                                                child: Text(
+                                                  isEnglish
+                                                      ? "No active cities available"
+                                                      : "Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¯Ù† Ù†Ø´Ø·Ø© Ù…ØªØ§Ø­Ø©",
+                                                  style: const TextStyle(
+                                                    color: Colors.white70,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+
+                                          return Wrap(
+                                            spacing: 12,
+                                            runSpacing: 12,
+                                            children: activeCities.asMap().entries.map((
+                                              entry,
+                                            ) {
+                                              final index = entry.key;
+                                              final city = entry.value;
+                                              final String cityName =
+                                                  city['cityName'] ?? 'Unknown';
+                                              final String cityNameAr =
+                                                  city['cityNameAr'] ??
+                                                  cityName;
+
+                                              // API image handling - the 'image' field is a Map containing 'url'
+                                              String? imageUrl;
+                                              if (city['image'] != null) {
+                                                if (city['image'] is String) {
+                                                  imageUrl = city['image'];
+                                                } else if (city['image']
+                                                        is Map &&
+                                                    city['image']['url'] !=
+                                                        null) {
+                                                  imageUrl =
+                                                      city['image']['url'];
+                                                }
+                                              }
+
+                                              // Modernize relative paths
+                                              if (imageUrl != null &&
+                                                  imageUrl.isNotEmpty &&
+                                                  !imageUrl.startsWith(
+                                                    'http',
+                                                  ) &&
+                                                  !imageUrl.startsWith(
+                                                    'assets/',
+                                                  )) {
+                                                const String host =
+                                                    'https://api.premiumforcegroup.com';
+                                                imageUrl =
+                                                    imageUrl.startsWith('/')
+                                                    ? '$host$imageUrl'
+                                                    : '$host/$imageUrl';
+                                              }
+
+                                              final String displayImage =
+                                                  imageUrl ??
+                                                  'assets/images/riyadh.png';
+
+                                              return SizedBox(
+                                                width:
+                                                    (constraints.maxWidth -
+                                                        48 - // Padding horizontal (24 * 2)
+                                                        24) / // Spacings (12 * 2)
+                                                    3, // 3 columns
+                                                child: _buildCityTile(
+                                                  isEnglish: isEnglish,
+                                                  isSelected:
+                                                      selectedCityIndex ==
+                                                      index,
+                                                  nameEn: cityName,
+                                                  nameAr: cityNameAr,
+                                                  image: displayImage,
+                                                  isApiImage: imageUrl != null,
+                                                  onTap: () => setState(
+                                                    () => selectedCityIndex =
+                                                        index,
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          );
+                                        },
                                       ),
                                     ),
-                                  );
-                                }
-
-                                return LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return Wrap(
-                                      spacing: 12,
-                                      runSpacing: 12,
-                                      children: activeCities.asMap().entries.map((
-                                        entry,
-                                      ) {
-                                        final index = entry.key;
-                                        final city = entry.value;
-                                        final String cityName =
-                                            city['cityName'] ?? 'Unknown';
-                                        final String cityNameAr =
-                                            city['cityNameAr'] ?? cityName;
-
-                                        // API image handling - the 'image' field is a Map containing 'url'
-                                        String? imageUrl;
-                                        if (city['image'] != null) {
-                                          if (city['image'] is String) {
-                                            imageUrl = city['image'];
-                                          } else if (city['image'] is Map &&
-                                              city['image']['url'] != null) {
-                                            imageUrl = city['image']['url'];
-                                          }
-                                        }
-
-                                        // Modernize relative paths
-                                        if (imageUrl != null &&
-                                            imageUrl.isNotEmpty &&
-                                            !imageUrl.startsWith('http') &&
-                                            !imageUrl.startsWith('assets/')) {
-                                          const String host =
-                                              'https://api.premiumforcegroup.com';
-                                          imageUrl = imageUrl.startsWith('/')
-                                              ? '$host$imageUrl'
-                                              : '$host/$imageUrl';
-                                        }
-
-                                        final String displayImage =
-                                            imageUrl ??
-                                            'assets/images/riyadh.png';
-
-                                        return SizedBox(
-                                          width:
-                                              (constraints.maxWidth - 24) /
-                                              3, // 3 columns
-                                          child: _buildCityTile(
-                                            isEnglish: isEnglish,
-                                            isSelected:
-                                                selectedCityIndex == index,
-                                            nameEn: cityName,
-                                            nameAr: cityNameAr,
-                                            image: displayImage,
-                                            isApiImage: imageUrl != null,
-                                            onTap: () => setState(
-                                              () => selectedCityIndex = index,
-                                            ),
-                                          ),
-                                        );
-                                      }).toList(),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ),
+                            );
+                          },
+                        );
+                      },
+                    ),
                     const SizedBox(height: 24),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1483,9 +1518,7 @@ class _HomepageState extends State<Homepage>
                         borderRadius: 12,
                         text: loc.continueText,
                         onTap: () {
-                          final activeCities = _apiCities
-                              .where((c) => c['isActive'] == true)
-                              .toList();
+                          final activeCities = _getFilteredCities(catcode);
                           if (activeCities.isEmpty) return;
 
                           Navigator.of(context).push(
@@ -1510,6 +1543,62 @@ class _HomepageState extends State<Homepage>
           },
         );
       },
+    );
+  }
+
+  List<Map<String, dynamic>> _getFilteredCities(int catcode) {
+    return _apiCities.where((c) {
+      // Always check city isActive (pre-filtered in _apiCities anyway)
+      if (c['isActive'] != true) return false;
+
+      // If Airport service, also check for at least one active airport
+      if (catcode == 0 || catcode == 1) {
+        final cityId = (c['_id'] ?? c['id'])?.toString();
+        if (cityId == null) return false;
+
+        return _apiAirports.any((a) {
+          var aCityId = a['cityID'] ?? a['cityId'] ?? a['city_id'];
+          if (aCityId is Map) {
+            aCityId = aCityId['_id'] ?? aCityId['id'];
+          }
+          final aCityIdStr = aCityId?.toString();
+          final bool isAirportActive = a['isActive'] == true;
+          return aCityIdStr == cityId && isAirportActive;
+        });
+      }
+      return true;
+    }).toList();
+  }
+
+  Widget _buildCityGridShimmer(double maxWidth, {int count = 6}) {
+    return Padding(
+      key: const ValueKey('city_grid_shimmer'),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Shimmer.fromColors(
+        baseColor: Colors.white.withAlpha(20),
+        highlightColor: Colors.white.withAlpha(40),
+        child: Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: List.generate(
+            count,
+            (index) => SizedBox(
+              width:
+                  (maxWidth -
+                      48 - // Padding horizontal (24 * 2)
+                      24) / // Spacings (12 * 2)
+                  3, // 3 columns
+              child: Container(
+                height: 125,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 

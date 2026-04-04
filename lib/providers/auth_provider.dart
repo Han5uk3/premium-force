@@ -393,7 +393,10 @@ class AuthProvider extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   /// Create the user profile after signup form submission.
-  Future<void> submitSignUp({
+  ///
+  /// Returns a result map with `success` (bool) and optional `message` (String).
+  /// On success, the [user] is fully populated and [status] is [AuthStatus.authenticated].
+  Future<Map<String, dynamic>> submitSignUp({
     required String username,
     required String email,
     required String countryCode,
@@ -423,8 +426,14 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (result['success'] == true) {
-        // Consolidate token extraction and saving
+        // Save tokens returned by createUser
         await _saveAuthTokens(result);
+
+        // Save login provider if not already set
+        final existingProvider = UserLocalStorage.getLoginProvider();
+        if (existingProvider == null || existingProvider.isEmpty) {
+          await UserLocalStorage.saveLoginProvider('phone');
+        }
 
         var userData = result['user'] ?? result['data'] ?? result;
         if (userData is Map<String, dynamic>) {
@@ -433,30 +442,59 @@ class AuthProvider extends ChangeNotifier {
             userData = userData['user'];
           }
 
-          _user = UserModel.fromJson(userData);
           final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
 
+          // Save credentials immediately so interceptors have the userId
           await UserLocalStorage.saveUserCredentials(
             userId: uid,
             phoneNumber: phoneNumber,
             countryCode: userData['countryCode']?.toString() ?? countryCode,
           );
 
-          await UserLocalStorage.saveUserData(userData);
+          // Try to fetch the full user profile from backend
+          // (the createUser response may not include all fields like profileImageUrl)
+          UserModel? fullUser;
+          try {
+            final freshToken = UserLocalStorage.getToken();
+            fullUser = await _api.getUserById(id: uid, token: freshToken);
+            if (fullUser != null) {
+              debugPrint('✅ Signup │ Full user fetched from backend: ${fullUser.username}');
+            }
+          } catch (e) {
+            debugPrint('⚠️ Signup │ getUserById after creation failed: $e');
+          }
+
+          if (fullUser != null) {
+            _user = fullUser;
+            await UserLocalStorage.saveUserData(fullUser.toJson());
+          } else {
+            // Fallback: build user from the createUser response data
+            _user = UserModel.fromJson({
+              ...userData,
+              'phoneNumber': phoneNumber,
+              'countryCode': countryCode,
+            });
+            await UserLocalStorage.saveUserData(userData);
+            debugPrint('⚠️ Signup │ Using fallback user from createUser response');
+          }
         }
 
         _status = AuthStatus.authenticated;
         notifyListeners();
+        debugPrint('✅ Signup │ User authenticated: ${_user?.username}');
+        return {'success': true};
       } else {
         _status = AuthStatus.failure;
         _errorMessage = result['message'] as String? ?? 'Signup failed';
         notifyListeners();
+        return {'success': false, 'message': _errorMessage};
       }
     } catch (e) {
       debugPrint('Submit SignUp error: $e');
       _status = AuthStatus.failure;
       _errorMessage = e.toString();
       notifyListeners();
+      return {'success': false, 'message': _errorMessage};
     }
   }
 
@@ -766,8 +804,9 @@ class AuthProvider extends ChangeNotifier {
   // ---------------------------------------------------------------------------
 
   /// Delete the user account.
-  Future<void> deleteAccount() async {
+  Future<bool> deleteAccount() async {
     _status = AuthStatus.loading;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -776,31 +815,19 @@ class AuthProvider extends ChangeNotifier {
 
       if (id != null) {
         // Delete user on the backend
-        await _api.deleteUser(id: id, token: token);
+        await _api.deleteUser(userid: id, token: token);
+        debugPrint('✅ Account deleted from backend: $id');
       }
 
-      // Delete the FCM token so this device stops receiving notifications
-      await NotificationService.instance.deleteToken();
-
-      // Sign out of Google as well
-      await GoogleSignInService.instance.signOut();
-
-      // Clear local storage
-      await UserLocalStorage.clearUser();
-
-      _cancelResendTimer();
-      _user = null;
-      _phoneNumber = null;
-      _errorMessage = null;
-      _googleResult = null;
-      _resendCountdown = 0;
-      _status = AuthStatus.unauthenticated;
-      notifyListeners();
+      // Cleanup local state (this is what the user meant: delete first, then cleanup)
+      await logout();
+      return true;
     } catch (e) {
-      debugPrint('Delete Account error: $e');
+      debugPrint('❌ Delete Account error: $e');
       _status = AuthStatus.failure;
       _errorMessage = e.toString();
       notifyListeners();
+      return false;
     }
   }
 }

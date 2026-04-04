@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:provider/provider.dart';
@@ -390,24 +390,30 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: PremiumButton(
-                        onTap: () async {
-                          final authProvider = context.read<AuthProvider>();
-                          Navigator.pop(sheetContext); // Close bottom sheet
-                          await authProvider.logout();
-                          if (context.mounted) {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              SmoothNavigation.route(
-                                const PremiumForceLoginPage(),
-                              ),
-                              (route) => false,
-                            );
-                          }
+                      child: StatefulBuilder(
+                        builder: (context, setLoaderState) {
+                          bool isLoggingOut = false;
+                          return PremiumButton(
+                            onTap: () async {
+                              setLoaderState(() => isLoggingOut = true);
+                              final authProvider = context.read<AuthProvider>();
+                              await authProvider.logout();
+                              if (context.mounted) {
+                                Navigator.pop(sheetContext);
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  SmoothNavigation.route(
+                                    const PremiumForceLoginPage(),
+                                  ),
+                                  (route) => false,
+                                );
+                              }
+                            },
+                            text: loc.logout,
+                            fontsize: 14,
+                            showLoader: isLoggingOut,
+                          );
                         },
-                        text: loc.logout,
-                        fontsize: 14,
-                        showLoader: false,
                       ),
                     ),
                   ],
@@ -513,24 +519,42 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: PremiumButton(
-                        text: loc.deleteAccount,
-                        onTap: () async {
-                          final authProvider = context.read<AuthProvider>();
-                          Navigator.pop(sheetContext); // Close bottom sheet
-                          await authProvider.deleteAccount();
-                          if (context.mounted) {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              SmoothNavigation.route(
-                                const PremiumForceLoginPage(),
-                              ),
-                              (route) => false,
-                            );
-                          }
+                      child: StatefulBuilder(
+                        builder: (context, setLoaderState) {
+                          bool isDeleting = false;
+                          return PremiumButton(
+                            text: loc.deleteAccount,
+                            onTap: () async {
+                              if (isDeleting) return;
+                              setLoaderState(() => isDeleting = true);
+                              final authProvider = context.read<AuthProvider>();
+                              final success = await authProvider.deleteAccount();
+                              if (context.mounted) {
+                                if (success) {
+                                  Navigator.pop(sheetContext);
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    SmoothNavigation.route(
+                                      const PremiumForceLoginPage(),
+                                    ),
+                                    (route) => false,
+                                  );
+                                } else {
+                                  setLoaderState(() => isDeleting = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        authProvider.errorMessage ?? "Failed to delete account",
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            fontsize: 14,
+                            showLoader: isDeleting,
+                          );
                         },
-                        fontsize: 14,
-                        showLoader: false,
                       ),
                     ),
                   ],
