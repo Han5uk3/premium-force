@@ -327,16 +327,18 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
             // Driver Details (if assigned)
 
-            // Review Section (if completed)
-            _buildReviewSection(),
-
-            SizedBox(height: 24),
-
             // ------------------------------------------------------------------
             // Extra Hours charge banner (chauffeur overtime)
             // ------------------------------------------------------------------
-            if (_shouldShowExtraHoursSection(booking))
+            if (_shouldShowExtraHoursSection(booking)) ...[
+              const SizedBox(height: 24),
               _buildExtraHoursBanner(booking),
+            ],
+
+            // Review Section (if completed or reviewed)
+            _buildReviewSection(),
+
+            const SizedBox(height: 24),
 
             // Track Driver Button
             if ((booking.bookingStatus ?? '').toLowerCase().trim() ==
@@ -449,12 +451,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     } else {
       // Show "Leave a Review" button
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
         child: PremiumButton(
-          fontsize: 12,
+          fontsize: 14,
           text: loc.leaveAReview,
           showLoader: false,
-          textColor: Colors.white,
+          textColor: Colors.black,
           onTap: () => _showReviewDialog(context),
         ),
       );
@@ -1506,8 +1508,6 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         return loc.rideInProgressStatus;
       case 'paymentpending':
         return loc.paymentPendingStatus;
-      case 'reviewed':
-        return loc.tripReviewedStatus;
       default:
         return status;
     }
