@@ -1006,6 +1006,14 @@ class ApiService {
       );
     }
 
+    // Initialize extra hours/payment data for new bookings to ensure they start clean
+    fields['extrahours'] = '0';
+    fields['extraPayment'] = '0';
+    fields['extraDiscount'] = '0';
+    fields['extraOrderID'] = '';
+    fields['extraTransactionID'] = '';
+    fields['extraPaymentCompleted'] = 'false';
+
     final formData = FormData.fromMap(fields);
 
     if (kDebugMode) {
@@ -1130,6 +1138,35 @@ class ApiService {
     }
   }
 
+  /// Update extra payment details for an hourly booking.
+  Future<Map<String, dynamic>> updateHourlyExtraPayment({
+    required String bookingId,
+    required String extraOrderID,
+    required String extraTransactionID,
+    required double extraPayment,
+    required double extraDiscount,
+    required String extraPaymentCompleted,
+    String? token,
+  }) async {
+    try {
+      final data = <String, dynamic>{
+        'extraOrderID': extraOrderID,
+        'extraTransactionID': extraTransactionID,
+        'extraPayment': extraPayment.toString(),
+        'extraDiscount': extraDiscount.toString(),
+        'extraPaymentCompleted': extraPaymentCompleted,
+      };
+      final response = await _dio.patch(
+        'hourly-bookings/$bookingId/status',
+        data: data,
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
   /// Create an hourly booking (specifically for chauffeur category).
   ///
   /// Calls `POST /api/hourly-bookings`
@@ -1192,6 +1229,11 @@ class ApiService {
     fields['customerName'] = booking.customerName ?? '';
     fields['customer_name'] = booking.customerName ?? ''; // Snake case fallback
     fields['extrahours'] = '0'; // Default value as requested
+    fields['extraPayment'] = '0';
+    fields['extraDiscount'] = '0';
+    fields['extraOrderID'] = '';
+    fields['extraTransactionID'] = '';
+    fields['extraPaymentCompleted'] = 'false';
     fields['username'] =
         booking.customerName ?? ''; // Backend user field fallback
     fields['passengerCount'] = booking.passengerCount ?? '1';
@@ -1281,6 +1323,21 @@ class ApiService {
       final response = await _dio.post(
         'reviews',
         data: data,
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Get all reviews.
+  ///
+  /// Calls `GET /api/reviews`
+  Future<Map<String, dynamic>> getReviews({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'reviews',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);

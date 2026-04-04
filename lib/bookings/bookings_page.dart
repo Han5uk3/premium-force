@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/api/apis.dart';
@@ -41,7 +43,7 @@ class _BookingsPageState extends State<BookingsPage>
 
     try {
       final currentUserId = UserLocalStorage.getUserId();
-      debugPrint('ðŸ‘¤ Customer ID â”‚ $currentUserId');
+      debugPrint('👤 Customer ID │ $currentUserId');
       if (currentUserId == null) {
         setState(() {
           _isLoading = false;
@@ -51,7 +53,7 @@ class _BookingsPageState extends State<BookingsPage>
       }
 
       final token = UserLocalStorage.getToken();
-      debugPrint('ðŸŽ« Customer Token â”‚ $token');
+      debugPrint('🎫 Customer Token │ $token');
 
       // Fetch regular bookings and hourly bookings in parallel
       final results = await Future.wait([
@@ -184,82 +186,87 @@ class _BookingsPageState extends State<BookingsPage>
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: buidAppBar(context),
-        body: Column(
-          children: [
-            TabBar(
-              controller: _tabController,
-              dividerColor: Colors.grey.shade800,
-              indicatorSize: TabBarIndicatorSize.tab,
-              indicatorPadding: const EdgeInsets.symmetric(horizontal: 20.0),
-              indicator: const _GradientTabIndicator(
-                gradient: _tabGradient,
-                height: 3.0,
+        body: RefreshIndicator(
+          onRefresh: _fetchBookings,
+          color: const Color(0xFFE4A46B),
+          backgroundColor: Colors.black,
+          child: Column(
+            children: [
+              TabBar(
+                controller: _tabController,
+                dividerColor: Colors.grey.shade800,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicatorPadding: const EdgeInsets.symmetric(horizontal: 20.0),
+                indicator: const _GradientTabIndicator(
+                  gradient: _tabGradient,
+                  height: 3.0,
+                ),
+                unselectedLabelColor: Colors.white38,
+                tabs: [
+                  _GradientTab(
+                    text: loc.upcoming,
+                    controller: _tabController,
+                    index: 0,
+                    gradient: _tabGradient,
+                  ),
+                  _GradientTab(
+                    text: loc.ongoing,
+                    controller: _tabController,
+                    index: 1,
+                    gradient: _tabGradient,
+                  ),
+                  _GradientTab(
+                    text: loc.completed,
+                    controller: _tabController,
+                    index: 2,
+                    gradient: _tabGradient,
+                  ),
+                  _GradientTab(
+                    text: loc.cancelled,
+                    controller: _tabController,
+                    index: 3,
+                    gradient: _tabGradient,
+                  ),
+                ],
               ),
-              unselectedLabelColor: Colors.white38,
-              tabs: [
-                _GradientTab(
-                  text: loc.upcoming,
-                  controller: _tabController,
-                  index: 0,
-                  gradient: _tabGradient,
-                ),
-                _GradientTab(
-                  text: loc.ongoing,
-                  controller: _tabController,
-                  index: 1,
-                  gradient: _tabGradient,
-                ),
-                _GradientTab(
-                  text: loc.completed,
-                  controller: _tabController,
-                  index: 2,
-                  gradient: _tabGradient,
-                ),
-                _GradientTab(
-                  text: loc.cancelled,
-                  controller: _tabController,
-                  index: 3,
-                  gradient: _tabGradient,
-                ),
-              ],
-            ),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: PremiumLoader(color: Color(0xFFE4A46B)))
-                  : _errorMessage != null
-                  ? Center(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    )
-                  : TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildBookingsList(
-                          _upcomingBookings,
-                          loc.noUpcomingBookings,
-                          loc.onceYouBookItWillAppearHere,
-                        ),
-                        _buildBookingsList(
-                          _ongoingBookings,
-                          loc.noOngoingBookings,
-                          loc.onceYouBookItWillAppearHere,
-                        ),
-                        _buildBookingsList(
-                          _completedBookings,
-                          loc.noCompletedBookings,
-                          loc.onceYouBookItWillAppearHere,
-                        ),
-                        _buildBookingsList(
-                          _canceledBookings,
-                          loc.noCancelledBookings,
-                          loc.onceYouBookItWillAppearHere,
-                        ),
-                      ],
-                    ),
-            ),
-          ],
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: PremiumLoader(color: Color(0xFFE4A46B)))
+                    : _errorMessage != null
+                        ? Center(
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          )
+                        : TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _buildBookingsList(
+                                _upcomingBookings,
+                                loc.noUpcomingBookings,
+                                loc.onceYouBookItWillAppearHere,
+                              ),
+                              _buildBookingsList(
+                                _ongoingBookings,
+                                loc.noOngoingBookings,
+                                loc.onceYouBookItWillAppearHere,
+                              ),
+                              _buildBookingsList(
+                                _completedBookings,
+                                loc.noCompletedBookings,
+                                loc.onceYouBookItWillAppearHere,
+                              ),
+                              _buildBookingsList(
+                                _canceledBookings,
+                                loc.noCancelledBookings,
+                                loc.onceYouBookItWillAppearHere,
+                              ),
+                            ],
+                          ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -306,10 +313,7 @@ class _BookingsPageState extends State<BookingsPage>
                     : null);
           final dateStr = Bookingcard.formatDate(context, displayDate);
           final timeStr = Bookingcard.formatTime(context, displayDate);
-          final isChauffeur =
-              (booking.category ?? '').toLowerCase().contains('chauffeur') ||
-              booking.estimatedHours != null ||
-              booking.bookingType == 'hourly';
+          final isChauffeur = booking is HourlyBookingModel;
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 16),
@@ -418,12 +422,12 @@ class _BookingsPageState extends State<BookingsPage>
 
   String _getBookingCategoryName(BookingModel booking, BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    log(booking.category.toString());
+    if (booking is HourlyBookingModel) {
+      return loc.chauffeur;
+    }
 
-    // Check booking type first
-    final bType = (booking.bookingType ?? '').toLowerCase().trim();
-    if (bType == 'hourly') return loc.chauffeur;
-
-    // Check category string
+    // Fallback for types if model is not HourlyBookingModel but has category name
     String category = (booking.category ?? "").toLowerCase().trim();
 
     if (category == "airport arrival" || category == "arrival") {

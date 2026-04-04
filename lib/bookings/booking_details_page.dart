@@ -13,6 +13,8 @@ import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
+import 'package:premium_force_main/services/payment_service.dart';
+import 'package:premium_force_main/utils/paytabs_config.dart';
 
 class BookingDetailsPage extends StatefulWidget {
   final BookingModel booking;
@@ -30,6 +32,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   bool _extraHoursPaid = false;
   Map<String, dynamic>? _currentRating;
   final ApiService _apiService = ApiService();
+  double? _hourlyRoutePrice999;
+  double _vatPercentage = 15.0;
+  double _discountPercentage = 0.0;
+  bool _isFetching999Price = false;
 
   @override
   void initState() {
@@ -45,6 +51,96 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       // Name is missing or driver object is null - fetch full details
       _fetchDriverDetails();
     }
+    _fetchExtraPaymentData();
+  }
+
+  Future<void> _fetchExtraPaymentData() async {
+    _loadVat();
+    _loadUserPromoCode();
+    final booking = widget.booking;
+    if (booking is HourlyBookingModel && (booking.extraHours ?? 0) > 0) {
+      _fetchHourlyPrice999();
+    }
+  }
+
+  Future<void> _loadVat() async {
+    try {
+      final res = await _apiService.getVat(token: UserLocalStorage.getToken());
+      if (res['success'] == true && res['data'] != null) {
+        if (mounted) {
+          setState(() {
+            _vatPercentage = _parseDouble(res['data']['vat'] ?? 15);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ VAT Fetch Error: $e');
+    }
+  }
+
+  Future<void> _loadUserPromoCode() async {
+    final userData = UserLocalStorage.getUserData();
+    final specialId = userData?['specialId']?.toString();
+    if (specialId == null || specialId.isEmpty) return;
+
+    final result = await _apiService.getSpecialContentByCode(code: specialId);
+    if (result['success'] == true) {
+      final promo = result['data'];
+      if (promo != null && promo['isActive'] == true) {
+        if (mounted) {
+          setState(() {
+            _discountPercentage = _parseDouble(
+              promo['discountPercentage'] ?? promo['discount'] ?? 0,
+            );
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _fetchHourlyPrice999() async {
+    if (widget.booking.carID == null) return;
+    setState(() => _isFetching999Price = true);
+    try {
+      final res = await _apiService.getHourlyCars(
+        hours: 999,
+        token: UserLocalStorage.getToken(),
+      );
+      if (res['success'] == true && res['data'] != null) {
+        final carsRaw = res['data'];
+        List carsList = [];
+        if (carsRaw is List) {
+          carsList = carsRaw;
+        } else if (carsRaw is Map && carsRaw.containsKey('cars')) {
+          carsList = carsRaw['cars'];
+        }
+
+        final match = carsList.firstWhere(
+          (c) =>
+              (c is Map) &&
+              ((c['_id'] ?? c['id'])?.toString() == widget.booking.carID),
+          orElse: () => null,
+        );
+        if (match != null) {
+          if (mounted) {
+            setState(() {
+              _hourlyRoutePrice999 = _parseDouble(match['price']);
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching 999 price: $e');
+    } finally {
+      if (mounted) setState(() => _isFetching999Price = false);
+    }
+  }
+
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0.0;
   }
 
   Future<void> _fetchDriverDetails() async {
@@ -100,10 +196,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     final timeStr = Bookingcard.formatTime(context, displayDate);
 
     // AI Check for Chauffeur Category
-    final isChauffeur =
-        (booking.category ?? '').toLowerCase().contains('chauffeur') ||
-        booking.estimatedHours != null ||
-        booking.bookingType == 'hourly';
+    final isChauffeur = booking is HourlyBookingModel;
 
     return Scaffold(
       backgroundColor: const Color(0xFF1E1105),
@@ -487,6 +580,24 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                                     reviewText: reviewController.text,
                                     token: token,
                                   );
+
+                                  if (result['success'] == true) {
+                                    // Also update booking status to 'reviewed'
+                                    if (widget.booking is HourlyBookingModel) {
+                                      await _apiService
+                                          .updateHourlyBookingStatus(
+                                        bookingId: widget.booking.id,
+                                        status: 'reviewed',
+                                        token: token,
+                                      );
+                                    } else {
+                                      await _apiService.updateBookingStatus(
+                                        bookingId: widget.booking.id,
+                                        status: 'reviewed',
+                                        token: token,
+                                      );
+                                    }
+                                  }
 
                                   if (mounted) {
                                     if (result['success'] == true) {
@@ -928,34 +1039,49 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   // Extra Hours helpers
   // ---------------------------------------------------------------------------
 
-  /// Show the extra hours section when:
-  /// - booking is chauffeur (estimatedHours != null)
-  /// - extraHours > 0 (driver ran over)
-  /// - trip has ended (status is 'endtracking' or completed-but-unpaid)
-  /// - customer has not already paid for extra hours in this session.
   bool _shouldShowExtraHoursSection(BookingModel booking) {
     if (_extraHoursPaid) return false;
+    if (booking is! HourlyBookingModel) return false;
     final extraHours = booking.extraHours ?? 0;
     if (extraHours <= 0) return false;
-    final isChauffeur =
-        (booking.category ?? '').toLowerCase().contains('chauffeur') ||
-        booking.estimatedHours != null;
-    if (!isChauffeur) return false;
+
+    // Based on user request: when status is "paymentPending" (normalized case)
     final status = (booking.bookingStatus ?? '').toLowerCase().trim();
-    // Show when driver set paymentpending
+    if (status == 'paymentpending') return true;
+
+    // Check if extra payment is completed for this booking specifically
+    if (booking.extraPaymentCompleted == 'completed' ||
+        booking.extraPaymentCompleted == 'true') {
+      return false;
+    }
+
     return status == 'paymentpending';
   }
 
   Widget _buildExtraHoursBanner(BookingModel booking) {
+    if (_isFetching999Price) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Center(child: PremiumLoader(size: 30)),
+      );
+    }
+
     final extraHours = booking.extraHours ?? 0;
-    // Use the base per-hour rate from the original charge
-    // charge / estimatedHours gives hourly rate; fallback to 0 if unknown
-    final bookedHours = booking.estimatedHours ?? 1;
-    final originalCharge = booking.charge ?? 0.0;
-    final hourlyRate = bookedHours > 0 ? (originalCharge / bookedHours) : 0.0;
+    // Use the 999 hourly price from API if available, fallback to current calculation if not yet loaded
+    double hourlyRate = _hourlyRoutePrice999 ?? 0.0;
+
+    // If 999 price is still null and we aren't fetching, try fallback calculation
+    if (hourlyRate <= 0) {
+      final bookedHours = booking.estimatedHours ?? 1;
+      final originalCharge = booking.charge ?? 0.0;
+      hourlyRate = bookedHours > 0 ? (originalCharge / bookedHours) : 0.0;
+    }
+
     final extraCharge = hourlyRate * extraHours;
-    final extraVat = extraCharge * 0.15;
-    final extraTotal = extraCharge + extraVat;
+    final extraDiscount = extraCharge * (_discountPercentage / 100.0);
+    final discountedCharge = extraCharge - extraDiscount;
+    final extraVat = discountedCharge * (_vatPercentage / 100.0);
+    final extraTotal = discountedCharge + extraVat;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1002,9 +1128,17 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   '${AppLocalizations.of(context)!.riyal} ${extraCharge.toStringAsFixed(2)}',
                   Colors.white70,
                 ),
+                if (_discountPercentage > 0) ...[
+                  const SizedBox(height: 4),
+                  _extraInfoRow(
+                    '${AppLocalizations.of(context)!.discount} (${_discountPercentage.toStringAsFixed(0)}%)',
+                    '- ${AppLocalizations.of(context)!.riyal} ${extraDiscount.toStringAsFixed(2)}',
+                    Colors.green,
+                  ),
+                ],
                 const SizedBox(height: 4),
                 _extraInfoRow(
-                  '${AppLocalizations.of(context)!.vat} (15%)',
+                  '${AppLocalizations.of(context)!.vat} (${_vatPercentage.toStringAsFixed(0)}%)',
                   '${AppLocalizations.of(context)!.riyal} ${extraVat.toStringAsFixed(2)}',
                   Colors.white70,
                 ),
@@ -1025,8 +1159,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             showLoader: _isPayingExtraHours,
             onTap: _isPayingExtraHours
                 ? () {}
-                : () =>
-                      _payExtraHours(booking: booking, extraTotal: extraTotal),
+                : () => _payExtraHours(
+                  booking: booking,
+                  extraTotal: double.parse(extraTotal.toStringAsFixed(2)),
+                  extraCharge: extraCharge,
+                  extraDiscount: extraDiscount,
+                ),
           ),
           const SizedBox(height: 12),
         ],
@@ -1037,53 +1175,54 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   Future<void> _payExtraHours({
     required BookingModel booking,
     required double extraTotal,
+    required double extraCharge,
+    required double extraDiscount,
   }) async {
     if (_isPayingExtraHours) return;
     setState(() => _isPayingExtraHours = true);
 
     try {
       final userData = UserLocalStorage.getUserData();
-      final userEmail = userData?['email'] as String? ?? '';
 
       final orderId =
           'EXTRA_${booking.id}_${DateTime.now().millisecondsSinceEpoch}';
 
-      // â”€â”€ BYPASS (same as main booking flow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      final paymentResult = PaymentResult(
-        success: true,
-        transactionReference: 'BYPASS_EXTRA_$orderId',
-        invoiceId: orderId,
-        responseCode: '000',
-        responseMessage: 'Success',
-        customerEmail: userEmail,
-        amount: extraTotal,
-        orderID: orderId,
-        transactionID: 'BYPASS_EXTRA_$orderId',
+      // --- 💳 Live PayTabs Payment ---
+      final paymentResult = await PaymentService().startPayment(
+        request: PaymentRequest(
+          amount: extraTotal,
+          currency: PaytabsConfig.defaultCurrency,
+          merchantCountryCode: PaytabsConfig.merchantCountryCode,
+          orderId: orderId,
+          customerEmail: userData?['email'] ?? '',
+          customerName: userData?['name'] ?? 'Customer',
+          customerPhone:
+              userData?['phoneNumber'] ??
+              UserLocalStorage.getPhoneNumber() ??
+              '',
+          cartId: orderId,
+          cartDescription:
+              'Extra ${booking.extraHours} hour(s) — Chauffeur booking ${booking.id}',
+        ),
       );
-      // â”€â”€ Uncomment below to enable live Paytabs payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-      // final userData2 = UserLocalStorage.getUserData();
-      // final paymentResult = await PaymentService().startPayment(
-      //   request: PaymentRequest(
-      //     amount: double.parse(extraTotal.toStringAsFixed(2)),
-      //     currency: PaytabsConfig.defaultCurrency,
-      //     merchantCountryCode: PaytabsConfig.merchantCountryCode,
-      //     orderId: orderId,
-      //     customerEmail: userData2?['email'] ?? '',
-      //     customerName: userData2?['name'] ?? 'Customer',
-      //     customerPhone: userData2?['phoneNumber'] ?? UserLocalStorage.getPhoneNumber() ?? '',
-      //     cartId: orderId,
-      //     cartDescription:
-      //         'Extra ${booking.extraHours} hour(s) â€” Chauffeur booking ${booking.id}',
-      //   ),
-      // );
 
       if (paymentResult.success) {
-        // Mark booking as completed
+        // Update booking extra details and mark as completed
         final token = UserLocalStorage.getToken();
-        final result = await _apiService.updateHourlyBookingStatus(
+        final result = await _apiService.updateHourlyExtraPayment(
+          bookingId: booking.id,
+          extraOrderID: orderId,
+          extraTransactionID: paymentResult.transactionReference ?? orderId,
+          extraPayment: extraCharge,
+          extraDiscount: extraDiscount,
+          extraPaymentCompleted: 'completed',
+          token: token,
+        );
+
+        // Also update the general status to completed as per standard flow
+        await _apiService.updateHourlyBookingStatus(
           bookingId: booking.id,
           status: 'completed',
-          transactionReference: paymentResult.transactionReference,
           token: token,
         );
 
@@ -1100,14 +1239,18 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           } else {
             AnimatedSnackBar.show(
               context,
-              result['message'] ?? 'Payment ok, but failed to update booking.',
+              result['message'] ?? 'Payment ok, but failed to update extra data.',
               'E',
             );
           }
         }
       } else {
         if (mounted) {
-          AnimatedSnackBar.show(context, paymentResult.responseMessage, 'E');
+          AnimatedSnackBar.show(
+            context,
+            paymentResult.responseMessage ?? 'Payment failed',
+            'E',
+          );
         }
       }
     } catch (e) {
@@ -1336,6 +1479,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   Color getStatusLabelColor(String status) {
     switch (status.toLowerCase()) {
       case 'completed':
+      case 'reviewed':
         return Colors.green;
       case 'cancelled':
         return Colors.red;
@@ -1350,7 +1494,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     final loc = AppLocalizations.of(context)!;
     switch (status.toLowerCase()) {
       case 'completed':
-        return loc.tripCompletedStatus;
+      case 'reviewed':
+        return loc.completed;
       case 'cancelled':
         return loc.bookingCanceledStatus;
       case 'pending':
