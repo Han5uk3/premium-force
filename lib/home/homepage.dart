@@ -682,31 +682,22 @@ class _HomepageState extends State<Homepage>
         }
       }
 
-      // Filter by status: completed or cancelled
-      final pastBookings = userBookings.where((b) {
-        final status = b.bookingStatus?.toLowerCase() ?? '';
-        return status == 'completed' ||
-            status == 'cancelled' ||
-            status == 'c' ||
-            status == 'x';
-      }).toList();
-
       // Sort by date (descending)
-      pastBookings.sort((a, b) {
-        final dateA =
-            a.createdAt ??
+      userBookings.sort((a, b) {
+        final dateA = a.createdAt ??
             (a.arrival != null ? DateTime.tryParse(a.arrival!) : null) ??
+            (a.pickupdatetime != null ? DateTime.tryParse(a.pickupdatetime!) : null) ??
             DateTime(0);
-        final dateB =
-            b.createdAt ??
+        final dateB = b.createdAt ??
             (b.arrival != null ? DateTime.tryParse(b.arrival!) : null) ??
+            (b.pickupdatetime != null ? DateTime.tryParse(b.pickupdatetime!) : null) ??
             DateTime(0);
         return dateB.compareTo(dateA); // Most recent first
       });
 
       if (mounted) {
         setState(() {
-          _pastBookings = pastBookings.take(5).toList();
+          _pastBookings = userBookings.take(3).toList();
         });
       }
     } catch (e) {
