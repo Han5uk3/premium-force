@@ -23,6 +23,8 @@ import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/home/fleet_list_page.dart';
+import 'package:premium_force_main/models/pricing/zone_model.dart';
+
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -41,6 +43,8 @@ class _HomepageState extends State<Homepage>
   final ValueNotifier<bool> _isLoadingLocations = ValueNotifier(false);
   bool _isLoadingCars = false;
   bool _isLoadingBookings = false;
+  List<ZoneModel> _allZones = [];
+
 
   @override
   bool get wantKeepAlive => true;
@@ -148,9 +152,10 @@ class _HomepageState extends State<Homepage>
             api.getCities(),
             api.getAirports(),
             api.getTerminals(),
+            api.getZones(token: UserLocalStorage.getToken()),
           ]).catchError((e) {
-            debugPrint('âŒ Error fetching location data: $e');
-            return <Map<String, dynamic>>[{}, {}, {}];
+            debugPrint('â Œ Error fetching location data: $e');
+            return <Map<String, dynamic>>[{}, {}, {}, {}];
           });
 
       if (mounted) {
@@ -219,8 +224,29 @@ class _HomepageState extends State<Homepage>
             'cities',
             'data',
             'result',
-          ]).where((c) => c['isActive'] == true).toList();
+          ]).where((c) {
+            final active = c['isActive'];
+            return active == true || active == 1 || active.toString() == 'true';
+          }).toList();
+
+
+          // Process Zones
+          final zonesData = extractListData(results[3], [
+            'zones',
+            'data',
+            'result',
+          ]);
+          _allZones = zonesData.map((z) => ZoneModel.fromJson(z)).toList();
+          
+          if (kDebugMode) {
+            debugPrint('✅ 🌐 API │ Zones Loaded: ${_allZones.length}');
+            for (var z in _allZones) {
+              debugPrint('🌐 API │ Zone: ${z.nameEn} (CityID: ${z.cityId})');
+            }
+          }
         });
+
+
 
         if (kDebugMode) {
           debugPrint(
@@ -1517,6 +1543,9 @@ class _HomepageState extends State<Homepage>
                               builder: (context) => NewBooking(
                                 catcode: catcode,
                                 citycode: selectedCityIndex,
+                                cityId: (activeCities[selectedCityIndex]['_id'] ??
+                                        activeCities[selectedCityIndex]['id'])
+                                    ?.toString(),
                                 preloadedCities: activeCities,
                                 preloadedAirports: _apiAirports,
                                 preloadedTerminals: _apiTerminals,
@@ -1539,10 +1568,13 @@ class _HomepageState extends State<Homepage>
 
   List<Map<String, dynamic>> _getFilteredCities(int catcode) {
     return _apiCities.where((c) {
-      // Always check city isActive (pre-filtered in _apiCities anyway)
-      if (c['isActive'] != true) return false;
+      // Basic active check
+      final active = c['isActive'];
+      final bool cityActive = active == true || active == 1 || active.toString() == 'true';
+      if (!cityActive) return false;
 
-      // If Airport service, also check for at least one active airport
+
+      // Check 1: If Airport service, also check for at least one active airport
       if (catcode == 0 || catcode == 1) {
         final cityId = (c['_id'] ?? c['id'])?.toString();
         if (cityId == null) return false;
@@ -1553,13 +1585,37 @@ class _HomepageState extends State<Homepage>
             aCityId = aCityId['_id'] ?? aCityId['id'];
           }
           final aCityIdStr = aCityId?.toString();
-          final bool isAirportActive = a['isActive'] == true;
+
+          // Use robust isActive check (not explicitly false)
+          final bool isAirportActive = a['isActive'] != false;
+
           return aCityIdStr == cityId && isAirportActive;
         });
       }
+
+      // Check 2: For private transfer (CatCode 3), filter by zone availability
+      if (catcode == 3) {
+        final cityId = (c['_id'] ?? c['id'])?.toString().trim();
+        if (cityId == null || cityId.isEmpty) return false;
+
+        final hasZone = _allZones.any((z) {
+          final zoneCityId = z.cityId.trim();
+          final bool isZoneActive = z.isActive;
+          return zoneCityId == cityId && isZoneActive;
+        });
+        
+        if (kDebugMode) {
+           debugPrint('🌐 Filter │ City: ${c['cityName']} (ID: $cityId) -> HasZone: $hasZone');
+        }
+        return hasZone;
+      }
+
+
+
       return true;
     }).toList();
   }
+
 
   Widget _buildCityGridShimmer(double maxWidth, {int count = 6}) {
     return Padding(

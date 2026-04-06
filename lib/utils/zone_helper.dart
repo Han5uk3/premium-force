@@ -28,19 +28,27 @@ class ZoneHelper {
     int? highestPriority;
 
     for (var zone in cityZones) {
-      if (zone.type == 'radius') {
+      bool isMatch = false;
+      if (zone.type == 'radius' && zone.center != null && zone.radiusKm != null) {
         double dist = calculateDistance(
           point.latitude,
           point.longitude,
-          zone.center['lat']!,
-          zone.center['lng']!,
+          zone.center!['lat']!,
+          zone.center!['lng']!,
         );
+        if (dist <= zone.radiusKm!) {
+          isMatch = true;
+        }
+      } else if (zone.type == 'polygon') {
+        if (zone.containsPoint(point)) {
+          isMatch = true;
+        }
+      }
 
-        if (dist <= zone.radiusKm) {
-          if (highestPriority == null || zone.priority < highestPriority) {
-            highestPriority = zone.priority;
-            bestZone = zone;
-          }
+      if (isMatch) {
+        if (highestPriority == null || zone.priority < highestPriority) {
+          highestPriority = zone.priority;
+          bestZone = zone;
         }
       }
     }

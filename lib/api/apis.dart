@@ -1346,8 +1346,47 @@ class ApiService {
     }
   }
 
+  /// Fetch all zones from the backend.
+  ///
+  /// Calls `GET /api/zone/zones`
+  Future<Map<String, dynamic>> getZones({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'zone/zones',
+
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Fetch zone pricing for a specific route.
+  ///
+  /// Calls `GET /api/zonePrice/zone-pricing`
+  Future<Map<String, dynamic>> getZonePrices({
+    required String fromZoneId,
+    required String toZoneId,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.get(
+        'zonePrice/zone-pricing',
+        queryParameters: {
+          'zoneFromId': fromZoneId,
+          'zoneToId': toZoneId,
+        },
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
   // ---------------------------------------------------------------------------
-  // Response helpers
+  // Internal Helpers
   // ---------------------------------------------------------------------------
 
   /// Extract a success map from a Dio [Response].

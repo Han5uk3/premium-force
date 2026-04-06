@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'user.dart';
 
 abstract class BookingModel {
@@ -906,9 +907,9 @@ _CommonBookingFields _parseCommon(Map<String, dynamic> json) {
     charge: _toDouble(json['charge']),
     carbrand: json['carbrand']?.toString() ?? (json['brandID'] is Map ? (json['brandID']['brandName'] ?? json['brandID']['name'])?.toString() : (json['brand'] is Map ? (json['brand']['brandName'] ?? json['brand']['name'])?.toString() : json['brand']?.toString())) ?? carDetails?.brandName,
     carmodel: json['model']?.toString() ?? json['carmodel']?.toString() ?? carDetails?.model,
-    carimage: (json['carimage'] is Map ? json['carimage']['url'] : (json['carImage'] is Map ? json['carImage']['url'] : (json['image'] is Map ? json['image']['url'] : (json['carimage'] ?? json['carImage'] ?? json['image']))))?.toString(),
+    carimage: _safeUrl(json['carimage'] ?? json['carImage'] ?? json['image']),
     specialRequestText: json['specialRequestText']?.toString(),
-    specialRequestAudio: json['specialRequestAudio']?.toString(),
+    specialRequestAudio: _safeUrl(json['specialRequestAudio']),
     passengerCount: json['passsenrgersCount']?.toString() ?? json['passengerCount']?.toString() ?? carDetails?.numberOfPassengers?.toString(),
     passengerNames: json['passengerNames'],
     passengerMobile: json['passengerMobile']?.toString(),
@@ -942,6 +943,44 @@ double? _toDouble(dynamic val) {
 int? _toInt(dynamic val) {
   if (val == null) return null;
   return int.tryParse(val.toString());
+}
+
+String? _safeUrl(dynamic val) {
+  if (val == null) return null;
+  
+  // Debug print to see what exactly is coming into the parser
+  // print('🔍 Debug URL Parser: val type: ${val.runtimeType}, val: $val');
+
+  if (val is Map) {
+    final url = val['url'] ?? val['path'] ?? val['image'] ?? val['file'];
+    return url?.toString().trim();
+  }
+  
+  if (val is String) {
+    final trimmed = val.trim();
+    if (trimmed.isEmpty) return null;
+    
+    if (trimmed.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map) {
+          return (decoded['url'] ?? decoded['path'])?.toString().trim();
+        }
+      } catch (e) {
+        // Handle cases where it is not valid JSON but could be Dart's Map.toString()
+        final match = RegExp(r"url:\s*(https?://[^\s, }]+)").firstMatch(trimmed) ??
+                     RegExp(r'"url":\s*"([^"]+)"').firstMatch(trimmed);
+        if (match != null) return match.group(1);
+      }
+    }
+    return trimmed;
+  }
+  
+  if (val is List && val.isNotEmpty) {
+    return _safeUrl(val.first);
+  }
+  
+  return val.toString().trim();
 }
 
 class CityDetails {

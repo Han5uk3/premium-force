@@ -15,6 +15,7 @@ import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/services/payment_service.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
+import 'package:premium_force_main/common_widgets/voice_player.dart';
 
 class BookingDetailsPage extends StatefulWidget {
   final BookingModel booking;
@@ -319,6 +320,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               ),
             ],
             const SizedBox(height: 20),
+            // Special Requests
+            _buildSpecialRequests(booking, loc),
+
             // Payment Summary
             _buildPaymentSummary(context, loc, booking),
 
@@ -650,6 +654,67 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildSpecialRequests(BookingModel booking, AppLocalizations loc) {
+    final hasText =
+        booking.specialRequestText != null &&
+        booking.specialRequestText!.isNotEmpty;
+    final hasAudio =
+        booking.specialRequestAudio != null &&
+        booking.specialRequestAudio!.isNotEmpty;
+
+    if (!hasText && !hasAudio) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            loc.specialRequests,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade700),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasText) ...[
+                  Text(
+                    booking.specialRequestText!,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                  if (hasAudio) const SizedBox(height: 16),
+                ],
+                if (hasAudio) ...[
+                  VoicePlayer(audioUrl: booking.specialRequestAudio!),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 

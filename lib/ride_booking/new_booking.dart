@@ -30,8 +30,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:premium_force_main/utils/zone_helper.dart';
-import 'package:premium_force_main/services/firebase_pricing_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:premium_force_main/models/pricing/zone_model.dart';
+// Removed Firestore/FirebasePricingService imports
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -44,10 +44,13 @@ class NewBooking extends StatefulWidget {
     super.key,
     required this.catcode,
     required this.citycode,
+    this.cityId, // New optional field
     this.preloadedCities,
     this.preloadedAirports,
     this.preloadedTerminals,
   });
+
+  final String? cityId;
 
   @override
   State<NewBooking> createState() => _NewBookingState();
@@ -72,9 +75,7 @@ class _NewBookingState extends State<NewBooking> {
   Map<String, String> _brandIcons = {}; // Added this
   double? _routePrice;
   bool _isCheckingRoute = false;
-  final _firebasePricingService = FirebasePricingService();
-  String? _pickupCityName;
-  String? _dropCityName;
+  List<ZoneModel> _allZones = []; // New field: List of all fetched API zones
 
   Set<String>? _supportedCarIds; // IDs of cars that have valid routes
   bool _isFilteringCars = false;
@@ -377,35 +378,71 @@ class _NewBookingState extends State<NewBooking> {
     }
 
     if (_selectedCatCode == 3) {
-      // Use Firebase Pricing Engine for Private Transfer
-      if (_pickupLat != null &&
-          _pickupLng != null &&
-          _dropLat != null &&
-          _dropLng != null &&
-          carId != null) {
-        final price = await _firebasePricingService.getPrice(
-          pickup: LatLng(_pickupLat!, _pickupLng!),
-          drop: LatLng(_dropLat!, _dropLng!),
-          pickupCityName: _pickupCityName ?? "",
-          dropCityName: _dropCityName ?? "",
-          vehicleId: carId,
-        );
-        if (price != null) {
-          return {
-            'success': true,
-            'data': {'charge': price},
-          };
+      // --- 🏎️ Private Transfer: New Zone-based Pricing Logic ---
+      if (_pickupLat == null || _pickupLng == null || _dropLat == null || _dropLng == null) {
+        return {'success': false, 'message': 'Incomplete location data.'};
+      }
+
+      final pPoint = LatLng(_pickupLat!, _pickupLng!);
+      final dPoint = LatLng(_dropLat!, _dropLng!);
+
+      // 1. Detect Pickup & Drop Zones from fetched API zones
+      final pZone = ZoneHelper.detectZone(pPoint, _allZones);
+      final dZone = ZoneHelper.detectZone(dPoint, _allZones);
+
+      if (pZone == null || dZone == null) {
+        return {'success': false, 'message': 'Service not available to the selected area.'};
+      }
+
+      // 2. Check if service is active to the zones
+      if (!pZone.isActive || !dZone.isActive) {
+        return {'success': false, 'message': 'Service not available to the selected area.'};
+      }
+
+      // 3. Fetch prices for this zone route
+      final priceRes = await api.getZonePrices(
+        fromZoneId: pZone.id,
+        toZoneId: dZone.id,
+        token: token,
+      );
+
+      if (priceRes['success'] == true && priceRes['data'] != null) {
+        final List priceList = priceRes['data'] is List 
+            ? priceRes['data'] 
+            : (priceRes['data']['prices'] ?? []);
+        
+        if (withVehicle && carId != null) {
+          // Find price for the specific car
+          try {
+            final match = priceList.firstWhere((p) {
+              dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
+              String vId = (vIdRaw is Map ? (vIdRaw['_id'] ?? vIdRaw['id']) : vIdRaw)?.toString() ?? '';
+              return vId == carId;
+            });
+
+            return {'success': true, 'data': {'charge': _parseDouble(match['charge'] ?? match['price'] ?? 0)}};
+          } catch (_) {
+            return {'success': false, 'message': 'No price set for this vehicle on this route.'};
+          }
         } else {
-          return {
-            'success': false,
-            'message': 'No matching route found in pricing system.',
-          };
+          // return all valid vehicle IDs for filtering
+          final validCarIds = priceList
+              .where((p) => _parseDouble(p['charge'] ?? p['price'] ?? 0) > 0)
+              .map((p) {
+                dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
+                return (vIdRaw is Map ? (vIdRaw['_id'] ?? vIdRaw['id']) : vIdRaw)?.toString();
+              })
+              .whereType<String>()
+              .toSet();
+
+          
+          if (validCarIds.isEmpty) {
+            return {'success': false, 'message': 'No vehicles available for this route.'};
+          }
+          return {'success': true, 'data': validCarIds};
         }
       }
-      return {
-        'success': false,
-        'message': 'Incomplete location or vehicle data.',
-      };
+      return priceRes;
     }
 
     if (withVehicle && carId != null) {
@@ -572,6 +609,15 @@ class _NewBookingState extends State<NewBooking> {
     _selectedCatCode = widget.catcode;
     _selectedCityCode = widget.citycode;
 
+    // If cityId is provided, accurately sync the index within the preloaded list
+    if (widget.cityId != null && _apiCities.isNotEmpty) {
+      final index = _apiCities.indexWhere((c) {
+        final id = (c['_id'] ?? c['id'])?.toString();
+        return id == widget.cityId;
+      });
+      if (index != -1) _selectedCityCode = index;
+    }
+
     // Set initial class based on catcode
     if (_selectedCatCode == 2) {
       _selectedVehicleClass = "Luxury Sedan";
@@ -660,6 +706,7 @@ class _NewBookingState extends State<NewBooking> {
         api.getCategories(token: token),
         api.getBrands(token: token),
         api.getCars(token: token),
+        api.getZones(token: token), // Fetch zones
       ];
 
       if (_apiCities.isEmpty) {
@@ -688,12 +735,22 @@ class _NewBookingState extends State<NewBooking> {
       final categoriesResult = results[0];
       final brandsResult = results[1];
       final carsResult = results[2];
-      final citiesResult = results[3];
-      final airportsResult = results[4];
-      final terminalsResult = results[5];
+      final zonesResult = results[3]; // Index 3: Zones
+      final citiesResult = results[4]; // Index 4: Cities
+      final airportsResult = results[5]; // Index 5: Airports
+      final terminalsResult = results[6]; // Index 6: Terminals
 
       if (mounted) {
         setState(() {
+          // Normalise Zones
+          if (zonesResult['success'] == true) {
+            final zonesData = zonesResult['data'] ?? zonesResult['zones'];
+            if (zonesData is List) {
+              _allZones = zonesData.map((z) => ZoneModel.fromJson(z)).toList();
+              debugPrint('🌐 API │ Zones Normalized: ${_allZones.length}');
+            }
+          }
+          
           Map<String, String> categoryIdToName = {};
           if (categoriesResult['success'] == true) {
             final categoriesData =
@@ -917,6 +974,17 @@ class _NewBookingState extends State<NewBooking> {
               _apiCities = rawDataToList(
                 citiesData,
               ).where((c) => c['isActive'] == true).toList();
+
+              // Resync: Ensure the index matches the cityId after full reload
+              if (widget.cityId != null) {
+                final index = _apiCities.indexWhere((c) {
+                  final id = (c['_id'] ?? c['id'])?.toString();
+                  return id == widget.cityId;
+                });
+                if (index != -1) {
+                  _selectedCityCode = index;
+                }
+              }
             }
           }
           if (airportsResult['success'] == true) {
@@ -986,7 +1054,44 @@ class _NewBookingState extends State<NewBooking> {
               _selectedVehicleBrand = null;
               _selectedVehicleModel = null;
             }
+
+            // Final Safety Check for Private Transfer:
+            // If the currently selected city is one that should be hidden (has zone pricing),
+            // reset it to the first visible city according to the filter.
+            if (_selectedCatCode == 3) {
+              final String currentCityId =
+                  (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length)
+                      ? (_apiCities[_selectedCityCode]['_id'] ??
+                              _apiCities[_selectedCityCode]['id'] ??
+                              '')
+                          .toString()
+                      : '';
+
+              final bool isCurrentCityHidden = !_allZones.any(
+                (z) => z.cityId == currentCityId && z.isActive,
+              );
+
+              if (isCurrentCityHidden) {
+
+                final visibleNames = _getAvailableCityNames(context);
+                if (visibleNames.isNotEmpty) {
+                  final firstVisibleName = visibleNames.first;
+                  final index = _apiCities.indexWhere((c) {
+                    final isArabic =
+                        Localizations.localeOf(context).languageCode == 'ar';
+                    final name =
+                        (isArabic
+                                ? (c['cityNameAr'] ?? c['cityName'])
+                                : c['cityName'])
+                            .toString();
+                    return name == firstVisibleName;
+                  });
+                  if (index != -1) _selectedCityCode = index;
+                }
+              }
+            }
           }
+
         });
       }
     } catch (e) {
@@ -1338,6 +1443,9 @@ class _NewBookingState extends State<NewBooking> {
               }
             }
           }
+          if (supportedIds.isEmpty) {
+            _showNoServiceAlert(message: "No vehicles available for this route. Please try another selection.");
+          }
         }
       } else if (_selectedCatCode == 2) {
         // --- ⏱️ Hourly Service ---
@@ -1380,134 +1488,87 @@ class _NewBookingState extends State<NewBooking> {
               }
             }
           }
+          if (supportedIds.isEmpty) {
+            _showNoServiceAlert(message: "No vehicles available for the selected duration.");
+          }
         }
       } else if (_selectedCatCode == 3) {
-        // --- 🏎️ Private Transfer (Zone-based / Firestore) ---
-        debugPrint(
-          '🏎️ Filtering │ Checking Private Transfer routes (P: $_pickupCityName, D: $_dropCityName)',
-        );
-        final pickupCity = await _firebasePricingService.findCityByName(
-          _pickupCityName ?? "",
-        );
-        final dropCity = await _firebasePricingService.findCityByName(
-          _dropCityName ?? "",
-        );
-
-        if (pickupCity == null) {
-          debugPrint('❌ Filtering │ Pickup city not matched: $_pickupCityName');
-        }
-        if (dropCity == null) {
-          debugPrint('❌ Filtering │ Drop city not matched: $_dropCityName');
+        // --- 🏎️ Private Transfer: New API Zone-based Filtering ---
+        if (_pickupLat == null || _pickupLng == null || _dropLat == null || _dropLng == null) {
+          debugPrint('❌ Filtering │ Location data incomplete');
+          setState(() => _isFilteringCars = false);
+          return;
         }
 
-        if (pickupCity != null && dropCity != null) {
-          // Detect Zones
-          final pickupZones = await _firebasePricingService.fetchZones(pickupCity.id);
-          final dropZones = await _firebasePricingService.fetchZones(dropCity.id);
+        final pPoint = LatLng(_pickupLat!, _pickupLng!);
+        final dPoint = LatLng(_dropLat!, _dropLng!);
 
-          final pZone = ZoneHelper.detectZone(
-            LatLng(_pickupLat ?? 0, _pickupLng ?? 0),
-            pickupZones,
-          );
-          final dZone = ZoneHelper.detectZone(
-            LatLng(_dropLat ?? 0, _dropLng ?? 0),
-            dropZones,
-          );
+        // 1. Detect Pickup & Drop Zones from fetched API zones
+        final pZone = ZoneHelper.detectZone(pPoint, _allZones);
+        final dZone = ZoneHelper.detectZone(dPoint, _allZones);
 
-          final pZoneId = pZone?.id;
-          final dZoneId = dZone?.id;
-
-          debugPrint('🏎️ Filtering │ Detected Zones -> P: ${pZoneId ?? 'None'}, D: ${dZoneId ?? 'None'}');
-          debugPrint('🏎️ Filtering │ Pickup: ${pickupCity.nameEn} (${pickupCity.id}), Drop: ${dropCity.nameEn} (${dropCity.id})');
-
-          // Fetch all active routes between these two cities (both directions)
-          final query1 = FirebaseFirestore.instance
-              .collection('routes')
-              .where('active', isEqualTo: true)
-              .where('from_city_id', isEqualTo: pickupCity.id)
-              .where('to_city_id', isEqualTo: dropCity.id)
-              .get();
-
-          List<Future<QuerySnapshot<Map<String, dynamic>>>> queries = [query1];
-          if (pickupCity.id != dropCity.id) {
-            queries.add(
-              FirebaseFirestore.instance
-                  .collection('routes')
-                  .where('active', isEqualTo: true)
-                  .where('from_city_id', isEqualTo: dropCity.id)
-                  .where('to_city_id', isEqualTo: pickupCity.id)
-                  .get(),
-            );
+        if (pZone == null || dZone == null) {
+          debugPrint('❌ Filtering │ Zone not detected for P or D (P:${pZone?.id}, D:${dZone?.id})');
+          if (mounted) {
+            _showNoServiceAlert(message: "Service not available to the selected area.");
           }
+          setState(() {
+            _supportedCarIds = {}; // No cars
+            _isFilteringCars = false;
+          });
+          return;
+        }
 
-          final snapshots = await Future.wait(queries);
-          final List<Map<String, dynamic>> allRoutes = [];
-          for (var s in snapshots) {
-            for (var doc in s.docs) {
-              final data = doc.data();
-              if (data['id'] == null) data['id'] = doc.id;
-              allRoutes.add(data);
-            }
+        // 2. Check if service is active to the zones
+        if (!pZone.isActive || !dZone.isActive) {
+          debugPrint('❌ Filtering │ Zone(s) inactive: P:${pZone.isActive}, D:${dZone.isActive}');
+          if (mounted) {
+            _showNoServiceAlert(message: "Service not available to the selected area.");
           }
-          debugPrint('🏎️ Filtering │ Total routes fetched from Firestore: ${allRoutes.length}');
+          setState(() {
+            _supportedCarIds = {}; // No cars
+            _isFilteringCars = false;
+          });
+          return;
+        }
 
-          // Group routes by vehicleId and find if any match the trip (bidirectional/fallback)
-          final Map<String, List<Map<String, dynamic>>> routesByVehicle = {};
-          for (var r in allRoutes) {
-            final vId = r['vehicle_id']?.toString();
-            if (vId != null) {
-              routesByVehicle.putIfAbsent(vId, () => []).add(r);
+        debugPrint('🏎️ Filtering │ Detected Zones -> P: ${pZone.nameEn} (${pZone.id}), D: ${dZone.nameEn} (${dZone.id})');
+
+        // 3. Fetch prices for this zone route to see which cars are available
+        final priceRes = await api.getZonePrices(
+          fromZoneId: pZone.id,
+          toZoneId: dZone.id,
+          token: token,
+        );
+
+        if (priceRes['success'] == true && priceRes['data'] != null) {
+          final List priceList = priceRes['data'] is List 
+              ? priceRes['data'] 
+              : (priceRes['data']['prices'] ?? []);
+          
+          final validCarIds = priceList
+              .where((p) => _parseDouble(p['charge'] ?? p['price'] ?? 0) > 0)
+              .map((p) {
+                dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
+                return (vIdRaw is Map ? (vIdRaw['_id'] ?? vIdRaw['id']) : vIdRaw)?.toString();
+              })
+              .whereType<String>()
+              .toSet();
+
+
+          if (validCarIds.isEmpty) {
+            debugPrint('⚠️ Filtering │ No cars with prices found for this zone route.');
+            if (mounted) {
+              _showNoServiceAlert(message: "No vehicles available for this route.");
             }
+          } else {
+            supportedIds.addAll(validCarIds);
+            debugPrint('✅ Filtering │ Zone cars found: ${supportedIds.length}');
           }
-
-          debugPrint('🏎️ Filtering │ Available app car IDs: ${_cars.map((c) => c.id).toList()}');
-
-          for (var vId in routesByVehicle.keys) {
-            final vehicleRoutes = routesByVehicle[vId]!;
-
-            // Check if ANY route matches this trip (Direct or Reversed, Exact or City Fallback)
-            final bool hasMatch = vehicleRoutes.any((r) {
-              final rFromCity = r['from_city_id']?.toString();
-              final rToCity = r['to_city_id']?.toString();
-              // Normalize: convert empty strings to null for consistent matching
-              final dynamic rFromZoneRaw = r['from_zone_id'];
-              final String? rFromZone = (rFromZoneRaw == null || rFromZoneRaw.toString().isEmpty) ? null : rFromZoneRaw.toString();
-              
-              final dynamic rToZoneRaw = r['to_zone_id'];
-              final String? rToZone = (rToZoneRaw == null || rToZoneRaw.toString().isEmpty) ? null : rToZoneRaw.toString();
-              
-              final rPrice = double.tryParse(r['price']?.toString() ?? '0') ?? 0;
-
-              if (rPrice <= 0) return false;
-
-              // 1. Exact Zone Match (Direct or Reversed)
-              bool exactMatch = (rFromCity == pickupCity.id && rToCity == dropCity.id && rFromZone == pZoneId && rToZone == dZoneId) ||
-                                (rFromCity == dropCity.id && rToCity == pickupCity.id && rFromZone == dZoneId && rToZone == pZoneId);
-              
-              if (exactMatch) return true;
-
-              // 2. City Level Fallback (No zones in Firestore doc)
-              bool cityLevelMatch = (rFromCity == pickupCity.id && rToCity == dropCity.id && rFromZone == null && rToZone == null) ||
-                                    (rFromCity == dropCity.id && rToCity == pickupCity.id && rFromZone == null && rToZone == null);
-              
-              if (cityLevelMatch) return true;
-
-              // 3. Broad Intra-City Fallback (Same city, ANY internal route exists)
-              // This handles cases like Downtown-to-Innercity being used for Downtown-to-Downtown
-              bool isIntraCityFallback = (pickupCity.id == dropCity.id) && 
-                                         (rFromCity == pickupCity.id && rToCity == pickupCity.id);
-              
-              if (isIntraCityFallback) return true;
-
-              return false;
-            });
-
-            if (hasMatch) {
-              debugPrint('✅ Filtering │ Vehicle $vId marked as SUPPORTED');
-              supportedIds.add(vId);
-            } else {
-              debugPrint('ℹ️ Filtering │ Vehicle $vId does NOT match current zones (P: $pZoneId, D: $dZoneId)');
-            }
+        } else {
+          debugPrint('❌ Filtering │ API Error fetching zone prices: ${priceRes['message']}');
+          if (mounted) {
+            _showNoServiceAlert(message: "Service not available for this route.");
           }
         }
       }
@@ -1864,12 +1925,9 @@ class _NewBookingState extends State<NewBooking> {
 
                                 if (_supportedCarIds != null &&
                                     _supportedCarIds!.isEmpty) {
-                                  _showNoServiceAlert(
-                                    message:
-                                        "No vehicles available for the selected route. Please try another selection.",
-                                  );
                                   return;
                                 }
+
 
                                 setState(() {
                                   showPreferances = true;
@@ -3933,14 +3991,12 @@ class _NewBookingState extends State<NewBooking> {
                         _dropAddress = newAddress;
                         _dropLat = newLat;
                         _dropLng = newLng;
-                        _dropCityName = result['city']?.toString();
                       });
                     } else {
                       setState(() {
                         _pickupAddress = newAddress;
                         _pickupLat = newLat;
                         _pickupLng = newLng;
-                        _pickupCityName = result['city']?.toString();
                       });
                     }
                     state.didChange(true);
@@ -4559,18 +4615,51 @@ class _NewBookingState extends State<NewBooking> {
   List<String> _getAvailableCityNames(BuildContext context) {
     if (_apiCities.isNotEmpty) {
       final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-      return _apiCities
-          .where((c) => c['isActive'] == true)
-          .map(
-            (c) =>
-                (isArabic ? (c['cityNameAr'] ?? c['cityName']) : c['cityName'])
-                    .toString(),
-          )
-          .toSet()
-          .toList();
+
+      return _apiCities.where((c) {
+        // Check 1: City must be active
+        final bool cityActive = c['isActive'] == true;
+        if (!cityActive) return false;
+
+        // Check 2: If airport service, city must have at least one active airport
+        if (_selectedCatCode == 0 || _selectedCatCode == 1) {
+          final cityId = (c['_id'] ?? c['id'])?.toString();
+          final hasActiveAirport = _apiAirports.any((a) {
+            var aCityId = a['cityID'] ?? a['cityId'] ?? a['city_id'];
+            if (aCityId is Map) aCityId = aCityId['_id'] ?? aCityId['id'];
+            final aCityIdStr = aCityId?.toString();
+
+            // Explicitly check for false; if missing, we could assume true or false.
+            // Usually, if not specified, it's active unless deactivated.
+            final bool airportActive = a['isActive'] != false;
+            return aCityIdStr == cityId && airportActive;
+          });
+          if (!hasActiveAirport) return false;
+        }
+
+        // Check 3: For private transfer, ONLY show cities that HAVE zone pricing 
+        // (as requested: show only cities where private transfer is available)
+        if (_selectedCatCode == 3) {
+          final cityId = (c['_id'] ?? c['id'])?.toString();
+          final hasActiveZone = _allZones.any(
+            (z) => z.cityId == cityId && z.isActive,
+          );
+          if (!hasActiveZone) return false;
+        }
+
+
+        return true;
+      }).map(
+        (c) =>
+            (isArabic
+                    ? (c['cityNameAr'] ?? c['cityName'])
+                    : c['cityName'])
+                .toString(),
+      ).toSet().toList();
     }
     return [];
   }
+
 
   /// Get airports based on selected city (using cityID from _apiCities)
   List<String> _getAvailableAirports(BuildContext context) {
@@ -4587,8 +4676,12 @@ class _NewBookingState extends State<NewBooking> {
                   aCityId = aCityId['_id'] ?? aCityId['id'];
                 }
                 final aCityIdStr = aCityId?.toString();
-                // Check if the airport is active
-                final bool isActive = a['isActive'] == true;
+                
+                // If isActive is NOT explicitly false, we consider it active 
+                // (or if it's missing, we assume active unless user says otherwise)
+                // But let's follow the 'set as false' rule.
+                final bool isActive = a['isActive'] != false;
+                
                 return aCityIdStr != null && aCityIdStr == cityId && isActive;
               })
               .map((a) => a['airportName'].toString())
