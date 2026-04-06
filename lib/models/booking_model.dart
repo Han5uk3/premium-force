@@ -41,6 +41,7 @@ abstract class BookingModel {
   final double? discountPercentage;
   final String? orderID;
   final String? transactionID;
+  final double? vat;
 
   // Common IDs
   final String? customerID;
@@ -100,6 +101,7 @@ abstract class BookingModel {
     this.categoryID,
     this.bookingType,
     this.bookingNumber,
+    this.vat,
   });
 
   // Getters for common derived properties
@@ -148,6 +150,7 @@ abstract class BookingModel {
   String? get extraTransactionID => null;
   double? get extraPayment => null;
   double? get extraDiscount => null;
+  double? get extraVat => null;
   String? get extraPaymentCompleted => null;
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -212,6 +215,7 @@ abstract class BookingModel {
     String? categoryID,
     String? bookingType,
     String? bookingNumber,
+    double? vat,
   });
 
   Map<String, dynamic> toJson();
@@ -277,6 +281,7 @@ class NormalBookingModel extends BookingModel {
     super.categoryID,
     super.bookingType,
     super.bookingNumber,
+    super.vat,
     this.arrival,
     this.dropOffAddress,
     this.dropOffLat,
@@ -390,6 +395,7 @@ class NormalBookingModel extends BookingModel {
     String? categoryID,
     String? bookingType,
     String? bookingNumber,
+    double? vat,
     String? arrival,
     String? dropOffAddress,
     double? dropOffLat,
@@ -443,6 +449,7 @@ class NormalBookingModel extends BookingModel {
       categoryID: categoryID ?? this.categoryID,
       bookingType: bookingType ?? this.bookingType,
       bookingNumber: bookingNumber ?? this.bookingNumber,
+      vat: vat ?? this.vat,
       arrival: arrival ?? this.arrival,
       dropOffAddress: dropOffAddress ?? this.dropOffAddress,
       dropOffLat: dropOffLat ?? this.dropOffLat,
@@ -460,6 +467,7 @@ class NormalBookingModel extends BookingModel {
       'arrival': arrival,
       'dropOffAddress': dropOffAddress,
       'bookingStatus': bookingStatus,
+      'vat': vat,
       // ... common fields could be added but usually serialization is handled at higher level or explicitly
     };
   }
@@ -480,6 +488,8 @@ class HourlyBookingModel extends BookingModel {
   final double? extraPayment;
   @override
   final double? extraDiscount;
+  @override
+  final double? extraVat;
   @override
   final String? extraPaymentCompleted;
 
@@ -534,6 +544,7 @@ class HourlyBookingModel extends BookingModel {
     super.categoryID,
     super.bookingType,
     super.bookingNumber,
+    super.vat,
     this.startedAt,
     this.stoppedAt,
     this.pickupdatetime,
@@ -543,6 +554,7 @@ class HourlyBookingModel extends BookingModel {
     this.extraTransactionID,
     this.extraPayment,
     this.extraDiscount,
+    this.extraVat,
     this.extraPaymentCompleted,
   });
 
@@ -604,6 +616,7 @@ class HourlyBookingModel extends BookingModel {
       extraTransactionID: json['extraTransactionID']?.toString(),
       extraPayment: _toDouble(json['extraPayment']),
       extraDiscount: _toDouble(json['extraDiscount']),
+      extraVat: _toDouble(json['extraVat']),
       extraPaymentCompleted: json['extraPaymentCompleted']?.toString(),
     );
   }
@@ -655,6 +668,7 @@ class HourlyBookingModel extends BookingModel {
     String? categoryID,
     String? bookingType,
     String? bookingNumber,
+    double? vat,
     String? startedAt,
     String? stoppedAt,
     String? pickupdatetime,
@@ -664,6 +678,7 @@ class HourlyBookingModel extends BookingModel {
     String? extraTransactionID,
     double? extraPayment,
     double? extraDiscount,
+    double? extraVat,
     String? extraPaymentCompleted,
   }) {
     return HourlyBookingModel(
@@ -712,6 +727,7 @@ class HourlyBookingModel extends BookingModel {
       categoryID: categoryID ?? this.categoryID,
       bookingType: bookingType ?? this.bookingType,
       bookingNumber: bookingNumber ?? this.bookingNumber,
+      vat: vat ?? this.vat,
       startedAt: startedAt ?? this.startedAt,
       stoppedAt: stoppedAt ?? this.stoppedAt,
       pickupdatetime: pickupdatetime ?? this.pickupdatetime,
@@ -721,6 +737,7 @@ class HourlyBookingModel extends BookingModel {
       extraTransactionID: extraTransactionID ?? this.extraTransactionID,
       extraPayment: extraPayment ?? this.extraPayment,
       extraDiscount: extraDiscount ?? this.extraDiscount,
+      extraVat: extraVat ?? this.extraVat,
       extraPaymentCompleted: extraPaymentCompleted ?? this.extraPaymentCompleted,
     );
   }
@@ -735,6 +752,8 @@ class HourlyBookingModel extends BookingModel {
       'pickupdatetime': pickupdatetime,
       'estimatedHours': estimatedHours,
       'bookingStatus': bookingStatus,
+      'vat': vat,
+      'extraVat': extraVat,
     };
   }
 }
@@ -787,6 +806,7 @@ class _CommonBookingFields {
   final String? categoryID;
   final String? bookingType;
   final String? bookingNumber;
+  final double? vat;
 
   _CommonBookingFields({
     required this.id,
@@ -834,6 +854,7 @@ class _CommonBookingFields {
     this.categoryID,
     this.bookingType,
     this.bookingNumber,
+    this.vat,
   });
 }
 
@@ -932,6 +953,7 @@ _CommonBookingFields _parseCommon(Map<String, dynamic> json) {
     categoryID: json['categoryID']?.toString() ?? carDetails?.categoryID,
     bookingType: json['bookingType']?.toString() ?? json['booking_type']?.toString(),
     bookingNumber: json['bookingNumber']?.toString() ?? json['bookingID']?.toString(),
+    vat: _toDouble(json['vat']),
   );
 }
 

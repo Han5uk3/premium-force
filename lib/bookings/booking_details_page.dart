@@ -52,30 +52,18 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       // Name is missing or driver object is null - fetch full details
       _fetchDriverDetails();
     }
+
+    // Set VAT from the booking data if available
+    _vatPercentage = widget.booking.vat ?? 15.0;
+
     _fetchExtraPaymentData();
   }
 
   Future<void> _fetchExtraPaymentData() async {
-    _loadVat();
     _loadUserPromoCode();
     final booking = widget.booking;
     if (booking is HourlyBookingModel && (booking.extraHours ?? 0) > 0) {
       _fetchHourlyPrice999();
-    }
-  }
-
-  Future<void> _loadVat() async {
-    try {
-      final res = await _apiService.getVat(token: UserLocalStorage.getToken());
-      if (res['success'] == true && res['data'] != null) {
-        if (mounted) {
-          setState(() {
-            _vatPercentage = _parseDouble(res['data']['vat'] ?? 15);
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ VAT Fetch Error: $e');
     }
   }
 
@@ -455,7 +443,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     } else {
       // Show "Leave a Review" button
       return Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
         child: PremiumButton(
           fontsize: 14,
           text: loc.leaveAReview,
@@ -592,10 +580,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                                     if (widget.booking is HourlyBookingModel) {
                                       await _apiService
                                           .updateHourlyBookingStatus(
-                                        bookingId: widget.booking.id,
-                                        status: 'reviewed',
-                                        token: token,
-                                      );
+                                            bookingId: widget.booking.id,
+                                            status: 'reviewed',
+                                            token: token,
+                                          );
                                     } else {
                                       await _apiService.updateBookingStatus(
                                         bookingId: widget.booking.id,
@@ -1227,11 +1215,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             onTap: _isPayingExtraHours
                 ? () {}
                 : () => _payExtraHours(
-                  booking: booking,
-                  extraTotal: double.parse(extraTotal.toStringAsFixed(2)),
-                  extraCharge: extraCharge,
-                  extraDiscount: extraDiscount,
-                ),
+                    booking: booking,
+                    extraTotal: double.parse(extraTotal.toStringAsFixed(2)),
+                    extraCharge: extraCharge,
+                    extraDiscount: extraDiscount,
+                    extraVat: extraVat,
+                  ),
           ),
           const SizedBox(height: 12),
         ],
@@ -1244,6 +1233,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     required double extraTotal,
     required double extraCharge,
     required double extraDiscount,
+    required double extraVat,
   }) async {
     if (_isPayingExtraHours) return;
     setState(() => _isPayingExtraHours = true);
@@ -1277,11 +1267,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         // Update booking extra details and mark as completed
         final token = UserLocalStorage.getToken();
         final result = await _apiService.updateHourlyExtraPayment(
+          
           bookingId: booking.id,
           extraOrderID: orderId,
           extraTransactionID: paymentResult.transactionReference,
           extraPayment: extraCharge,
           extraDiscount: extraDiscount,
+          extraVat: extraVat,
           extraPaymentCompleted: 'completed',
           token: token,
         );
@@ -1306,18 +1298,15 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           } else {
             AnimatedSnackBar.show(
               context,
-              result['message'] ?? 'Payment ok, but failed to update extra data.',
+              result['message'] ??
+                  'Payment ok, but failed to update extra data.',
               'E',
             );
           }
         }
       } else {
         if (mounted) {
-          AnimatedSnackBar.show(
-            context,
-            paymentResult.responseMessage,
-            'E',
-          );
+          AnimatedSnackBar.show(context, paymentResult.responseMessage, 'E');
         }
       }
     } catch (e) {
@@ -1402,62 +1391,24 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Future<void> _cancelBooking() async {
-    setState(() {
-      // We can use the existing _isLoadingDriver or a new one
-      // but let's just show a simple loader overlay if needed
-      // or just handle the API call.
-    });
-
     try {
       final token = UserLocalStorage.getToken();
-      final isHourly =
-          (widget.booking.category ?? '').toLowerCase().contains('chauffeur') ||
-          widget.booking.estimatedHours != null;
-
-      if (isHourly) {
-        final result = await _apiService.updateHourlyBookingStatus(
-          bookingId: widget.booking.id,
-          status: 'cancelled',
-          token: token,
-        );
-
-        if (mounted) {
-          if (result['success'] == true) {
-            AnimatedSnackBar.show(
-              context,
-              AppLocalizations.of(context)!.bookingCancelledSuccessfully,
-              'S',
-            );
-            Navigator.pop(context, true);
-          } else {
-            AnimatedSnackBar.show(
-              context,
-              result['message'] ?? 'Failed to cancel booking',
-              'E',
-            );
-          }
-        }
-        return;
-      }
-
-      final result = await _apiService.updateBookingStatus(
+      
+      final result = await _apiService.cancelBooking(
         bookingId: widget.booking.id,
-        status: 'cancelled',
         token: token,
       );
 
-      if (result['success'] == true) {
-        if (mounted) {
+      if (mounted) {
+        if (result['success'] == true) {
           AnimatedSnackBar.show(
             context,
             AppLocalizations.of(context)!.bookingCancelledSuccessfully,
             'S',
           );
-          // Return to previous page or refresh
+          // Return to previous page with success result to trigger refresh
           Navigator.pop(context, true);
-        }
-      } else {
-        if (mounted) {
+        } else {
           AnimatedSnackBar.show(
             context,
             result['message'] ?? 'Failed to cancel booking',

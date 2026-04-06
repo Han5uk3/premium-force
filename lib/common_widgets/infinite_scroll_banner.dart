@@ -309,8 +309,6 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   }
 
   Widget _buildBannerItem(BuildContext context, BannerModel banner) {
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -318,7 +316,11 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
         width: double.infinity,
         height: double.infinity,
         child: CachedNetworkImage(
-          imageUrl: banner.imageUrl,
+          key: ValueKey(Localizations.localeOf(context).languageCode),
+          imageUrl: (Localizations.localeOf(context).languageCode == 'ar' &&
+                  banner.imageUrlAr.isNotEmpty)
+              ? banner.imageUrlAr
+              : banner.imageUrl,
           fit: BoxFit.contain,
           width: double.infinity,
           height: double.infinity,
@@ -327,14 +329,11 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           errorWidget: (context, url, error) =>
               Container(color: const Color(0xFF49280B).withAlpha(100)),
           imageBuilder: (context, imageProvider) {
-            return Transform.flip(
-              flipX: isRtl,
-              child: Container(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: imageProvider,
-                    fit: BoxFit.cover,
-                  ),
+            return Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: imageProvider,
+                  fit: BoxFit.cover,
                 ),
               ),
             );

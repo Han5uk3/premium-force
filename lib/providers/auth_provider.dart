@@ -319,6 +319,10 @@ class AuthProvider extends ChangeNotifier {
         _phoneNumber = phoneNumber;
         _resendCountdown = 0;
         debugPrint('✅ Existing user logged in: ${_user?.username ?? ''}');
+        
+        // Sync FCM token with backend after successful login
+        unawaited(NotificationService.instance.syncTokenWithBackend());
+        
         notifyListeners();
       } else {
         // Check if this is a "user not found" scenario — OTP was valid but
@@ -480,6 +484,10 @@ class AuthProvider extends ChangeNotifier {
         }
 
         _status = AuthStatus.authenticated;
+        
+        // Sync FCM token with backend after successful signup
+        unawaited(NotificationService.instance.syncTokenWithBackend());
+        
         notifyListeners();
         debugPrint('✅ Signup │ User authenticated: ${_user?.username}');
         return {'success': true};
@@ -638,6 +646,9 @@ class AuthProvider extends ChangeNotifier {
           debugPrint(
             '✅ Google Sign-In │ Existing user authenticated: ${_user?.username}',
           );
+          
+          // Sync FCM token after successful Google login
+          unawaited(NotificationService.instance.syncTokenWithBackend());
         } else {
           _status = AuthStatus.otpVerified;
           debugPrint(
@@ -742,6 +753,9 @@ class AuthProvider extends ChangeNotifier {
           debugPrint(
             '✅ Apple Sign-In │ Existing user authenticated: ${_user?.username}',
           );
+          
+          // Sync FCM token after successful Apple login
+          unawaited(NotificationService.instance.syncTokenWithBackend());
         } else {
           _status = AuthStatus.otpVerified;
           debugPrint(

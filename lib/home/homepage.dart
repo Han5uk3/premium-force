@@ -1,6 +1,8 @@
 import 'package:premium_force_main/common_widgets/fleet_card_shimmer.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/common_widgets/booking_shimmer.dart';
+import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/notifications/notification_screen.dart';
 import 'package:premium_force_main/storage/notification_storage.dart';
@@ -14,17 +16,15 @@ import 'package:premium_force_main/main.dart';
 import 'package:premium_force_main/ride_booking/new_booking.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
-import 'package:premium_force_main/api/apis.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/common_widgets/infinite_scroll_banner.dart';
-import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
+import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/home/fleet_list_page.dart';
 import 'package:premium_force_main/models/pricing/zone_model.dart';
-
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -39,12 +39,9 @@ class _HomepageState extends State<Homepage>
   List<Map<String, dynamic>> _apiCities = [];
   List<Map<String, dynamic>> _apiAirports = [];
   List<Map<String, dynamic>> _apiTerminals = [];
-  List<BookingModel> _pastBookings = [];
   final ValueNotifier<bool> _isLoadingLocations = ValueNotifier(false);
   bool _isLoadingCars = false;
-  bool _isLoadingBookings = false;
   List<ZoneModel> _allZones = [];
-
 
   @override
   bool get wantKeepAlive => true;
@@ -63,7 +60,12 @@ class _HomepageState extends State<Homepage>
     // Fetch fresh data in the background
     _fetchLocationData();
     _fetchFleetCars();
-    _fetchPastBookings();
+    _fetchFleetCars();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<BookingProvider>(context, listen: false).fetchBookings();
+      }
+    });
   }
 
   void _loadCachedFleet() {
@@ -135,7 +137,7 @@ class _HomepageState extends State<Homepage>
     await Future.wait([
       _fetchLocationData(),
       _fetchFleetCars(),
-      _fetchPastBookings(),
+      Provider.of<BookingProvider>(context, listen: false).fetchBookings(),
     ]);
   }
 
@@ -220,15 +222,14 @@ class _HomepageState extends State<Homepage>
           ]);
 
           // Process Cities - only include cities that are active
-          _apiCities = extractListData(results[0], [
-            'cities',
-            'data',
-            'result',
-          ]).where((c) {
-            final active = c['isActive'];
-            return active == true || active == 1 || active.toString() == 'true';
-          }).toList();
-
+          _apiCities = extractListData(results[0], ['cities', 'data', 'result'])
+              .where((c) {
+                final active = c['isActive'];
+                return active == true ||
+                    active == 1 ||
+                    active.toString() == 'true';
+              })
+              .toList();
 
           // Process Zones
           final zonesData = extractListData(results[3], [
@@ -237,7 +238,7 @@ class _HomepageState extends State<Homepage>
             'result',
           ]);
           _allZones = zonesData.map((z) => ZoneModel.fromJson(z)).toList();
-          
+
           if (kDebugMode) {
             debugPrint('✅ 🌐 API │ Zones Loaded: ${_allZones.length}');
             for (var z in _allZones) {
@@ -245,8 +246,6 @@ class _HomepageState extends State<Homepage>
             }
           }
         });
-
-
 
         if (kDebugMode) {
           debugPrint(
@@ -592,146 +591,7 @@ class _HomepageState extends State<Homepage>
     }
   }
 
-  /*
-  List bookingItems = [
-    {
-      "status": "c",
-      "type": "Airport Arrival",
-      "pickup": "King Khalid International Airport",
-      "dropoff": "City Center, Riyadh",
-      "date": "13 Feb",
-      "time": "12:30 PM",
-      "ride": "Luxury",
-      "brand": "Mercedes-Benz",
-    },
-    {
-      "status": "p",
-      "type": "Airport Departure",
-      "pickup": "King Khalid International Airport",
-      "dropoff": "City Center, Riyadh",
-      "date": "14 Feb",
-      "time": "12:30 PM",
-      "ride": "Luxury",
-      "brand": "BMW",
-    },
-    {
-      "status": "x",
-      "type": "Chauffeur",
-      "pickup": "City Center, Riyadh",
-      "dropoff": "Hotel Al Faisaliah",
-      "date": "14 Feb",
-      "time": "09:00 PM",
-      "ride": "Luxury",
-      "brand": "Audi",
-    },
-    {
-      "status": "x",
-      "type": "Chauffeur",
-      "pickup": "City Center, Riyadh",
-      "dropoff": "Hotel Al Faisaliah",
-      "date": "14 Feb",
-      "time": "09:00 PM",
-      "ride": "Luxury",
-      "brand": "Rolls-Royce",
-    },
-  ];
-
-  List bookingItemsAr = [
-    {
-      "status": "c",
-      "type": "ÙˆØµÙˆÙ„ Ù…Ù† Ø§Ù„Ù…Ø·Ø§Ø±",
-      "pickup": "Ù…Ø·Ø§Ø± Ø§Ù„Ù…Ù„Ùƒ Ø®Ø§Ù„Ø¯ Ø§Ù„Ø¯ÙˆÙ„ÙŠ",
-      "dropoff": "ÙˆØ³Ø· Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©ØŒ Ø§Ù„Ø±ÙŠØ§Ø¶",
-      "date": "13 ÙØ¨Ø±Ø§ÙŠØ±",
-      "time": "12:30 Ù…",
-      "ride": "ÙØ§Ø®Ø±",
-      "brand": "Ù…Ø±Ø³ÙŠØ¯Ø³-Ø¨Ù†Ø²",
-    },
-    {
-      "status": "p",
-      "type": "Ù…ØºØ§Ø¯Ø±Ø© Ø¥Ù„Ù‰ Ø§Ù„Ù…Ø·Ø§Ø±",
-      "pickup": "Ù…Ø·Ø§Ø± Ø§Ù„Ù…Ù„Ùƒ Ø®Ø§Ù„Ø¯ Ø§Ù„Ø¯ÙˆÙ„ÙŠ",
-      "dropoff": "ÙˆØ³Ø· Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©ØŒ Ø§Ù„Ø±ÙŠØ§Ø¶",
-      "date": "14 ÙØ¨Ø±Ø§ÙŠØ±",
-      "time": "12:30 Ù…",
-      "ride": "ÙØ§Ø®Ø±",
-      "brand": "Ø¨ÙŠ Ø¥Ù… Ø¯Ø¨Ù„ÙŠÙˆ",
-    },
-    {
-      "status": "x",
-      "type": "Ø³Ø§Ø¦Ù‚ Ø®Ø§Øµ",
-      "pickup": "ÙˆØ³Ø· Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©ØŒ Ø§Ù„Ø±ÙŠØ§Ø¶",
-      "dropoff": "ÙÙ†Ø¯Ù‚ Ø§Ù„ÙÙŠØµÙ„ÙŠØ©",
-      "date": "14 ÙØ¨Ø±Ø§ÙŠØ±",
-      "time": "09:00 Ù…",
-      "ride": "ÙØ§Ø®Ø±",
-      "brand": "Ø£ÙˆØ¯ÙŠ",
-    },
-    {
-      "status": "x",
-      "type": "Ø³Ø§Ø¦Ù‚ Ø®Ø§Øµ",
-      "pickup": "ÙˆØ³Ø· Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©ØŒ Ø§Ù„Ø±ÙŠØ§Ø¶",
-      "dropoff": "ÙÙ†Ø¯Ù‚ Ø§Ù„ÙÙŠØµÙ„ÙŠØ©",
-      "date": "14 ÙØ¨Ø±Ø§ÙŠØ±",
-      "time": "09:00 Ù…",
-      "ride": "ÙØ§Ø®Ø±",
-      "brand": "Ø±ÙˆÙ„Ø² Ø±ÙˆÙŠØ³",
-    },
-  ];
-  */
-
-  Future<void> _fetchPastBookings() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userId = authProvider.user?.uid;
-    if (userId == null) return;
-
-    if (mounted) setState(() => _isLoadingBookings = true);
-
-    try {
-      final api = ApiService();
-      final token = UserLocalStorage.getToken();
-
-      final results = await Future.wait([
-        api.getBookingsByCustomerId(customerId: userId, token: token),
-        api.getHourlyBookingsByCustomerId(customerId: userId, token: token),
-      ]);
-
-      List<BookingModel> userBookings = [];
-
-      for (var result in results) {
-        if (result['success'] == true) {
-          final List<dynamic> bookingsJson =
-              result['data'] ?? result['bookings'] ?? [];
-          userBookings.addAll(
-            bookingsJson.map((json) => BookingModel.fromJson(json)),
-          );
-        }
-      }
-
-      // Sort by date (descending)
-      userBookings.sort((a, b) {
-        final dateA = a.createdAt ??
-            (a.arrival != null ? DateTime.tryParse(a.arrival!) : null) ??
-            (a.pickupdatetime != null ? DateTime.tryParse(a.pickupdatetime!) : null) ??
-            DateTime(0);
-        final dateB = b.createdAt ??
-            (b.arrival != null ? DateTime.tryParse(b.arrival!) : null) ??
-            (b.pickupdatetime != null ? DateTime.tryParse(b.pickupdatetime!) : null) ??
-            DateTime(0);
-        return dateB.compareTo(dateA); // Most recent first
-      });
-
-      if (mounted) {
-        setState(() {
-          _pastBookings = userBookings.take(3).toList();
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching past bookings: $e');
-    } finally {
-      if (mounted) setState(() => _isLoadingBookings = false);
-    }
-  }
+  // Removed local _fetchPastBookings since we use BookingProvider now
 
   String _getBookingName(String? category, BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -780,117 +640,138 @@ class _HomepageState extends State<Homepage>
   }
 
   Widget _buildRecentBookings(BuildContext context, AppLocalizations loc) {
-    return Container(
-      color: const Color(0xff292929).withValues(alpha: 0.6),
-      width: MediaQuery.of(context).size.width,
-      padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
-      child: Column(
-        spacing: 8,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            loc.recentBookings,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          if (_isLoadingBookings)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(child: PremiumLoader(color: Color(0xFFE4A46B))),
-            )
-          else if (_pastBookings.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 36,
-                  horizontal: 16,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(80),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.withAlpha(20)),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.history_rounded,
-                        size: 42,
-                        color: Colors.grey.withAlpha(120),
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        loc.noRecentBookings,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey.withAlpha(200),
-                        ),
-                      ),
-                    ],
-                  ),
+    return Consumer<BookingProvider>(
+      builder: (context, bookingProvider, child) {
+        return Container(
+          color: const Color(0xff292929).withValues(alpha: 0.6),
+          width: MediaQuery.of(context).size.width,
+          padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
+          child: Column(
+            spacing: 8,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                loc.recentBookings,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
-            )
-          else
-            ListView.builder(
-              itemCount: _pastBookings.length,
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) {
-                final booking = _pastBookings[index];
-                final arrivalDate = booking.arrival != null
-                    ? DateTime.tryParse(booking.arrival!)
-                    : null;
-                final dateStr = Bookingcard.formatDate(context, arrivalDate);
-                final timeStr = Bookingcard.formatTime(context, arrivalDate);
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GestureDetector(
-                    onTap: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              BookingDetailsPage(booking: booking),
-                        ),
-                      );
-                      if (result == true) {
-                        _fetchPastBookings();
-                      }
-                    },
-                    child: Bookingcard(
-                      status: booking.bookingStatus ?? 'Pending',
-                      type: _getBookingName(booking.category, context),
-                      pickup: booking.pickupAddress ?? booking.airport ?? 'N/A',
-                      dropoff: booking.dropOffAddress ?? 'N/A',
-                      date: dateStr,
-                      time: timeStr,
-                      ride: booking.displayName,
-                      brand: booking.displayBrand,
-                      passengers:
-                          int.tryParse(booking.passengerCount ?? '1') ?? 1,
-                      isChauffeur:
-                          (booking.category ?? '').toLowerCase().contains(
-                            'chauffeur',
-                          ) ||
-                          booking.estimatedHours != null,
+              if (bookingProvider.isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: BookingShimmer(
+                    itemCount: 3,
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                  ),
+                )
+              else if (bookingProvider.recentBookings.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 36,
+                      horizontal: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(80),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.withAlpha(20)),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.history_rounded,
+                            size: 42,
+                            color: Colors.grey.withAlpha(120),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            loc.noRecentBookings,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.withAlpha(200),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                );
-              },
-            ),
-        ],
-      ),
+                )
+              else
+                ListView.builder(
+                  itemCount: bookingProvider.recentBookings.length,
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final booking = bookingProvider.recentBookings[index];
+                    final displayDate = booking.pickupdatetime != null
+                        ? DateTime.tryParse(booking.pickupdatetime!)
+                        : (booking.arrival != null
+                              ? DateTime.tryParse(booking.arrival!)
+                              : null);
+
+                    final dateStr = Bookingcard.formatDate(
+                      context,
+                      displayDate,
+                    );
+                    final timeStr = Bookingcard.formatTime(
+                      context,
+                      displayDate,
+                    );
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: GestureDetector(
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  BookingDetailsPage(booking: booking),
+                            ),
+                          );
+                          if (result == true) {
+                            bookingProvider.fetchBookings();
+                          }
+                        },
+                        child: Bookingcard(
+                          status: booking.bookingStatus ?? 'Pending',
+                          type: _getBookingName(booking.category, context),
+                          pickup:
+                              booking.pickupAddress ?? booking.airport ?? 'N/A',
+                          dropoff: booking.dropOffAddress ?? 'N/A',
+                          date: dateStr,
+                          time: timeStr,
+                          ride: booking.displayCategory,
+                          brand: booking.displayBrand,
+                          passengers:
+                              int.tryParse(booking.passengerCount ?? '1') ?? 1,
+                          chauffeurName: booking.displayDriverName,
+                          isChauffeur:
+                              (booking.category ?? '').toLowerCase().contains(
+                                'chauffeur',
+                              ) ||
+                              booking.estimatedHours != null,
+                              
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1543,9 +1424,10 @@ class _HomepageState extends State<Homepage>
                               builder: (context) => NewBooking(
                                 catcode: catcode,
                                 citycode: selectedCityIndex,
-                                cityId: (activeCities[selectedCityIndex]['_id'] ??
-                                        activeCities[selectedCityIndex]['id'])
-                                    ?.toString(),
+                                cityId:
+                                    (activeCities[selectedCityIndex]['_id'] ??
+                                            activeCities[selectedCityIndex]['id'])
+                                        ?.toString(),
                                 preloadedCities: activeCities,
                                 preloadedAirports: _apiAirports,
                                 preloadedTerminals: _apiTerminals,
@@ -1570,9 +1452,9 @@ class _HomepageState extends State<Homepage>
     return _apiCities.where((c) {
       // Basic active check
       final active = c['isActive'];
-      final bool cityActive = active == true || active == 1 || active.toString() == 'true';
+      final bool cityActive =
+          active == true || active == 1 || active.toString() == 'true';
       if (!cityActive) return false;
-
 
       // Check 1: If Airport service, also check for at least one active airport
       if (catcode == 0 || catcode == 1) {
@@ -1603,19 +1485,18 @@ class _HomepageState extends State<Homepage>
           final bool isZoneActive = z.isActive;
           return zoneCityId == cityId && isZoneActive;
         });
-        
+
         if (kDebugMode) {
-           debugPrint('🌐 Filter │ City: ${c['cityName']} (ID: $cityId) -> HasZone: $hasZone');
+          debugPrint(
+            '🌐 Filter │ City: ${c['cityName']} (ID: $cityId) -> HasZone: $hasZone',
+          );
         }
         return hasZone;
       }
 
-
-
       return true;
     }).toList();
   }
-
 
   Widget _buildCityGridShimmer(double maxWidth, {int count = 6}) {
     return Padding(

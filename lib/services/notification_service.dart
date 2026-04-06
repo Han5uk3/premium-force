@@ -287,6 +287,15 @@ class NotificationService {
     return _fcmToken;
   }
 
+  /// Explicitly sync the current token with the backend.
+  /// Call this after login or signup to ensure the backend has the latest token.
+  Future<void> syncTokenWithBackend() async {
+    final token = await getToken();
+    if (token != null) {
+      await _updateTokenOnBackend(token);
+    }
+  }
+
   /// Deletes the FCM token (call on logout so this device stops receiving
   /// notifications for the previous user).
   Future<void> deleteToken() async {

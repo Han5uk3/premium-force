@@ -44,6 +44,8 @@ class BookingRequestModel {
   String? orderID;
   String? transactionID;
   String? customerName;
+  double? vat;
+  double? extraVat;
 
   BookingRequestModel({
     this.category,
@@ -88,6 +90,8 @@ class BookingRequestModel {
     this.orderID,
     this.transactionID,
     this.customerName,
+    this.vat,
+    this.extraVat,
   });
 
   Map<String, dynamic> toMap() {
@@ -135,6 +139,8 @@ class BookingRequestModel {
       if (orderID != null) 'orderID': orderID,
       if (transactionID != null) 'transactionID': transactionID,
       if (customerName != null) 'customerName': customerName,
+      if (vat != null) 'vat': vat,
+      if (extraVat != null) 'extraVat': extraVat,
     };
   }
 

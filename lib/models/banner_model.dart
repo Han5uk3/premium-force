@@ -4,6 +4,7 @@ class BannerModel {
   final String title;
   final String description;
   final String imageUrl;
+  final String imageUrlAr;
   final bool isActive;
   final DateTime createdAt;
 
@@ -12,6 +13,7 @@ class BannerModel {
     required this.title,
     required this.description,
     required this.imageUrl,
+    required this.imageUrlAr,
     required this.isActive,
     required this.createdAt,
   });
@@ -27,16 +29,35 @@ class BannerModel {
       imageUrl = (imageRaw['url'] ?? imageRaw['imageUrl'] ?? '').toString();
     }
 
+    String imageUrlAr = '';
+    final imageArRaw = json['imageAr'];
+    if (imageArRaw is String) {
+      imageUrlAr = imageArRaw;
+    } else if (imageArRaw is Map<String, dynamic>) {
+      imageUrlAr =
+          (imageArRaw['url'] ?? imageArRaw['imageUrl'] ?? '').toString();
+    }
+
     // Modernize relative paths if they don't start with http/https
+    const String host = 'https://api.premiumforcegroup.com';
+
     if (imageUrl.isNotEmpty &&
         !imageUrl.startsWith('http') &&
         !imageUrl.startsWith('assets/')) {
-      const String host =
-          'https://api.premiumforcegroup.com';
       if (imageUrl.startsWith('/')) {
         imageUrl = '$host$imageUrl';
       } else {
         imageUrl = '$host/$imageUrl';
+      }
+    }
+
+    if (imageUrlAr.isNotEmpty &&
+        !imageUrlAr.startsWith('http') &&
+        !imageUrlAr.startsWith('assets/')) {
+      if (imageUrlAr.startsWith('/')) {
+        imageUrlAr = '$host$imageUrlAr';
+      } else {
+        imageUrlAr = '$host/$imageUrlAr';
       }
     }
 
@@ -45,6 +66,7 @@ class BannerModel {
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       imageUrl: imageUrl,
+      imageUrlAr: imageUrlAr,
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'].toString())
@@ -59,6 +81,7 @@ class BannerModel {
       'title': title,
       'description': description,
       'imageUrl': imageUrl,
+      'imageUrlAr': imageUrlAr,
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
     };

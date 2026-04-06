@@ -2,12 +2,17 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
-import 'package:premium_force_main/api/apis.dart';
+// removed unused api import
+
 import 'package:premium_force_main/models/booking_model.dart';
-import 'package:premium_force_main/storage/user_local_storage.dart';
+
+// removed unused UserLocalStorage import
+
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
-import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/common_widgets/booking_shimmer.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
+import 'package:premium_force_main/providers/booking_provider.dart';
+import 'package:provider/provider.dart';
 
 class BookingsPage extends StatefulWidget {
   const BookingsPage({super.key});
@@ -19,147 +24,25 @@ class BookingsPage extends StatefulWidget {
 class _BookingsPageState extends State<BookingsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final ApiService _apiService = ApiService();
+  // removed unused _apiService
 
-  List<BookingModel> _upcomingBookings = [];
-  List<BookingModel> _ongoingBookings = [];
-  List<BookingModel> _completedBookings = [];
-  List<BookingModel> _canceledBookings = [];
-  bool _isLoading = true;
-  String? _errorMessage;
+
+  // removed local booking lists
+
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _fetchBookings();
-  }
-
-  Future<void> _fetchBookings() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final currentUserId = UserLocalStorage.getUserId();
-      debugPrint('👤 Customer ID │ $currentUserId');
-      if (currentUserId == null) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = "User not logged in";
-        });
-        return;
-      }
-
-      final token = UserLocalStorage.getToken();
-      debugPrint('🎫 Customer Token │ $token');
-
-      // Fetch regular bookings and hourly bookings in parallel
-      final results = await Future.wait([
-        _apiService.getBookingsByCustomerId(
-          customerId: currentUserId,
-          token: token,
-        ),
-        _apiService.getHourlyBookingsByCustomerId(
-          customerId: currentUserId,
-          token: token,
-        ),
-      ]);
-
-      final regularResponse = results[0];
-      final hourlyResponse = results[1];
-
-      List<BookingModel> userBookings = [];
-
-      if (regularResponse['success'] == true) {
-        final List<dynamic> bookingsJson =
-            regularResponse['data'] ?? regularResponse['bookings'] ?? [];
-        userBookings.addAll(
-          bookingsJson.map((json) => BookingModel.fromJson(json)),
-        );
-      }
-
-      if (hourlyResponse['success'] == true) {
-        final List<dynamic> hourlyBookingsJson =
-            hourlyResponse['data'] ?? hourlyResponse['bookings'] ?? [];
-        userBookings.addAll(
-          hourlyBookingsJson.map((json) {
-            final model = BookingModel.fromJson(json);
-            // Explicitly set bookingType to 'hourly' for these results
-            if (model.bookingType == null || model.bookingType!.isEmpty) {
-              return model.copyWith(bookingType: 'hourly');
-            }
-            return model;
-          }),
-        );
-      }
-
-      if (userBookings.isEmpty &&
-          regularResponse['success'] != true &&
-          hourlyResponse['success'] != true) {
-        _errorMessage =
-            regularResponse['message'] ??
-            hourlyResponse['message'] ??
-            "Failed to fetch bookings";
-      }
-
-      // Sort by most recent (createdAt or arrival)
-      userBookings.sort((a, b) {
-        final dateA =
-            a.createdAt ??
-            (a.pickupdatetime != null
-                ? DateTime.tryParse(a.pickupdatetime!)
-                : null) ??
-            (a.arrival != null ? DateTime.tryParse(a.arrival!) : null) ??
-            DateTime(0);
-        final dateB =
-            b.createdAt ??
-            (b.pickupdatetime != null
-                ? DateTime.tryParse(b.pickupdatetime!)
-                : null) ??
-            (b.arrival != null ? DateTime.tryParse(b.arrival!) : null) ??
-            DateTime(0);
-        return dateB.compareTo(dateA); // Most recent first
-      });
-
-      // Categorize bookings
-      _upcomingBookings = [];
-      _ongoingBookings = [];
-      _completedBookings = [];
-      _canceledBookings = [];
-
-      for (final booking in userBookings) {
-        final status = (booking.bookingStatus ?? '').toLowerCase().trim();
-
-        if (status == 'pending' ||
-            status == 'assigned' ||
-            status == 'p' ||
-            status == 'a') {
-          _upcomingBookings.add(booking);
-        } else if (status == 'completed' ||
-            status == 'reviewed' ||
-            status == 'c') {
-          _completedBookings.add(booking);
-        } else if (status == 'cancelled' ||
-            status == 'canceled' ||
-            status == 'x') {
-          _canceledBookings.add(booking);
-        } else {
-          // 'starttracking', 'stoptracking', 'paymentpending', 'ongoing', etc.
-          _ongoingBookings.add(booking);
-        }
-      }
-    } catch (e) {
-      _errorMessage = "An unexpected error occurred: $e";
-    } finally {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        Provider.of<BookingProvider>(context, listen: false).fetchBookings();
       }
-    }
+    });
   }
+
+  // Removed local _fetchBookings. Using BookingProvider now.
+
 
   @override
   void dispose() {
@@ -183,103 +66,112 @@ class _BookingsPageState extends State<BookingsPage>
           ],
         ),
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: buidAppBar(context),
-        body: RefreshIndicator(
-          onRefresh: _fetchBookings,
-          color: const Color(0xFFE4A46B),
-          backgroundColor: Colors.black,
-          child: Column(
-            children: [
-              TabBar(
-                controller: _tabController,
-                dividerColor: Colors.grey.shade800,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicatorPadding: const EdgeInsets.symmetric(horizontal: 20.0),
-                indicator: const _GradientTabIndicator(
-                  gradient: _tabGradient,
-                  height: 3.0,
+      child: Consumer<BookingProvider>(
+      builder: (context, bookingProvider, child) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: buidAppBar(context),
+          body: RefreshIndicator(
+            onRefresh: bookingProvider.fetchBookings,
+            color: const Color(0xFFE4A46B),
+            backgroundColor: Colors.black,
+            child: Column(
+              children: [
+                TabBar(
+                  controller: _tabController,
+                  dividerColor: Colors.grey.shade800,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicatorPadding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  indicator: const _GradientTabIndicator(
+                    gradient: _tabGradient,
+                    height: 3.0,
+                  ),
+                  unselectedLabelColor: Colors.white38,
+                  tabs: [
+                    _GradientTab(
+                      text: loc.upcoming,
+                      controller: _tabController,
+                      index: 0,
+                      gradient: _tabGradient,
+                    ),
+                    _GradientTab(
+                      text: loc.ongoing,
+                      controller: _tabController,
+                      index: 1,
+                      gradient: _tabGradient,
+                    ),
+                    _GradientTab(
+                      text: loc.completed,
+                      controller: _tabController,
+                      index: 2,
+                      gradient: _tabGradient,
+                    ),
+                    _GradientTab(
+                      text: loc.cancelled,
+                      controller: _tabController,
+                      index: 3,
+                      gradient: _tabGradient,
+                    ),
+                  ],
                 ),
-                unselectedLabelColor: Colors.white38,
-                tabs: [
-                  _GradientTab(
-                    text: loc.upcoming,
-                    controller: _tabController,
-                    index: 0,
-                    gradient: _tabGradient,
-                  ),
-                  _GradientTab(
-                    text: loc.ongoing,
-                    controller: _tabController,
-                    index: 1,
-                    gradient: _tabGradient,
-                  ),
-                  _GradientTab(
-                    text: loc.completed,
-                    controller: _tabController,
-                    index: 2,
-                    gradient: _tabGradient,
-                  ),
-                  _GradientTab(
-                    text: loc.cancelled,
-                    controller: _tabController,
-                    index: 3,
-                    gradient: _tabGradient,
-                  ),
-                ],
-              ),
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: PremiumLoader(color: Color(0xFFE4A46B)))
-                    : _errorMessage != null
-                        ? Center(
-                            child: Text(
-                              _errorMessage!,
-                              style: const TextStyle(color: Colors.white),
+                Expanded(
+                  child: bookingProvider.isLoading
+                      ? const BookingShimmer()
+                      : bookingProvider.errorMessage != null
+                          ? Center(
+                              child: Text(
+                                bookingProvider.errorMessage!,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            )
+                          : TabBarView(
+                              controller: _tabController,
+                              children: [
+                                _buildBookingsList(
+                                  bookingProvider,
+                                  bookingProvider.upcomingBookings,
+                                  loc.noUpcomingBookings,
+                                  loc.onceYouBookItWillAppearHere,
+                                ),
+                                _buildBookingsList(
+                                  bookingProvider,
+                                  bookingProvider.ongoingBookings,
+                                  loc.noOngoingBookings,
+                                  loc.onceYouBookItWillAppearHere,
+                                ),
+                                _buildBookingsList(
+                                  bookingProvider,
+                                  bookingProvider.completedBookings,
+                                  loc.noCompletedBookings,
+                                  loc.onceYouBookItWillAppearHere,
+                                ),
+                                _buildBookingsList(
+                                  bookingProvider,
+                                  bookingProvider.canceledBookings,
+                                  loc.noCancelledBookings,
+                                  loc.onceYouBookItWillAppearHere,
+                                ),
+                              ],
                             ),
-                          )
-                        : TabBarView(
-                            controller: _tabController,
-                            children: [
-                              _buildBookingsList(
-                                _upcomingBookings,
-                                loc.noUpcomingBookings,
-                                loc.onceYouBookItWillAppearHere,
-                              ),
-                              _buildBookingsList(
-                                _ongoingBookings,
-                                loc.noOngoingBookings,
-                                loc.onceYouBookItWillAppearHere,
-                              ),
-                              _buildBookingsList(
-                                _completedBookings,
-                                loc.noCompletedBookings,
-                                loc.onceYouBookItWillAppearHere,
-                              ),
-                              _buildBookingsList(
-                                _canceledBookings,
-                                loc.noCancelledBookings,
-                                loc.onceYouBookItWillAppearHere,
-                              ),
-                            ],
-                          ),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
+    ),
     );
   }
 
   Widget _buildBookingsList(
+    BookingProvider bookingProvider,
     List<BookingModel> bookings,
     String emptyTitle,
     String emptySubtitle,
   ) {
     if (bookings.isEmpty) {
       return RefreshIndicator(
-        onRefresh: _fetchBookings,
+        onRefresh: bookingProvider.fetchBookings,
         color: const Color(0xFFE4A46B),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -292,7 +184,7 @@ class _BookingsPageState extends State<BookingsPage>
     }
 
     return RefreshIndicator(
-      onRefresh: _fetchBookings,
+      onRefresh: bookingProvider.fetchBookings,
       color: const Color(0xFFE4A46B),
       child: ListView.builder(
         padding: const EdgeInsets.only(
@@ -327,7 +219,7 @@ class _BookingsPageState extends State<BookingsPage>
                   ),
                 );
                 if (result == true) {
-                  _fetchBookings();
+                  bookingProvider.fetchBookings();
                 }
               },
               child: Bookingcard(

@@ -4,6 +4,7 @@ import 'package:premium_force_main/splashscreen/splashscreen.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/providers/user_provider.dart';
+import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -98,6 +99,7 @@ class _MainAppState extends State<MainApp> {
       providers: [
         ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProvider.value(value: _userProvider),
+        ChangeNotifierProvider(create: (_) => BookingProvider()),
       ],
       child: MaterialApp(
         title: "Premium Force",

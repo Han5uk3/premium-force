@@ -989,6 +989,9 @@ class ApiService {
     if (fields['discountPercentage'] != null) {
       fields['discountPercentage'] = fields['discountPercentage'].toString();
     }
+    if (fields['vat'] != null) {
+      fields['vat'] = fields['vat'].toString();
+    }
 
     // Handle files separately for FormData
     if (booking.specialRequestAudio != null) {
@@ -1010,6 +1013,7 @@ class ApiService {
     fields['extrahours'] = '0';
     fields['extraPayment'] = '0';
     fields['extraDiscount'] = '0';
+    fields['extraVat'] = '0';
     fields['extraOrderID'] = '';
     fields['extraTransactionID'] = '';
     fields['extraPaymentCompleted'] = 'false';
@@ -1115,6 +1119,22 @@ class ApiService {
     }
   }
 
+  /// Cancel a booking using the unified cancellation endpoint.
+  Future<Map<String, dynamic>> cancelBooking({
+    required String bookingId,
+    String? token,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        'users/cancel/booking/$bookingId',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
   /// Update an existing hourly booking's status.
   Future<Map<String, dynamic>> updateHourlyBookingStatus({
     required String bookingId,
@@ -1145,6 +1165,7 @@ class ApiService {
     required String extraTransactionID,
     required double extraPayment,
     required double extraDiscount,
+    required double extraVat,
     required String extraPaymentCompleted,
     String? token,
   }) async {
@@ -1154,6 +1175,7 @@ class ApiService {
         'extraTransactionID': extraTransactionID,
         'extraPayment': extraPayment.toString(),
         'extraDiscount': extraDiscount.toString(),
+        'extraVat': extraVat.toString(),
         'extraPaymentCompleted': extraPaymentCompleted,
       };
       final response = await _dio.patch(
@@ -1231,6 +1253,7 @@ class ApiService {
     fields['extrahours'] = '0'; // Default value as requested
     fields['extraPayment'] = '0';
     fields['extraDiscount'] = '0';
+    fields['extraVat'] = '0';
     fields['extraOrderID'] = '';
     fields['extraTransactionID'] = '';
     fields['extraPaymentCompleted'] = 'false';
@@ -1266,7 +1289,9 @@ class ApiService {
     fields['startedAt'] = DateTime.now().toIso8601String();
     fields['stoppedAt'] = DateTime.now().toIso8601String();
     fields['extraDiscount'] = 'null';
+    fields['extraVat'] = 'null';
     fields['extraPaymentCompleted'] = 'null';
+    fields['vat'] = booking.vat?.toString() ?? '0';
 
     // Handle files
     if (booking.specialRequestAudio != null) {

@@ -2284,6 +2284,7 @@ class _NewBookingState extends State<NewBooking> {
                                     transactionID: paymentResult.transactionID,
                                     discountPercentage:
                                         paymentResult.discountPercentage,
+                                    vat: _vatPercentage,
                                   );
 
                                   if (kDebugMode) {
