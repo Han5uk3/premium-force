@@ -1279,7 +1279,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         final result = await _apiService.updateHourlyExtraPayment(
           bookingId: booking.id,
           extraOrderID: orderId,
-          extraTransactionID: paymentResult.transactionReference ?? orderId,
+          extraTransactionID: paymentResult.transactionReference,
           extraPayment: extraCharge,
           extraDiscount: extraDiscount,
           extraPaymentCompleted: 'completed',
@@ -1315,7 +1315,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         if (mounted) {
           AnimatedSnackBar.show(
             context,
-            paymentResult.responseMessage ?? 'Payment failed',
+            paymentResult.responseMessage,
             'E',
           );
         }

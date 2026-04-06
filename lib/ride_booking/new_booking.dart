@@ -24,7 +24,6 @@ import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/payment_model.dart';
-import 'package:premium_force_main/utils/paytabs_config.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
@@ -2046,10 +2045,10 @@ class _NewBookingState extends State<NewBooking> {
                                     userData?['name'] ??
                                     userData?['username'] ??
                                     "Customer";
-                                final userPhone =
-                                    userData?['phoneNumber'] ??
-                                    UserLocalStorage.getPhoneNumber() ??
-                                    "";
+                                // final userPhone =
+                                //     userData?['phoneNumber'] ??
+                                //     UserLocalStorage.getPhoneNumber() ??
+                                //     "";
 
                                 final totalWithVat =
                                     _calculatedCharge *
@@ -2061,21 +2060,21 @@ class _NewBookingState extends State<NewBooking> {
                                     "BOOK_${DateTime.now().millisecondsSinceEpoch}";
 
                                 // 2. Process Payment
-                                final paymentRequest = PaymentRequest(
-                                  amount: double.parse(
-                                    totalWithVat.toStringAsFixed(2),
-                                  ),
-                                  currency: PaytabsConfig.defaultCurrency,
-                                  merchantCountryCode:
-                                      PaytabsConfig.merchantCountryCode,
-                                  orderId: orderId,
-                                  customerEmail: userEmail,
-                                  customerName: userName,
-                                  customerPhone: userPhone,
-                                  cartId: orderId,
-                                  cartDescription:
-                                      "Ride Booking for $_selectedVehicleClass",
-                                );
+                                // final paymentRequest = PaymentRequest(
+                                //   amount: double.parse(
+                                //     totalWithVat.toStringAsFixed(2),
+                                //   ),
+                                //   currency: PaytabsConfig.defaultCurrency,
+                                //   merchantCountryCode:
+                                //       PaytabsConfig.merchantCountryCode,
+                                //   orderId: orderId,
+                                //   customerEmail: userEmail,
+                                //   customerName: userName,
+                                //   customerPhone: userPhone,
+                                //   cartId: orderId,
+                                //   cartDescription:
+                                //       "Ride Booking for $_selectedVehicleClass",
+                                // );
 
                                 final paymentResult = PaymentResult(
                                   success: true,
