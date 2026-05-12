@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -24,7 +25,6 @@ class ApiService {
   static const String _baseUrl = 'https://api.premiumforcegroup.com/api/';
 
   // ---------------------------------------------------------------------------
- 
 
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
@@ -102,20 +102,28 @@ class ApiService {
 
                 if (refreshResponse.statusCode == 200 &&
                     refreshResponse.data != null) {
-                  final data = refreshResponse.data;
-                  final tokens = data['tokens'];
+                  final respData = refreshResponse.data;
+                  final tokens = respData['tokens'] ??
+                      (respData['data'] is Map ? respData['data']['tokens'] : null);
 
-                  newAccess =
-                      (tokens is Map
-                              ? (tokens['accessToken'] ?? tokens['token'])
-                              : (data['accessToken'] ?? data['token']))
-                          as String?;
-                  newRefresh =
-                      (tokens is Map
-                              ? (tokens['refreshToken'] ??
-                                    tokens['refresh_token'])
-                              : (data['refreshToken'] ?? data['refresh_token']))
-                          as String?;
+                  newAccess = (tokens is Map
+                          ? (tokens['accessToken'] ?? tokens['token'])
+                          : (respData['accessToken'] ??
+                              respData['token'] ??
+                              (respData['data'] is Map
+                                  ? (respData['data']['accessToken'] ??
+                                      respData['data']['token'])
+                                  : null)))
+                      as String?;
+                  newRefresh = (tokens is Map
+                          ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                          : (respData['refreshToken'] ??
+                              respData['refresh_token'] ??
+                              (respData['data'] is Map
+                                  ? (respData['data']['refreshToken'] ??
+                                      respData['data']['refresh_token'])
+                                  : null)))
+                      as String?;
                 }
               } catch (reErr) {
                 debugPrint('❌ API │ Refresh failed: $reErr');
@@ -316,10 +324,10 @@ class ApiService {
     try {
       final data = {'idToken': idToken};
 
-      debugPrint('🔐 Google Auth │ Sending data: $data');
+      dev.log('🔐 Google Auth │ Sending data: $data');
 
       final response = await _dio.post(
-        'https://api.premiumforcegroup.com/auth/google',
+        'auth/google',
         data: data,
       );
 
@@ -340,10 +348,10 @@ class ApiService {
     try {
       final data = {'idToken': idToken};
 
-      debugPrint('🍎 Apple Auth │ Sending data: $data');
+      dev.log('🍎 Apple Auth │ Sending data: $data');
 
       final response = await _dio.post(
-        'https://api.premiumforcegroup.com/auth/apple',
+        'auth/apple',
         data: data,
       );
 
@@ -1235,11 +1243,7 @@ class ApiService {
 
     fields['pickupLat'] = booking.pickupLat ?? '';
     fields['pickupLong'] = booking.pickupLong ?? '';
-    fields['pickuplong'] =
-        booking.pickupLong ?? ''; // Postman typo compatibility
     fields['pickupAddress'] = booking.pickupAddress ?? '';
-    fields['pickupAdddress'] =
-        booking.pickupAddress ?? ''; // Postman typo compatibility
     fields['pickupDateTime'] = booking.pickupdatetime ?? '';
     fields['model'] = booking.carmodel ?? '';
     fields['categoryID'] = booking.categoryID ?? '';
@@ -1398,10 +1402,7 @@ class ApiService {
     try {
       final response = await _dio.get(
         'zonePrice/zone-pricing',
-        queryParameters: {
-          'zoneFromId': fromZoneId,
-          'zoneToId': toZoneId,
-        },
+        queryParameters: {'zoneFromId': fromZoneId, 'zoneToId': toZoneId},
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -1492,6 +1493,30 @@ class ApiService {
     try {
       final response = await _dio.get(
         'special-content/code/$code',
+        options: token != null ? _authOptions(token) : null,
+      );
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// Validate a promo code by code string.
+  /// Calls POST /api/special-content/validate with body { "code": "SAVE10" }
+  Future<Map<String, dynamic>> validatePromoCode({
+    required String code,
+    String? companyEmail,
+    String? token,
+  }) async {
+    try {
+      final data = {
+        'code': code,
+        if (companyEmail != null && companyEmail.isNotEmpty)
+          'companyEmail': companyEmail,
+      };
+      final response = await _dio.post(
+        'special-content/validate',
+        data: data,
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);

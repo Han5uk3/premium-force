@@ -26,6 +26,7 @@ class UserModel {
   final String? specialId;
   final String role;
   final bool isActive;
+  final String? isDiscountApproved;
   final DateTime createdAt;
 
   const UserModel({
@@ -41,6 +42,7 @@ class UserModel {
     this.specialId,
     this.role = 'customer',
     this.isActive = true,
+    this.isDiscountApproved,
     required this.createdAt,
   });
 
@@ -109,6 +111,7 @@ class UserModel {
       isActive: (json['isActive'] is bool)
           ? json['isActive'] as bool
           : (json['isactive'] is bool ? json['isactive'] as bool : true),
+      isDiscountApproved: json['isDiscountApproved']?.toString(),
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] is DateTime
                 ? json['createdAt'] as DateTime
@@ -132,6 +135,7 @@ class UserModel {
       'specialId': specialId,
       'role': role,
       'isActive': isActive,
+      'isDiscountApproved': isDiscountApproved,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -153,6 +157,7 @@ class UserModel {
     String? specialId,
     String? role,
     bool? isActive,
+    String? isDiscountApproved,
     DateTime? createdAt,
   }) {
     return UserModel(
@@ -168,6 +173,7 @@ class UserModel {
       specialId: specialId ?? this.specialId,
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
+      isDiscountApproved: isDiscountApproved ?? this.isDiscountApproved,
       createdAt: createdAt ?? this.createdAt,
     );
   }

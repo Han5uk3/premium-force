@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -24,7 +24,8 @@ class LocationPickerPage extends StatefulWidget {
   State<LocationPickerPage> createState() => _LocationPickerPageState();
 }
 
-class _LocationPickerPageState extends State<LocationPickerPage> {
+class _LocationPickerPageState extends State<LocationPickerPage>
+    with SingleTickerProviderStateMixin {
   final Completer<GoogleMapController> _mapController = Completer();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -316,38 +317,6 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: _buildAppBar(),
-        floatingActionButton:
-            widget.needCurrentLocationButton && _selectedAddress.isEmpty
-            ? Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: FloatingActionButton(
-                  onPressed: _isLoading ? null : _useCurrentLocation,
-                  backgroundColor: const Color(0xFF0D0A08),
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFF49280B), width: 1),
-                  ),
-                  child: _isLoading
-                      ? const PremiumLoader(size: 24, color: Color(0xFFE4A46B))
-                      : ShaderMask(
-                          shaderCallback: (Rect bounds) {
-                            return const LinearGradient(
-                              colors: [
-                                Color(0xFF49280B),
-                                Color(0xFFE4A46B),
-                                Color(0xFF60350F),
-                              ],
-                            ).createShader(bounds);
-                          },
-                          child: const Icon(
-                            Icons.my_location,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              )
-            : null,
         body: Stack(
           children: [
             // Map
@@ -578,12 +547,16 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               ),
             ),
 
-            // Bottom panel with address + buttons (only shown when address is not empty)
-            if (_selectedAddress.isNotEmpty)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
+            // Bottom panel with address + buttons
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutQuart,
+              bottom: (_selectedAddress.isNotEmpty || widget.needCurrentLocationButton) ? 0 : -300,
+              left: 0,
+              right: 0,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 400),
+                opacity: (_selectedAddress.isNotEmpty || widget.needCurrentLocationButton) ? 1 : 0,
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -605,56 +578,82 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                   ),
                   child: SafeArea(
                     top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Selected address display
-                          Row(
-                            children: [
-                              ShaderMask(
-                                shaderCallback: (Rect bounds) {
-                                  return const LinearGradient(
-                                    colors: [
-                                      Color(0xFF49280B),
-                                      Color(0xFFE4A46B),
-                                      Color(0xFF60350F),
-                                    ],
-                                  ).createShader(bounds);
-                                },
-                                child: const Icon(
-                                  Icons.location_on,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                AppLocalizations.of(
-                                  context,
-                                )!.selectedLocationDisplay,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _selectedAddress,
-                            style: TextStyle(
-                              color: Colors.white.withAlpha(180),
-                              fontSize: 11,
-                              height: 1.4,
+                    child: AnimatedSize(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeInOut,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Animated Switcher for Address display
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 400),
+                              transitionBuilder: (child, animation) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position: Tween<Offset>(
+                                      begin: const Offset(0, 0.2),
+                                      end: Offset.zero,
+                                    ).animate(animation),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: _selectedAddress.isNotEmpty
+                                  ? Column(
+                                      key: const ValueKey('address_display'),
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            ShaderMask(
+                                              shaderCallback: (Rect bounds) {
+                                                return const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF49280B),
+                                                    Color(0xFFE4A46B),
+                                                    Color(0xFF60350F),
+                                                  ],
+                                                ).createShader(bounds);
+                                              },
+                                              child: const Icon(
+                                                Icons.location_on,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.selectedLocationDisplay,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          _selectedAddress,
+                                          style: TextStyle(
+                                            color: Colors.white.withAlpha(180),
+                                            fontSize: 11,
+                                            height: 1.4,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 20),
+                                      ],
+                                    )
+                                  : const SizedBox.shrink(key: ValueKey('empty_address')),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 20),
 
                           if (widget.needCurrentLocationButton) ...[
                             // Use current location button (condensed in selected state)
@@ -671,47 +670,51 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                                     width: 1,
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    if (_isLoading)
-                                      const PremiumLoader(
-                                        size: 24,
-                                        color: Color(0xFFE4A46B),
-                                      )
-                                    else
-                                      ShaderMask(
-                                        shaderCallback: (Rect bounds) {
-                                          return const LinearGradient(
-                                            colors: [
-                                              Color(0xFF49280B),
-                                              Color(0xFFE4A46B),
-                                              Color(0xFF60350F),
-                                            ],
-                                          ).createShader(bounds);
-                                        },
-                                        child: const Icon(
-                                          Icons.my_location,
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  child: Row(
+                                    key: ValueKey(_isLoading),
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (_isLoading)
+                                        const PremiumLoader(
+                                          size: 24,
+                                          color: Color(0xFFE4A46B),
+                                        )
+                                      else
+                                        ShaderMask(
+                                          shaderCallback: (Rect bounds) {
+                                            return const LinearGradient(
+                                              colors: [
+                                                Color(0xFF49280B),
+                                                Color(0xFFE4A46B),
+                                                Color(0xFF60350F),
+                                              ],
+                                            ).createShader(bounds);
+                                          },
+                                          child: const Icon(
+                                            Icons.my_location,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        _isLoading
+                                            ? AppLocalizations.of(
+                                                context,
+                                              )!.gettingLocation
+                                            : AppLocalizations.of(
+                                                context,
+                                              )!.useCurrentLocation,
+                                        style: const TextStyle(
                                           color: Colors.white,
-                                          size: 20,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      _isLoading
-                                          ? AppLocalizations.of(
-                                              context,
-                                            )!.gettingLocation
-                                          : AppLocalizations.of(
-                                              context,
-                                            )!.useCurrentLocation,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -719,48 +722,69 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                           ],
 
                           // Confirm button
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.pop(context, {
-                                'address': _selectedAddress,
-                                'city': _selectedCity,
-                                'lat': _selectedLocation.latitude,
-                                'lng': _selectedLocation.longitude,
-                              });
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 400),
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: ScaleTransition(
+                                  scale: Tween<double>(begin: 0.9, end: 1.0).animate(
+                                    CurvedAnimation(
+                                      parent: animation,
+                                      curve: Curves.easeOutBack,
+                                    ),
+                                  ),
+                                  child: child,
+                                ),
+                              );
                             },
-                            child: Container(
-                              width: double.infinity,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [
-                                    Color(0xFF49280B),
-                                    Color(0xFFE4A46B),
-                                    Color(0xFF60350F),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withAlpha(10),
-                                    blurRadius: 8,
-                                    spreadRadius: 3,
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  AppLocalizations.of(context)!.confirmLocation,
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ),
+                            child: _selectedAddress.isNotEmpty
+                                ? GestureDetector(
+                                    key: const ValueKey('confirm_button'),
+                                    onTap: () {
+                                      Navigator.pop(context, {
+                                        'address': _selectedAddress,
+                                        'city': _selectedCity,
+                                        'lat': _selectedLocation.latitude,
+                                        'lng': _selectedLocation.longitude,
+                                      });
+                                    },
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                          colors: [
+                                            Color(0xFF49280B),
+                                            Color(0xFFE4A46B),
+                                            Color(0xFF60350F),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withAlpha(10),
+                                            blurRadius: 8,
+                                            spreadRadius: 3,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          AppLocalizations.of(context)!.confirmLocation,
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(key: ValueKey('empty_confirm')),
                           ),
                         ],
                       ),
@@ -768,11 +792,13 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   PreferredSizeWidget _buildAppBar() {
     return PreferredSize(

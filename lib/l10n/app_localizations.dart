@@ -1232,6 +1232,12 @@ abstract class AppLocalizations {
   /// **'Charge'**
   String get charge;
 
+  /// No description provided for @allowSimilarVehicle.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Similar Vehicle'**
+  String get allowSimilarVehicle;
+
   /// No description provided for @noCarsAvailable.
   ///
   /// In en, this message translates to:
@@ -1243,6 +1249,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Book Service'**
   String get bookService;
+
+  /// No description provided for @companyEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'companyEmail'**
+  String get companyEmail;
 
   /// No description provided for @logoutConfirm.
   ///
@@ -2107,6 +2119,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back to Login'**
   String get backToLogin;
+
+  /// No description provided for @similarVehicleNote.
+  ///
+  /// In en, this message translates to:
+  /// **'If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications.'**
+  String get similarVehicleNote;
 }
 
 class _AppLocalizationsDelegate

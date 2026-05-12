@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -600,115 +600,115 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
             mapToolbarEnabled: false,
           ),
           Positioned(
-            bottom: 24,
-            left: 16,
-            right: 16,
+            bottom: 30,
+            left: 20,
+            right: 20,
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A).withAlpha(240),
-                borderRadius: BorderRadius.circular(24),
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withAlpha(128),
+                    color: Colors.black.withAlpha(150),
                     blurRadius: 20,
-                    offset: const Offset(0, 10),
+                    offset: const Offset(0, 8),
                   ),
                 ],
+                border: Border.all(color: Colors.white.withAlpha(30)),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: const Color(0xFFE4A46B),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(28),
-                          child: widget.booking.driver?.profileImageUrl != null
-                              ? CachedNetworkImage(
-                                  imageUrl:
-                                      widget.booking.driver!.profileImageUrl!,
-                                  fit: BoxFit.cover,
-                                  errorWidget: (c, u, e) => const Icon(
-                                    Icons.person,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 32,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.booking.driver?.driverName ??
-                                  loc.driverMarkerTitle,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                  // Driver Profile Pic or First Letter
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: const Color(0xFFE4A46B),
+                    child: widget.booking.driver?.profileImageUrl != null &&
+                            widget.booking.driver!.profileImageUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(26),
+                            child: CachedNetworkImage(
+                              imageUrl: widget.booking.driver!.profileImageUrl!,
+                              fit: BoxFit.cover,
+                              errorWidget: (c, u, e) => Text(
+                                (widget.booking.driver?.driverName ??
+                                    "D")[0].toUpperCase(),
+                                style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18),
                               ),
                             ),
+                          )
+                        : Text(
+                            (widget.booking.driver?.driverName ??
+                                "D")[0].toUpperCase(),
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18),
+                          ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Driver Info and ETA
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.booking.driver?.driverName ?? "Driver",
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.timer_outlined,
+                                color: Colors.white.withAlpha(150), size: 14),
+                            const SizedBox(width: 4),
                             Text(
                               _isChauffeur
-                                  ? loc.chauffeurServiceSubtitle
-                                  : '${widget.booking.carName ?? ""} â€¢ ${widget.booking.driver?.licenseNumber ?? ""}',
+                                  ? (_tripEnded
+                                      ? loc.tripEnded
+                                      : (_chauffeurStartTime == null
+                                          ? "00:00:00"
+                                          : _formatElapsed(_elapsed)))
+                                  : "$_currentEta (approx)",
                               style: TextStyle(
-                                color: Colors.white.withAlpha(150),
-                                fontSize: 11,
-                              ),
+                                  color: Colors.white.withAlpha(150),
+                                  fontSize: 12),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(Icons.location_on_outlined,
+                                color: Colors.white.withAlpha(150), size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              _currentDistance,
+                              style: TextStyle(
+                                  color: Colors.white.withAlpha(150),
+                                  fontSize: 12),
                             ),
                           ],
                         ),
-                      ),
-                      Material(
-                        color: const Color(0xFFE4A46B),
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          onTap: () => _makePhoneCall(
-                            widget.booking.driver?.phoneNumber,
-                          ),
-                          child: const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: Icon(Icons.phone, color: Colors.black),
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Divider(color: Colors.white10, height: 1),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatColumn(
-                        Icons.timer_outlined,
-                        _isChauffeur
-                            ? (_tripEnded ? loc.tripEnded : loc.ongoing)
-                            : loc.etaPrefix,
-                        _isChauffeur
-                            ? (_chauffeurStartTime == null
-                                  ? "--:--"
-                                  : _formatElapsed(_elapsed))
-                            : _currentEta,
+                  // Call Button
+                  Material(
+                    color: const Color(0xFFE4A46B),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: () =>
+                          _makePhoneCall(widget.booking.driver?.phoneNumber),
+                      borderRadius: BorderRadius.circular(25),
+                      child: const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Icon(Icons.phone, color: Colors.black, size: 24),
                       ),
-                      Container(width: 1, height: 32, color: Colors.white10),
-                      _buildStatColumn(
-                        Icons.map_outlined,
-                        loc.totalDistance,
-                        _driverLocation != null ? _currentDistance : "-- km",
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
@@ -719,31 +719,5 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     );
   }
 
-  Widget _buildStatColumn(IconData icon, String label, String value) {
-    return Column(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white38, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white38, fontSize: 12),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
 }
 

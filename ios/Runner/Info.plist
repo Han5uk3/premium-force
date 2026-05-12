@@ -81,6 +81,12 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Payment processing requires local network access</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_paytabs._tcp</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -89,6 +95,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.googleusercontent.apps.265361809546-8ucet0uausd5aacl6nsatt9b5inbchf8</string>
+				<string>paytabs</string>
 			</array>
 		</dict>
 	</array>

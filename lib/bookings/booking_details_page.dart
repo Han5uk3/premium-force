@@ -10,6 +10,8 @@ import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/api/apis.dart';
+import 'package:premium_force_main/ride_booking/payment_rejected_page.dart';
+import 'package:premium_force_main/ride_booking/payment_cancelled_page.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
@@ -72,10 +74,23 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     final specialId = userData?['specialId']?.toString();
     if (specialId == null || specialId.isEmpty) return;
 
-    final result = await _apiService.getSpecialContentByCode(code: specialId);
+    // Get user's email for validation
+    final userEmail = userData?['email']?.toString() ?? '';
+
+    // Check if discount is approved
+    final isDiscountApproved =
+        userData?['isDiscountApproved'] == 'approved';
+
+    if (!isDiscountApproved) return;
+
+    final result = await _apiService.validatePromoCode(
+      code: specialId,
+      companyEmail: userEmail,
+    );
+
     if (result['success'] == true) {
       final promo = result['data'];
-      if (promo != null && promo['isActive'] == true) {
+      if (promo != null) {
         if (mounted) {
           setState(() {
             _discountPercentage = _parseDouble(
@@ -1253,10 +1268,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           orderId: orderId,
           customerEmail: userData?['email'] ?? '',
           customerName: userData?['name'] ?? 'Customer',
-          customerPhone:
-              userData?['phoneNumber'] ??
-              UserLocalStorage.getPhoneNumber() ??
-              '',
+          customerPhone: (booking.passengerMobile != null &&
+                  booking.passengerMobile!.isNotEmpty)
+              ? booking.passengerMobile!
+              : (userData?['phoneNumber'] ??
+                  UserLocalStorage.getPhoneNumber() ??
+                  ''),
           cartId: orderId,
           cartDescription:
               'Extra ${booking.extraHours} hour(s) — Chauffeur booking ${booking.id}',
@@ -1267,7 +1284,6 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         // Update booking extra details and mark as completed
         final token = UserLocalStorage.getToken();
         final result = await _apiService.updateHourlyExtraPayment(
-          
           bookingId: booking.id,
           extraOrderID: orderId,
           extraTransactionID: paymentResult.transactionReference,
@@ -1304,11 +1320,30 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             );
           }
         }
-      } else {
-        if (mounted) {
-          AnimatedSnackBar.show(context, paymentResult.responseMessage, 'E');
+        } else {
+          if (mounted) {
+            if (paymentResult.responseCode == 'EVENT_CANCELLED' ||
+                paymentResult.responseMessage.toLowerCase() == "cancel" ||
+                paymentResult.responseMessage.toLowerCase() ==
+                    "payment cancelled") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PaymentCancelledPage(),
+                ),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PaymentRejectedPage(
+                    errorMessage: paymentResult.responseMessage,
+                  ),
+                ),
+              );
+            }
+          }
         }
-      }
     } catch (e) {
       if (mounted) {
         AnimatedSnackBar.show(
@@ -1393,7 +1428,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   Future<void> _cancelBooking() async {
     try {
       final token = UserLocalStorage.getToken();
-      
+
       final result = await _apiService.cancelBooking(
         bookingId: widget.booking.id,
         token: token,

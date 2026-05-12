@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_paytabs_bridge/BaseBillingShippingInfo.dart';
+import 'package:flutter_paytabs_bridge/IOSThemeConfiguration.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkConfigurationDetails.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkLocale.dart';
 import 'package:flutter_paytabs_bridge/flutter_paytabs_bridge.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkTokeniseType.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkTransactionType.dart';
+import 'package:flutter_paytabs_bridge/PaymentSdkTokenFormat.dart';
+
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
 
@@ -41,15 +44,27 @@ class PaymentService {
   Future<PaymentResult> startPayment({required PaymentRequest request}) async {
     final Completer<PaymentResult> completer = Completer<PaymentResult>();
 
-    debugPrint('🚀 PaymentService.startPayment called for Order: ${request.orderId}');
+    debugPrint(
+      '🚀 PaymentService.startPayment called for Order: ${request.orderId}',
+    );
     try {
-
       debugPrint('🔄 Processing payment...');
       debugPrint('Amount: ${request.amount} ${request.currency}');
       debugPrint('Order ID: ${request.orderId}');
 
-      // 1. Configure Billing Details
+      // 1. Configure Billing & Shipping Details
       var billingDetails = BillingDetails(
+        request.customerName,
+        request.customerEmail,
+        request.customerPhone,
+        "", // Address
+        request.merchantCountryCode,
+        "", // City
+        "", // State
+        "", // Zip
+      );
+
+      var shippingDetails = ShippingDetails(
         request.customerName,
         request.customerEmail,
         request.customerPhone,
@@ -70,19 +85,36 @@ class PaymentService {
         merchantName: "Premium Force",
         screentTitle: "Pay with Card",
         amount: request.amount,
-        showBillingInfo: true,
+        showBillingInfo: false,
+        showShippingInfo: false,
+        isDigitalProduct: true,
         currencyCode: request.currency,
         merchantCountryCode: request.merchantCountryCode,
         billingDetails: billingDetails,
+        shippingDetails: shippingDetails,
         locale: PaymentSdkLocale.EN,
         transactionType: PaymentSdkTransactionType.SALE,
-        tokeniseType: PaymentSdkTokeniseType.NONE,
+        tokeniseType: PaymentSdkTokeniseType.USER_OPTIONAL,
+        tokenFormat: PaymentSdkTokenFormat.Hex32Format,
       );
+
+      var theme = IOSThemeConfigurations();
+      theme.backgroundColor = "#000000";
+      theme.primaryColor = "#FFFFFF";
+      theme.secondaryColor = "#000000";
+      theme.primaryFontColor = "#000000";
+      theme.secondaryFontColor = "#000000";
+      theme.buttonColor = "#ffffff";
+      theme.buttonFontColor = "#000000";
+      theme.titleFontColor = "#000000";
+      theme.logoImage = "assets/applogo/premiumforcelogo.png";
+
+      configuration.iOSThemeConfigurations = theme;
 
       // 3. Initiate Payment
       FlutterPaytabsBridge.startCardPayment(configuration, (event) {
         debugPrint('🎯 PayTabs Callback Received: $event');
-        
+
         if (completer.isCompleted) return;
 
         if (event["status"] == "success") {
@@ -90,72 +122,95 @@ class PaymentService {
           debugPrint('Transaction Details: $transactionDetails');
 
           if (transactionDetails["isSuccess"]) {
-            completer.complete(PaymentResult(
-              success: true,
-              transactionReference: transactionDetails["transactionReference"] ?? '',
-              invoiceId: transactionDetails["cartId"] ?? '',
-              responseCode: transactionDetails["paymentResult"]?["responseCode"] ?? '000',
-              responseMessage: transactionDetails["paymentResult"]?["responseMessage"] ?? 'Success',
-              agreementId: transactionDetails["agreementId"],
-              customerEmail: request.customerEmail,
-              amount: request.amount,
-            ));
+            completer.complete(
+              PaymentResult(
+                success: true,
+                transactionReference:
+                    transactionDetails["transactionReference"] ?? '',
+                invoiceId: transactionDetails["cartId"] ?? '',
+                responseCode:
+                    transactionDetails["paymentResult"]?["responseCode"] ??
+                    '000',
+                responseMessage:
+                    transactionDetails["paymentResult"]?["responseMessage"] ??
+                    'Success',
+                agreementId: transactionDetails["agreementId"],
+                customerEmail: request.customerEmail,
+                amount: request.amount,
+              ),
+            );
           } else {
-            completer.complete(PaymentResult(
-              success: false,
-              transactionReference: transactionReferenceFromMap(transactionDetails),
-              invoiceId: transactionDetails["cartId"] ?? '',
-              responseCode: transactionDetails["paymentResult"]?["responseCode"] ?? 'ERR',
-              responseMessage: transactionDetails["paymentResult"]?["responseMessage"] ?? 'Payment Failed',
-              customerEmail: request.customerEmail,
-              amount: request.amount,
-            ));
+            completer.complete(
+              PaymentResult(
+                success: false,
+                transactionReference: transactionReferenceFromMap(
+                  transactionDetails,
+                ),
+                invoiceId: transactionDetails["cartId"] ?? '',
+                responseCode:
+                    transactionDetails["paymentResult"]?["responseCode"] ??
+                    'ERR',
+                responseMessage:
+                    transactionDetails["paymentResult"]?["responseMessage"] ??
+                    'Payment Failed',
+                customerEmail: request.customerEmail,
+                amount: request.amount,
+              ),
+            );
           }
         } else if (event["status"] == "error") {
           debugPrint('PayTabs Error: ${event["message"]}');
-          completer.complete(PaymentResult(
-            success: false,
-            transactionReference: '',
-            invoiceId: '',
-            responseCode: 'ERROR',
-            responseMessage: event["message"] ?? 'Unknown Error',
-            customerEmail: request.customerEmail,
-            amount: request.amount,
-          ));
+          completer.complete(
+            PaymentResult(
+              success: false,
+              transactionReference: '',
+              invoiceId: '',
+              responseCode: 'ERROR',
+              responseMessage: event["message"] ?? 'Unknown Error',
+              customerEmail: request.customerEmail,
+              amount: request.amount,
+            ),
+          );
         } else if (event["status"] == "event") {
           debugPrint('PayTabs Internal Event: ${event["message"]}');
           if (!completer.isCompleted) {
             final msg = event["message"]?.toString().toLowerCase();
-            completer.complete(PaymentResult(
-              success: false,
-              transactionReference: '',
-              invoiceId: '',
-              responseCode: 'EVENT_CANCELLED',
-              responseMessage: msg == "cancel"
-                  ? "Payment Cancelled"
-                  : (event["message"] ?? 'Payment activity stopped'),
-              customerEmail: request.customerEmail,
-              amount: request.amount,
-            ));
+            completer.complete(
+              PaymentResult(
+                success: false,
+                transactionReference: '',
+                invoiceId: '',
+                responseCode: 'EVENT_CANCELLED',
+                responseMessage: msg == "cancel"
+                    ? "Payment Cancelled"
+                    : (event["message"] ?? 'Payment activity stopped'),
+                customerEmail: request.customerEmail,
+                amount: request.amount,
+              ),
+            );
           }
         } else {
           // Catch any other status (like direct 'cancel' in some SDK versions)
-          final status = (event["status"] ?? 'UNKNOWN').toString().toLowerCase();
+          final status = (event["status"] ?? 'UNKNOWN')
+              .toString()
+              .toLowerCase();
           final msg = (event["message"] ?? '').toString().toLowerCase();
-          
+
           debugPrint('PayTabs Other Status: $status - $msg');
-          
-          completer.complete(PaymentResult(
-            success: false,
-            transactionReference: '',
-            invoiceId: '',
-            responseCode: status.toUpperCase(),
-            responseMessage: (status == "cancel" || msg == "cancel")
-                ? "Payment Cancelled"
-                : (event["message"] ?? 'Transaction failed or was stopped'),
-            customerEmail: request.customerEmail,
-            amount: request.amount,
-          ));
+
+          completer.complete(
+            PaymentResult(
+              success: false,
+              transactionReference: '',
+              invoiceId: '',
+              responseCode: status.toUpperCase(),
+              responseMessage: (status == "cancel" || msg == "cancel")
+                  ? "Payment Cancelled"
+                  : (event["message"] ?? 'Transaction failed or was stopped'),
+              customerEmail: request.customerEmail,
+              amount: request.amount,
+            ),
+          );
         }
       });
 
@@ -175,10 +230,10 @@ class PaymentService {
   }
 
   String transactionReferenceFromMap(dynamic data) {
-      if (data is Map && data.containsKey("transactionReference")) {
-          return data["transactionReference"] ?? "";
-      }
-      return "";
+    if (data is Map && data.containsKey("transactionReference")) {
+      return data["transactionReference"] ?? "";
+    }
+    return "";
   }
 
   /// Query transaction status

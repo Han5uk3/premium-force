@@ -588,10 +588,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get charge => 'Charge';
 
   @override
+  String get allowSimilarVehicle => 'Allow Similar Vehicle';
+
+  @override
   String get noCarsAvailable => 'No cars available';
 
   @override
   String get bookService => 'Book Service';
+
+  @override
+  String get companyEmail => 'companyEmail';
 
   @override
   String get logoutConfirm => 'Are you sure you want to log out?';
@@ -1058,4 +1064,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backToLogin => 'Back to Login';
+
+  @override
+  String get similarVehicleNote =>
+      'If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications.';
 }

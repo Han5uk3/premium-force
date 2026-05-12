@@ -46,6 +46,7 @@ class BookingRequestModel {
   String? customerName;
   double? vat;
   double? extraVat;
+  bool? allowSimilarVehicle;
 
   BookingRequestModel({
     this.category,
@@ -92,6 +93,7 @@ class BookingRequestModel {
     this.customerName,
     this.vat,
     this.extraVat,
+    this.allowSimilarVehicle,
   });
 
   Map<String, dynamic> toMap() {
@@ -141,6 +143,7 @@ class BookingRequestModel {
       if (customerName != null) 'customerName': customerName,
       if (vat != null) 'vat': vat,
       if (extraVat != null) 'extraVat': extraVat,
+      if (allowSimilarVehicle != null) 'allowSimilarVehicle': allowSimilarVehicle,
     };
   }
 

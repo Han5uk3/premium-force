@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/bookings/bookings_page.dart';
@@ -7,6 +7,8 @@ import 'package:premium_force_main/account/account.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/home/homepage.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+
+
 
 class Home extends StatefulWidget {
   const Home({super.key, this.isfromSuccessPage = false});
@@ -113,6 +115,8 @@ class _HomeState extends State<Home> {
           onPageChanged: _onPageChanged,
           children: [Homepage(), BookingsPage(), AccountPage()],
         ),
+
+
         resizeToAvoidBottomInset: true,
         bottomNavigationBar: BottomNavBar(
           selectedIndex: _selectedIndex,

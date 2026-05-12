@@ -584,10 +584,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get charge => 'الرسوم';
 
   @override
+  String get allowSimilarVehicle => 'السماح بمركبة مشابهة';
+
+  @override
   String get noCarsAvailable => 'لا توجد سيارات متاحة';
 
   @override
   String get bookService => 'حجز الخدمة';
+
+  @override
+  String get companyEmail => 'البريد الالكتروني';
 
   @override
   String get logoutConfirm => 'هل أنت متأكد من تسجيل الخروج؟';
@@ -1047,4 +1053,8 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get backToLogin => 'العودة إلى تسجيل الدخول';
+
+  @override
+  String get similarVehicleNote =>
+      'في حال عدم توفر المركبة المختارة، سنقوم بتوفير بديل مماثل يلبي جميع متطلباتك.';
 }

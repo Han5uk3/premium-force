@@ -25,6 +25,11 @@ import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/home/fleet_list_page.dart';
 import 'package:premium_force_main/models/pricing/zone_model.dart';
+import 'package:premium_force_main/common_widgets/tracking_card.dart';
+
+
+
+
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -626,7 +631,22 @@ class _HomepageState extends State<Homepage>
               _buildAppbar(context, loc),
               SizedBox(height: 8),
               _buildBookService(context, loc),
+              Consumer<BookingProvider>(
+                builder: (context, bookingProvider, child) {
+                  try {
+                    final trackingBooking = bookingProvider.bookings.firstWhere(
+                      (b) =>
+                          b.bookingStatus?.toLowerCase().trim() ==
+                          'starttracking',
+                    );
+                    return TrackingCard(booking: trackingBooking);
+                  } catch (_) {
+                    return const SizedBox.shrink();
+                  }
+                },
+              ),
               _buildPremiumFleet(context, loc),
+
               Flexible(child: _buildRecentBookings(context, loc)),
               Container(
                 height: 130,
@@ -638,6 +658,7 @@ class _HomepageState extends State<Homepage>
       ),
     );
   }
+
 
   Widget _buildRecentBookings(BuildContext context, AppLocalizations loc) {
     return Consumer<BookingProvider>(

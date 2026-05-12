@@ -184,7 +184,9 @@
   "paymentSummary": "ملخص الدفع",
   "km": "كم",
   "discount": "خصم",
+  "companyEmail": "البريد الالكتروني",
   "charge": "الرسوم",
+  "allowSimilarVehicle": "السماح بمركبة مشابهة",
   "bookService": "حجز الخدمة",
   "noRecentBookings": "لا توجد حجوزات سابقة",
   "logoutConfirm": "هل أنت متأكد من تسجيل الخروج؟",
@@ -336,5 +338,6 @@
   "accountBlockedTitle": "تم حظر الحساب",
   "accountBlockedMessage": "تم إلغاء تنشيط حسابك. يرجى الاتصال بالدعم للمساعدة.",
   "contactSupport": "اتصل بالدعم",
-  "backToLogin": "العودة إلى تسجيل الدخول"
+  "backToLogin": "العودة إلى تسجيل الدخول",
+  "similarVehicleNote": "في حال عدم توفر المركبة المختارة، سنقوم بتوفير بديل مماثل يلبي جميع متطلباتك."
 }

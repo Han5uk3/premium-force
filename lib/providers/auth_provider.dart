@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -533,14 +534,16 @@ class AuthProvider extends ChangeNotifier {
 
   /// Extracts tokens from API response and saves them to local storage.
   Future<void> _saveAuthTokens(Map<String, dynamic> result) async {
-    final tokens = result['tokens'];
+    final data = result['data'];
+    final tokens = result['tokens'] ?? (data is Map ? data['tokens'] : null);
+    
     final accessToken = (tokens is Map
             ? (tokens['accessToken'] ?? tokens['token'])
-            : (result['accessToken'] ?? result['token']))
+            : (result['accessToken'] ?? result['token'] ?? (data is Map ? (data['accessToken'] ?? data['token']) : null)))
         as String?;
     final refreshToken = (tokens is Map
             ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-            : (result['refreshToken'] ?? result['refresh_token']))
+            : (result['refreshToken'] ?? result['refresh_token'] ?? (data is Map ? (data['refreshToken'] ?? data['refresh_token']) : null)))
         as String?;
 
     if (accessToken != null && accessToken.isNotEmpty) {
@@ -598,66 +601,59 @@ class AuthProvider extends ChangeNotifier {
       }
 
       debugPrint('🔐 Google Sign-In │ Email: ${result.email}');
+      dev.log('🔐 Google Sign-In │ ID Token: ${result.idToken}');
 
-      // Step 2: Check if email exists in backend
-      final emailCheckResponse = await _api.checkEmailExists(
-        email: result.email,
-      );
-      debugPrint(
-        '🔐 Google Sign-In │ Email check response: $emailCheckResponse',
-      );
+      // Step 2: Backend login/check using Google token
+      if (result.idToken != null) {
+        final authResponse = await _api.googleAuth(idToken: result.idToken!);
+        debugPrint('🔐 Google Sign-In │ Auth response: $authResponse');
 
-      final emailExists = emailCheckResponse['success'] == true &&
-          (emailCheckResponse['exists'] == true ||
-              emailCheckResponse['data'] != null);
+        if (authResponse['success'] == true) {
+          final authData = authResponse['data'];
+          final bool userExists = authData is Map && authData['userExists'] == true;
 
-      if (emailExists) {
-        debugPrint('🔐 Google Sign-In │ Email exists. Fetching user data...');
+          if (userExists) {
+            // Existing user: Authenticate
+            await _saveAuthTokens(authResponse);
 
-        var userData = emailCheckResponse['user'] ?? emailCheckResponse['data'];
-        if (userData is Map<String, dynamic>) {
-          if (userData.containsKey('user') &&
-              userData['user'] is Map<String, dynamic>) {
-            userData = userData['user'];
-          }
+            var userData = authData['user'];
+            if (userData is Map<String, dynamic>) {
+              _user = UserModel.fromJson(userData);
+              final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
+              final phone = (userData['phoneNumber'] ?? '').toString();
 
-          _user = UserModel.fromJson(userData);
-          final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
-          final phone = (userData['phoneNumber'] ?? '').toString();
+              await UserLocalStorage.saveUserCredentials(
+                userId: uid,
+                phoneNumber: phone,
+                countryCode: userData['countryCode']?.toString() ?? "",
+              );
 
-          // Step 3a(ii): Backend login using Google token
-          if (result.idToken != null) {
-            final authResponse = await _api.googleAuth(idToken: result.idToken!);
-            if (authResponse['success'] == true) {
-              await _saveAuthTokens(authResponse);
-              debugPrint('✅ Google Sign-In │ Tokens saved for persistence');
+              await UserLocalStorage.saveUserData(userData);
+
+              _status = AuthStatus.authenticated;
+              debugPrint(
+                '✅ Google Sign-In │ Existing user authenticated: ${_user?.username}',
+              );
+
+              // Sync FCM token after successful Google login
+              unawaited(NotificationService.instance.syncTokenWithBackend());
+            } else {
+              _status = AuthStatus.failure;
+              _errorMessage = 'User data missing from authentication response';
             }
+          } else {
+            // New user: Go to signup
+            _status = AuthStatus.otpVerified;
+            debugPrint('🆕 Google Sign-In │ New user. Going to signup.');
           }
-
-          await UserLocalStorage.saveUserCredentials(
-            userId: uid,
-            phoneNumber: phone,
-            countryCode: userData['countryCode']?.toString() ?? "",
-          );
-
-          await UserLocalStorage.saveUserData(userData);
-
-          _status = AuthStatus.authenticated;
-          debugPrint(
-            '✅ Google Sign-In │ Existing user authenticated: ${_user?.username}',
-          );
-          
-          // Sync FCM token after successful Google login
-          unawaited(NotificationService.instance.syncTokenWithBackend());
         } else {
-          _status = AuthStatus.otpVerified;
-          debugPrint(
-            '⚠️ Google Sign-In │ Email exists but no user data. Going to signup.',
-          );
+          _status = AuthStatus.failure;
+          _errorMessage = authResponse['message'] ?? 'Backend authentication failed';
+          debugPrint('❌ Google Sign-In │ Backend Auth Failed: $_errorMessage');
         }
       } else {
-        _status = AuthStatus.otpVerified;
-        debugPrint('🆕 Google Sign-In │ New user email. Going to signup.');
+        _status = AuthStatus.failure;
+        _errorMessage = 'Google ID Token is missing';
       }
     } catch (e) {
       debugPrint('Google Sign-In error: $e');
@@ -705,66 +701,59 @@ class AuthProvider extends ChangeNotifier {
       }
 
       debugPrint('🍎 Apple Sign-In │ User ID: ${result.userId}');
+      dev.log('🍎 Apple Sign-In │ ID Token: ${result.idToken}');
 
-      // Step 2: Check if email exists in backend
-      final emailCheckResponse = await _api.checkEmailExists(
-        email: result.email,
-      );
-      debugPrint(
-        '🍎 Apple Sign-In │ Email check response: $emailCheckResponse',
-      );
+      // Step 2: Backend login/check using Apple token
+      if (result.idToken != null) {
+        final authResponse = await _api.appleAuth(idToken: result.idToken!);
+        debugPrint('🍎 Apple Sign-In │ Auth response: $authResponse');
 
-      final emailExists = emailCheckResponse['success'] == true &&
-          (emailCheckResponse['exists'] == true ||
-              emailCheckResponse['data'] != null);
+        if (authResponse['success'] == true) {
+          final authData = authResponse['data'];
+          final bool userExists = authData is Map && authData['userExists'] == true;
 
-      if (emailExists) {
-        debugPrint('🍎 Apple Sign-In │ Email exists. Fetching user data...');
+          if (userExists) {
+            // Existing user: Authenticate
+            await _saveAuthTokens(authResponse);
 
-        var userData = emailCheckResponse['user'] ?? emailCheckResponse['data'];
-        if (userData is Map<String, dynamic>) {
-          if (userData.containsKey('user') &&
-              userData['user'] is Map<String, dynamic>) {
-            userData = userData['user'];
-          }
+            var userData = authData['user'];
+            if (userData is Map<String, dynamic>) {
+              _user = UserModel.fromJson(userData);
+              final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
+              final phone = (userData['phoneNumber'] ?? '').toString();
 
-          _user = UserModel.fromJson(userData);
-          final uid = (userData['_id'] ?? userData['id'] ?? '').toString();
-          final phone = (userData['phoneNumber'] ?? '').toString();
+              await UserLocalStorage.saveUserCredentials(
+                userId: uid,
+                phoneNumber: phone,
+                countryCode: userData['countryCode']?.toString() ?? "",
+              );
 
-          // Step 3a(ii): Backend login using Apple token
-          if (result.idToken != null) {
-            final authResponse = await _api.appleAuth(idToken: result.idToken!);
-            if (authResponse['success'] == true) {
-              await _saveAuthTokens(authResponse);
-              debugPrint('🍎 Apple Sign-In │ Tokens saved for persistence');
+              await UserLocalStorage.saveUserData(userData);
+
+              _status = AuthStatus.authenticated;
+              debugPrint(
+                '✅ Apple Sign-In │ Existing user authenticated: ${_user?.username}',
+              );
+
+              // Sync FCM token after successful Apple login
+              unawaited(NotificationService.instance.syncTokenWithBackend());
+            } else {
+              _status = AuthStatus.failure;
+              _errorMessage = 'User data missing from authentication response';
             }
+          } else {
+            // New user: Go to signup
+            _status = AuthStatus.otpVerified;
+            debugPrint('🆕 Apple Sign-In │ New user. Going to signup.');
           }
-
-          await UserLocalStorage.saveUserCredentials(
-            userId: uid,
-            phoneNumber: phone,
-            countryCode: userData['countryCode']?.toString() ?? "",
-          );
-
-          await UserLocalStorage.saveUserData(userData);
-
-          _status = AuthStatus.authenticated;
-          debugPrint(
-            '✅ Apple Sign-In │ Existing user authenticated: ${_user?.username}',
-          );
-          
-          // Sync FCM token after successful Apple login
-          unawaited(NotificationService.instance.syncTokenWithBackend());
         } else {
-          _status = AuthStatus.otpVerified;
-          debugPrint(
-            '⚠️ Apple Sign-In │ Email exists but no user data. Going to signup.',
-          );
+          _status = AuthStatus.failure;
+          _errorMessage = authResponse['message'] ?? 'Backend authentication failed';
+          debugPrint('❌ Apple Sign-In │ Backend Auth Failed: $_errorMessage');
         }
       } else {
-        _status = AuthStatus.otpVerified;
-        debugPrint('🆕 Apple Sign-In │ New user email. Going to signup.');
+        _status = AuthStatus.failure;
+        _errorMessage = 'Apple ID Token is missing';
       }
     } catch (e) {
       debugPrint('Apple Sign-In error: $e');

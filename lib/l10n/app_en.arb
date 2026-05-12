@@ -189,8 +189,10 @@
   "km": "KM",
   "discount": "Discount",
   "charge": "Charge",
+  "allowSimilarVehicle":"Allow Similar Vehicle",
   "noCarsAvailable": "No cars available",
   "bookService": "Book Service",
+  "companyEmail": "companyEmail",
   "logoutConfirm": "Are you sure you want to log out?",
   "cancel": "Cancel",
   "remove": "Remove",
@@ -334,5 +336,6 @@
   "accountBlockedTitle": "Account Blocked",
   "accountBlockedMessage": "Your account has been deactivated. Please contact support for assistance.",
   "contactSupport": "Contact Support",
-  "backToLogin": "Back to Login"
+  "backToLogin": "Back to Login",
+  "similarVehicleNote": "If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications."
 }

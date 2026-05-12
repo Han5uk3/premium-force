@@ -15,7 +15,6 @@ import 'package:country_picker/country_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 
-
 class SignUpPage extends StatefulWidget {
   final String countryCode;
   final String phoneNumber;
@@ -46,6 +45,7 @@ class _SignUpPageState extends State<SignUpPage>
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _specialIdController = TextEditingController();
+  final TextEditingController _companyEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
   File? _profileImage;
@@ -62,6 +62,7 @@ class _SignUpPageState extends State<SignUpPage>
   bool _isCheckingPromo = false;
   bool _isPromoValid = false;
   String? _appliedPromoId;
+  String? _promoSuccessText;
 
   @override
   void initState() {
@@ -110,6 +111,7 @@ class _SignUpPageState extends State<SignUpPage>
     _emailController.dispose();
     _locationController.dispose();
     _specialIdController.dispose();
+    _companyEmailController.dispose();
     _phoneController.dispose();
     _animController.dispose();
     super.dispose();
@@ -276,6 +278,7 @@ class _SignUpPageState extends State<SignUpPage>
 
   Future<void> _verifyPromoCode() async {
     final code = _specialIdController.text.trim();
+    final companyEmail = _companyEmailController.text.trim();
     if (code.isEmpty) return;
 
     setState(() {
@@ -284,14 +287,18 @@ class _SignUpPageState extends State<SignUpPage>
       _appliedPromoId = null;
     });
 
-    final result = await ApiService().getSpecialContentByCode(code: code);
+    final result = await ApiService().validatePromoCode(
+      code: code,
+      companyEmail: _isCorporateEmployee ? companyEmail : null,
+    );
 
     if (result['success'] == true) {
       final promo = result['data'];
-      if (promo != null && promo['isActive'] == true) {
+      if (promo != null) {
         setState(() {
           _isPromoValid = true;
-          _appliedPromoId = promo['_id'] ?? promo['id'];
+          _appliedPromoId = promo['code'] ?? code;
+          _promoSuccessText = promo['text'] ?? AppLocalizations.of(context)!.promoCodeAppliedSuccessfully;
         });
         if (mounted) {
           _showCustomSnackBar(
@@ -303,12 +310,11 @@ class _SignUpPageState extends State<SignUpPage>
         setState(() {
           _isPromoValid = false;
           _appliedPromoId = null;
+          _promoSuccessText = null;
         });
         if (mounted) {
           _showCustomSnackBar(
-            promo != null && promo['isActive'] == false
-                ? AppLocalizations.of(context)!.promoCodeIsInactive
-                : AppLocalizations.of(context)!.invalidPromoCode,
+            AppLocalizations.of(context)!.invalidPromoCode,
             type: "E",
           );
         }
@@ -330,6 +336,7 @@ class _SignUpPageState extends State<SignUpPage>
     setState(() {
       _isPromoValid = false;
       _appliedPromoId = null;
+      _promoSuccessText = null;
       _specialIdController.clear();
     });
     _showCustomSnackBar(
@@ -342,7 +349,6 @@ class _SignUpPageState extends State<SignUpPage>
     if (!_formKey.currentState!.validate()) return;
 
     // Profile image is now optional
-
 
     if (_locationController.text.isEmpty) {
       _showCustomSnackBar(
@@ -846,15 +852,44 @@ class _SignUpPageState extends State<SignUpPage>
 
                         if (_isCorporateEmployee) ...[
                           const SizedBox(height: 20),
-                          // Special ID (optional)
+                          // Company Email field
+                          PremiumTextField(
+                            title: AppLocalizations.of(context)!.companyEmail,
+                            controller: _companyEmailController,
+                            hintText: 'Enter your company email',
+                            fontsize: 13,
+                            needTitle: true,
+                            obscureText: false,
+                            readOnly: _isPromoValid,
+                            enabled: !_isPromoValid,
+                            prefixIcon: ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return const LinearGradient(
+                                  colors: [
+                                    Color(0xFF49280B),
+                                    Color(0xFFE4A46B),
+                                    Color(0xFF60350F),
+                                  ],
+                                ).createShader(bounds);
+                              },
+                              child: const Icon(
+                                Icons.email_outlined,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Promo Code field
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Expanded(
                                 flex: 3,
                                 child: PremiumTextField(
-                                  title:
-                                      AppLocalizations.of(context)!.promoCode,
+                                  title: AppLocalizations.of(
+                                    context,
+                                  )!.promoCode,
                                   controller: _specialIdController,
                                   hintText: AppLocalizations.of(
                                     context,
@@ -862,8 +897,8 @@ class _SignUpPageState extends State<SignUpPage>
                                   fontsize: 13,
                                   needTitle: true,
                                   obscureText: false,
-                                  readOnly: _isPromoValid, // Lock if valid
-                                  enabled: !_isPromoValid, // Lock if valid
+                                  readOnly: _isPromoValid,
+                                  enabled: !_isPromoValid,
                                   prefixIcon: ShaderMask(
                                     shaderCallback: (Rect bounds) {
                                       return const LinearGradient(
@@ -906,21 +941,95 @@ class _SignUpPageState extends State<SignUpPage>
                                           : AppLocalizations.of(context)!.apply,
                                       gradient: _isPromoValid
                                           ? [
-                                            Colors.red.shade800,
-                                            Colors.red.shade400,
-                                          ]
+                                              Colors.red.shade800,
+                                              Colors.red.shade400,
+                                            ]
                                           : null,
                                       onTap: _isCheckingPromo
                                           ? () {}
                                           : _isPromoValid
-                                              ? _removePromoCode
-                                              : _verifyPromoCode,
+                                          ? _removePromoCode
+                                          : _verifyPromoCode,
                                     ),
                                   ),
                                 ),
                               ),
                             ],
                           ),
+                          if (_isPromoValid) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.green.withAlpha(30),
+                                border: Border.all(
+                                  color: Colors.green.shade400,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green.shade400,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _promoSuccessText ??
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.promoCodeAppliedSuccessfully,
+                                          style: TextStyle(
+                                            color: Colors.green.shade300,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Divider(color: Colors.white24, height: 1),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.hourglass_empty,
+                                        color: Colors.orange.shade400,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        "Status: ",
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                      ),
+                                      Text(
+                                        "Verification Pending",
+                                        style: TextStyle(
+                                          color: Colors.orange.shade400,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
 
                         const SizedBox(height: 36),
@@ -1064,4 +1173,3 @@ class _SignUpPageState extends State<SignUpPage>
     );
   }
 }
-

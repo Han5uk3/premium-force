@@ -27,6 +27,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _specialIdController = TextEditingController();
+  final TextEditingController _companyEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
   File? _profileImage;
@@ -40,6 +41,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   bool _isPromoValid = false;
   String? _appliedPromoId;
   String? _initialPromoCode;
+  String? _promoSuccessText;
   OverlayEntry? _overlayEntry;
 
   @override
@@ -81,6 +83,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
     _emailController.dispose();
     _locationController.dispose();
     _specialIdController.dispose();
+    _companyEmailController.dispose();
     _phoneController.dispose();
     _animController.dispose();
     super.dispose();
@@ -258,6 +261,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
 
   Future<void> _verifyPromoCode() async {
     final code = _specialIdController.text.trim();
+    final companyEmail = _companyEmailController.text.trim();
     if (code.isEmpty) return;
 
     setState(() {
@@ -266,14 +270,18 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       _appliedPromoId = null;
     });
 
-    final result = await ApiService().getSpecialContentByCode(code: code);
+    final result = await ApiService().validatePromoCode(
+      code: code,
+      companyEmail: _isCorporateEmployee ? companyEmail : null,
+    );
 
     if (result['success'] == true) {
       final promo = result['data'];
-      if (promo != null && promo['isActive'] == true) {
+      if (promo != null) {
         setState(() {
           _isPromoValid = true;
-          _appliedPromoId = promo['_id'] ?? promo['id'];
+          _appliedPromoId = promo['code'] ?? code;
+          _promoSuccessText = promo['text'] ?? "Promo code applied successfully!";
         });
         if (mounted) {
           _showCustomSnackBar("Promo code applied successfully!", type: "S");
@@ -282,14 +290,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
         setState(() {
           _isPromoValid = false;
           _appliedPromoId = null;
+          _promoSuccessText = null;
         });
         if (mounted) {
-          _showCustomSnackBar(
-            promo != null && promo['isActive'] == false
-                ? "Promo code is inactive"
-                : "Invalid promo code",
-            type: "E",
-          );
+          _showCustomSnackBar("Invalid promo code", type: "E");
         }
       }
     } else {
@@ -308,6 +312,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
     setState(() {
       _isPromoValid = false;
       _appliedPromoId = null;
+      _promoSuccessText = null;
       _specialIdController.clear();
     });
     _showCustomSnackBar("Promo code removed", type: "W");
@@ -699,7 +704,35 @@ class _ManageProfilePageState extends State<ManageProfilePage>
 
                         if (_isCorporateEmployee) ...[
                           const SizedBox(height: 20),
-                          // Special ID (optional)
+                          // Company Email field
+                          PremiumTextField(
+                            title: AppLocalizations.of(context)!.companyEmail,
+                            controller: _companyEmailController,
+                            hintText: 'Enter your company email',
+                            fontsize: 13,
+                            needTitle: true,
+                            obscureText: false,
+                            readOnly: _isPromoValid,
+                            enabled: !_isPromoValid,
+                            prefixIcon: ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return const LinearGradient(
+                                  colors: [
+                                    Color(0xFF49280B),
+                                    Color(0xFFE4A46B),
+                                    Color(0xFF60350F),
+                                  ],
+                                ).createShader(bounds);
+                              },
+                              child: const Icon(
+                                Icons.email_outlined,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Promo Code field
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
@@ -775,6 +808,52 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                               ),
                             ],
                           ),
+                          if (_isPromoValid) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.green.withAlpha(30),
+                                border: Border.all(
+                                  color: Colors.green.shade400,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green.shade400,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _promoSuccessText ?? 'Promo code applied successfully!',
+                                          style: TextStyle(
+                                            color: Colors.green.shade300,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Divider(color: Colors.white24, height: 1),
+                                  const SizedBox(height: 8),
+                                  _buildStatusRow(user?.isDiscountApproved),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
 
                         const SizedBox(height: 36),
@@ -800,6 +879,58 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusRow(String? status) {
+    String label = "Verification Pending";
+    Color color = Colors.orange.shade400;
+    IconData icon = Icons.hourglass_empty;
+
+    // If the promo code has changed, it's pending until profile is saved and reviewed
+    final currentCode = _specialIdController.text.trim();
+    if (currentCode != _initialPromoCode) {
+      label = "Verification Pending";
+    } else {
+      switch (status?.toLowerCase()) {
+        case 'approved':
+          label = "Discount Approved";
+          color = Colors.green.shade400;
+          icon = Icons.verified;
+          break;
+        case 'rejected':
+          label = "Discount Rejected";
+          color = Colors.red.shade400;
+          icon = Icons.cancel;
+          break;
+        default:
+          label = "Verification Pending";
+          color = Colors.orange.shade400;
+          icon = Icons.hourglass_empty;
+      }
+    }
+
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 8),
+        Text(
+          "Status: ",
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 

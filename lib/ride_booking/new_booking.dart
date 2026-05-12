@@ -24,9 +24,13 @@ import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/payment_model.dart';
+import 'package:premium_force_main/services/payment_service.dart';
+import 'package:premium_force_main/utils/paytabs_config.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
+import 'package:premium_force_main/ride_booking/payment_rejected_page.dart';
+import 'package:premium_force_main/ride_booking/payment_cancelled_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:premium_force_main/utils/zone_helper.dart';
 import 'package:premium_force_main/models/pricing/zone_model.dart';
@@ -121,6 +125,7 @@ class _NewBookingState extends State<NewBooking> {
   int _selectedServiceDuration =
       0; // 0 for hourly, 1 for 8 hours, 2 for 12 hours
   int _selectedEstimatedHours = 1; // 1 to 12
+  bool _allowSimilarVehicle = true;
   double _vatPercentage = 15.0;
   final Map<String, double> _hourlyPrices = {};
 
@@ -133,13 +138,13 @@ class _NewBookingState extends State<NewBooking> {
     // For Chauffeur Service
     if (_selectedCatCode == 2) {
       double basePrice = _hourlyPrices[car.id] ?? car.price;
-      
+
       // If we are in "Hourly" mode (duration 0), we multiply by the number of hours.
       // The API returns the price for 1 hour when we pass 1.
       if (_selectedServiceDuration == 0) {
         return basePrice * _selectedEstimatedHours;
-      } 
-      
+      }
+
       // For fixed packages (8h, 12h, 999), the API returns the package price.
       return basePrice;
     }
@@ -378,7 +383,10 @@ class _NewBookingState extends State<NewBooking> {
 
     if (_selectedCatCode == 3) {
       // --- 🏎️ Private Transfer: New Zone-based Pricing Logic ---
-      if (_pickupLat == null || _pickupLng == null || _dropLat == null || _dropLng == null) {
+      if (_pickupLat == null ||
+          _pickupLng == null ||
+          _dropLat == null ||
+          _dropLng == null) {
         return {'success': false, 'message': 'Incomplete location data.'};
       }
 
@@ -390,12 +398,18 @@ class _NewBookingState extends State<NewBooking> {
       final dZone = ZoneHelper.detectZone(dPoint, _allZones);
 
       if (pZone == null || dZone == null) {
-        return {'success': false, 'message': 'Service not available to the selected area.'};
+        return {
+          'success': false,
+          'message': 'Service not available to the selected area.',
+        };
       }
 
       // 2. Check if service is active to the zones
       if (!pZone.isActive || !dZone.isActive) {
-        return {'success': false, 'message': 'Service not available to the selected area.'};
+        return {
+          'success': false,
+          'message': 'Service not available to the selected area.',
+        };
       }
 
       // 3. Fetch prices for this zone route
@@ -406,22 +420,33 @@ class _NewBookingState extends State<NewBooking> {
       );
 
       if (priceRes['success'] == true && priceRes['data'] != null) {
-        final List priceList = priceRes['data'] is List 
-            ? priceRes['data'] 
+        final List priceList = priceRes['data'] is List
+            ? priceRes['data']
             : (priceRes['data']['prices'] ?? []);
-        
+
         if (withVehicle && carId != null) {
           // Find price for the specific car
           try {
             final match = priceList.firstWhere((p) {
               dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
-              String vId = (vIdRaw is Map ? (vIdRaw['_id'] ?? vIdRaw['id']) : vIdRaw)?.toString() ?? '';
+              String vId =
+                  (vIdRaw is Map ? (vIdRaw['_id'] ?? vIdRaw['id']) : vIdRaw)
+                      ?.toString() ??
+                  '';
               return vId == carId;
             });
 
-            return {'success': true, 'data': {'charge': _parseDouble(match['charge'] ?? match['price'] ?? 0)}};
+            return {
+              'success': true,
+              'data': {
+                'charge': _parseDouble(match['charge'] ?? match['price'] ?? 0),
+              },
+            };
           } catch (_) {
-            return {'success': false, 'message': 'No price set for this vehicle on this route.'};
+            return {
+              'success': false,
+              'message': 'No price set for this vehicle on this route.',
+            };
           }
         } else {
           // return all valid vehicle IDs for filtering
@@ -429,14 +454,19 @@ class _NewBookingState extends State<NewBooking> {
               .where((p) => _parseDouble(p['charge'] ?? p['price'] ?? 0) > 0)
               .map((p) {
                 dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
-                return (vIdRaw is Map ? (vIdRaw['_id'] ?? vIdRaw['id']) : vIdRaw)?.toString();
+                return (vIdRaw is Map
+                        ? (vIdRaw['_id'] ?? vIdRaw['id'])
+                        : vIdRaw)
+                    ?.toString();
               })
               .whereType<String>()
               .toSet();
 
-          
           if (validCarIds.isEmpty) {
-            return {'success': false, 'message': 'No vehicles available for this route.'};
+            return {
+              'success': false,
+              'message': 'No vehicles available for this route.',
+            };
           }
           return {'success': true, 'data': validCarIds};
         }
@@ -656,10 +686,16 @@ class _NewBookingState extends State<NewBooking> {
     final specialId = userData?['specialId']?.toString();
     if (specialId == null || specialId.isEmpty) return;
 
-    final result = await ApiService().getSpecialContentByCode(code: specialId);
+    // Only apply if discount is approved
+    if (userData?['isDiscountApproved'] != 'approved') return;
+
+    final result = await ApiService().validatePromoCode(
+      code: specialId,
+      companyEmail: userData?['email']?.toString(),
+    );
     if (result['success'] == true) {
       final promo = result['data'];
-      if (promo != null && promo['isActive'] == true) {
+      if (promo != null) {
         if (mounted) {
           setState(() {
             _isPromoValid = true;
@@ -749,7 +785,7 @@ class _NewBookingState extends State<NewBooking> {
               debugPrint('🌐 API │ Zones Normalized: ${_allZones.length}');
             }
           }
-          
+
           Map<String, String> categoryIdToName = {};
           if (categoriesResult['success'] == true) {
             final categoriesData =
@@ -1059,19 +1095,19 @@ class _NewBookingState extends State<NewBooking> {
             // reset it to the first visible city according to the filter.
             if (_selectedCatCode == 3) {
               final String currentCityId =
-                  (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length)
-                      ? (_apiCities[_selectedCityCode]['_id'] ??
-                              _apiCities[_selectedCityCode]['id'] ??
-                              '')
-                          .toString()
-                      : '';
+                  (_apiCities.isNotEmpty &&
+                      _selectedCityCode < _apiCities.length)
+                  ? (_apiCities[_selectedCityCode]['_id'] ??
+                            _apiCities[_selectedCityCode]['id'] ??
+                            '')
+                        .toString()
+                  : '';
 
               final bool isCurrentCityHidden = !_allZones.any(
                 (z) => z.cityId == currentCityId && z.isActive,
               );
 
               if (isCurrentCityHidden) {
-
                 final visibleNames = _getAvailableCityNames(context);
                 if (visibleNames.isNotEmpty) {
                   final firstVisibleName = visibleNames.first;
@@ -1090,7 +1126,6 @@ class _NewBookingState extends State<NewBooking> {
               }
             }
           }
-
         });
       }
     } catch (e) {
@@ -1432,7 +1467,9 @@ class _NewBookingState extends State<NewBooking> {
                 } else if (r['vehicleID'] is Map) {
                   vId = r['vehicleID']['_id']?.toString();
                 } else {
-                  vId = (r['vehicle_id'] ?? r['vehicleID'] ?? r['_id'] ?? r['id'])?.toString();
+                  vId =
+                      (r['vehicle_id'] ?? r['vehicleID'] ?? r['_id'] ?? r['id'])
+                          ?.toString();
                 }
 
                 if (vId != null) {
@@ -1443,7 +1480,10 @@ class _NewBookingState extends State<NewBooking> {
             }
           }
           if (supportedIds.isEmpty) {
-            _showNoServiceAlert(message: "No vehicles available for this route. Please try another selection.");
+            _showNoServiceAlert(
+              message:
+                  "No vehicles available for this route. Please try another selection.",
+            );
           }
         }
       } else if (_selectedCatCode == 2) {
@@ -1465,15 +1505,15 @@ class _NewBookingState extends State<NewBooking> {
 
           for (var r in routes) {
             if (r is! Map) continue;
-            
+
             final carData = r['car'];
             final routeData = r['route'];
-            
+
             if (carData is Map && carData.isNotEmpty) {
               final vId = (carData['id'] ?? carData['_id'])?.toString();
               if (vId != null) {
                 supportedIds.add(vId);
-                
+
                 // Store the price from the route object
                 if (routeData is Map) {
                   final double price = _parseDouble(
@@ -1483,17 +1523,24 @@ class _NewBookingState extends State<NewBooking> {
                     _hourlyPrices[vId] = price;
                   }
                 }
-                debugPrint('🏎️ Filtering │ Hourly car found: $vId (Price: ${_hourlyPrices[vId]})');
+                debugPrint(
+                  '🏎️ Filtering │ Hourly car found: $vId (Price: ${_hourlyPrices[vId]})',
+                );
               }
             }
           }
           if (supportedIds.isEmpty) {
-            _showNoServiceAlert(message: "No vehicles available for the selected duration.");
+            _showNoServiceAlert(
+              message: "No vehicles available for the selected duration.",
+            );
           }
         }
       } else if (_selectedCatCode == 3) {
         // --- 🏎️ Private Transfer: New API Zone-based Filtering ---
-        if (_pickupLat == null || _pickupLng == null || _dropLat == null || _dropLng == null) {
+        if (_pickupLat == null ||
+            _pickupLng == null ||
+            _dropLat == null ||
+            _dropLng == null) {
           debugPrint('❌ Filtering │ Location data incomplete');
           setState(() => _isFilteringCars = false);
           return;
@@ -1507,9 +1554,13 @@ class _NewBookingState extends State<NewBooking> {
         final dZone = ZoneHelper.detectZone(dPoint, _allZones);
 
         if (pZone == null || dZone == null) {
-          debugPrint('❌ Filtering │ Zone not detected for P or D (P:${pZone?.id}, D:${dZone?.id})');
+          debugPrint(
+            '❌ Filtering │ Zone not detected for P or D (P:${pZone?.id}, D:${dZone?.id})',
+          );
           if (mounted) {
-            _showNoServiceAlert(message: "Service not available to the selected area.");
+            _showNoServiceAlert(
+              message: "Service not available to the selected area.",
+            );
           }
           setState(() {
             _supportedCarIds = {}; // No cars
@@ -1520,9 +1571,13 @@ class _NewBookingState extends State<NewBooking> {
 
         // 2. Check if service is active to the zones
         if (!pZone.isActive || !dZone.isActive) {
-          debugPrint('❌ Filtering │ Zone(s) inactive: P:${pZone.isActive}, D:${dZone.isActive}');
+          debugPrint(
+            '❌ Filtering │ Zone(s) inactive: P:${pZone.isActive}, D:${dZone.isActive}',
+          );
           if (mounted) {
-            _showNoServiceAlert(message: "Service not available to the selected area.");
+            _showNoServiceAlert(
+              message: "Service not available to the selected area.",
+            );
           }
           setState(() {
             _supportedCarIds = {}; // No cars
@@ -1531,7 +1586,9 @@ class _NewBookingState extends State<NewBooking> {
           return;
         }
 
-        debugPrint('🏎️ Filtering │ Detected Zones -> P: ${pZone.nameEn} (${pZone.id}), D: ${dZone.nameEn} (${dZone.id})');
+        debugPrint(
+          '🏎️ Filtering │ Detected Zones -> P: ${pZone.nameEn} (${pZone.id}), D: ${dZone.nameEn} (${dZone.id})',
+        );
 
         // 3. Fetch prices for this zone route to see which cars are available
         final priceRes = await api.getZonePrices(
@@ -1541,33 +1598,43 @@ class _NewBookingState extends State<NewBooking> {
         );
 
         if (priceRes['success'] == true && priceRes['data'] != null) {
-          final List priceList = priceRes['data'] is List 
-              ? priceRes['data'] 
+          final List priceList = priceRes['data'] is List
+              ? priceRes['data']
               : (priceRes['data']['prices'] ?? []);
-          
+
           final validCarIds = priceList
               .where((p) => _parseDouble(p['charge'] ?? p['price'] ?? 0) > 0)
               .map((p) {
                 dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
-                return (vIdRaw is Map ? (vIdRaw['_id'] ?? vIdRaw['id']) : vIdRaw)?.toString();
+                return (vIdRaw is Map
+                        ? (vIdRaw['_id'] ?? vIdRaw['id'])
+                        : vIdRaw)
+                    ?.toString();
               })
               .whereType<String>()
               .toSet();
 
-
           if (validCarIds.isEmpty) {
-            debugPrint('⚠️ Filtering │ No cars with prices found for this zone route.');
+            debugPrint(
+              '⚠️ Filtering │ No cars with prices found for this zone route.',
+            );
             if (mounted) {
-              _showNoServiceAlert(message: "No vehicles available for this route.");
+              _showNoServiceAlert(
+                message: "No vehicles available for this route.",
+              );
             }
           } else {
             supportedIds.addAll(validCarIds);
             debugPrint('✅ Filtering │ Zone cars found: ${supportedIds.length}');
           }
         } else {
-          debugPrint('❌ Filtering │ API Error fetching zone prices: ${priceRes['message']}');
+          debugPrint(
+            '❌ Filtering │ API Error fetching zone prices: ${priceRes['message']}',
+          );
           if (mounted) {
-            _showNoServiceAlert(message: "Service not available for this route.");
+            _showNoServiceAlert(
+              message: "Service not available for this route.",
+            );
           }
         }
       }
@@ -1730,6 +1797,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   void _handleBackAction() {
+    if (_isBooking) return;
     if (showReviewAndConfirm) {
       setState(() {
         showReviewAndConfirm = false;
@@ -1763,7 +1831,7 @@ class _NewBookingState extends State<NewBooking> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     return PopScope(
-      canPop: showTripInfo,
+      canPop: showTripInfo && !_isBooking,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
         if (didPop) return;
         _handleBackAction();
@@ -1776,8 +1844,10 @@ class _NewBookingState extends State<NewBooking> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Scaffold(
-          appBar: buidAppBar(context),
+        child: AbsorbPointer(
+          absorbing: _isBooking,
+          child: Scaffold(
+            appBar: buidAppBar(context),
           backgroundColor: Colors.transparent,
           body: SingleChildScrollView(
             controller: _scrollController,
@@ -1927,7 +1997,6 @@ class _NewBookingState extends State<NewBooking> {
                                   return;
                                 }
 
-
                                 setState(() {
                                   showPreferances = true;
                                   showTripInfo = false;
@@ -2045,10 +2114,10 @@ class _NewBookingState extends State<NewBooking> {
                                     userData?['name'] ??
                                     userData?['username'] ??
                                     "Customer";
-                                // final userPhone =
-                                //     userData?['phoneNumber'] ??
-                                //     UserLocalStorage.getPhoneNumber() ??
-                                //     "";
+                                final userPhone =
+                                    userData?['phoneNumber'] ??
+                                    UserLocalStorage.getPhoneNumber() ??
+                                    "";
 
                                 final totalWithVat =
                                     _calculatedCharge *
@@ -2059,39 +2128,35 @@ class _NewBookingState extends State<NewBooking> {
                                 final orderId =
                                     "BOOK_${DateTime.now().millisecondsSinceEpoch}";
 
-                                // 2. Process Payment
-                                // final paymentRequest = PaymentRequest(
-                                //   amount: double.parse(
-                                //     totalWithVat.toStringAsFixed(2),
-                                //   ),
-                                //   currency: PaytabsConfig.defaultCurrency,
-                                //   merchantCountryCode:
-                                //       PaytabsConfig.merchantCountryCode,
-                                //   orderId: orderId,
-                                //   customerEmail: userEmail,
-                                //   customerName: userName,
-                                //   customerPhone: userPhone,
-                                //   cartId: orderId,
-                                //   cartDescription:
-                                //       "Ride Booking for $_selectedVehicleClass",
-                                // );
-
-                                final paymentResult = PaymentResult(
-                                  success: true,
-                                  transactionReference: "BYPASS_TEST_$orderId",
-                                  invoiceId: orderId,
-                                  responseCode: "000",
-                                  responseMessage: "Success",
+                                // 2. Process Payment via PayTabs SDK
+                                final passengerPhone = "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}";
+                                
+                                final paymentRequest = PaymentRequest(
+                                  amount: double.parse(
+                                    totalWithVat.toStringAsFixed(2),
+                                  ),
+                                  currency: PaytabsConfig.defaultCurrency,
+                                  merchantCountryCode:
+                                      PaytabsConfig.merchantCountryCode,
+                                  orderId: orderId,
                                   customerEmail: userEmail,
-                                  amount: totalWithVat,
-                                  orderID: orderId,
-                                  transactionID: "BYPASS_TEST_$orderId",
-                                  discountPercentage: _discountPercentage,
+                                  customerName: userName,
+                                  customerPhone: passengerPhone,
+                                  cartId: orderId,
+                                  cartDescription:
+                                      "Ride Booking for $_selectedVehicleClass",
                                 );
-                                /*
-                                final _unused = await PaymentService()
-                                    .startPayment(request: paymentRequest);
-                                */
+
+                                final paymentResult = await PaymentService()
+                                    .startPayment(
+                                    request: paymentRequest,
+                                  );
+
+                                debugPrint(
+                                  '💳 PayTabs Result: success=${paymentResult.success}, '
+                                  'ref=${paymentResult.transactionReference}, '
+                                  'msg=${paymentResult.responseMessage}',
+                                );
 
                                 if (paymentResult.success) {
                                   // 3. If Payment Successful, Create Booking Record
@@ -2280,11 +2345,14 @@ class _NewBookingState extends State<NewBooking> {
                                               ? _selectedEstimatedHours
                                               : null
                                         : null,
-                                    orderID: paymentResult.orderID,
-                                    transactionID: paymentResult.transactionID,
-                                    discountPercentage:
-                                        paymentResult.discountPercentage,
+                                    orderID: orderId,
+                                    transactionID:
+                                        paymentResult.transactionReference,
+                                    discountPercentage: _isPromoValid
+                                        ? _discountPercentage
+                                        : null,
                                     vat: _vatPercentage,
+                                    allowSimilarVehicle: _allowSimilarVehicle,
                                   );
 
                                   if (kDebugMode) {
@@ -2296,6 +2364,19 @@ class _NewBookingState extends State<NewBooking> {
                                       '  ',
                                     ).convert(finalDataMap);
                                     debugPrint(prettyJson);
+                                    debugPrint('📍 pickupLat: ${requestModel.pickupLat}');
+                                    debugPrint('📍 pickupLong: ${requestModel.pickupLong}');
+                                  }
+
+                                  // Guard: ensure pickup coordinates are present for hourly bookings
+                                  if (_selectedCatCode == 2 &&
+                                      (requestModel.pickupLong == null || requestModel.pickupLong!.isEmpty)) {
+                                    _showCustomSnackBar(
+                                      loc.pickupLocationIsRequired,
+                                      'E',
+                                    );
+                                    setState(() { _isBooking = false; });
+                                    return;
                                   }
 
                                   final apiResponse = _selectedCatCode == 2
@@ -2341,10 +2422,33 @@ class _NewBookingState extends State<NewBooking> {
                                     );
                                   }
                                 } else {
-                                  _showCustomSnackBar(
-                                    paymentResult.responseMessage,
-                                    'E',
-                                  );
+                                  if (paymentResult.responseCode ==
+                                          'EVENT_CANCELLED' ||
+                                      paymentResult.responseMessage
+                                              .toLowerCase() ==
+                                          "cancel" ||
+                                      paymentResult.responseMessage
+                                              .toLowerCase() ==
+                                          "payment cancelled") {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const PaymentCancelledPage(),
+                                      ),
+                                    );
+                                  } else {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            PaymentRejectedPage(
+                                          errorMessage:
+                                              paymentResult.responseMessage,
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 }
                               } catch (e) {
                                 debugPrint('❌ Booking error: $e');
@@ -2374,8 +2478,9 @@ class _NewBookingState extends State<NewBooking> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget buildReviewAndConfirmPage(BuildContext context, AppLocalizations loc) {
     return Column(
@@ -2412,7 +2517,9 @@ class _NewBookingState extends State<NewBooking> {
             builder: (context) {
               String getDisplayDate() {
                 DateTime? date;
-                if (_selectedCatCode == 0 || _selectedCatCode == 3) {
+                if (_selectedCatCode == 0 ||
+                    _selectedCatCode == 1 ||
+                    _selectedCatCode == 3) {
                   date = _selectedDate;
                 } else {
                   date = _selectedPickupDate;
@@ -2422,9 +2529,11 @@ class _NewBookingState extends State<NewBooking> {
 
               String getDisplayTime() {
                 TimeOfDay? timeOfDay =
-                    (_selectedCatCode == 0 || _selectedCatCode == 3)
-                    ? _selectedTime
-                    : _selectedPickupTime;
+                    (_selectedCatCode == 0 ||
+                            _selectedCatCode == 1 ||
+                            _selectedCatCode == 3)
+                        ? _selectedTime
+                        : _selectedPickupTime;
                 if (timeOfDay == null) return "";
                 final now = DateTime.now();
                 final dt = DateTime(
@@ -3059,6 +3168,7 @@ class _NewBookingState extends State<NewBooking> {
           SizedBox(height: 16),
           buildVehicleBrandSelector(context, loc),
           buildVehicleModelSelector(context, loc),
+          buildSimilarVehicleCheckbox(context, loc),
           SizedBox(height: 16),
           buildCarImageDisplay(context, loc),
           SizedBox(height: 16),
@@ -3424,6 +3534,51 @@ class _NewBookingState extends State<NewBooking> {
             if (_selectedCatCode == 3) _updatePricing();
           }
         },
+      ),
+    );
+  }
+
+  Widget buildSimilarVehicleCheckbox(
+    BuildContext context,
+    AppLocalizations loc,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, right: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Checkbox(
+                value: _allowSimilarVehicle,
+                onChanged: (value) {
+                  setState(() {
+                    _allowSimilarVehicle = value ?? false;
+                  });
+                },
+                activeColor: const Color(0xFFE4A46B),
+                checkColor: Colors.black,
+                side: const BorderSide(color: Colors.white54),
+              ),
+              Text(
+                loc.allowSimilarVehicle,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ],
+          ),
+          if (_allowSimilarVehicle)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, bottom: 8, right: 12),
+              child: Text(
+                loc.similarVehicleNote,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -3945,7 +4100,7 @@ class _NewBookingState extends State<NewBooking> {
                       builder: (context) => LocationPickerPage(
                         initialLat: initLat,
                         initialLng: initLng,
-                        needCurrentLocationButton: false,
+                        needCurrentLocationButton: !isDropLocation,
                       ),
                     ),
                   );
@@ -4616,50 +4771,50 @@ class _NewBookingState extends State<NewBooking> {
     if (_apiCities.isNotEmpty) {
       final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
-      return _apiCities.where((c) {
-        // Check 1: City must be active
-        final bool cityActive = c['isActive'] == true;
-        if (!cityActive) return false;
+      return _apiCities
+          .where((c) {
+            // Check 1: City must be active
+            final bool cityActive = c['isActive'] == true;
+            if (!cityActive) return false;
 
-        // Check 2: If airport service, city must have at least one active airport
-        if (_selectedCatCode == 0 || _selectedCatCode == 1) {
-          final cityId = (c['_id'] ?? c['id'])?.toString();
-          final hasActiveAirport = _apiAirports.any((a) {
-            var aCityId = a['cityID'] ?? a['cityId'] ?? a['city_id'];
-            if (aCityId is Map) aCityId = aCityId['_id'] ?? aCityId['id'];
-            final aCityIdStr = aCityId?.toString();
+            // Check 2: If airport service, city must have at least one active airport
+            if (_selectedCatCode == 0 || _selectedCatCode == 1) {
+              final cityId = (c['_id'] ?? c['id'])?.toString();
+              final hasActiveAirport = _apiAirports.any((a) {
+                var aCityId = a['cityID'] ?? a['cityId'] ?? a['city_id'];
+                if (aCityId is Map) aCityId = aCityId['_id'] ?? aCityId['id'];
+                final aCityIdStr = aCityId?.toString();
 
-            // Explicitly check for false; if missing, we could assume true or false.
-            // Usually, if not specified, it's active unless deactivated.
-            final bool airportActive = a['isActive'] != false;
-            return aCityIdStr == cityId && airportActive;
-          });
-          if (!hasActiveAirport) return false;
-        }
+                // Explicitly check for false; if missing, we could assume true or false.
+                // Usually, if not specified, it's active unless deactivated.
+                final bool airportActive = a['isActive'] != false;
+                return aCityIdStr == cityId && airportActive;
+              });
+              if (!hasActiveAirport) return false;
+            }
 
-        // Check 3: For private transfer, ONLY show cities that HAVE zone pricing 
-        // (as requested: show only cities where private transfer is available)
-        if (_selectedCatCode == 3) {
-          final cityId = (c['_id'] ?? c['id'])?.toString();
-          final hasActiveZone = _allZones.any(
-            (z) => z.cityId == cityId && z.isActive,
-          );
-          if (!hasActiveZone) return false;
-        }
+            // Check 3: For private transfer, ONLY show cities that HAVE zone pricing
+            // (as requested: show only cities where private transfer is available)
+            if (_selectedCatCode == 3) {
+              final cityId = (c['_id'] ?? c['id'])?.toString();
+              final hasActiveZone = _allZones.any(
+                (z) => z.cityId == cityId && z.isActive,
+              );
+              if (!hasActiveZone) return false;
+            }
 
-
-        return true;
-      }).map(
-        (c) =>
-            (isArabic
-                    ? (c['cityNameAr'] ?? c['cityName'])
-                    : c['cityName'])
-                .toString(),
-      ).toSet().toList();
+            return true;
+          })
+          .map(
+            (c) =>
+                (isArabic ? (c['cityNameAr'] ?? c['cityName']) : c['cityName'])
+                    .toString(),
+          )
+          .toSet()
+          .toList();
     }
     return [];
   }
-
 
   /// Get airports based on selected city (using cityID from _apiCities)
   List<String> _getAvailableAirports(BuildContext context) {
@@ -4676,12 +4831,12 @@ class _NewBookingState extends State<NewBooking> {
                   aCityId = aCityId['_id'] ?? aCityId['id'];
                 }
                 final aCityIdStr = aCityId?.toString();
-                
-                // If isActive is NOT explicitly false, we consider it active 
+
+                // If isActive is NOT explicitly false, we consider it active
                 // (or if it's missing, we assume active unless user says otherwise)
                 // But let's follow the 'set as false' rule.
                 final bool isActive = a['isActive'] != false;
-                
+
                 return aCityIdStr != null && aCityIdStr == cityId && isActive;
               })
               .map((a) => a['airportName'].toString())
