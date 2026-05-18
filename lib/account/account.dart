@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:provider/provider.dart';
@@ -118,22 +118,6 @@ class _AccountPageState extends State<AccountPage> {
               ),
 
               const SizedBox(height: 20),
-              // GestureDetector(
-              //   onTap: () {
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //         builder: (context) => const AdminPricingDashboard(),
-              //       ),
-              //     );
-              //   },
-              //   child: ProfileTile(
-              //     loc: loc,
-              //     title: "Pricing Admin",
-              //     icon: Icons.admin_panel_settings,
-              //     isLast: true,
-              //   ),
-              // ),
             ],
           ),
         ),
@@ -528,7 +512,8 @@ class _AccountPageState extends State<AccountPage> {
                               if (isDeleting) return;
                               setLoaderState(() => isDeleting = true);
                               final authProvider = context.read<AuthProvider>();
-                              final success = await authProvider.deleteAccount();
+                              final success = await authProvider
+                                  .deleteAccount();
                               if (context.mounted) {
                                 if (success) {
                                   Navigator.pop(sheetContext);
@@ -544,7 +529,8 @@ class _AccountPageState extends State<AccountPage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        authProvider.errorMessage ?? "Failed to delete account",
+                                        authProvider.errorMessage ??
+                                            "Failed to delete account",
                                       ),
                                     ),
                                   );

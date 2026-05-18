@@ -971,6 +971,11 @@ class _NewBookingState extends State<NewBooking> {
                           .trim();
                       final modelStr = (map['model'] ?? '').toString().trim();
                       String modelLabel = "$modelStr $carNameStr".trim();
+                      // Hide any 4-digit year (e.g. 2024) from the model selection label
+                      modelLabel = modelLabel
+                          .replaceAll(RegExp(r'\b(19|20)\d{2}\b'), '')
+                          .replaceAll(RegExp(r'\s+'), ' ')
+                          .trim();
                       if (modelLabel.isEmpty) modelLabel = 'Unknown';
 
                       debugPrint(
@@ -1848,639 +1853,657 @@ class _NewBookingState extends State<NewBooking> {
           absorbing: _isBooking,
           child: Scaffold(
             appBar: buidAppBar(context),
-          backgroundColor: Colors.transparent,
-          body: SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: 16),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  alignment: Alignment.topCenter,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    transitionBuilder:
-                        (Widget child, Animation<double> animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0.05, 0.0),
-                                end: Offset.zero,
-                              ).animate(animation),
-                              child: child,
+            backgroundColor: Colors.transparent,
+            body: SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 16),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    alignment: Alignment.topCenter,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 400),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0.05, 0.0),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              ),
+                            );
+                          },
+                      layoutBuilder:
+                          (
+                            Widget? currentChild,
+                            List<Widget> previousChildren,
+                          ) {
+                            return Stack(
+                              alignment: Alignment.topCenter,
+                              children: <Widget>[
+                                ...previousChildren,
+                                if (currentChild != null) currentChild,
+                              ],
+                            );
+                          },
+                      child: showReviewAndConfirm
+                          ? SizedBox(
+                              key: const ValueKey('reviewAndConfirmPage'),
+                              width: double.infinity,
+                              child: buildReviewAndConfirmPage(context, loc),
+                            )
+                          : showPassenger
+                          ? SizedBox(
+                              key: const ValueKey('passengerForm'),
+                              width: double.infinity,
+                              child: buildPassengerForm(context, loc),
+                            )
+                          : showPreferances
+                          ? SizedBox(
+                              key: const ValueKey('preferencesForm'),
+                              width: double.infinity,
+                              child: buildPreferancesForm(context, loc),
+                            )
+                          : SizedBox(
+                              key: const ValueKey('tripInfoForm'),
+                              width: double.infinity,
+                              child: buildTripInfoForm(context, loc),
                             ),
-                          );
-                        },
-                    layoutBuilder:
-                        (Widget? currentChild, List<Widget> previousChildren) {
-                          return Stack(
-                            alignment: Alignment.topCenter,
-                            children: <Widget>[
-                              ...previousChildren,
-                              if (currentChild != null) currentChild,
-                            ],
-                          );
-                        },
-                    child: showReviewAndConfirm
-                        ? SizedBox(
-                            key: const ValueKey('reviewAndConfirmPage'),
-                            width: double.infinity,
-                            child: buildReviewAndConfirmPage(context, loc),
-                          )
-                        : showPassenger
-                        ? SizedBox(
-                            key: const ValueKey('passengerForm'),
-                            width: double.infinity,
-                            child: buildPassengerForm(context, loc),
-                          )
-                        : showPreferances
-                        ? SizedBox(
-                            key: const ValueKey('preferencesForm'),
-                            width: double.infinity,
-                            child: buildPreferancesForm(context, loc),
-                          )
-                        : SizedBox(
-                            key: const ValueKey('tripInfoForm'),
-                            width: double.infinity,
-                            child: buildTripInfoForm(context, loc),
-                          ),
+                    ),
                   ),
-                ),
-                SizedBox(height: 32),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: PremiumButton(
-                    text:
-                        (_isCalculatingDistance ||
-                            _isCheckingRoute ||
-                            _isFilteringCars)
-                        ? loc.processing
-                        : showReviewAndConfirm
-                        ? loc.bookService
-                        : loc.continueText,
-                    onTap:
-                        _isCalculatingDistance ||
-                            _isCheckingRoute ||
-                            _isFilteringCars
-                        ? () {}
-                        : () async {
-                            if (showTripInfo) {
-                              if (_tripInfoFormKey.currentState?.validate() ??
-                                  false) {
-                                if (_selectedCatCode == 1 &&
-                                    _selectedDate != null &&
-                                    _selectedTime != null &&
-                                    _selectedPickupDate != null &&
-                                    _selectedPickupTime != null) {
-                                  final depDateTime = DateTime(
-                                    _selectedDate!.year,
-                                    _selectedDate!.month,
-                                    _selectedDate!.day,
-                                    _selectedTime!.hour,
-                                    _selectedTime!.minute,
-                                  );
-                                  final pickDateTime = DateTime(
-                                    _selectedPickupDate!.year,
-                                    _selectedPickupDate!.month,
-                                    _selectedPickupDate!.day,
-                                    _selectedPickupTime!.hour,
-                                    _selectedPickupTime!.minute,
-                                  );
-
-                                  if (pickDateTime.isAfter(
-                                    depDateTime.subtract(
-                                      const Duration(hours: 4),
-                                    ),
-                                  )) {
-                                    _showCustomSnackBar(
-                                      loc.pickupTimeAtLeast4HoursBeforeDeparture,
-                                      'E',
+                  SizedBox(height: 32),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: PremiumButton(
+                      text:
+                          (_isCalculatingDistance ||
+                              _isCheckingRoute ||
+                              _isFilteringCars)
+                          ? loc.processing
+                          : showReviewAndConfirm
+                          ? loc.bookService
+                          : loc.continueText,
+                      onTap:
+                          _isCalculatingDistance ||
+                              _isCheckingRoute ||
+                              _isFilteringCars
+                          ? () {}
+                          : () async {
+                              if (showTripInfo) {
+                                if (_tripInfoFormKey.currentState?.validate() ??
+                                    false) {
+                                  if (_selectedCatCode == 1 &&
+                                      _selectedDate != null &&
+                                      _selectedTime != null &&
+                                      _selectedPickupDate != null &&
+                                      _selectedPickupTime != null) {
+                                    final depDateTime = DateTime(
+                                      _selectedDate!.year,
+                                      _selectedDate!.month,
+                                      _selectedDate!.day,
+                                      _selectedTime!.hour,
+                                      _selectedTime!.minute,
                                     );
-                                    return;
-                                  }
-                                }
-
-                                if (_selectedCatCode == 2 &&
-                                    _selectedPickupDate != null &&
-                                    _selectedPickupTime != null) {
-                                  final pickDateTime = DateTime(
-                                    _selectedPickupDate!.year,
-                                    _selectedPickupDate!.month,
-                                    _selectedPickupDate!.day,
-                                    _selectedPickupTime!.hour,
-                                    _selectedPickupTime!.minute,
-                                  );
-
-                                  if (pickDateTime.isBefore(
-                                    DateTime.now().add(
-                                      const Duration(hours: 1),
-                                    ),
-                                  )) {
-                                    _showCustomSnackBar(
-                                      loc.pickupTimeAtLeast1HourFromNow,
-                                      'E',
+                                    final pickDateTime = DateTime(
+                                      _selectedPickupDate!.year,
+                                      _selectedPickupDate!.month,
+                                      _selectedPickupDate!.day,
+                                      _selectedPickupTime!.hour,
+                                      _selectedPickupTime!.minute,
                                     );
-                                    return;
-                                  }
-                                }
 
-                                // 🏎️ NEW: Check car availability before going to step 2
-                                await _checkCarAvailability();
-
-                                if (_supportedCarIds != null &&
-                                    _supportedCarIds!.isEmpty) {
-                                  return;
-                                }
-
-                                setState(() {
-                                  showPreferances = true;
-                                  showTripInfo = false;
-                                  showPassenger = false;
-                                  showReviewAndConfirm = false;
-                                });
-                                if (_scrollController.hasClients) {
-                                  _scrollController.jumpTo(0);
-                                }
-                              }
-                            } else if (showPreferances) {
-                              if (_preferencesFormKey.currentState
-                                      ?.validate() ??
-                                  false) {
-                                setState(() {
-                                  _isCheckingRoute = true;
-                                });
-
-                                final routeResult = await _fetchRouteDetails(
-                                  withVehicle: true,
-                                );
-
-                                setState(() {
-                                  _isCheckingRoute = false;
-                                });
-
-                                if (routeResult['success'] == true) {
-                                  final data =
-                                      routeResult['data'] ??
-                                      routeResult['payload'] ??
-                                      routeResult;
-
-                                  // Data could be a List or a Map depending on filter vs priceRes
-                                  double fetchedCharge = 0;
-                                  if (data is Map) {
-                                    fetchedCharge = _parseDouble(
-                                      data['charge'] ?? data['price'] ?? 0,
-                                    );
-                                  } else if (data is List && data.isNotEmpty) {
-                                    // If it's filterRoutes output, it might not have the charge directly
-                                    // but we prioritize getRoutePrice which returns a map with 'charge'
-                                    fetchedCharge = _parseDouble(
-                                      data[0]['charge'] ??
-                                          data[0]['price'] ??
-                                          0,
-                                    );
-                                  }
-
-                                  if (fetchedCharge > 0) {
-                                    setState(() {
-                                      _routePrice = fetchedCharge;
-                                    });
-                                  } else {
-                                    // If we got success but no price, check if at least one route exists
-                                    if (data is List && data.isNotEmpty) {
-                                      // Route exists but using distance-based pricing fallback
-                                      _routePrice = null;
-                                    } else {
-                                      _showNoServiceAlert(
-                                        message: routeResult['message'],
+                                    if (pickDateTime.isAfter(
+                                      depDateTime.subtract(
+                                        const Duration(hours: 4),
+                                      ),
+                                    )) {
+                                      _showCustomSnackBar(
+                                        loc.pickupTimeAtLeast4HoursBeforeDeparture,
+                                        'E',
                                       );
                                       return;
                                     }
                                   }
-                                } else {
-                                  // No price/route found
-                                  _showNoServiceAlert(
-                                    message: routeResult['message'],
-                                  );
-                                  return;
-                                }
 
-                                setState(() {
-                                  showPassenger = true;
-                                  showTripInfo = false;
-                                  showPreferances = false;
-                                  showReviewAndConfirm = false;
-                                });
-                                if (_scrollController.hasClients) {
-                                  _scrollController.jumpTo(0);
-                                }
-                              }
-                            } else if (showPassenger) {
-                              if (_passengerFormKey.currentState?.validate() ??
-                                  false) {
-                                setState(() {
-                                  _isCalculatingDistance = true;
-                                });
-                                await _calculateActualDistance();
+                                  if (_selectedCatCode == 2 &&
+                                      _selectedPickupDate != null &&
+                                      _selectedPickupTime != null) {
+                                    final pickDateTime = DateTime(
+                                      _selectedPickupDate!.year,
+                                      _selectedPickupDate!.month,
+                                      _selectedPickupDate!.day,
+                                      _selectedPickupTime!.hour,
+                                      _selectedPickupTime!.minute,
+                                    );
 
-                                setState(() {
-                                  showReviewAndConfirm = true;
-                                  showTripInfo = false;
-                                  showPreferances = false;
-                                  showPassenger = false;
-                                  _isCalculatingDistance = false;
-                                });
-                                if (_scrollController.hasClients) {
-                                  _scrollController.jumpTo(0);
-                                }
-                              }
-                            } else if (showReviewAndConfirm) {
-                              if (_isBooking) return;
-
-                              setState(() {
-                                _isBooking = true;
-                              });
-
-                              try {
-                                // 1. Prepare Request Data
-                                final userData = UserLocalStorage.getUserData();
-                                final userId = UserLocalStorage.getUserId();
-                                final userEmail = userData?['email'] ?? "";
-                                final userName =
-                                    userData?['name'] ??
-                                    userData?['username'] ??
-                                    "Customer";
-                                final userPhone =
-                                    userData?['phoneNumber'] ??
-                                    UserLocalStorage.getPhoneNumber() ??
-                                    "";
-
-                                final totalWithVat =
-                                    _calculatedCharge *
-                                    (_isPromoValid
-                                        ? (1 - _discountPercentage / 100)
-                                        : 1) *
-                                    (1 + _vatPercentage / 100); // Including VAT
-                                final orderId =
-                                    "BOOK_${DateTime.now().millisecondsSinceEpoch}";
-
-                                // 2. Process Payment via PayTabs SDK
-                                final passengerPhone = "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}";
-                                
-                                final paymentRequest = PaymentRequest(
-                                  amount: double.parse(
-                                    totalWithVat.toStringAsFixed(2),
-                                  ),
-                                  currency: PaytabsConfig.defaultCurrency,
-                                  merchantCountryCode:
-                                      PaytabsConfig.merchantCountryCode,
-                                  orderId: orderId,
-                                  customerEmail: userEmail,
-                                  customerName: userName,
-                                  customerPhone: passengerPhone,
-                                  cartId: orderId,
-                                  cartDescription:
-                                      "Ride Booking for $_selectedVehicleClass",
-                                );
-
-                                final paymentResult = await PaymentService()
-                                    .startPayment(
-                                    request: paymentRequest,
-                                  );
-
-                                debugPrint(
-                                  '💳 PayTabs Result: success=${paymentResult.success}, '
-                                  'ref=${paymentResult.transactionReference}, '
-                                  'msg=${paymentResult.responseMessage}',
-                                );
-
-                                if (paymentResult.success) {
-                                  // 3. If Payment Successful, Create Booking Record
-                                  String getIsoDateTime(
-                                    DateTime? d,
-                                    TimeOfDay? t,
-                                  ) {
-                                    if (d == null || t == null) return "";
-                                    return DateTime(
-                                              d.year,
-                                              d.month,
-                                              d.day,
-                                              t.hour,
-                                              t.minute,
-                                            )
-                                            .toUtc()
-                                            .toIso8601String()
-                                            .split('.')
-                                            .first +
-                                        "Z";
-                                  }
-
-                                  final airportCoords =
-                                      _getAirportCoordinates();
-                                  double? finalPickupLat;
-                                  double? finalPickupLng;
-                                  double? finalDropOffLat;
-                                  double? finalDropOffLng;
-                                  String? finalPickupAddress;
-                                  String? finalDropOffAddress;
-
-                                  if (_selectedCatCode == 0) {
-                                    finalPickupLat = airportCoords['lat'];
-                                    finalPickupLng = airportCoords['lng'];
-                                    finalDropOffLat = _dropLat;
-                                    finalDropOffLng = _dropLng;
-
-                                    final String airport =
-                                        _getSelectedAirportName(context) ?? "";
-                                    final String terminal =
-                                        _getSelectedTerminalName(context) ?? "";
-                                    finalPickupAddress = terminal.isNotEmpty
-                                        ? "$airport - $terminal"
-                                        : airport;
-                                    finalDropOffAddress = _dropAddress;
-                                  } else if (_selectedCatCode == 1) {
-                                    finalPickupLat = _pickupLat;
-                                    finalPickupLng = _pickupLng;
-                                    finalDropOffLat = airportCoords['lat'];
-                                    finalDropOffLng = airportCoords['lng'];
-
-                                    final String airport =
-                                        _getSelectedAirportName(context) ?? "";
-                                    final String terminal =
-                                        _getSelectedTerminalName(context) ?? "";
-                                    finalDropOffAddress = terminal.isNotEmpty
-                                        ? "$airport - $terminal"
-                                        : airport;
-                                    finalPickupAddress = _pickupAddress;
-                                  } else {
-                                    finalPickupLat = _pickupLat;
-                                    finalPickupLng = _pickupLng;
-                                    finalDropOffLat = _dropLat;
-                                    finalDropOffLng = _dropLng;
-                                    finalPickupAddress = _pickupAddress;
-                                    finalDropOffAddress = _dropAddress;
-                                  }
-
-                                  // Logging raw items removed to focus on exact API data
-
-                                  final selectedCar = _getSelectedCar();
-                                  File? carImageFile;
-                                  if (selectedCar != null &&
-                                      selectedCar.imagePath.isNotEmpty) {
-                                    if (selectedCar.imagePath.startsWith(
-                                      'assets/',
+                                    if (pickDateTime.isBefore(
+                                      DateTime.now().add(
+                                        const Duration(hours: 1),
+                                      ),
                                     )) {
-                                      carImageFile =
-                                          await _getImageFileFromAsset(
-                                            selectedCar.imagePath,
-                                          );
-                                    } else if (selectedCar.imagePath.startsWith(
-                                      'http',
-                                    )) {
-                                      carImageFile = await _getImageFileFromUrl(
-                                        selectedCar.imagePath,
+                                      _showCustomSnackBar(
+                                        loc.pickupTimeAtLeast1HourFromNow,
+                                        'E',
                                       );
-                                    } else {
-                                      final localFile = File(
-                                        selectedCar.imagePath,
-                                      );
-                                      if (await localFile.exists()) {
-                                        carImageFile = localFile;
-                                      }
+                                      return;
                                     }
                                   }
 
-                                  final BookingRequestModel
-                                  requestModel = BookingRequestModel(
-                                    category: _getCategoryForApi(
-                                      _selectedCatCode,
-                                    ),
-                                    city: _getCityName(
-                                      context,
-                                      _selectedCityCode,
-                                    ),
-                                    airport:
-                                        _getSelectedAirportName(context) ?? "",
-                                    flightNumber: flightNumberController.text,
-                                    cityID: _getSelectedCityId(),
-                                    airportID: _getSelectedAirportId(),
-                                    terminalID: _getSelectedTerminalId(),
-                                    terminal:
-                                        _getSelectedTerminalName(context) ?? "",
-                                    arrival: (_selectedCatCode != 2)
-                                        ? getIsoDateTime(
-                                            _selectedDate,
-                                            _selectedTime,
-                                          )
-                                        : null,
-                                    pickupdatetime: _selectedCatCode == 2
-                                        ? getIsoDateTime(
-                                            _selectedPickupDate,
-                                            _selectedPickupTime,
-                                          )
-                                        : (_selectedCatCode == 3)
-                                        ? getIsoDateTime(
-                                            _selectedDate,
-                                            _selectedTime,
-                                          )
-                                        : null,
-                                    pickupLat: finalPickupLat
-                                        ?.toString()
-                                        .trim(),
-                                    pickupLong: finalPickupLng
-                                        ?.toString()
-                                        .trim(),
-                                    dropOffLat: finalDropOffLat
-                                        ?.toString()
-                                        .trim(),
-                                    dropOffLong: finalDropOffLng
-                                        ?.toString()
-                                        .trim(),
-                                    dropOffAddress: finalDropOffAddress,
-                                    pickupAddress: finalPickupAddress,
-                                    specialRequestText:
-                                        specialRequestsController.text,
-                                    specialRequestAudio:
-                                        _specialRequestsVoiceNotePath != null
-                                        ? File(_specialRequestsVoiceNotePath!)
-                                        : null,
-                                    passengerCount: _numberOfPassengers
-                                        .toString(),
-                                    passengerNames: jsonEncode(
-                                      _passengerNameController.text
-                                          .split(',')
-                                          .map((e) => e.trim())
-                                          .where((e) => e.isNotEmpty)
-                                          .toList(),
-                                    ),
-                                    passengerMobile:
-                                        "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}",
-                                    distance:
-                                        "${_totalDistance.toStringAsFixed(2)} km",
-                                    charge: double.parse(
-                                      totalWithVat.toStringAsFixed(2),
-                                    ),
-                                    bookingStatus: "pending",
-                                    customerID: userId,
-                                    driverID: "null",
-                                    carID: _getSelectedCarId(),
-                                    brandID: _getSelectedBrandId(),
-                                    categoryID: _getSelectedCategoryId(),
-                                    specialId: _appliedPromoId,
-                                    customerName: userName,
-                                    carclass: _selectedVehicleClass,
-                                    carName: _selectedVehicleModel,
-                                    carbrand: _selectedVehicleBrand,
-                                    carmodel: _selectedVehicleModel,
-                                    carImage: carImageFile,
-                                    serviceDuration: _selectedCatCode == 2
-                                        ? _selectedServiceDuration
-                                        : null,
-                                    estimatedHours: _selectedCatCode == 2
-                                        ? _selectedServiceDuration == 0
-                                              ? _selectedEstimatedHours
-                                              : null
-                                        : null,
-                                    orderID: orderId,
-                                    transactionID:
-                                        paymentResult.transactionReference,
-                                    discountPercentage: _isPromoValid
-                                        ? _discountPercentage
-                                        : null,
-                                    vat: _vatPercentage,
-                                    allowSimilarVehicle: _allowSimilarVehicle,
-                                  );
+                                  // 🏎️ NEW: Check car availability before going to step 2
+                                  await _checkCarAvailability();
 
-                                  if (kDebugMode) {
-                                    final finalDataMap = requestModel.toMap();
-                                    debugPrint(
-                                      '🚀 🌐 API │ EXACT DATA FOR BOOKING:',
-                                    );
-                                    final prettyJson = JsonEncoder.withIndent(
-                                      '  ',
-                                    ).convert(finalDataMap);
-                                    debugPrint(prettyJson);
-                                    debugPrint('📍 pickupLat: ${requestModel.pickupLat}');
-                                    debugPrint('📍 pickupLong: ${requestModel.pickupLong}');
-                                  }
-
-                                  // Guard: ensure pickup coordinates are present for hourly bookings
-                                  if (_selectedCatCode == 2 &&
-                                      (requestModel.pickupLong == null || requestModel.pickupLong!.isEmpty)) {
-                                    _showCustomSnackBar(
-                                      loc.pickupLocationIsRequired,
-                                      'E',
-                                    );
-                                    setState(() { _isBooking = false; });
+                                  if (_supportedCarIds != null &&
+                                      _supportedCarIds!.isEmpty) {
                                     return;
                                   }
 
-                                  final apiResponse = _selectedCatCode == 2
-                                      ? await ApiService().createHourlyBooking(
-                                          booking: requestModel,
-                                          token: UserLocalStorage.getToken(),
-                                        )
-                                      : await ApiService().createBooking(
-                                          booking: requestModel,
-                                          token: UserLocalStorage.getToken(),
-                                        );
-
-                                  if (kDebugMode) {
-                                    debugPrint(
-                                      "✅ 🌐 API │ BOOKING RESPONSE RECEIVED",
-                                    );
-                                    debugPrint(
-                                      "✅ 🌐 API │ Status: ${apiResponse['success']}",
-                                    );
-                                    debugPrint(
-                                      "✅ 🌐 API │ Full Response: $apiResponse",
-                                    );
-                                  }
-
-                                  if (apiResponse['success'] == true) {
-                                    _showCustomSnackBar(
-                                      loc.bookingConfirmedSuccessfully,
-                                      'S',
-                                    );
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const SuccessPage(),
-                                      ),
-                                      (route) => false,
-                                    );
-                                  } else {
-                                    _showCustomSnackBar(
-                                      apiResponse['message'] ??
-                                          loc.bookingFailed,
-                                      'E',
-                                    );
-                                  }
-                                } else {
-                                  if (paymentResult.responseCode ==
-                                          'EVENT_CANCELLED' ||
-                                      paymentResult.responseMessage
-                                              .toLowerCase() ==
-                                          "cancel" ||
-                                      paymentResult.responseMessage
-                                              .toLowerCase() ==
-                                          "payment cancelled") {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const PaymentCancelledPage(),
-                                      ),
-                                    );
-                                  } else {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            PaymentRejectedPage(
-                                          errorMessage:
-                                              paymentResult.responseMessage,
-                                        ),
-                                      ),
-                                    );
+                                  setState(() {
+                                    showPreferances = true;
+                                    showTripInfo = false;
+                                    showPassenger = false;
+                                    showReviewAndConfirm = false;
+                                  });
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
                                   }
                                 }
-                              } catch (e) {
-                                debugPrint('❌ Booking error: $e');
-                                _showCustomSnackBar(
-                                  loc.somethingWentWrong,
-                                  'E',
-                                );
-                              } finally {
-                                if (mounted) {
+                              } else if (showPreferances) {
+                                if (_preferencesFormKey.currentState
+                                        ?.validate() ??
+                                    false) {
                                   setState(() {
-                                    _isBooking = false;
+                                    _isCheckingRoute = true;
                                   });
+
+                                  final routeResult = await _fetchRouteDetails(
+                                    withVehicle: true,
+                                  );
+
+                                  setState(() {
+                                    _isCheckingRoute = false;
+                                  });
+
+                                  if (routeResult['success'] == true) {
+                                    final data =
+                                        routeResult['data'] ??
+                                        routeResult['payload'] ??
+                                        routeResult;
+
+                                    // Data could be a List or a Map depending on filter vs priceRes
+                                    double fetchedCharge = 0;
+                                    if (data is Map) {
+                                      fetchedCharge = _parseDouble(
+                                        data['charge'] ?? data['price'] ?? 0,
+                                      );
+                                    } else if (data is List &&
+                                        data.isNotEmpty) {
+                                      // If it's filterRoutes output, it might not have the charge directly
+                                      // but we prioritize getRoutePrice which returns a map with 'charge'
+                                      fetchedCharge = _parseDouble(
+                                        data[0]['charge'] ??
+                                            data[0]['price'] ??
+                                            0,
+                                      );
+                                    }
+
+                                    if (fetchedCharge > 0) {
+                                      setState(() {
+                                        _routePrice = fetchedCharge;
+                                      });
+                                    } else {
+                                      // If we got success but no price, check if at least one route exists
+                                      if (data is List && data.isNotEmpty) {
+                                        // Route exists but using distance-based pricing fallback
+                                        _routePrice = null;
+                                      } else {
+                                        _showNoServiceAlert(
+                                          message: routeResult['message'],
+                                        );
+                                        return;
+                                      }
+                                    }
+                                  } else {
+                                    // No price/route found
+                                    _showNoServiceAlert(
+                                      message: routeResult['message'],
+                                    );
+                                    return;
+                                  }
+
+                                  setState(() {
+                                    showPassenger = true;
+                                    showTripInfo = false;
+                                    showPreferances = false;
+                                    showReviewAndConfirm = false;
+                                  });
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                }
+                              } else if (showPassenger) {
+                                if (_passengerFormKey.currentState
+                                        ?.validate() ??
+                                    false) {
+                                  setState(() {
+                                    _isCalculatingDistance = true;
+                                  });
+                                  await _calculateActualDistance();
+
+                                  setState(() {
+                                    showReviewAndConfirm = true;
+                                    showTripInfo = false;
+                                    showPreferances = false;
+                                    showPassenger = false;
+                                    _isCalculatingDistance = false;
+                                  });
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                }
+                              } else if (showReviewAndConfirm) {
+                                if (_isBooking) return;
+
+                                setState(() {
+                                  _isBooking = true;
+                                });
+
+                                try {
+                                  // 1. Prepare Request Data
+                                  final userData =
+                                      UserLocalStorage.getUserData();
+                                  final userId = UserLocalStorage.getUserId();
+                                  final userEmail = userData?['email'] ?? "";
+                                  final userName =
+                                      userData?['name'] ??
+                                      userData?['username'] ??
+                                      "Customer";
+
+                                  final totalWithVat =
+                                      _calculatedCharge *
+                                      (_isPromoValid
+                                          ? (1 - _discountPercentage / 100)
+                                          : 1) *
+                                      (1 +
+                                          _vatPercentage /
+                                              100); // Including VAT
+                                  final orderId =
+                                      "BOOK_${DateTime.now().millisecondsSinceEpoch}";
+
+                                  // 2. Process Payment via PayTabs SDK
+                                  final passengerPhone =
+                                      "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}";
+
+                                  final paymentRequest = PaymentRequest(
+                                    amount: double.parse(
+                                      totalWithVat.toStringAsFixed(2),
+                                    ),
+                                    currency: PaytabsConfig.defaultCurrency,
+                                    merchantCountryCode:
+                                        PaytabsConfig.merchantCountryCode,
+                                    orderId: orderId,
+                                    customerEmail: userEmail,
+                                    customerName: userName,
+                                    customerPhone: passengerPhone,
+                                    cartId: orderId,
+                                    cartDescription:
+                                        "Ride Booking for $_selectedVehicleClass",
+                                  );
+
+                                  final paymentResult = await PaymentService()
+                                      .startPayment(request: paymentRequest);
+
+                                  debugPrint(
+                                    '💳 PayTabs Result: success=${paymentResult.success}, '
+                                    'ref=${paymentResult.transactionReference}, '
+                                    'msg=${paymentResult.responseMessage}',
+                                  );
+
+                                  if (paymentResult.success) {
+                                    // 3. If Payment Successful, Create Booking Record
+                                    String getIsoDateTime(
+                                      DateTime? d,
+                                      TimeOfDay? t,
+                                    ) {
+                                      if (d == null || t == null) return "";
+                                      return DateTime(
+                                                d.year,
+                                                d.month,
+                                                d.day,
+                                                t.hour,
+                                                t.minute,
+                                              )
+                                              .toUtc()
+                                              .toIso8601String()
+                                              .split('.')
+                                              .first +
+                                          "Z";
+                                    }
+
+                                    final airportCoords =
+                                        _getAirportCoordinates();
+                                    double? finalPickupLat;
+                                    double? finalPickupLng;
+                                    double? finalDropOffLat;
+                                    double? finalDropOffLng;
+                                    String? finalPickupAddress;
+                                    String? finalDropOffAddress;
+
+                                    if (_selectedCatCode == 0) {
+                                      finalPickupLat = airportCoords['lat'];
+                                      finalPickupLng = airportCoords['lng'];
+                                      finalDropOffLat = _dropLat;
+                                      finalDropOffLng = _dropLng;
+
+                                      final String airport =
+                                          _getSelectedAirportName(context) ??
+                                          "";
+                                      final String terminal =
+                                          _getSelectedTerminalName(context) ??
+                                          "";
+                                      finalPickupAddress = terminal.isNotEmpty
+                                          ? "$airport - $terminal"
+                                          : airport;
+                                      finalDropOffAddress = _dropAddress;
+                                    } else if (_selectedCatCode == 1) {
+                                      finalPickupLat = _pickupLat;
+                                      finalPickupLng = _pickupLng;
+                                      finalDropOffLat = airportCoords['lat'];
+                                      finalDropOffLng = airportCoords['lng'];
+
+                                      final String airport =
+                                          _getSelectedAirportName(context) ??
+                                          "";
+                                      final String terminal =
+                                          _getSelectedTerminalName(context) ??
+                                          "";
+                                      finalDropOffAddress = terminal.isNotEmpty
+                                          ? "$airport - $terminal"
+                                          : airport;
+                                      finalPickupAddress = _pickupAddress;
+                                    } else {
+                                      finalPickupLat = _pickupLat;
+                                      finalPickupLng = _pickupLng;
+                                      finalDropOffLat = _dropLat;
+                                      finalDropOffLng = _dropLng;
+                                      finalPickupAddress = _pickupAddress;
+                                      finalDropOffAddress = _dropAddress;
+                                    }
+
+                                    // Logging raw items removed to focus on exact API data
+
+                                    final selectedCar = _getSelectedCar();
+                                    File? carImageFile;
+                                    if (selectedCar != null &&
+                                        selectedCar.imagePath.isNotEmpty) {
+                                      if (selectedCar.imagePath.startsWith(
+                                        'assets/',
+                                      )) {
+                                        carImageFile =
+                                            await _getImageFileFromAsset(
+                                              selectedCar.imagePath,
+                                            );
+                                      } else if (selectedCar.imagePath
+                                          .startsWith('http')) {
+                                        carImageFile =
+                                            await _getImageFileFromUrl(
+                                              selectedCar.imagePath,
+                                            );
+                                      } else {
+                                        final localFile = File(
+                                          selectedCar.imagePath,
+                                        );
+                                        if (await localFile.exists()) {
+                                          carImageFile = localFile;
+                                        }
+                                      }
+                                    }
+
+                                    final BookingRequestModel
+                                    requestModel = BookingRequestModel(
+                                      category: _getCategoryForApi(
+                                        _selectedCatCode,
+                                      ),
+                                      city: _getCityName(
+                                        context,
+                                        _selectedCityCode,
+                                      ),
+                                      airport:
+                                          _getSelectedAirportName(context) ??
+                                          "",
+                                      flightNumber: flightNumberController.text,
+                                      cityID: _getSelectedCityId(),
+                                      airportID: _getSelectedAirportId(),
+                                      terminalID: _getSelectedTerminalId(),
+                                      terminal:
+                                          _getSelectedTerminalName(context) ??
+                                          "",
+                                      arrival: (_selectedCatCode != 2)
+                                          ? getIsoDateTime(
+                                              _selectedDate,
+                                              _selectedTime,
+                                            )
+                                          : null,
+                                      pickupdatetime: _selectedCatCode == 2
+                                          ? getIsoDateTime(
+                                              _selectedPickupDate,
+                                              _selectedPickupTime,
+                                            )
+                                          : (_selectedCatCode == 3)
+                                          ? getIsoDateTime(
+                                              _selectedDate,
+                                              _selectedTime,
+                                            )
+                                          : null,
+                                      pickupLat: finalPickupLat
+                                          ?.toString()
+                                          .trim(),
+                                      pickupLong: finalPickupLng
+                                          ?.toString()
+                                          .trim(),
+                                      dropOffLat: finalDropOffLat
+                                          ?.toString()
+                                          .trim(),
+                                      dropOffLong: finalDropOffLng
+                                          ?.toString()
+                                          .trim(),
+                                      dropOffAddress: finalDropOffAddress,
+                                      pickupAddress: finalPickupAddress,
+                                      specialRequestText:
+                                          specialRequestsController.text,
+                                      specialRequestAudio:
+                                          _specialRequestsVoiceNotePath != null
+                                          ? File(_specialRequestsVoiceNotePath!)
+                                          : null,
+                                      passengerCount: _numberOfPassengers
+                                          .toString(),
+                                      passengerNames: jsonEncode(
+                                        _passengerNameController.text
+                                            .split(',')
+                                            .map((e) => e.trim())
+                                            .where((e) => e.isNotEmpty)
+                                            .toList(),
+                                      ),
+                                      passengerMobile:
+                                          "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}",
+                                      distance:
+                                          "${_totalDistance.toStringAsFixed(2)} km",
+                                      charge: double.parse(
+                                        totalWithVat.toStringAsFixed(2),
+                                      ),
+                                      bookingStatus: "pending",
+                                      customerID: userId,
+                                      driverID: "null",
+                                      carID: _getSelectedCarId(),
+                                      brandID: _getSelectedBrandId(),
+                                      categoryID: _getSelectedCategoryId(),
+                                      specialId: _appliedPromoId,
+                                      customerName: userName,
+                                      carclass: _selectedVehicleClass,
+                                      carName: _selectedVehicleModel,
+                                      carbrand: _selectedVehicleBrand,
+                                      carmodel: _selectedVehicleModel,
+                                      carImage: carImageFile,
+                                      serviceDuration: _selectedCatCode == 2
+                                          ? _selectedServiceDuration
+                                          : null,
+                                      estimatedHours: _selectedCatCode == 2
+                                          ? _selectedServiceDuration == 0
+                                                ? _selectedEstimatedHours
+                                                : null
+                                          : null,
+                                      orderID: orderId,
+                                      transactionID:
+                                          paymentResult.transactionReference,
+                                      discountPercentage: _isPromoValid
+                                          ? _discountPercentage
+                                          : null,
+                                      vat: _vatPercentage,
+                                      allowSimilarVehicle: _allowSimilarVehicle,
+                                    );
+
+                                    if (kDebugMode) {
+                                      final finalDataMap = requestModel.toMap();
+                                      debugPrint(
+                                        '🚀 🌐 API │ EXACT DATA FOR BOOKING:',
+                                      );
+                                      final prettyJson = JsonEncoder.withIndent(
+                                        '  ',
+                                      ).convert(finalDataMap);
+                                      debugPrint(prettyJson);
+                                      debugPrint(
+                                        '📍 pickupLat: ${requestModel.pickupLat}',
+                                      );
+                                      debugPrint(
+                                        '📍 pickupLong: ${requestModel.pickupLong}',
+                                      );
+                                    }
+
+                                    // Guard: ensure pickup coordinates are present for hourly bookings
+                                    if (_selectedCatCode == 2 &&
+                                        (requestModel.pickupLong == null ||
+                                            requestModel.pickupLong!.isEmpty)) {
+                                      _showCustomSnackBar(
+                                        loc.pickupLocationIsRequired,
+                                        'E',
+                                      );
+                                      setState(() {
+                                        _isBooking = false;
+                                      });
+                                      return;
+                                    }
+
+                                    final apiResponse = _selectedCatCode == 2
+                                        ? await ApiService()
+                                              .createHourlyBooking(
+                                                booking: requestModel,
+                                                token:
+                                                    UserLocalStorage.getToken(),
+                                              )
+                                        : await ApiService().createBooking(
+                                            booking: requestModel,
+                                            token: UserLocalStorage.getToken(),
+                                          );
+
+                                    if (kDebugMode) {
+                                      debugPrint(
+                                        "✅ 🌐 API │ BOOKING RESPONSE RECEIVED",
+                                      );
+                                      debugPrint(
+                                        "✅ 🌐 API │ Status: ${apiResponse['success']}",
+                                      );
+                                      debugPrint(
+                                        "✅ 🌐 API │ Full Response: $apiResponse",
+                                      );
+                                    }
+
+                                    if (apiResponse['success'] == true) {
+                                      _showCustomSnackBar(
+                                        loc.bookingConfirmedSuccessfully,
+                                        'S',
+                                      );
+                                      Navigator.pushAndRemoveUntil(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const SuccessPage(),
+                                        ),
+                                        (route) => false,
+                                      );
+                                    } else {
+                                      _showCustomSnackBar(
+                                        apiResponse['message'] ??
+                                            loc.bookingFailed,
+                                        'E',
+                                      );
+                                    }
+                                  } else {
+                                    if (paymentResult.responseCode ==
+                                            'EVENT_CANCELLED' ||
+                                        paymentResult.responseMessage
+                                                .toLowerCase() ==
+                                            "cancel" ||
+                                        paymentResult.responseMessage
+                                                .toLowerCase() ==
+                                            "payment cancelled") {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const PaymentCancelledPage(),
+                                        ),
+                                      );
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              PaymentRejectedPage(
+                                                errorMessage: paymentResult
+                                                    .responseMessage,
+                                              ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } catch (e) {
+                                  debugPrint('❌ Booking error: $e');
+                                  _showCustomSnackBar(
+                                    loc.somethingWentWrong,
+                                    'E',
+                                  );
+                                } finally {
+                                  if (mounted) {
+                                    setState(() {
+                                      _isBooking = false;
+                                    });
+                                  }
                                 }
                               }
-                            }
-                          },
-                    fontsize: 14,
-                    showLoader:
-                        _isCalculatingDistance ||
-                        _isBooking ||
-                        _isCheckingRoute,
+                            },
+                      fontsize: 14,
+                      showLoader:
+                          _isCalculatingDistance ||
+                          _isBooking ||
+                          _isCheckingRoute,
+                    ),
                   ),
-                ),
-                SizedBox(height: 32),
-              ],
+                  SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget buildReviewAndConfirmPage(BuildContext context, AppLocalizations loc) {
     return Column(
@@ -2530,10 +2553,10 @@ class _NewBookingState extends State<NewBooking> {
               String getDisplayTime() {
                 TimeOfDay? timeOfDay =
                     (_selectedCatCode == 0 ||
-                            _selectedCatCode == 1 ||
-                            _selectedCatCode == 3)
-                        ? _selectedTime
-                        : _selectedPickupTime;
+                        _selectedCatCode == 1 ||
+                        _selectedCatCode == 3)
+                    ? _selectedTime
+                    : _selectedPickupTime;
                 if (timeOfDay == null) return "";
                 final now = DateTime.now();
                 final dt = DateTime(
@@ -3572,7 +3595,7 @@ class _NewBookingState extends State<NewBooking> {
               child: Text(
                 loc.similarVehicleNote,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withAlpha(179),
                   fontSize: 12,
                   fontStyle: FontStyle.italic,
                 ),
