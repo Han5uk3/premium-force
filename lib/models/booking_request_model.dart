@@ -4,7 +4,6 @@ class BookingRequestModel {
   String? category;
   String? city;
   String? airport;
-  String? arrival; // ISO 8601 DateTime string
   String? pickupLat;
   String? pickupLong;
   String? dropOffLat;
@@ -15,12 +14,11 @@ class BookingRequestModel {
   double? charge;
   String? carbrand;
   String? carmodel;
-  File? carImage;
+
   String? specialRequestText;
   File? specialRequestAudio;
   String? passengerCount;
-  String?
-  passengerNames; // JSON Object format, e.g., '["John Doe", "Jane Smith"]'
+  String? passengerNames;
   String? passengerMobile;
   String? distance;
   String? customerID;
@@ -52,7 +50,6 @@ class BookingRequestModel {
     this.category,
     this.city,
     this.airport,
-    this.arrival,
     this.pickupLat,
     this.pickupLong,
     this.dropOffLat,
@@ -63,7 +60,7 @@ class BookingRequestModel {
     this.charge,
     this.carbrand,
     this.carmodel,
-    this.carImage,
+
     this.specialRequestText,
     this.specialRequestAudio,
     this.passengerCount,
@@ -101,7 +98,6 @@ class BookingRequestModel {
       if (category != null) 'category': category,
       if (city != null) 'city': city,
       if (airport != null) 'airport': airport,
-      if (arrival != null) 'arrival': arrival,
       if (pickupLat != null) 'pickupLat': pickupLat,
       if (pickupLong != null) 'pickupLong': pickupLong,
       if (dropOffLat != null) 'dropOffLat': dropOffLat,
@@ -112,7 +108,7 @@ class BookingRequestModel {
       if (charge != null) 'charge': charge,
       if (carbrand != null) 'carbrand': carbrand,
       if (carmodel != null) 'carmodel': carmodel,
-      if (carImage != null) 'carImage': carImage!.path,
+
       if (specialRequestText != null) 'specialRequestText': specialRequestText,
       if (specialRequestAudio != null)
         'specialRequestAudio': specialRequestAudio!.path,
@@ -136,14 +132,15 @@ class BookingRequestModel {
       if (serviceDuration != null) 'serviceDuration': serviceDuration,
       if (estimatedHours != null) 'estimatedHours': estimatedHours,
       if (specialId != null) 'specialId': specialId,
-      if (pickupdatetime != null) 'pickupdatetime': pickupdatetime,
+      if (pickupdatetime != null) 'pickupDateTime': pickupdatetime,
       if (discountPercentage != null) 'discountPercentage': discountPercentage,
       if (orderID != null) 'orderID': orderID,
       if (transactionID != null) 'transactionID': transactionID,
       if (customerName != null) 'customerName': customerName,
       if (vat != null) 'vat': vat,
       if (extraVat != null) 'extraVat': extraVat,
-      if (allowSimilarVehicle != null) 'allowSimilarVehicle': allowSimilarVehicle,
+      if (allowSimilarVehicle != null)
+        'allowSimilarVehicle': allowSimilarVehicle,
     };
   }
 

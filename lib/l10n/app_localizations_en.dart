@@ -380,13 +380,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterFlightNumber => 'Enter Flight Number';
 
   @override
-  String get flightNumber => 'Flight Number';
+  String get flightNumber => 'Flight Number (Optional)';
 
   @override
-  String get arrivalDateAndTime => 'Arrival Date and Time';
+  String get arrivalDateAndTime => 'Pickup Date and Time';
 
   @override
-  String get departureDateAndTime => 'Departure Date and Time';
+  String get departureDateAndTime => 'Pickup Date and Time';
 
   @override
   String get pickupDateAndTime => 'Pickup Date and Time';
@@ -395,13 +395,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickupLocation => 'Pickup Location';
 
   @override
-  String get dropLocation => 'Drop Location';
+  String get dropLocation => 'Drop Off Location';
 
   @override
   String get tapToSelectAPickupLocation => 'Tap to select a pickup location';
 
   @override
-  String get tapToSelectADropLocation => 'Tap to select a drop location';
+  String get tapToSelectADropLocation => 'Tap to select a drop off location';
 
   @override
   String get terminal1 => 'Terminal 1';
@@ -443,7 +443,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickupLocationIsRequired => 'Pickup location is required';
 
   @override
-  String get dropLocationIsRequired => 'Drop location is required';
+  String get dropLocationIsRequired => 'Drop off location is required';
 
   @override
   String get kingKhalidInternationalAirport =>

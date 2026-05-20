@@ -323,7 +323,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
             GoogleMap(
               initialCameraPosition: CameraPosition(
                 target: _selectedLocation,
-                zoom: 14,
+                zoom: 11,
               ),
               onMapCreated: (controller) {
                 _mapController.complete(controller);

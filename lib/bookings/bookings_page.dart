@@ -200,9 +200,7 @@ class _BookingsPageState extends State<BookingsPage>
               (booking.pickupdatetime != null &&
                   booking.pickupdatetime!.isNotEmpty)
               ? DateTime.tryParse(booking.pickupdatetime!)
-              : (booking.arrival != null
-                    ? DateTime.tryParse(booking.arrival!)
-                    : null);
+              : null;
           final dateStr = Bookingcard.formatDate(context, displayDate);
           final timeStr = Bookingcard.formatTime(context, displayDate);
           final isChauffeur = booking is HourlyBookingModel;

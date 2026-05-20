@@ -105,7 +105,6 @@ class BookingProvider extends ChangeNotifier {
         (booking.pickupdatetime != null
             ? DateTime.tryParse(booking.pickupdatetime!)
             : null) ??
-        (booking.arrival != null ? DateTime.tryParse(booking.arrival!) : null) ??
         DateTime(0);
   }
 

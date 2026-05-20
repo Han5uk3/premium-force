@@ -62,7 +62,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: _selectedValue,
+              value: widget.items.contains(_selectedValue) ? _selectedValue : null,
               itemHeight: null,
               hint: widget.hint != null
                   ? Text(

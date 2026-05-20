@@ -26,15 +26,12 @@ import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/services/payment_service.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:premium_force_main/ride_booking/payment_rejected_page.dart';
 import 'package:premium_force_main/ride_booking/payment_cancelled_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:premium_force_main/utils/zone_helper.dart';
 import 'package:premium_force_main/models/pricing/zone_model.dart';
-// Removed Firestore/FirebasePricingService imports
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -220,44 +217,6 @@ class _NewBookingState extends State<NewBooking> {
         return carsList.isNotEmpty ? carsList.first : null;
       }
     }
-  }
-
-  /// Converts an asset to a temporary file
-  Future<File> _getImageFileFromAsset(String assetPath) async {
-    final byteData = await rootBundle.load(assetPath);
-    final file = File(
-      '${(await getTemporaryDirectory()).path}/${assetPath.split('/').last}',
-    );
-    await file.create(recursive: true);
-    await file.writeAsBytes(
-      byteData.buffer.asUint8List(
-        byteData.offsetInBytes,
-        byteData.lengthInBytes,
-      ),
-    );
-    return file;
-  }
-
-  /// Downloads an image from URL and saves to a temporary file
-  Future<File?> _getImageFileFromUrl(String url) async {
-    try {
-      final response = await Dio().get<List<int>>(
-        url,
-        options: Options(responseType: ResponseType.bytes),
-      );
-      if (response.data != null) {
-        final tempDir = await getTemporaryDirectory();
-        // Extract fileName but keep it simple
-        String fileName = url.split('/').last.split('?').first;
-        if (!fileName.contains('.')) fileName = "$fileName.jpg";
-        final file = File('${tempDir.path}/$fileName');
-        await file.writeAsBytes(response.data!);
-        return file;
-      }
-    } catch (e) {
-      debugPrint('🌐 📁 API │ Error downloading image: $e');
-    }
-    return null;
   }
 
   /// Gets the city ID for the selected airport
@@ -2139,7 +2098,9 @@ class _NewBookingState extends State<NewBooking> {
 
                                   // 2. Process Payment via PayTabs SDK
                                   final passengerPhone =
-                                      "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}";
+                                      userData?['phone'] ??
+                                      userData?['phoneNumber'] ??
+                                      "";
 
                                   final paymentRequest = PaymentRequest(
                                     amount: 1.0, // Testing: Override to 1 SAR
@@ -2237,33 +2198,6 @@ class _NewBookingState extends State<NewBooking> {
 
                                     // Logging raw items removed to focus on exact API data
 
-                                    final selectedCar = _getSelectedCar();
-                                    File? carImageFile;
-                                    if (selectedCar != null &&
-                                        selectedCar.imagePath.isNotEmpty) {
-                                      if (selectedCar.imagePath.startsWith(
-                                        'assets/',
-                                      )) {
-                                        carImageFile =
-                                            await _getImageFileFromAsset(
-                                              selectedCar.imagePath,
-                                            );
-                                      } else if (selectedCar.imagePath
-                                          .startsWith('http')) {
-                                        carImageFile =
-                                            await _getImageFileFromUrl(
-                                              selectedCar.imagePath,
-                                            );
-                                      } else {
-                                        final localFile = File(
-                                          selectedCar.imagePath,
-                                        );
-                                        if (await localFile.exists()) {
-                                          carImageFile = localFile;
-                                        }
-                                      }
-                                    }
-
                                     final BookingRequestModel
                                     requestModel = BookingRequestModel(
                                       category: _getCategoryForApi(
@@ -2283,23 +2217,15 @@ class _NewBookingState extends State<NewBooking> {
                                       terminal:
                                           _getSelectedTerminalName(context) ??
                                           "",
-                                      arrival: (_selectedCatCode != 2)
-                                          ? getIsoDateTime(
-                                              _selectedDate,
-                                              _selectedTime,
-                                            )
-                                          : null,
-                                      pickupdatetime: _selectedCatCode == 2
+                                      pickupdatetime: (_selectedCatCode == 2)
                                           ? getIsoDateTime(
                                               _selectedPickupDate,
                                               _selectedPickupTime,
                                             )
-                                          : (_selectedCatCode == 3)
-                                          ? getIsoDateTime(
+                                          : getIsoDateTime(
                                               _selectedDate,
                                               _selectedTime,
-                                            )
-                                          : null,
+                                            ),
                                       pickupLat: finalPickupLat
                                           ?.toString()
                                           .trim(),
@@ -2348,7 +2274,6 @@ class _NewBookingState extends State<NewBooking> {
                                       carName: _selectedVehicleModel,
                                       carbrand: _selectedVehicleBrand,
                                       carmodel: _selectedVehicleModel,
-                                      carImage: carImageFile,
                                       serviceDuration: _selectedCatCode == 2
                                           ? _selectedServiceDuration
                                           : null,
@@ -3844,12 +3769,6 @@ class _NewBookingState extends State<NewBooking> {
             blackbg: true,
             needAutoCapitalize: true,
             borderRadius: 8,
-            validator: (val) {
-              if (val == null || val.trim().isEmpty) {
-                return loc.flightNumberIsRequired;
-              }
-              return null;
-            },
           ),
         ),
         SizedBox(height: 16),
@@ -3907,12 +3826,6 @@ class _NewBookingState extends State<NewBooking> {
             blackbg: true,
             needAutoCapitalize: true,
             borderRadius: 8,
-            validator: (val) {
-              if (val == null || val.trim().isEmpty) {
-                return loc.flightNumberIsRequired;
-              }
-              return null;
-            },
           ),
         ),
         SizedBox(height: 16),
@@ -4299,13 +4212,7 @@ class _NewBookingState extends State<NewBooking> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                isPickup
-                    ? loc.pickupDateAndTime
-                    : _selectedCatCode == 0
-                    ? loc.arrivalDateAndTime
-                    : _selectedCatCode == 1
-                    ? loc.departureDateAndTime
-                    : loc.pickupDateAndTime,
+                loc.pickupDateAndTime,
                 style: TextStyle(color: Colors.white, fontSize: 14),
               ),
             ),
@@ -4816,7 +4723,8 @@ class _NewBookingState extends State<NewBooking> {
 
             // Check 3: For private transfer, ONLY show cities that HAVE zone pricing
             // (as requested: show only cities where private transfer is available)
-            if (_selectedCatCode == 3) {
+            // Only apply this filter after zones have loaded to avoid blank dropdown
+            if (_selectedCatCode == 3 && _allZones.isNotEmpty) {
               final cityId = (c['_id'] ?? c['id'])?.toString();
               final hasActiveZone = _allZones.any(
                 (z) => z.cityId == cityId && z.isActive,

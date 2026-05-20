@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_paytabs_bridge/BaseBillingShippingInfo.dart';
 import 'package:flutter_paytabs_bridge/IOSThemeConfiguration.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkConfigurationDetails.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkLocale.dart';
+import 'package:flutter_paytabs_bridge/PaymentSDKNetworks.dart';
 import 'package:flutter_paytabs_bridge/flutter_paytabs_bridge.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkTokeniseType.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkTransactionType.dart';
@@ -51,28 +53,47 @@ class PaymentService {
       debugPrint('🔄 Processing payment...');
       debugPrint('Amount: ${request.amount} ${request.currency}');
       debugPrint('Order ID: ${request.orderId}');
+      debugPrint('Profile ID: ${PaytabsConfig.profileId}');
+      debugPrint(
+        'Server Key prefix: ${PaymentService.serverKey.substring(0, 10)}...',
+      );
+      debugPrint(
+        'Client Key prefix: ${PaymentService.clientKey.substring(0, 10)}...',
+      );
+      debugPrint('isDigitalProduct: false');
+      debugPrint(
+        'Billing: ${request.customerName}, ${request.customerEmail}, ${request.merchantCountryCode}',
+      );
 
       // 1. Configure Billing & Shipping Details
       var billingDetails = BillingDetails(
         request.customerName,
         request.customerEmail,
         request.customerPhone,
-        "", // Address
+        request.billingAddress.isNotEmpty
+            ? request.billingAddress
+            : "Saudi Arabia", // Address
         request.merchantCountryCode,
-        "", // City
-        "", // State
-        "", // Zip
+        request.billingCity.isNotEmpty ? request.billingCity : "Riyadh", // City
+        request.billingState.isNotEmpty
+            ? request.billingState
+            : "Riyadh", // State
+        request.billingZip.isNotEmpty ? request.billingZip : "00000", // Zip
       );
 
       var shippingDetails = ShippingDetails(
         request.customerName,
         request.customerEmail,
         request.customerPhone,
-        "", // Address
+        request.billingAddress.isNotEmpty
+            ? request.billingAddress
+            : "Saudi Arabia", // Address
         request.merchantCountryCode,
-        "", // City
-        "", // State
-        "", // Zip
+        request.billingCity.isNotEmpty ? request.billingCity : "Riyadh", // City
+        request.billingState.isNotEmpty
+            ? request.billingState
+            : "Riyadh", // State
+        request.billingZip.isNotEmpty ? request.billingZip : "00000", // Zip
       );
 
       // 2. Setup Configuration
@@ -96,6 +117,13 @@ class PaymentService {
         transactionType: PaymentSdkTransactionType.SALE,
         tokeniseType: PaymentSdkTokeniseType.USER_OPTIONAL,
         tokenFormat: PaymentSdkTokenFormat.Hex32Format,
+        simplifyApplePayValidation: true,
+        paymentNetworks: [
+          PaymentSDKNetworks.visa,
+          PaymentSDKNetworks.masterCard,
+          PaymentSDKNetworks.mada,
+          PaymentSDKNetworks.amex,
+        ],
       );
 
       var theme = IOSThemeConfigurations();
@@ -270,11 +298,143 @@ class PaymentService {
     return startPayment(request: request);
   }
 
+  /// Start Apple Pay payment (iOS only)
+  /// Returns PaymentResult with transaction details
+  Future<PaymentResult> startApplePayPayment({
+    required PaymentRequest request,
+  }) async {
+    if (!Platform.isIOS) {
+      return PaymentResult(
+        success: false,
+        transactionReference: '',
+        invoiceId: '',
+        responseCode: 'UNSUPPORTED',
+        responseMessage: 'Apple Pay is only available on iOS devices',
+        customerEmail: request.customerEmail,
+        amount: request.amount,
+      );
+    }
+
+    final Completer<PaymentResult> completer = Completer<PaymentResult>();
+
+    debugPrint('🍎 Starting Apple Pay for Order: ${request.orderId}');
+
+    try {
+      var billingDetails = BillingDetails(
+        request.customerName,
+        request.customerEmail,
+        request.customerPhone,
+        request.billingAddress.isNotEmpty
+            ? request.billingAddress
+            : "Saudi Arabia",
+        request.merchantCountryCode,
+        request.billingCity.isNotEmpty ? request.billingCity : "Riyadh",
+        request.billingState.isNotEmpty ? request.billingState : "Riyadh",
+        request.billingZip.isNotEmpty ? request.billingZip : "00000",
+      );
+
+      var configuration = PaymentSdkConfigurationDetails(
+        profileId: PaytabsConfig.profileId,
+        serverKey: PaymentService.serverKey,
+        clientKey: PaymentService.clientKey,
+        cartId: request.cartId,
+        cartDescription: request.cartDescription,
+        merchantName: "Premium Force",
+        amount: request.amount,
+        currencyCode: request.currency,
+        merchantCountryCode: request.merchantCountryCode,
+        billingDetails: billingDetails,
+        transactionType: PaymentSdkTransactionType.SALE,
+        simplifyApplePayValidation: true,
+        paymentNetworks: [
+          PaymentSDKNetworks.visa,
+          PaymentSDKNetworks.masterCard,
+          PaymentSDKNetworks.mada,
+          PaymentSDKNetworks.amex,
+        ],
+      );
+
+      FlutterPaytabsBridge.startApplePayPayment(configuration, (event) {
+        debugPrint('🍎 Apple Pay Callback: $event');
+
+        if (completer.isCompleted) return;
+
+        if (event["status"] == "success") {
+          var transactionDetails = event["data"];
+          if (transactionDetails["isSuccess"]) {
+            completer.complete(
+              PaymentResult(
+                success: true,
+                transactionReference:
+                    transactionDetails["transactionReference"] ?? '',
+                invoiceId: transactionDetails["cartId"] ?? '',
+                responseCode:
+                    transactionDetails["paymentResult"]?["responseCode"] ??
+                    '000',
+                responseMessage:
+                    transactionDetails["paymentResult"]?["responseMessage"] ??
+                    'Success',
+                customerEmail: request.customerEmail,
+                amount: request.amount,
+              ),
+            );
+          } else {
+            completer.complete(
+              PaymentResult(
+                success: false,
+                transactionReference: transactionReferenceFromMap(
+                  transactionDetails,
+                ),
+                invoiceId: transactionDetails["cartId"] ?? '',
+                responseCode:
+                    transactionDetails["paymentResult"]?["responseCode"] ??
+                    'ERR',
+                responseMessage:
+                    transactionDetails["paymentResult"]?["responseMessage"] ??
+                    'Payment Failed',
+                customerEmail: request.customerEmail,
+                amount: request.amount,
+              ),
+            );
+          }
+        } else if (event["status"] == "error" || event["status"] == "event") {
+          completer.complete(
+            PaymentResult(
+              success: false,
+              transactionReference: '',
+              invoiceId: '',
+              responseCode: 'CANCELLED',
+              responseMessage: event["message"] ?? 'Apple Pay cancelled',
+              customerEmail: request.customerEmail,
+              amount: request.amount,
+            ),
+          );
+        }
+      });
+
+      return completer.future;
+    } catch (e) {
+      debugPrint('❌ Apple Pay failed: $e');
+      return PaymentResult(
+        success: false,
+        transactionReference: '',
+        invoiceId: '',
+        responseCode: 'EXCEPTION',
+        responseMessage: e.toString(),
+        customerEmail: request.customerEmail,
+        amount: request.amount,
+      );
+    }
+  }
+
   /// Get SDK version
-  String getSDKVersion() => '2.7.2';
+  String getSDKVersion() => '2.7.6';
 
   /// Check if payment SDK is ready
   Future<bool> isSDKReady() async {
     return true;
   }
+
+  /// Check if Apple Pay is available (iOS only)
+  bool get isApplePayAvailable => Platform.isIOS;
 }

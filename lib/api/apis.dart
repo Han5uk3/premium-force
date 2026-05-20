@@ -960,7 +960,6 @@ class ApiService {
 
   Future<FormData> _buildNormalFormData(BookingRequestModel booking) async {
     final fields = booking.toMap();
-    fields.remove('carImage'); // Remove text path to prevent conflict
 
     // Sanitize distance (Postman expects numeric-only string)
     if (fields['distance'] != null) {
@@ -1009,13 +1008,7 @@ class ApiService {
       );
     }
 
-    // Postman uses lowercase 'carimage'
-    if (booking.carImage != null) {
-      fields['carimage'] = await MultipartFile.fromFile(
-        booking.carImage!.path,
-        filename: 'car_image.jpg',
-      );
-    }
+
 
     // Initialize extra hours/payment data for new bookings to ensure they start clean
     fields['extrahours'] = '0';
@@ -1304,12 +1297,7 @@ class ApiService {
         filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
       );
     }
-    if (booking.carImage != null) {
-      fields['carImage'] = await MultipartFile.fromFile(
-        booking.carImage!.path,
-        filename: 'car_image.jpg',
-      );
-    }
+
 
     final formData = FormData.fromMap(fields);
 

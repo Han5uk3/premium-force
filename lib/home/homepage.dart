@@ -27,10 +27,6 @@ import 'package:premium_force_main/home/fleet_list_page.dart';
 import 'package:premium_force_main/models/pricing/zone_model.dart';
 import 'package:premium_force_main/common_widgets/tracking_card.dart';
 
-
-
-
-
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
 
@@ -659,7 +655,6 @@ class _HomepageState extends State<Homepage>
     );
   }
 
-
   Widget _buildRecentBookings(BuildContext context, AppLocalizations loc) {
     return Consumer<BookingProvider>(
       builder: (context, bookingProvider, child) {
@@ -737,9 +732,7 @@ class _HomepageState extends State<Homepage>
                     final booking = bookingProvider.recentBookings[index];
                     final displayDate = booking.pickupdatetime != null
                         ? DateTime.tryParse(booking.pickupdatetime!)
-                        : (booking.arrival != null
-                              ? DateTime.tryParse(booking.arrival!)
-                              : null);
+                        : null;
 
                     final dateStr = Bookingcard.formatDate(
                       context,
@@ -783,7 +776,6 @@ class _HomepageState extends State<Homepage>
                                 'chauffeur',
                               ) ||
                               booking.estimatedHours != null,
-                              
                         ),
                       ),
                     );
@@ -1230,9 +1222,8 @@ class _HomepageState extends State<Homepage>
               ],
             ),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 10),
           const InfiniteScrollBanner(),
-          SizedBox(height: 8),
         ],
       ),
     );

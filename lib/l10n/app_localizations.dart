@@ -833,19 +833,19 @@ abstract class AppLocalizations {
   /// No description provided for @flightNumber.
   ///
   /// In en, this message translates to:
-  /// **'Flight Number'**
+  /// **'Flight Number (Optional)'**
   String get flightNumber;
 
   /// No description provided for @arrivalDateAndTime.
   ///
   /// In en, this message translates to:
-  /// **'Arrival Date and Time'**
+  /// **'Pickup Date and Time'**
   String get arrivalDateAndTime;
 
   /// No description provided for @departureDateAndTime.
   ///
   /// In en, this message translates to:
-  /// **'Departure Date and Time'**
+  /// **'Pickup Date and Time'**
   String get departureDateAndTime;
 
   /// No description provided for @pickupDateAndTime.
@@ -863,7 +863,7 @@ abstract class AppLocalizations {
   /// No description provided for @dropLocation.
   ///
   /// In en, this message translates to:
-  /// **'Drop Location'**
+  /// **'Drop Off Location'**
   String get dropLocation;
 
   /// No description provided for @tapToSelectAPickupLocation.
@@ -875,7 +875,7 @@ abstract class AppLocalizations {
   /// No description provided for @tapToSelectADropLocation.
   ///
   /// In en, this message translates to:
-  /// **'Tap to select a drop location'**
+  /// **'Tap to select a drop off location'**
   String get tapToSelectADropLocation;
 
   /// No description provided for @terminal1.
@@ -959,7 +959,7 @@ abstract class AppLocalizations {
   /// No description provided for @dropLocationIsRequired.
   ///
   /// In en, this message translates to:
-  /// **'Drop location is required'**
+  /// **'Drop off location is required'**
   String get dropLocationIsRequired;
 
   /// No description provided for @kingKhalidInternationalAirport.

@@ -11,6 +11,10 @@ class PaymentRequest extends Equatable {
   final String customerPhone;
   final String cartId;
   final String cartDescription;
+  final String billingAddress;
+  final String billingCity;
+  final String billingState;
+  final String billingZip;
 
   const PaymentRequest({
     required this.amount,
@@ -22,6 +26,10 @@ class PaymentRequest extends Equatable {
     required this.customerPhone,
     required this.cartId,
     required this.cartDescription,
+    this.billingAddress = '',
+    this.billingCity = '',
+    this.billingState = '',
+    this.billingZip = '',
   });
 
   @override
@@ -35,6 +43,10 @@ class PaymentRequest extends Equatable {
     customerPhone,
     cartId,
     cartDescription,
+    billingAddress,
+    billingCity,
+    billingState,
+    billingZip,
   ];
 
   Map<String, dynamic> toJson() {
@@ -48,6 +60,10 @@ class PaymentRequest extends Equatable {
       'customerPhone': customerPhone,
       'cartId': cartId,
       'cartDescription': cartDescription,
+      'billingAddress': billingAddress,
+      'billingCity': billingCity,
+      'billingState': billingState,
+      'billingZip': billingZip,
     };
   }
 }

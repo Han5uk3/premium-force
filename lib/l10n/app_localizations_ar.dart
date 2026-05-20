@@ -379,13 +379,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get enterFlightNumber => 'أدخل رقم الرحلة';
 
   @override
-  String get flightNumber => 'رقم الرحلة';
+  String get flightNumber => 'رقم الرحلة (اختياري)';
 
   @override
-  String get arrivalDateAndTime => 'تاريخ ووقت الوصول';
+  String get arrivalDateAndTime => 'تاريخ ووقت الاستلام';
 
   @override
-  String get departureDateAndTime => 'تاريخ ووقت المغادرة';
+  String get departureDateAndTime => 'تاريخ ووقت الاستلام';
 
   @override
   String get pickupDateAndTime => 'تاريخ ووقت الاستلام';

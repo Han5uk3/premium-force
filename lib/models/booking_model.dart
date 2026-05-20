@@ -139,7 +139,6 @@ abstract class BookingModel {
   }
 
   // Virtual fields (nullable in base, overridden in specific models)
-  String? get arrival => null;
   String? get dropOffAddress => null;
   double? get dropOffLat => null;
   double? get dropOffLong => null;
@@ -234,7 +233,7 @@ abstract class BookingModel {
 
 class NormalBookingModel extends BookingModel {
   @override
-  final String? arrival;
+  final String? pickupdatetime;
   @override
   final String? dropOffAddress;
   @override
@@ -294,7 +293,7 @@ class NormalBookingModel extends BookingModel {
     super.bookingNumber,
     super.vat,
     super.allowSimilarVehicle,
-    this.arrival,
+    this.pickupdatetime,
     this.dropOffAddress,
     this.dropOffLat,
     this.dropOffLong,
@@ -353,7 +352,7 @@ class NormalBookingModel extends BookingModel {
       allowSimilarVehicle: common.allowSimilarVehicle,
       vat: common.vat,
       // Normal specific
-      arrival: json['arrival']?.toString(),
+      pickupdatetime: json['pickupdatetime']?.toString() ?? json['pickupDateTime']?.toString() ?? json['arrival']?.toString(),
       dropOffAddress: json['dropOffAddress']?.toString(),
       dropOffLat: _toDouble(json['dropOffLat']),
       dropOffLong: _toDouble(json['dropOffLong']),
@@ -411,7 +410,7 @@ class NormalBookingModel extends BookingModel {
     String? bookingNumber,
     double? vat,
     bool? allowSimilarVehicle,
-    String? arrival,
+    String? pickupdatetime,
     String? dropOffAddress,
     double? dropOffLat,
     double? dropOffLong,
@@ -466,7 +465,7 @@ class NormalBookingModel extends BookingModel {
       bookingNumber: bookingNumber ?? this.bookingNumber,
       vat: vat ?? this.vat,
       allowSimilarVehicle: allowSimilarVehicle ?? this.allowSimilarVehicle,
-      arrival: arrival ?? this.arrival,
+      pickupdatetime: pickupdatetime ?? this.pickupdatetime,
       dropOffAddress: dropOffAddress ?? this.dropOffAddress,
       dropOffLat: dropOffLat ?? this.dropOffLat,
       dropOffLong: dropOffLong ?? this.dropOffLong,
@@ -480,7 +479,7 @@ class NormalBookingModel extends BookingModel {
     return {
       'id': id,
       'category': category,
-      'arrival': arrival,
+      'pickupdatetime': pickupdatetime,
       'dropOffAddress': dropOffAddress,
       'bookingStatus': bookingStatus,
       'vat': vat,
