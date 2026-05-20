@@ -55,3 +55,13 @@ android/key.properties
 
 # Postman Collections
 assets/PremiumForce.postman_collection_04_04_2026_evenning
+
+# Apple Pay & Certificate Files
+certificates/
+premium force apple pay merchant/
+*.csr
+*.key
+*.p12
+*.cer
+*.pem
+AppAuth_Key_*.p8
