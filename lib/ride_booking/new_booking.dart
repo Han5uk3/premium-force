@@ -2142,9 +2142,7 @@ class _NewBookingState extends State<NewBooking> {
                                       "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}";
 
                                   final paymentRequest = PaymentRequest(
-                                    amount: double.parse(
-                                      totalWithVat.toStringAsFixed(2),
-                                    ),
+                                    amount: 1.0, // Testing: Override to 1 SAR
                                     currency: PaytabsConfig.defaultCurrency,
                                     merchantCountryCode:
                                         PaytabsConfig.merchantCountryCode,

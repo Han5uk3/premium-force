@@ -1262,7 +1262,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       // --- 💳 Live PayTabs Payment ---
       final paymentResult = await PaymentService().startPayment(
         request: PaymentRequest(
-          amount: extraTotal,
+          amount: 1.0, // Testing: Override to 1 SAR
           currency: PaytabsConfig.defaultCurrency,
           merchantCountryCode: PaytabsConfig.merchantCountryCode,
           orderId: orderId,

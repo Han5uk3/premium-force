@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Paytabs configuration constants
@@ -5,13 +6,19 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class PaytabsConfig {
   // ===== REQUIRED: Loaded from .env =====
   /// Your Paytabs server key
-  static String get serverKey => dotenv.get('PAYTABS_SERVER_KEY', fallback: '');
+  static String get serverKey => kDebugMode
+      ? dotenv.get('PAYTABS_SERVER_KEY', fallback: '')
+      : dotenv.get('PAYTABS_SERVER_LIVE_KEY', fallback: '');
 
   /// Your Paytabs client key
-  static String get clientKey => dotenv.get('PAYTABS_CLIENT_KEY', fallback: '');
+  static String get clientKey => kDebugMode
+      ? dotenv.get('PAYTABS_CLIENT_KEY', fallback: '')
+      : dotenv.get('PAYTABS_CLIENT_LIVE_KEY', fallback: '');
 
   /// Your Paytabs profile ID
-  static String get profileId => dotenv.get('PAYTABS_PROFILE_ID', fallback: '153721');
+  static String get profileId => kDebugMode
+      ? dotenv.get('PAYTABS_PROFILE_ID', fallback: '153721')
+      : dotenv.get('PAYTABS_PROFILE_LIVE_ID', fallback: '129739');
 
   /// Your merchant email
   static String get merchantEmail => dotenv.get('PAYTABS_MERCHANT_EMAIL', fallback: 'your-merchant@example.com');
