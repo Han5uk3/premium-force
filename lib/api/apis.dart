@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
 
@@ -94,7 +95,15 @@ class ApiService {
               debugPrint('🔄 API │ Attempting backend token refresh...');
               try {
                 // Use a separate Dio instance to avoid interceptor loop
-                final refreshDio = Dio(BaseOptions(baseUrl: _baseUrl));
+                final refreshDio = Dio(
+                  BaseOptions(
+                    baseUrl: _baseUrl,
+                    headers: {
+                      'Accept': 'application/json',
+                      'Content-Type': 'application/json',
+                    },
+                  ),
+                );
                 final refreshResponse = await refreshDio.post(
                   'otp/refresh-token',
                   data: {'refreshToken': refreshToken},
@@ -103,27 +112,33 @@ class ApiService {
                 if (refreshResponse.statusCode == 200 &&
                     refreshResponse.data != null) {
                   final respData = refreshResponse.data;
-                  final tokens = respData['tokens'] ??
-                      (respData['data'] is Map ? respData['data']['tokens'] : null);
+                  final tokens =
+                      respData['tokens'] ??
+                      (respData['data'] is Map
+                          ? respData['data']['tokens']
+                          : null);
 
-                  newAccess = (tokens is Map
-                          ? (tokens['accessToken'] ?? tokens['token'])
-                          : (respData['accessToken'] ??
-                              respData['token'] ??
-                              (respData['data'] is Map
-                                  ? (respData['data']['accessToken'] ??
-                                      respData['data']['token'])
-                                  : null)))
-                      as String?;
-                  newRefresh = (tokens is Map
-                          ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-                          : (respData['refreshToken'] ??
-                              respData['refresh_token'] ??
-                              (respData['data'] is Map
-                                  ? (respData['data']['refreshToken'] ??
-                                      respData['data']['refresh_token'])
-                                  : null)))
-                      as String?;
+                  newAccess =
+                      (tokens is Map
+                              ? (tokens['accessToken'] ?? tokens['token'])
+                              : (respData['accessToken'] ??
+                                    respData['token'] ??
+                                    (respData['data'] is Map
+                                        ? (respData['data']['accessToken'] ??
+                                              respData['data']['token'])
+                                        : null)))
+                          as String?;
+                  newRefresh =
+                      (tokens is Map
+                              ? (tokens['refreshToken'] ??
+                                    tokens['refresh_token'])
+                              : (respData['refreshToken'] ??
+                                    respData['refresh_token'] ??
+                                    (respData['data'] is Map
+                                        ? (respData['data']['refreshToken'] ??
+                                              respData['data']['refresh_token'])
+                                        : null)))
+                          as String?;
                 }
               } catch (reErr) {
                 debugPrint('❌ API │ Refresh failed: $reErr');
@@ -326,10 +341,7 @@ class ApiService {
 
       dev.log('🔐 Google Auth │ Sending data: $data');
 
-      final response = await _dio.post(
-        'auth/google',
-        data: data,
-      );
+      final response = await _dio.post('auth/google', data: data);
 
       debugPrint('🔐 Google Auth │ Response: ${response.data}');
 
@@ -350,10 +362,7 @@ class ApiService {
 
       dev.log('🍎 Apple Auth │ Sending data: $data');
 
-      final response = await _dio.post(
-        'auth/apple',
-        data: data,
-      );
+      final response = await _dio.post('auth/apple', data: data);
 
       debugPrint('🍎 Apple Auth │ Response: ${response.data}');
 
@@ -555,14 +564,14 @@ class ApiService {
 
   /// Update a user's FCM registration token.
   ///
-  /// Calls `PUT /api/users/:id/fcm-token`
+  /// Calls `POST /api/users/:id/fcm-token`
   Future<Map<String, dynamic>> updateFcmToken({
     required String userid,
     required String fcmToken,
     String? token,
   }) async {
     try {
-      final response = await _dio.put(
+      final response = await _dio.post(
         'users/$userid/fcm-token',
         data: {'fcmToken': fcmToken},
         options: token != null ? _authOptions(token) : null,
@@ -758,7 +767,7 @@ class ApiService {
     try {
       final response = await _dio.post(
         'users/$userid/fcm-token',
-        data: {'fcmToken': fcmToken, 'userid': userid},
+        data: {'fcmToken': fcmToken},
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -1008,8 +1017,6 @@ class ApiService {
       );
     }
 
-
-
     // Initialize extra hours/payment data for new bookings to ensure they start clean
     fields['extrahours'] = '0';
     fields['extraPayment'] = '0';
@@ -1033,16 +1040,39 @@ class ApiService {
     return formData;
   }
 
-  /// Fetch all bookings for a specific customer.
+  /// Fetch all bookings for the authenticated customer.
   ///
-  /// Calls `GET /api/bookings/customer/:customerId`
-  Future<Map<String, dynamic>> getBookingsByCustomerId({
-    required String customerId,
-    String? token,
-  }) async {
+  /// Calls `GET /api/bookings/customer/list`
+  Future<Map<String, dynamic>> getBookingsByCustomerId({String? token}) async {
     try {
       final response = await _dio.get(
-        'bookings/customer/$customerId',
+        'bookings/customer/list',
+        options: token != null ? _authOptions(token) : null,
+      );
+      // if (kDebugMode) {
+      //   debugPrint('🌐 API │ Customer Bookings Response Start 🚀');
+      //   try {
+      //     final prettyString = const JsonEncoder.withIndent('  ').convert(response.data);
+      //     for (final line in prettyString.split('\n')) {
+      //       debugPrint(line);
+      //     }
+      //   } catch (e) {
+      //     debugPrint('🌐 API │ Error formatting response data: $e');
+      //     debugPrint('🌐 API │ Raw response data: ${response.data}');
+      //   }
+      //   debugPrint('🌐 API │ Customer Bookings Response End 🏁');
+      // }
+      return _success(response);
+    } catch (e) {
+      return _handleError(e);
+    }
+  }
+
+  /// NEW: Fetch updated bookings from `/api/bookings`.
+  Future<Map<String, dynamic>> getbookingsupdated({String? token}) async {
+    try {
+      final response = await _dio.get(
+        'bookings',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -1051,16 +1081,15 @@ class ApiService {
     }
   }
 
-  /// Fetch all hourly bookings for a specific customer.
+  /// Fetch all hourly bookings for the authenticated customer.
   ///
-  /// Calls `GET /api/hourly-bookings/customer/:customerId`
+  /// Calls `GET /api/hourly-bookings/customer/list`
   Future<Map<String, dynamic>> getHourlyBookingsByCustomerId({
-    required String customerId,
     String? token,
   }) async {
     try {
       final response = await _dio.get(
-        'hourly-bookings/customer/$customerId',
+        'hourly-bookings/customer/list',
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
@@ -1270,7 +1299,11 @@ class ApiService {
     fields['category'] = booking.carclass ?? '';
     fields['brand'] = booking.carbrand ?? '';
     fields['carName'] = booking.carName ?? '';
-    fields['driverID'] = booking.driverID ?? 'null';
+    if (booking.driverID != null &&
+        booking.driverID != 'null' &&
+        booking.driverID!.isNotEmpty) {
+      fields['driverID'] = booking.driverID;
+    }
     fields['specialRequestText'] = booking.specialRequestText ?? '';
     fields['bookingStatus'] = booking.bookingStatus ?? 'pending';
     fields['isActive'] = 'true';
@@ -1280,14 +1313,8 @@ class ApiService {
     }
 
     // Additional fields from Postman
-    fields['extraTransactionID'] = 'null';
-    fields['extraOrderID'] = 'null';
-    fields['extraPayment'] = 'null';
     fields['startedAt'] = DateTime.now().toIso8601String();
     fields['stoppedAt'] = DateTime.now().toIso8601String();
-    fields['extraDiscount'] = 'null';
-    fields['extraVat'] = 'null';
-    fields['extraPaymentCompleted'] = 'null';
     fields['vat'] = booking.vat?.toString() ?? '0';
 
     // Handle files
@@ -1297,7 +1324,6 @@ class ApiService {
         filename: 'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
       );
     }
-
 
     final formData = FormData.fromMap(fields);
 

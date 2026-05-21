@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:intl/intl.dart' show DateFormat;
 import 'user.dart';
 
 abstract class BookingModel {
@@ -149,6 +150,102 @@ abstract class BookingModel {
   String? get stoppedAt => null;
 
   String? get pickupdatetime => null;
+
+  DateTime? get parsedPickupDateTime {
+    final dateStr = pickupdatetime;
+    if (dateStr == null || dateStr.trim().isEmpty) return null;
+    final trimmed = dateStr.trim();
+
+    // Try standard tryParse first
+    final parsed = DateTime.tryParse(trimmed);
+    if (parsed != null) {
+      // If the string includes an explicit timezone offset, preserve the
+      // original local hour/minute values instead of converting them.
+      final offsetRegex = RegExp(
+        r'(?:Z|[+-]\d{2}:?\d{2})$',
+        caseSensitive: false,
+      );
+      if (offsetRegex.hasMatch(trimmed)) {
+        final stripped = trimmed.replaceAll(offsetRegex, '');
+        final localParsed = DateTime.tryParse(stripped);
+        if (localParsed != null) {
+          return localParsed;
+        }
+      }
+      return parsed;
+    }
+
+    // 1. Format: YYYY-MM-DD HH:MM:SS AM/PM or YYYY-MM-DD HH:MM AM/PM
+    // E.g., "2026-05-21 07:54 PM" or "2026-05-21 07:54:30 PM"
+    final ymdAmPmRegex = RegExp(
+      r'^(\d{4})[/-](\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?$',
+      caseSensitive: false,
+    );
+    final ymdAmPmMatch = ymdAmPmRegex.firstMatch(trimmed);
+    if (ymdAmPmMatch != null) {
+      final year = int.parse(ymdAmPmMatch.group(1)!);
+      final month = int.parse(ymdAmPmMatch.group(2)!);
+      final day = int.parse(ymdAmPmMatch.group(3)!);
+      var hour = int.parse(ymdAmPmMatch.group(4)!);
+      final minute = int.parse(ymdAmPmMatch.group(5)!);
+      final second = ymdAmPmMatch.group(6) != null
+          ? int.parse(ymdAmPmMatch.group(6)!)
+          : 0;
+      final amPm = ymdAmPmMatch.group(7)?.toLowerCase();
+
+      if (amPm == 'pm' && hour < 12) hour += 12;
+      if (amPm == 'am' && hour == 12) hour = 0;
+
+      return DateTime(year, month, day, hour, minute, second);
+    }
+
+    // 2. Format: DD/MM/YYYY HH:MM:SS AM/PM or DD-MM-YYYY HH:MM AM/PM
+    // E.g., "21/05/2026 07:54 PM"
+    final dmyAmPmRegex = RegExp(
+      r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?$',
+      caseSensitive: false,
+    );
+    final dmyAmPmMatch = dmyAmPmRegex.firstMatch(trimmed);
+    if (dmyAmPmMatch != null) {
+      final day = int.parse(dmyAmPmMatch.group(1)!);
+      final month = int.parse(dmyAmPmMatch.group(2)!);
+      final year = int.parse(dmyAmPmMatch.group(3)!);
+      var hour = int.parse(dmyAmPmMatch.group(4)!);
+      final minute = int.parse(dmyAmPmMatch.group(5)!);
+      final second = dmyAmPmMatch.group(6) != null
+          ? int.parse(dmyAmPmMatch.group(6)!)
+          : 0;
+      final amPm = dmyAmPmMatch.group(7)?.toLowerCase();
+
+      if (amPm == 'pm' && hour < 12) hour += 12;
+      if (amPm == 'am' && hour == 12) hour = 0;
+
+      return DateTime(year, month, day, hour, minute, second);
+    }
+
+    // 3. Fallbacks using simple regexes for date only:
+    // E.g. "21/05/2026" or "21-05-2026"
+    final dmyRegex = RegExp(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$');
+    final dmyMatch = dmyRegex.firstMatch(trimmed);
+    if (dmyMatch != null) {
+      final day = int.parse(dmyMatch.group(1)!);
+      final month = int.parse(dmyMatch.group(2)!);
+      final year = int.parse(dmyMatch.group(3)!);
+      return DateTime(year, month, day);
+    }
+
+    // 4. Try parsing using DateFormat from intl if we have custom formats like 'dd MMM yyyy' or 'yyyy-MM-dd' etc.
+    try {
+      return DateFormat('dd MMM yyyy').parse(trimmed);
+    } catch (_) {}
+
+    try {
+      return DateFormat('yyyy-MM-dd').parse(trimmed);
+    } catch (_) {}
+
+    return null;
+  }
+
   int? get estimatedHours => null;
   int? get extraHours => null;
   String? get extraOrderID => null;
@@ -229,7 +326,6 @@ abstract class BookingModel {
 
   Map<String, dynamic> toJson();
 }
-
 
 class NormalBookingModel extends BookingModel {
   @override
@@ -352,7 +448,13 @@ class NormalBookingModel extends BookingModel {
       allowSimilarVehicle: common.allowSimilarVehicle,
       vat: common.vat,
       // Normal specific
-      pickupdatetime: json['pickupdatetime']?.toString() ?? json['pickupDateTime']?.toString() ?? json['arrival']?.toString(),
+      pickupdatetime:
+          json['pickupdatetime']?.toString() ??
+          json['pickupDateTime']?.toString() ??
+          json['pickup_datetime']?.toString() ??
+          json['pickup_date_time']?.toString() ??
+          json['arrival']?.toString() ??
+          json['startedAt']?.toString(),
       dropOffAddress: json['dropOffAddress']?.toString(),
       dropOffLat: _toDouble(json['dropOffLat']),
       dropOffLong: _toDouble(json['dropOffLong']),
@@ -631,7 +733,10 @@ class HourlyBookingModel extends BookingModel {
       pickupdatetime:
           json['pickupdatetime']?.toString() ??
           json['pickupDateTime']?.toString() ??
-          json['startedAt']?.toString(),
+          json['pickup_datetime']?.toString() ??
+          json['pickup_date_time']?.toString() ??
+          json['startedAt']?.toString() ??
+          json['arrival']?.toString(),
       estimatedHours: _toInt(json['estimatedHours'] ?? json['hours']),
       extraHours: _toInt(json['extraHours']),
       extraOrderID: json['extraOrderID']?.toString(),

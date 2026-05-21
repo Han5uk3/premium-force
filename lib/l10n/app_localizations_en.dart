@@ -272,6 +272,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pleaseSelectYourLocation => 'Please select your location';
 
   @override
+  String pleaseChooseLocationWithinCity(Object city) {
+    return 'Please choose a location within $city city.';
+  }
+
+  @override
   String get completeYourProfileToGetStarted =>
       'Complete Your Profile To Get Started';
 

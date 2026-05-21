@@ -189,10 +189,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final booking = widget.booking;
-    final displayDate =
-        (booking.pickupdatetime != null && booking.pickupdatetime!.isNotEmpty)
-        ? DateTime.tryParse(booking.pickupdatetime!)
-        : null;
+    final displayDate = booking.parsedPickupDateTime;
 
     final dateStr = Bookingcard.formatDate(context, displayDate);
     final timeStr = Bookingcard.formatTime(context, displayDate);
@@ -1258,6 +1255,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           'EXTRA_${booking.id}_${DateTime.now().millisecondsSinceEpoch}';
 
       // --- 💳 Live PayTabs Payment ---
+      // BYPASS PAYMENT SHEET FOR TESTING:
+      // Commented out the payment sheet trigger to allow extra hours payment without actual payment
+      /*
       final paymentResult = await PaymentService().startPayment(
         request: PaymentRequest(
           amount: 1.0, // Testing: Override to 1 SAR
@@ -1276,6 +1276,16 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           cartDescription:
               'Extra ${booking.extraHours} hour(s) — Chauffeur booking ${booking.id}',
         ),
+      );
+      */
+      final paymentResult = PaymentResult(
+        success: true,
+        transactionReference: "BYPASS_EXTRA_${DateTime.now().millisecondsSinceEpoch}",
+        invoiceId: orderId,
+        responseCode: "000",
+        responseMessage: "Bypassed Extra Payment for Testing",
+        customerEmail: userData?['email'] ?? '',
+        amount: 1.0,
       );
 
       if (paymentResult.success) {

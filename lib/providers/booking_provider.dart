@@ -43,14 +43,8 @@ class BookingProvider extends ChangeNotifier {
 
       // Fetch regular bookings and hourly bookings in parallel
       final results = await Future.wait([
-        _apiService.getBookingsByCustomerId(
-          customerId: currentUserId,
-          token: token,
-        ),
-        _apiService.getHourlyBookingsByCustomerId(
-          customerId: currentUserId,
-          token: token,
-        ),
+        _apiService.getBookingsByCustomerId(token: token),
+        _apiService.getHourlyBookingsByCustomerId(token: token),
       ]);
 
       final regularResponse = results[0];
@@ -87,10 +81,17 @@ class BookingProvider extends ChangeNotifier {
         return dateB.compareTo(dateA);
       });
 
+      // Log pickupdatetime values for debugging
+      for (var i = 0; i < userBookings.length; i++) {
+        final booking = userBookings[i];
+        debugPrint(
+          '📍 Booking ${i + 1}: pickupdatetime=${booking.pickupdatetime} parsed=${booking.parsedPickupDateTime}',
+        );
+      }
+
       _bookings = userBookings;
       _recentBookings = userBookings.take(3).toList();
       _categorizeBookings(userBookings);
-      
     } catch (e) {
       _errorMessage = "An unexpected error occurred: $e";
       debugPrint('❌ BookingProvider │ Error: $e');
@@ -101,11 +102,7 @@ class BookingProvider extends ChangeNotifier {
   }
 
   DateTime _getBookingDate(BookingModel booking) {
-    return booking.createdAt ??
-        (booking.pickupdatetime != null
-            ? DateTime.tryParse(booking.pickupdatetime!)
-            : null) ??
-        DateTime(0);
+    return booking.createdAt ?? booking.parsedPickupDateTime ?? DateTime(0);
   }
 
   void _categorizeBookings(List<BookingModel> userBookings) {

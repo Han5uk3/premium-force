@@ -1,16 +1,141 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-class TrackingCard extends StatelessWidget {
+class TrackingCard extends StatefulWidget {
   final BookingModel booking;
 
   const TrackingCard({super.key, required this.booking});
 
   @override
+  State<TrackingCard> createState() => _TrackingCardState();
+}
+
+class _TrackingCardState extends State<TrackingCard> {
+  StreamSubscription? _locationSubscription;
+  LatLng? _driverLocation;
+  LatLng? _lastFetchLocation;
+  String _currentEta = '';
+  String _currentDistance = '';
+  final FirebaseDatabase _database = FirebaseDatabase.instance;
+  bool _isChauffeur = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isChauffeur = (widget.booking.category ?? '').toLowerCase().contains('chauffeur') ||
+        widget.booking.estimatedHours != null;
+    _listenToDriverLocation();
+  }
+
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToDriverLocation() {
+    _locationSubscription = _database
+        .ref('bookings/${widget.booking.id}/driver_location')
+        .onValue
+        .listen((event) {
+          final data = event.snapshot.value as Map<dynamic, dynamic>?;
+          if (data != null) {
+            final lat = (data['lat'] as num?)?.toDouble();
+            final lng = (data['lng'] as num?)?.toDouble();
+            if (lat != null && lng != null) {
+              if (mounted) {
+                setState(() {
+                  _driverLocation = LatLng(lat, lng);
+                });
+              }
+              if (_lastFetchLocation == null ||
+                  Geolocator.distanceBetween(
+                        _lastFetchLocation!.latitude,
+                        _lastFetchLocation!.longitude,
+                        lat,
+                        lng,
+                      ) >
+                      100) {
+                _lastFetchLocation = _driverLocation;
+                _fetchDirections();
+              }
+            }
+          }
+        });
+  }
+
+  Future<void> _fetchDirections() async {
+    final booking = widget.booking;
+    final pickupLat = booking.pickupLat ?? 0;
+    final pickupLng = booking.pickupLong ?? 0;
+    final dropoffLat = booking.dropOffLat ?? 0;
+    final dropoffLng = booking.dropOffLong ?? 0;
+    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
+
+    String origin, destination, waypoints = '';
+    if (_driverLocation == null) {
+      if (!hasDropoff) return;
+      origin = '$pickupLat,$pickupLng';
+      destination = '$dropoffLat,$dropoffLng';
+    } else {
+      origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
+      if (_isChauffeur || !hasDropoff) {
+        destination = '$pickupLat,$pickupLng';
+      } else {
+        destination = '$dropoffLat,$dropoffLng';
+        waypoints = '&waypoints=$pickupLat,$pickupLng';
+      }
+    }
+
+    final apiKey =
+        dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
+    if (apiKey.isEmpty) return;
+
+    try {
+      final url =
+          'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
+      final response = await Dio().get(url);
+      if (response.statusCode == 200 && response.data['status'] == 'OK') {
+        final routes = response.data['routes'] as List;
+        if (routes.isNotEmpty) {
+          final legs = routes.first['legs'] as List;
+          int dist = 0, dur = 0;
+          if (_driverLocation == null || legs.length < 2) {
+            for (final leg in legs) {
+              dist += (leg['distance']['value'] as num).toInt();
+              dur += (leg['duration']['value'] as num).toInt();
+            }
+          } else {
+            dist = (legs[0]['distance']['value'] as num).toInt();
+            dur = (legs[0]['duration']['value'] as num).toInt();
+          }
+
+          if (mounted) {
+            setState(() {
+              _currentDistance = '${(dist / 1000).toStringAsFixed(1)} km';
+              final int mins = (dur / 60).round();
+              _currentEta = mins > 60
+                  ? '${mins ~/ 60} hr ${mins % 60} min'
+                  : '$mins min';
+            });
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final booking = widget.booking;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -79,6 +204,20 @@ class TrackingCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (_currentEta.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.timer_outlined, color: Colors.white70, size: 12),
+                            const SizedBox(width: 4),
+                            Text(_currentEta, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                            const SizedBox(width: 12),
+                            const Icon(Icons.location_on_outlined, color: Colors.white70, size: 12),
+                            const SizedBox(width: 4),
+                            Text(_currentDistance, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          ],
+                        ),
+                      ]
                     ],
                   ),
                 ),
@@ -146,35 +285,37 @@ class TrackingCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Icon(Icons.arrow_forward_rounded, color: Colors.white24, size: 16),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        loc.dropoff.toUpperCase(),
-                        style: TextStyle(
-                          color: Colors.white.withAlpha(100),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                if (booking.dropOffAddress != null && booking.dropOffAddress!.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  const Icon(Icons.arrow_forward_rounded, color: Colors.white24, size: 16),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          loc.dropoff.toUpperCase(),
+                          style: TextStyle(
+                            color: Colors.white.withAlpha(100),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        booking.dropOffAddress ?? "Destination",
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                        const SizedBox(height: 4),
+                        Text(
+                          booking.dropOffAddress!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
             const SizedBox(height: 20),

@@ -152,6 +152,104 @@ class AuthProvider extends ChangeNotifier {
       final hasToken = storedToken != null && storedToken.isNotEmpty;
 
       if (hasUserId && (hasToken || isSocialLogin)) {
+        // --- PREEMPTIVE TOKEN REFRESH ON APP LAUNCH ---
+        debugPrint(
+          '🔄 AuthProvider │ App launch detected. Attempting to refresh tokens...',
+        );
+        bool refreshed = false;
+        bool sessionExpired = false;
+        final storedRefreshToken = UserLocalStorage.getRefreshToken();
+
+        if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
+          debugPrint(
+            '🔄 AuthProvider │ Attempting backend token refresh on launch...',
+          );
+          try {
+            final result = await _api.refreshAccessToken(
+              refreshToken: storedRefreshToken,
+            );
+            if (result['success'] == true) {
+              await _saveAuthTokens(result);
+              refreshed = true;
+              debugPrint(
+                '✅ AuthProvider │ Backend token refreshed successfully on launch.',
+              );
+            } else {
+              final msg = (result['message'] as String? ?? '').toLowerCase();
+              final statusCode = result['statusCode'] as int?;
+              if (statusCode == 401 ||
+                  statusCode == 403 ||
+                  msg.contains('expired') ||
+                  msg.contains('invalid')) {
+                sessionExpired = true;
+                debugPrint(
+                  '⚠️ AuthProvider │ Backend refresh token expired/invalid on launch: $msg',
+                );
+              }
+            }
+          } catch (e) {
+            debugPrint(
+              '⚠️ AuthProvider │ Backend token refresh on launch failed: $e',
+            );
+          }
+        }
+
+        // If backend refresh was not successful or not possible, and provider is google, try silent sign-in
+        if (!refreshed && loginProvider == 'google') {
+          debugPrint(
+            '🔄 AuthProvider │ Backend refresh failed/unavailable. Trying silent Google sign-in...',
+          );
+          try {
+            final googleResult = await GoogleSignInService.instance
+                .signInSilently();
+            if (googleResult != null && googleResult.idToken != null) {
+              await UserLocalStorage.saveSocialIdToken(googleResult.idToken!);
+              final authResponse = await _api.googleAuth(
+                idToken: googleResult.idToken!,
+              );
+              if (authResponse['success'] == true) {
+                await _saveAuthTokens(authResponse);
+                refreshed = true;
+                sessionExpired = false;
+                debugPrint(
+                  '✅ AuthProvider │ Google token refreshed silently on launch.',
+                );
+              } else {
+                final msg = (authResponse['message'] as String? ?? '')
+                    .toLowerCase();
+                final statusCode = authResponse['statusCode'] as int?;
+                if (statusCode == 401 ||
+                    statusCode == 403 ||
+                    msg.contains('expired') ||
+                    msg.contains('invalid')) {
+                  sessionExpired = true;
+                }
+              }
+            } else {
+              sessionExpired = true;
+              debugPrint(
+                '⚠️ AuthProvider │ Silent Google sign-in returned null on launch.',
+              );
+            }
+          } catch (e) {
+            debugPrint(
+              '⚠️ AuthProvider │ Silent Google sign-in on launch failed: $e',
+            );
+            sessionExpired = true;
+          }
+        }
+
+        // If the session is definitively expired, log them out right away
+        if (sessionExpired && !refreshed) {
+          debugPrint(
+            '🚨 AuthProvider │ Session definitively expired on launch. Logging out.',
+          );
+          await UserLocalStorage.clearUser();
+          _status = AuthStatus.unauthenticated;
+          notifyListeners();
+          return;
+        }
+        // ----------------------------------------------
         // First try to load from local storage
         final localData = UserLocalStorage.getUserData();
         if (localData != null) {
@@ -284,6 +382,7 @@ class AuthProvider extends ChangeNotifier {
         phoneNumber: phoneNumber,
         otp: otp,
       );
+      debugPrint('🔑 verifyOtp response: ' + result.toString());
 
       _isOtpLoading = false;
       _cancelResendTimer();
@@ -320,10 +419,10 @@ class AuthProvider extends ChangeNotifier {
         _phoneNumber = phoneNumber;
         _resendCountdown = 0;
         debugPrint('✅ Existing user logged in: ${_user?.username ?? ''}');
-        
+
         // Sync FCM token with backend after successful login
         unawaited(NotificationService.instance.syncTokenWithBackend());
-        
+
         notifyListeners();
       } else {
         // Check if this is a "user not found" scenario — OTP was valid but
@@ -333,7 +432,6 @@ class AuthProvider extends ChangeNotifier {
             message.contains('not registered') ||
             message.contains('register first') ||
             message.contains('not exist')) {
-          
           await _saveAuthTokens(result);
 
           _status = AuthStatus.otpVerified;
@@ -463,7 +561,9 @@ class AuthProvider extends ChangeNotifier {
             final freshToken = UserLocalStorage.getToken();
             fullUser = await _api.getUserById(id: uid, token: freshToken);
             if (fullUser != null) {
-              debugPrint('✅ Signup │ Full user fetched from backend: ${fullUser.username}');
+              debugPrint(
+                '✅ Signup │ Full user fetched from backend: ${fullUser.username}',
+              );
             }
           } catch (e) {
             debugPrint('⚠️ Signup │ getUserById after creation failed: $e');
@@ -480,15 +580,17 @@ class AuthProvider extends ChangeNotifier {
               'countryCode': countryCode,
             });
             await UserLocalStorage.saveUserData(userData);
-            debugPrint('⚠️ Signup │ Using fallback user from createUser response');
+            debugPrint(
+              '⚠️ Signup │ Using fallback user from createUser response',
+            );
           }
         }
 
         _status = AuthStatus.authenticated;
-        
+
         // Sync FCM token with backend after successful signup
         unawaited(NotificationService.instance.syncTokenWithBackend());
-        
+
         notifyListeners();
         debugPrint('✅ Signup │ User authenticated: ${_user?.username}');
         return {'success': true};
@@ -536,15 +638,25 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _saveAuthTokens(Map<String, dynamic> result) async {
     final data = result['data'];
     final tokens = result['tokens'] ?? (data is Map ? data['tokens'] : null);
-    
-    final accessToken = (tokens is Map
-            ? (tokens['accessToken'] ?? tokens['token'])
-            : (result['accessToken'] ?? result['token'] ?? (data is Map ? (data['accessToken'] ?? data['token']) : null)))
-        as String?;
-    final refreshToken = (tokens is Map
-            ? (tokens['refreshToken'] ?? tokens['refresh_token'])
-            : (result['refreshToken'] ?? result['refresh_token'] ?? (data is Map ? (data['refreshToken'] ?? data['refresh_token']) : null)))
-        as String?;
+
+    final accessToken =
+        (tokens is Map
+                ? (tokens['accessToken'] ?? tokens['token'])
+                : (result['accessToken'] ??
+                      result['token'] ??
+                      (data is Map
+                          ? (data['accessToken'] ?? data['token'])
+                          : null)))
+            as String?;
+    final refreshToken =
+        (tokens is Map
+                ? (tokens['refreshToken'] ?? tokens['refresh_token'])
+                : (result['refreshToken'] ??
+                      result['refresh_token'] ??
+                      (data is Map
+                          ? (data['refreshToken'] ?? data['refresh_token'])
+                          : null)))
+            as String?;
 
     if (accessToken != null && accessToken.isNotEmpty) {
       if (refreshToken != null && refreshToken.isNotEmpty) {
@@ -555,7 +667,13 @@ class AuthProvider extends ChangeNotifier {
       } else {
         await UserLocalStorage.saveToken(accessToken);
       }
-      debugPrint('💾 AuthProvider │ Tokens saved to Hive');
+      debugPrint(
+        '💾 AuthProvider │ Tokens saved to Hive.\n'
+        '   - AccessToken: ${accessToken.substring(0, 15)}...\n'
+        '   - RefreshToken: ${refreshToken != null ? refreshToken.substring(0, 15) + '...' : 'NONE'}',
+      );
+    } else {
+      debugPrint('⚠️ AuthProvider │ Failed to extract access token from result: $result');
     }
   }
 
@@ -610,7 +728,8 @@ class AuthProvider extends ChangeNotifier {
 
         if (authResponse['success'] == true) {
           final authData = authResponse['data'];
-          final bool userExists = authData is Map && authData['userExists'] == true;
+          final bool userExists =
+              authData is Map && authData['userExists'] == true;
 
           if (userExists) {
             // Existing user: Authenticate
@@ -648,7 +767,8 @@ class AuthProvider extends ChangeNotifier {
           }
         } else {
           _status = AuthStatus.failure;
-          _errorMessage = authResponse['message'] ?? 'Backend authentication failed';
+          _errorMessage =
+              authResponse['message'] ?? 'Backend authentication failed';
           debugPrint('❌ Google Sign-In │ Backend Auth Failed: $_errorMessage');
         }
       } else {
@@ -710,7 +830,8 @@ class AuthProvider extends ChangeNotifier {
 
         if (authResponse['success'] == true) {
           final authData = authResponse['data'];
-          final bool userExists = authData is Map && authData['userExists'] == true;
+          final bool userExists =
+              authData is Map && authData['userExists'] == true;
 
           if (userExists) {
             // Existing user: Authenticate
@@ -748,7 +869,8 @@ class AuthProvider extends ChangeNotifier {
           }
         } else {
           _status = AuthStatus.failure;
-          _errorMessage = authResponse['message'] ?? 'Backend authentication failed';
+          _errorMessage =
+              authResponse['message'] ?? 'Backend authentication failed';
           debugPrint('❌ Apple Sign-In │ Backend Auth Failed: $_errorMessage');
         }
       } else {

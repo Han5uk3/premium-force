@@ -196,11 +196,7 @@ class _BookingsPageState extends State<BookingsPage>
         itemCount: bookings.length,
         itemBuilder: (context, index) {
           final booking = bookings[index];
-          final displayDate =
-              (booking.pickupdatetime != null &&
-                  booking.pickupdatetime!.isNotEmpty)
-              ? DateTime.tryParse(booking.pickupdatetime!)
-              : null;
+          final displayDate = booking.parsedPickupDateTime;
           final dateStr = Bookingcard.formatDate(context, displayDate);
           final timeStr = Bookingcard.formatTime(context, displayDate);
           final isChauffeur = booking is HourlyBookingModel;

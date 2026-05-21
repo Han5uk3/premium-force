@@ -87,6 +87,13 @@
   "pleaseEnterYourName": "Please enter your name",
   "pleaseAddAProfilePicture": "Please add a profile picture",
   "pleaseSelectYourLocation": "Please select your location",
+  "pleaseChooseLocationWithinCity": "Please choose a location within {city} city.",
+  "@pleaseChooseLocationWithinCity": {
+    "description": "Error when airport booking location is outside the selected city.",
+    "placeholders": {
+      "city": {}
+    }
+  },
   "completeYourProfileToGetStarted": "Complete Your Profile To Get Started",
   "tapToAddPhoto": "Tap to add photo",
   "tapToAddPhotoOptional": "Tap to add photo (Optional)",

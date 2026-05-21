@@ -184,32 +184,17 @@ class _LocationPickerPageState extends State<LocationPickerPage>
         final data = response.data;
         final double lat = data['location']['latitude'];
         final double lng = data['location']['longitude'];
-        final String formattedAddress =
-            data['formattedAddress'] ?? result['address'];
-
-        // Extract city (locality)
-        String city = '';
-        final List components = data['addressComponents'] ?? [];
-        for (var comp in components) {
-          final List types = comp['types'] ?? [];
-          if (types.contains('locality') ||
-              types.contains('administrative_area_level_2')) {
-            city = comp['longText'] ?? '';
-            break;
-          }
-        }
 
         LatLng position = LatLng(lat, lng);
         setState(() {
-          _selectedLocation = position;
-          _selectedAddress = formattedAddress;
-          _selectedCity = city;
           _searchResults = [];
           _searchController.clear();
         });
 
         final controller = await _mapController.future;
-        controller.animateCamera(CameraUpdate.newLatLngZoom(position, 16));
+        await controller.animateCamera(
+          CameraUpdate.newLatLngZoom(position, 16),
+        );
       }
     } catch (e) {
       debugPrint('âŒ Failed to resolve place details: $e');
@@ -551,12 +536,20 @@ class _LocationPickerPageState extends State<LocationPickerPage>
             AnimatedPositioned(
               duration: const Duration(milliseconds: 600),
               curve: Curves.easeOutQuart,
-              bottom: (_selectedAddress.isNotEmpty || widget.needCurrentLocationButton) ? 0 : -300,
+              bottom:
+                  (_selectedAddress.isNotEmpty ||
+                      widget.needCurrentLocationButton)
+                  ? 0
+                  : -300,
               left: 0,
               right: 0,
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 400),
-                opacity: (_selectedAddress.isNotEmpty || widget.needCurrentLocationButton) ? 1 : 0,
+                opacity:
+                    (_selectedAddress.isNotEmpty ||
+                        widget.needCurrentLocationButton)
+                    ? 1
+                    : 0,
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -605,7 +598,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                               child: _selectedAddress.isNotEmpty
                                   ? Column(
                                       key: const ValueKey('address_display'),
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
@@ -652,153 +646,163 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                         const SizedBox(height: 20),
                                       ],
                                     )
-                                  : const SizedBox.shrink(key: ValueKey('empty_address')),
+                                  : const SizedBox.shrink(
+                                      key: ValueKey('empty_address'),
+                                    ),
                             ),
 
-                          if (widget.needCurrentLocationButton) ...[
-                            // Use current location button (condensed in selected state)
-                            GestureDetector(
-                              onTap: _isLoading ? null : _useCurrentLocation,
-                              child: Container(
-                                width: double.infinity,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0D0A08),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: const Color(0xFF49280B),
-                                    width: 1,
+                            if (widget.needCurrentLocationButton) ...[
+                              // Use current location button (condensed in selected state)
+                              GestureDetector(
+                                onTap: _isLoading ? null : _useCurrentLocation,
+                                child: Container(
+                                  width: double.infinity,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0D0A08),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFF49280B),
+                                      width: 1,
+                                    ),
                                   ),
-                                ),
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 300),
-                                  child: Row(
-                                    key: ValueKey(_isLoading),
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (_isLoading)
-                                        const PremiumLoader(
-                                          size: 24,
-                                          color: Color(0xFFE4A46B),
-                                        )
-                                      else
-                                        ShaderMask(
-                                          shaderCallback: (Rect bounds) {
-                                            return const LinearGradient(
-                                              colors: [
-                                                Color(0xFF49280B),
-                                                Color(0xFFE4A46B),
-                                                Color(0xFF60350F),
-                                              ],
-                                            ).createShader(bounds);
-                                          },
-                                          child: const Icon(
-                                            Icons.my_location,
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Row(
+                                      key: ValueKey(_isLoading),
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        if (_isLoading)
+                                          const PremiumLoader(
+                                            size: 24,
+                                            color: Color(0xFFE4A46B),
+                                          )
+                                        else
+                                          ShaderMask(
+                                            shaderCallback: (Rect bounds) {
+                                              return const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF49280B),
+                                                  Color(0xFFE4A46B),
+                                                  Color(0xFF60350F),
+                                                ],
+                                              ).createShader(bounds);
+                                            },
+                                            child: const Icon(
+                                              Icons.my_location,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                          ),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          _isLoading
+                                              ? AppLocalizations.of(
+                                                  context,
+                                                )!.gettingLocation
+                                              : AppLocalizations.of(
+                                                  context,
+                                                )!.useCurrentLocation,
+                                          style: const TextStyle(
                                             color: Colors.white,
-                                            size: 20,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        _isLoading
-                                            ? AppLocalizations.of(
-                                                context,
-                                              )!.gettingLocation
-                                            : AppLocalizations.of(
-                                                context,
-                                              )!.useCurrentLocation,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
+                              const SizedBox(height: 12),
+                            ],
 
-                          // Confirm button
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 400),
-                            transitionBuilder: (child, animation) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: ScaleTransition(
-                                  scale: Tween<double>(begin: 0.9, end: 1.0).animate(
-                                    CurvedAnimation(
-                                      parent: animation,
-                                      curve: Curves.easeOutBack,
-                                    ),
+                            // Confirm button
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 400),
+                              transitionBuilder: (child, animation) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: ScaleTransition(
+                                    scale: Tween<double>(begin: 0.9, end: 1.0)
+                                        .animate(
+                                          CurvedAnimation(
+                                            parent: animation,
+                                            curve: Curves.easeOutBack,
+                                          ),
+                                        ),
+                                    child: child,
                                   ),
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: _selectedAddress.isNotEmpty
-                                ? GestureDetector(
-                                    key: const ValueKey('confirm_button'),
-                                    onTap: () {
-                                      Navigator.pop(context, {
-                                        'address': _selectedAddress,
-                                        'city': _selectedCity,
-                                        'lat': _selectedLocation.latitude,
-                                        'lng': _selectedLocation.longitude,
-                                      });
-                                    },
-                                    child: Container(
-                                      width: double.infinity,
-                                      height: 56,
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerRight,
-                                          colors: [
-                                            Color(0xFF49280B),
-                                            Color(0xFFE4A46B),
-                                            Color(0xFF60350F),
+                                );
+                              },
+                              child: _selectedAddress.isNotEmpty
+                                  ? GestureDetector(
+                                      key: const ValueKey('confirm_button'),
+                                      onTap: () {
+                                        Navigator.pop(context, {
+                                          'address': _selectedAddress,
+                                          'city': _selectedCity,
+                                          'lat': _selectedLocation.latitude,
+                                          'lng': _selectedLocation.longitude,
+                                        });
+                                      },
+                                      child: Container(
+                                        width: double.infinity,
+                                        height: 56,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                            colors: [
+                                              Color(0xFF49280B),
+                                              Color(0xFFE4A46B),
+                                              Color(0xFF60350F),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withAlpha(10),
+                                              blurRadius: 8,
+                                              spreadRadius: 3,
+                                            ),
                                           ],
                                         ),
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withAlpha(10),
-                                            blurRadius: 8,
-                                            spreadRadius: 3,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          AppLocalizations.of(context)!.confirmLocation,
-                                          style: const TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 0.5,
+                                        child: Center(
+                                          child: Text(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.confirmLocation,
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                            ),
                                           ),
                                         ),
                                       ),
+                                    )
+                                  : const SizedBox.shrink(
+                                      key: ValueKey('empty_confirm'),
                                     ),
-                                  )
-                                : const SizedBox.shrink(key: ValueKey('empty_confirm')),
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   PreferredSizeWidget _buildAppBar() {
     return PreferredSize(
@@ -859,4 +863,3 @@ const String _mapDarkStyle = '''
   {"featureType": "water", "elementType": "labels.text.fill", "stylers": [{"color": "#3d3d3d"}]}
 ]
 ''';
-

@@ -620,6 +620,12 @@ abstract class AppLocalizations {
   /// **'Please select your location'**
   String get pleaseSelectYourLocation;
 
+  /// Error when airport booking location is outside the selected city.
+  ///
+  /// In en, this message translates to:
+  /// **'Please choose a location within {city} city.'**
+  String pleaseChooseLocationWithinCity(Object city);
+
   /// No description provided for @completeYourProfileToGetStarted.
   ///
   /// In en, this message translates to:

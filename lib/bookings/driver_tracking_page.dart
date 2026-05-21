@@ -388,11 +388,16 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     if (_driverLocation == null) return;
     BitmapDescriptor icon;
     try {
-      icon = await BitmapDescriptor.asset(
-        const ImageConfiguration(size: Size(48, 48)),
-        'assets/icons/car_black.png',
+      final ByteData data = await rootBundle.load('assets/images/car_image_generated.png');
+      final ui.Codec codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: 80, // Reduced size to match UI
       );
-    } catch (_) {
+      final ui.FrameInfo fi = await codec.getNextFrame();
+      final ByteData? byteData = await fi.image.toByteData(format: ui.ImageByteFormat.png);
+      icon = BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+    } catch (e) {
+      debugPrint('⚠️ Error loading driver pin: $e');
       icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
     }
     setState(() {
@@ -440,7 +445,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
           southwest: LatLng(minLat, minLng),
           northeast: LatLng(maxLat, maxLng),
         ),
-        100,
+        750,
       ),
     );
   }
@@ -594,7 +599,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
             markers: _markers,
             polylines: _polylines,
-            myLocationEnabled: _locationPermissionGranted,
+            myLocationEnabled: false,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
@@ -630,6 +635,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                             child: CachedNetworkImage(
                               imageUrl: widget.booking.driver!.profileImageUrl!,
                               fit: BoxFit.cover,
+                              width: 52,
+                              height: 52,
                               errorWidget: (c, u, e) => Text(
                                 (widget.booking.driver?.driverName ??
                                     "D")[0].toUpperCase(),

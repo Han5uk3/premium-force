@@ -84,6 +84,13 @@
   "pleaseEnterYourName": "يرجى إدخال اسمك",
   "pleaseAddAProfilePicture": "يرجى إضافة صورة للملف الشخصي",
   "pleaseSelectYourLocation": "يرجى اختيار موقعك",
+  "pleaseChooseLocationWithinCity": "يرجى اختيار موقع داخل مدينة {city}.",
+  "@pleaseChooseLocationWithinCity": {
+    "description": "خطأ عندما يكون موقع حجز المطار خارج المدينة المحددة.",
+    "placeholders": {
+      "city": {}
+    }
+  },
   "completeYourProfileToGetStarted": "أكمل ملفك الشخصي للبدء",
   "tapToAddPhoto": "اضغط لإضافة صورة",
   "tapToAddPhotoOptional": "اضغط لإضافة صورة (اختياري)",

@@ -272,6 +272,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pleaseSelectYourLocation => 'يرجى اختيار موقعك';
 
   @override
+  String pleaseChooseLocationWithinCity(Object city) {
+    return 'يرجى اختيار موقع داخل مدينة $city.';
+  }
+
+  @override
   String get completeYourProfileToGetStarted => 'أكمل ملفك الشخصي للبدء';
 
   @override

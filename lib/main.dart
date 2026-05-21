@@ -15,6 +15,7 @@ import 'package:premium_force_main/storage/notification_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'package:flutter/services.dart';
 import 'package:premium_force_main/notifications/notification_screen.dart';
 import 'package:country_picker/country_picker.dart';
 
@@ -24,6 +25,12 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Lock to portrait mode only
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   // Load environment variables
   await dotenv.load(fileName: "lib/.env");

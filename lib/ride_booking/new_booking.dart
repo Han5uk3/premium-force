@@ -100,9 +100,11 @@ class _NewBookingState extends State<NewBooking> {
   TimeOfDay? _selectedPickupTime;
 
   String? _dropAddress;
+  String? _dropCityName;
   double? _dropLat;
   double? _dropLng;
   String? _pickupAddress;
+  String? _pickupCityName;
   double? _pickupLat;
   double? _pickupLng;
 
@@ -245,6 +247,100 @@ class _NewBookingState extends State<NewBooking> {
     }
   }
 
+  /// Detects which city a location (lat/lng) belongs to using zones
+  String? _detectCityIdFromCoordinates(double lat, double lng) {
+    if (_allZones.isEmpty) return null;
+
+    final zone = ZoneHelper.detectZone(LatLng(lat, lng), _allZones);
+    return zone?.cityId;
+  }
+
+  String _normalizeCityName(String cityName) {
+    return cityName.toString().toLowerCase().trim().replaceAll(
+      RegExp(r'[^a-z0-9\u0600-\u06FF]'),
+      '',
+    );
+  }
+
+  String? _getCityIdFromName(String cityName) {
+    if (_apiCities.isEmpty || cityName.trim().isEmpty) return null;
+    final normalized = _normalizeCityName(cityName);
+    for (final city in _apiCities) {
+      final names = <String?>[
+        city['cityName']?.toString(),
+        city['cityNameAr']?.toString(),
+      ];
+      for (final name in names) {
+        if (name == null) continue;
+        if (_normalizeCityName(name) == normalized) {
+          return (city['_id'] ?? city['id'])?.toString();
+        }
+      }
+    }
+    return null;
+  }
+
+  String _getSelectedBookingCityLocalizedName(AppLocalizations loc) {
+    if (_apiCities.isEmpty ||
+        _selectedCityCode < 0 ||
+        _selectedCityCode >= _apiCities.length) {
+      return loc.city;
+    }
+
+    final selectedCity = _apiCities[_selectedCityCode];
+    final cityNameAr = selectedCity['cityNameAr']?.toString().trim();
+    final cityNameEn = selectedCity['cityName']?.toString().trim();
+
+    if (loc.localeName.toLowerCase().startsWith('ar') &&
+        cityNameAr != null &&
+        cityNameAr.isNotEmpty) {
+      return cityNameAr;
+    }
+
+    if (cityNameEn != null && cityNameEn.isNotEmpty) {
+      return cityNameEn;
+    }
+
+    return cityNameAr ?? loc.city;
+  }
+
+  bool _isLocationWithinSelectedBookingCity(String? locationCityName) {
+    if (locationCityName == null || locationCityName.trim().isEmpty) {
+      return false;
+    }
+
+    if (_apiCities.isEmpty ||
+        _selectedCityCode < 0 ||
+        _selectedCityCode >= _apiCities.length) {
+      return false;
+    }
+
+    final selectedCity = _apiCities[_selectedCityCode];
+    final selectedNames = <String?>[
+      selectedCity['cityName']?.toString(),
+      selectedCity['cityNameAr']?.toString(),
+    ].where((name) => name != null).cast<String>().toList();
+
+    final normalizedLocationCity = _normalizeCityName(locationCityName);
+
+    for (final selectedName in selectedNames) {
+      if (_normalizeCityName(selectedName) == normalizedLocationCity) {
+        return true;
+      }
+    }
+
+    // Also allow partial matches when the selected city name appears inside the location name
+    for (final selectedName in selectedNames) {
+      final normalizedSelected = _normalizeCityName(selectedName);
+      if (normalizedSelected.isNotEmpty &&
+          normalizedLocationCity.contains(normalizedSelected)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /// Check route availability and optionally fetch price
   Future<Map<String, dynamic>> _fetchRouteDetails({
     bool withVehicle = false,
@@ -262,10 +358,28 @@ class _NewBookingState extends State<NewBooking> {
 
     if (_selectedCatCode == 0) {
       // Arrival: From Airport City to Drop Location City
+      if (_dropLat != null && _dropLng != null && cityId != null) {
+        if (!_isLocationWithinSelectedBookingCity(_dropCityName)) {
+          return {
+            'success': false,
+            'message':
+                'Airport bookings only support drop-off locations inside the selected city.',
+          };
+        }
+      }
       fromCity = airportCityId ?? cityId;
       toCity = cityId;
     } else if (_selectedCatCode == 1) {
       // Departure: From Pickup Location City to Airport City
+      if (_pickupLat != null && _pickupLng != null && cityId != null) {
+        if (!_isLocationWithinSelectedBookingCity(_pickupCityName)) {
+          return {
+            'success': false,
+            'message':
+                'Airport bookings only support pickup locations inside the selected city.',
+          };
+        }
+      }
       fromCity = cityId;
       toCity = airportCityId ?? cityId;
     }
@@ -1398,9 +1512,41 @@ class _NewBookingState extends State<NewBooking> {
         if (_selectedCatCode == 0) {
           // Arrival: Airport -> City
           fromCity = airportCityId ?? cityId ?? '';
+
+          if (_dropLat != null && _dropLng != null && cityId != null) {
+            if (!_isLocationWithinSelectedBookingCity(_dropCityName)) {
+              if (mounted) {
+                _showNoServiceAlert(
+                  message:
+                      "Airport bookings only support drop-off locations inside the selected city.",
+                );
+              }
+              setState(() {
+                _supportedCarIds = {};
+                _isFilteringCars = false;
+              });
+              return;
+            }
+          }
         } else {
           // Departure: City -> Airport
           toCity = airportCityId ?? cityId ?? '';
+
+          if (_pickupLat != null && _pickupLng != null && cityId != null) {
+            if (!_isLocationWithinSelectedBookingCity(_pickupCityName)) {
+              if (mounted) {
+                _showNoServiceAlert(
+                  message:
+                      "Airport bookings only support pickup locations inside the selected city.",
+                );
+              }
+              setState(() {
+                _supportedCarIds = {};
+                _isFilteringCars = false;
+              });
+              return;
+            }
+          }
         }
 
         if (fromCity.isNotEmpty && toCity.isNotEmpty) {
@@ -2116,11 +2262,26 @@ class _NewBookingState extends State<NewBooking> {
                                         "Ride Booking for $_selectedVehicleClass",
                                   );
 
+                                  // BYPASS PAYMENT SHEET FOR TESTING:
+                                  // Commented out the payment sheet trigger to allow booking without payment
+                                  /*
                                   final paymentResult = await PaymentService()
                                       .startPayment(request: paymentRequest);
+                                  */
+                                  final paymentResult = PaymentResult(
+                                    success: true,
+                                    transactionReference:
+                                        "BYPASS_TEST_${DateTime.now().millisecondsSinceEpoch}",
+                                    invoiceId: orderId,
+                                    responseCode: "000",
+                                    responseMessage:
+                                        "Bypassed Payment for Testing",
+                                    customerEmail: userEmail,
+                                    amount: 1.0,
+                                  );
 
                                   debugPrint(
-                                    '💳 PayTabs Result: success=${paymentResult.success}, '
+                                    '💳 PayTabs Result (BYPASSED): success=${paymentResult.success}, '
                                     'ref=${paymentResult.transactionReference}, '
                                     'msg=${paymentResult.responseMessage}',
                                   );
@@ -2132,18 +2293,10 @@ class _NewBookingState extends State<NewBooking> {
                                       TimeOfDay? t,
                                     ) {
                                       if (d == null || t == null) return "";
-                                      return DateTime(
-                                                d.year,
-                                                d.month,
-                                                d.day,
-                                                t.hour,
-                                                t.minute,
-                                              )
-                                              .toUtc()
-                                              .toIso8601String()
-                                              .split('.')
-                                              .first +
-                                          "Z";
+                                      // Always send the selected date/time as a plain string, no timezone, no offset
+                                      String two(int n) =>
+                                          n.toString().padLeft(2, '0');
+                                      return '${d.year}-${two(d.month)}-${two(d.day)}T${two(t.hour)}:${two(t.minute)}:00';
                                     }
 
                                     final airportCoords =
@@ -3654,35 +3807,8 @@ class _NewBookingState extends State<NewBooking> {
                     items: [loc.airportArrival, loc.airportDeparture],
                   ),
           ),
-          SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: PremiumDropDown(
-              title: loc.city,
-              value: _getCityName(context, _selectedCityCode),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    final cityName = val;
-                    final cityIndex = _apiCities.indexWhere((c) {
-                      final isArabic =
-                          Localizations.localeOf(context).languageCode == 'ar';
-                      final name =
-                          (isArabic
-                                  ? (c['cityNameAr'] ?? c['cityName'])
-                                  : c['cityName'])
-                              .toString();
-                      return name == cityName;
-                    });
-                    _selectedCityCode = (cityIndex != -1) ? cityIndex : 0;
-                    _selectedAirportCode = 0;
-                    _selectedTerminalCode = 0;
-                  });
-                }
-              },
-              items: _getAvailableCityNames(context),
-            ),
-          ),
+          // City selector hidden
+          SizedBox.shrink(),
           SizedBox(height: 16),
 
           AnimatedSize(
@@ -4061,12 +4187,14 @@ class _NewBookingState extends State<NewBooking> {
                       if (isDropLocation) {
                         setState(() {
                           _dropAddress = null;
+                          _dropCityName = null;
                           _dropLat = null;
                           _dropLng = null;
                         });
                       } else {
                         setState(() {
                           _pickupAddress = null;
+                          _pickupCityName = null;
                           _pickupLat = null;
                           _pickupLng = null;
                         });
@@ -4075,15 +4203,59 @@ class _NewBookingState extends State<NewBooking> {
                       return; // Do not update state/location with new airport location
                     }
 
+                    if (_selectedCatCode == 0 && isDropLocation) {
+                      if (!_isLocationWithinSelectedBookingCity(
+                        result['city']?.toString(),
+                      )) {
+                        _showCustomSnackBar(
+                          loc.pleaseChooseLocationWithinCity(
+                            _getSelectedBookingCityLocalizedName(loc),
+                          ),
+                          'E',
+                        );
+                        setState(() {
+                          _dropAddress = null;
+                          _dropCityName = null;
+                          _dropLat = null;
+                          _dropLng = null;
+                        });
+                        state.didChange(true);
+                        return;
+                      }
+                    }
+
+                    if (_selectedCatCode == 1 && !isDropLocation) {
+                      if (!_isLocationWithinSelectedBookingCity(
+                        result['city']?.toString(),
+                      )) {
+                        _showCustomSnackBar(
+                          loc.pleaseChooseLocationWithinCity(
+                            _getSelectedBookingCityLocalizedName(loc),
+                          ),
+                          'E',
+                        );
+                        setState(() {
+                          _pickupAddress = null;
+                          _pickupCityName = null;
+                          _pickupLat = null;
+                          _pickupLng = null;
+                        });
+                        state.didChange(true);
+                        return;
+                      }
+                    }
+
                     if (isDropLocation) {
                       setState(() {
                         _dropAddress = newAddress;
+                        _dropCityName = result['city']?.toString();
                         _dropLat = newLat;
                         _dropLng = newLng;
                       });
                     } else {
                       setState(() {
                         _pickupAddress = newAddress;
+                        _pickupCityName = result['city']?.toString();
                         _pickupLat = newLat;
                         _pickupLng = newLng;
                       });

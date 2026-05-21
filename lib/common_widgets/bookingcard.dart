@@ -35,7 +35,10 @@ class Bookingcard extends StatelessWidget {
   static String formatTime(BuildContext context, DateTime? dateTime) {
     if (dateTime == null) return 'N/A';
     final locale = Localizations.localeOf(context).languageCode;
-    return '${DateFormat('hh:mm', 'en').format(dateTime)} ${DateFormat('a', locale).format(dateTime)}';
+    final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = DateFormat('a', locale).format(dateTime);
+    return '$hour:$minute $period';
   }
 
   static String formatDate(BuildContext context, DateTime? dateTime) {

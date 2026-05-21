@@ -635,7 +635,23 @@ class _HomepageState extends State<Homepage>
                           b.bookingStatus?.toLowerCase().trim() ==
                           'starttracking',
                     );
-                    return TrackingCard(booking: trackingBooking);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
+                          child: Text(
+                            loc.trackYourDriver,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        TrackingCard(booking: trackingBooking),
+                      ],
+                    );
                   } catch (_) {
                     return const SizedBox.shrink();
                   }
@@ -730,9 +746,7 @@ class _HomepageState extends State<Homepage>
                   physics: const NeverScrollableScrollPhysics(),
                   itemBuilder: (context, index) {
                     final booking = bookingProvider.recentBookings[index];
-                    final displayDate = booking.pickupdatetime != null
-                        ? DateTime.tryParse(booking.pickupdatetime!)
-                        : null;
+                    final displayDate = booking.parsedPickupDateTime;
 
                     final dateStr = Bookingcard.formatDate(
                       context,
