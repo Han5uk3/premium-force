@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/booking_model.dart';
 import 'package:dio/dio.dart';
@@ -24,13 +26,17 @@ class DriverTrackingPage extends StatefulWidget {
 
 class _DriverTrackingPageState extends State<DriverTrackingPage> {
   final Completer<GoogleMapController> _controller = Completer();
-  final FirebaseDatabase _database = FirebaseDatabase.instance;
+  final FirebaseDatabase _database = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL: 'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
+  );
   StreamSubscription? _locationSubscription;
   StreamSubscription? _sessionSubscription;
 
   LatLng? _driverLocation;
-  final Set<Marker> _markers = {};
-  final Set<Polyline> _polylines = {};
+  Set<Marker> _markers = {};
+  Set<Polyline> _polylines = {};
+  BitmapDescriptor? _driverIcon;
 
   // Chauffeur timer
   bool _isChauffeur = false;
@@ -46,6 +52,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   LatLng? _lastFetchLocation;
   String _currentEta = 'Calculating...';
   String _currentDistance = 'Calculating...';
+
+  bool _mapLayoutReady = false;
+  bool _hasFittedDriverInitialLocation = false;
 
   static const String _mapStyle = '''
 [
@@ -92,6 +101,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   void initState() {
     super.initState();
     _isChauffeur = _detectChauffeur();
+    _loadDriverIcon();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _checkLocationPermission();
@@ -205,6 +215,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         );
       }
     }
+    _updateDriverMarker();
     _fetchDirections();
   }
 
@@ -223,20 +234,21 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
     if (mounted) {
       setState(() {
-        _markers.add(
-          Marker(
-            markerId: MarkerId(id),
-            position: position,
-            infoWindow: InfoWindow(title: title),
-            icon: icon,
-          ),
-        );
+        _markers = Set<Marker>.from(_markers)
+          ..add(
+            Marker(
+              markerId: MarkerId(id),
+              position: position,
+              infoWindow: InfoWindow(title: title),
+              icon: icon,
+            ),
+          );
       });
     }
   }
 
   Future<BitmapDescriptor> _getGrayPinIcon() async {
-    const double size = 120.0;
+    const double size = 70.0;
     final ui.PictureRecorder recorder = ui.PictureRecorder();
     final ui.Canvas canvas = ui.Canvas(recorder);
     final ui.Paint paint = ui.Paint()..color = const Color(0xFF2C2C2C);
@@ -278,8 +290,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   }
 
   void _addRoutePolyline(List<LatLng> points) {
+    final newPolylines = Set<Polyline>.from(_polylines);
+
     // 1. Core solid line
-    _polylines.add(
+    newPolylines.add(
       Polyline(
         polylineId: const PolylineId('route_core'),
         points: points,
@@ -289,7 +303,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     );
 
     // 2. High intensity inner bloom
-    _polylines.add(
+    newPolylines.add(
       Polyline(
         polylineId: const PolylineId('route_inner_glow'),
         points: points,
@@ -299,7 +313,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     );
 
     // 3. Diffuse soft glow
-    _polylines.add(
+    newPolylines.add(
       Polyline(
         polylineId: const PolylineId('route_outer_glow'),
         points: points,
@@ -309,7 +323,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     );
 
     // 4. Ambient aura (replicates the bloom from the user's reference image)
-    _polylines.add(
+    newPolylines.add(
       Polyline(
         polylineId: const PolylineId('route_ambient'),
         points: points,
@@ -317,22 +331,69 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         width: 22,
       ),
     );
+
+    _polylines = newPolylines;
   }
 
   // --- RTDB Listeners ---
 
   void _listenToDriverLocation() {
+    final path = 'bookings/${widget.booking.id}/driver_location';
+    debugPrint('📡 Listening to driver location at Firebase path: $path');
+
     _locationSubscription = _database
-        .ref('bookings/${widget.booking.id}/driver_location')
+        .ref(path)
         .onValue
         .listen((event) {
-          final data = event.snapshot.value as Map<dynamic, dynamic>?;
-          if (data != null) {
-            final lat = (data['lat'] as num?)?.toDouble();
-            final lng = (data['lng'] as num?)?.toDouble();
-            if (lat != null && lng != null) {
+          final data = event.snapshot.value;
+          debugPrint('📡 Received Firebase location update: $data (Type: ${data.runtimeType})');
+
+          if (data == null) {
+            debugPrint('📡 Location update is null');
+            return;
+          }
+
+          double? lat;
+          double? lng;
+
+          if (data is Map) {
+            final rawLat = data['lat'] ?? data['latitude'] ?? data['Latitude'];
+            final rawLng = data['lng'] ?? data['longitude'] ?? data['Longitude'] ?? data['long'] ?? data['Long'];
+
+            if (rawLat is num) lat = rawLat.toDouble();
+            if (rawLng is num) lng = rawLng.toDouble();
+          } else if (data is String) {
+            final trimmed = data.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              try {
+                final Map<String, dynamic> parsed = Map<String, dynamic>.from(
+                  json.decode(trimmed) as Map
+                );
+                final rawLat = parsed['lat'] ?? parsed['latitude'] ?? parsed['Latitude'];
+                final rawLng = parsed['lng'] ?? parsed['longitude'] ?? parsed['Longitude'] ?? parsed['long'] ?? parsed['Long'];
+
+                if (rawLat is num) lat = rawLat.toDouble();
+                if (rawLng is num) lng = rawLng.toDouble();
+              } catch (e) {
+                debugPrint('⚠️ Error decoding JSON location string: $e');
+              }
+            } else if (trimmed.contains(',')) {
+              final parts = trimmed.split(',');
+              if (parts.length >= 2) {
+                lat = double.tryParse(parts[0].trim());
+                lng = double.tryParse(parts[1].trim());
+              }
+            }
+          }
+
+          if (lat != null && lng != null) {
+            final double nonNullLat = lat;
+            final double nonNullLng = lng;
+            debugPrint('📡 Parsed coordinates successfully: ($nonNullLat, $nonNullLng)');
+
+            if (mounted) {
               setState(() {
-                _driverLocation = LatLng(lat, lng);
+                _driverLocation = LatLng(nonNullLat, nonNullLng);
                 _updateDriverMarker();
               });
               _moveCameraToDriver();
@@ -340,15 +401,19 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                   Geolocator.distanceBetween(
                         _lastFetchLocation!.latitude,
                         _lastFetchLocation!.longitude,
-                        lat,
-                        lng,
+                        nonNullLat,
+                        nonNullLng,
                       ) >
                       100) {
                 _lastFetchLocation = _driverLocation;
                 _fetchDirections();
               }
             }
+          } else {
+            debugPrint('⚠️ Failed to parse coordinates from: $data');
           }
+        }, onError: (error) {
+          debugPrint('❌ Firebase location stream error at path "$path": $error');
         });
   }
 
@@ -384,10 +449,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     });
   }
 
-  Future<void> _updateDriverMarker() async {
-    if (_driverLocation == null) return;
-    BitmapDescriptor icon;
+  Future<void> _loadDriverIcon() async {
+    if (_driverIcon != null) return;
     try {
+      debugPrint('🚗 Loading driver pin custom asset: assets/images/car_image_generated.png');
       final ByteData data = await rootBundle.load('assets/images/car_image_generated.png');
       final ui.Codec codec = await ui.instantiateImageCodec(
         data.buffer.asUint8List(),
@@ -395,39 +460,60 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       );
       final ui.FrameInfo fi = await codec.getNextFrame();
       final ByteData? byteData = await fi.image.toByteData(format: ui.ImageByteFormat.png);
-      icon = BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+      _driverIcon = BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+      debugPrint('🚗 Driver pin custom asset loaded successfully!');
     } catch (e) {
       debugPrint('⚠️ Error loading driver pin: $e');
-      icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+      _driverIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
     }
-    setState(() {
-      _markers.removeWhere((m) => m.markerId.value == 'driver');
-      _markers.add(
-        Marker(
-          markerId: const MarkerId('driver'),
-          position: _driverLocation!,
-          icon: icon,
-          anchor: const Offset(0.5, 0.5),
-          infoWindow: InfoWindow(
-            title: AppLocalizations.of(context)!.driverMarkerTitle,
-          ),
+    if (mounted && _driverLocation != null) {
+      setState(() {
+        _updateDriverMarker();
+      });
+    }
+  }
+
+  void _updateDriverMarker() {
+    if (_driverLocation == null) return;
+    if (!mounted) return;
+
+    final markerTitle = AppLocalizations.of(context)!.driverMarkerTitle;
+
+    final newMarkers = Set<Marker>.from(_markers);
+    newMarkers.removeWhere((m) => m.markerId.value == 'driver');
+    newMarkers.add(
+      Marker(
+        markerId: const MarkerId('driver'),
+        position: _driverLocation!,
+        icon: _driverIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        anchor: const Offset(0.5, 0.5),
+        infoWindow: InfoWindow(
+          title: markerTitle,
         ),
-      );
-    });
+      ),
+    );
+    _markers = newMarkers;
   }
 
   Future<void> _moveCameraToDriver() async {
-    if (_driverLocation == null) return;
-    if (_markers.any((m) => m.markerId.value == 'driver')) {
+    if (!_mapLayoutReady || _driverLocation == null) return;
+    
+    if (!_hasFittedDriverInitialLocation) {
+      _hasFittedDriverInitialLocation = true;
       _zoomToFitAllPins();
       return;
     }
+
     final controller = await _controller.future;
-    controller.animateCamera(CameraUpdate.newLatLng(_driverLocation!));
+    try {
+      await controller.animateCamera(CameraUpdate.newLatLng(_driverLocation!));
+    } catch (e) {
+      debugPrint('⚠️ Error moving camera to driver: $e');
+    }
   }
 
   Future<void> _zoomToFitAllPins() async {
-    if (!mounted || _markers.isEmpty) return;
+    if (!mounted || !_mapLayoutReady || _markers.isEmpty) return;
     final controller = await _controller.future;
     double minLat = _markers.first.position.latitude,
         maxLat = _markers.first.position.latitude;
@@ -439,15 +525,26 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       if (m.position.longitude < minLng) minLng = m.position.longitude;
       if (m.position.longitude > maxLng) maxLng = m.position.longitude;
     }
-    controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        ),
-        750,
-      ),
-    );
+    
+    try {
+      if (minLat == maxLat && minLng == maxLng) {
+        await controller.animateCamera(
+          CameraUpdate.newLatLngZoom(LatLng(minLat, minLng), 14),
+        );
+      } else {
+        await controller.animateCamera(
+          CameraUpdate.newLatLngBounds(
+            LatLngBounds(
+              southwest: LatLng(minLat, minLng),
+              northeast: LatLng(maxLat, maxLng),
+            ),
+            75,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error fitting camera bounds: $e');
+    }
   }
 
   // --- Directions API ---
@@ -482,7 +579,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     try {
       final url =
           'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
-      final response = await Dio().get(url);
+      final response = await Dio().get(
+        url,
+        options: Options(
+          connectTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 5),
+        ),
+      );
       if (response.statusCode == 200 && response.data['status'] == 'OK') {
         final routes = response.data['routes'] as List;
         if (routes.isNotEmpty) {
@@ -507,7 +611,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
           if (mounted) {
             setState(() {
-              _polylines.clear();
+              _polylines = {};
               _addRoutePolyline(polyPoints);
               _currentDistance = '${(dist / 1000).toStringAsFixed(1)} km';
               final int mins = (dur / 60).round();
@@ -593,7 +697,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
               c.setMapStyle(_mapStyle);
               Future.delayed(
                 const Duration(milliseconds: 500),
-                () => _zoomToFitAllPins(),
+                () {
+                  if (mounted) {
+                    setState(() {
+                      _mapLayoutReady = true;
+                    });
+                    _zoomToFitAllPins();
+                  }
+                },
               );
             },
 

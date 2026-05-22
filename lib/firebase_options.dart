@@ -49,6 +49,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '265361809546',
     projectId: 'premium-force',
     storageBucket: 'premium-force.firebasestorage.app',
+    databaseURL: 'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -57,6 +58,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '265361809546',
     projectId: 'premium-force',
     storageBucket: 'premium-force.firebasestorage.app',
+    databaseURL: 'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
     iosBundleId: 'com.brandbik.premiumforce',
   );
 }

@@ -15,4 +15,24 @@
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+
+    <!-- PayTabs SDK Custom Dark Theme matching iOS configuration -->
+    <style name="PaymentSdkTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Card background, text & primary colors -->
+        <item name="colorPrimary">#000000</item>
+        <item name="colorPrimaryDark">#000000</item>
+        <item name="colorAccent">#FFFFFF</item>
+        
+        <!-- PayTabs specific keys -->
+        <item name="payment_sdk_primary_color">#FFFFFF</item>
+        <item name="payment_sdk_button_background_color">#FFFFFF</item>
+        <item name="payment_sdk_button_text_color">#000000</item>
+        <item name="payment_sdk_text_color">#FFFFFF</item>
+        <item name="payment_sdk_title_text_color">#FFFFFF</item>
+        <item name="payment_sdk_card_background_color">#121212</item>
+        <item name="payment_sdk_background_color">#000000</item>
+        <item name="payment_sdk_input_info_text_color">#FFFFFF</item>
+        <item name="payment_sdk_input_text_color">#FFFFFF</item>
+        <item name="payment_sdk_hint_color">#808080</item>
+    </style>
 </resources>

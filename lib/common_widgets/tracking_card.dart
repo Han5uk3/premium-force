@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/models/booking_model.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dio/dio.dart';
@@ -24,7 +26,10 @@ class _TrackingCardState extends State<TrackingCard> {
   LatLng? _lastFetchLocation;
   String _currentEta = '';
   String _currentDistance = '';
-  final FirebaseDatabase _database = FirebaseDatabase.instance;
+  final FirebaseDatabase _database = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL: 'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
+  );
   bool _isChauffeur = false;
 
   @override
@@ -42,33 +47,80 @@ class _TrackingCardState extends State<TrackingCard> {
   }
 
   void _listenToDriverLocation() {
+    final path = 'bookings/${widget.booking.id}/driver_location';
+    debugPrint('📡 [TrackingCard] Listening to driver location at Firebase path: $path');
+
     _locationSubscription = _database
-        .ref('bookings/${widget.booking.id}/driver_location')
+        .ref(path)
         .onValue
         .listen((event) {
-          final data = event.snapshot.value as Map<dynamic, dynamic>?;
-          if (data != null) {
-            final lat = (data['lat'] as num?)?.toDouble();
-            final lng = (data['lng'] as num?)?.toDouble();
-            if (lat != null && lng != null) {
-              if (mounted) {
-                setState(() {
-                  _driverLocation = LatLng(lat, lng);
-                });
+          final data = event.snapshot.value;
+          debugPrint('📡 [TrackingCard] Received Firebase location update: $data (Type: ${data.runtimeType})');
+
+          if (data == null) {
+            debugPrint('📡 [TrackingCard] Location update is null');
+            return;
+          }
+
+          double? lat;
+          double? lng;
+
+          if (data is Map) {
+            final rawLat = data['lat'] ?? data['latitude'] ?? data['Latitude'];
+            final rawLng = data['lng'] ?? data['longitude'] ?? data['Longitude'] ?? data['long'] ?? data['Long'];
+
+            if (rawLat is num) lat = rawLat.toDouble();
+            if (rawLng is num) lng = rawLng.toDouble();
+          } else if (data is String) {
+            final trimmed = data.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              try {
+                final Map<String, dynamic> parsed = Map<String, dynamic>.from(
+                  json.decode(trimmed) as Map
+                );
+                final rawLat = parsed['lat'] ?? parsed['latitude'] ?? parsed['Latitude'];
+                final rawLng = parsed['lng'] ?? parsed['longitude'] ?? parsed['Longitude'] ?? parsed['long'] ?? parsed['Long'];
+
+                if (rawLat is num) lat = rawLat.toDouble();
+                if (rawLng is num) lng = rawLng.toDouble();
+              } catch (e) {
+                debugPrint('⚠️ [TrackingCard] Error decoding JSON location string: $e');
               }
-              if (_lastFetchLocation == null ||
-                  Geolocator.distanceBetween(
-                        _lastFetchLocation!.latitude,
-                        _lastFetchLocation!.longitude,
-                        lat,
-                        lng,
-                      ) >
-                      100) {
-                _lastFetchLocation = _driverLocation;
-                _fetchDirections();
+            } else if (trimmed.contains(',')) {
+              final parts = trimmed.split(',');
+              if (parts.length >= 2) {
+                lat = double.tryParse(parts[0].trim());
+                lng = double.tryParse(parts[1].trim());
               }
             }
           }
+
+          if (lat != null && lng != null) {
+            final double nonNullLat = lat;
+            final double nonNullLng = lng;
+            debugPrint('📡 [TrackingCard] Parsed coordinates successfully: ($nonNullLat, $nonNullLng)');
+
+            if (mounted) {
+              setState(() {
+                _driverLocation = LatLng(nonNullLat, nonNullLng);
+              });
+            }
+            if (_lastFetchLocation == null ||
+                Geolocator.distanceBetween(
+                      _lastFetchLocation!.latitude,
+                      _lastFetchLocation!.longitude,
+                      nonNullLat,
+                      nonNullLng,
+                    ) >
+                    100) {
+              _lastFetchLocation = _driverLocation;
+              _fetchDirections();
+            }
+          } else {
+            debugPrint('⚠️ [TrackingCard] Failed to parse coordinates from: $data');
+          }
+        }, onError: (error) {
+          debugPrint('❌ [TrackingCard] Firebase location stream error at path "$path": $error');
         });
   }
 
@@ -102,7 +154,14 @@ class _TrackingCardState extends State<TrackingCard> {
     try {
       final url =
           'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
-      final response = await Dio().get(url);
+      final response = await Dio().get(
+        url,
+        options: Options(
+          connectTimeout: const Duration(seconds: 5),
+          sendTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 5),
+        ),
+      );
       if (response.statusCode == 200 && response.data['status'] == 'OK') {
         final routes = response.data['routes'] as List;
         if (routes.isNotEmpty) {

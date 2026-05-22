@@ -2249,7 +2249,9 @@ class _NewBookingState extends State<NewBooking> {
                                       "";
 
                                   final paymentRequest = PaymentRequest(
-                                    amount: 1.0, // Testing: Override to 1 SAR
+                                    amount: double.parse(
+                                      totalWithVat.toStringAsFixed(2),
+                                    ),
                                     currency: PaytabsConfig.defaultCurrency,
                                     merchantCountryCode:
                                         PaytabsConfig.merchantCountryCode,
@@ -2262,26 +2264,11 @@ class _NewBookingState extends State<NewBooking> {
                                         "Ride Booking for $_selectedVehicleClass",
                                   );
 
-                                  // BYPASS PAYMENT SHEET FOR TESTING:
-                                  // Commented out the payment sheet trigger to allow booking without payment
-                                  /*
                                   final paymentResult = await PaymentService()
                                       .startPayment(request: paymentRequest);
-                                  */
-                                  final paymentResult = PaymentResult(
-                                    success: true,
-                                    transactionReference:
-                                        "BYPASS_TEST_${DateTime.now().millisecondsSinceEpoch}",
-                                    invoiceId: orderId,
-                                    responseCode: "000",
-                                    responseMessage:
-                                        "Bypassed Payment for Testing",
-                                    customerEmail: userEmail,
-                                    amount: 1.0,
-                                  );
 
                                   debugPrint(
-                                    '💳 PayTabs Result (BYPASSED): success=${paymentResult.success}, '
+                                    '💳 PayTabs Result: success=${paymentResult.success}, '
                                     'ref=${paymentResult.transactionReference}, '
                                     'msg=${paymentResult.responseMessage}',
                                   );

@@ -130,11 +130,11 @@ class PaymentService {
       theme.backgroundColor = "#000000";
       theme.primaryColor = "#FFFFFF";
       theme.secondaryColor = "#000000";
-      theme.primaryFontColor = "#000000";
-      theme.secondaryFontColor = "#000000";
-      theme.buttonColor = "#ffffff";
+      theme.primaryFontColor = "#FFFFFF";
+      theme.secondaryFontColor = "#FFFFFF";
+      theme.buttonColor = "#FFFFFF";
       theme.buttonFontColor = "#000000";
-      theme.titleFontColor = "#000000";
+      theme.titleFontColor = "#FFFFFF";
       theme.logoImage = "assets/applogo/premiumforcelogo.png";
 
       configuration.iOSThemeConfigurations = theme;

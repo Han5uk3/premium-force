@@ -18,6 +18,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/notifications/notification_screen.dart';
 import 'package:country_picker/country_picker.dart';
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 
 /// Global navigator key – allows navigating from outside a widget tree
 /// (e.g. when the user taps a push notification).
@@ -25,6 +27,18 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Google Maps Android platform view & renderer optimizations
+  final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;
+  if (mapsImplementation is GoogleMapsFlutterAndroid) {
+    mapsImplementation.useAndroidViewSurface = true;
+    try {
+      await mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);
+      debugPrint('🗺️ Google Maps Android renderer initialized with LATEST version successfully!');
+    } catch (e) {
+      debugPrint('⚠️ Google Maps Android renderer initialization error: $e');
+    }
+  }
 
   // Lock to portrait mode only
   await SystemChrome.setPreferredOrientations([
@@ -35,7 +49,17 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: "lib/.env");
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    if (e.toString().contains('duplicate-app')) {
+      debugPrint('⚠️ Firebase already initialized, skipping...');
+    } else {
+      rethrow;
+    }
+  }
   await UserLocalStorage.init();
   await NotificationStorage.init();
 
@@ -81,7 +105,7 @@ class _MainAppState extends State<MainApp> {
     super.initState();
     _authProvider = AuthProvider();
     _userProvider = UserProvider();
-    
+
     // Load the previously selected language from persistence
     _loadSavedLanguage();
   }
