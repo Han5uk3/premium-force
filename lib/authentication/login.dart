@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:premium_force_main/main.dart';
@@ -16,6 +17,7 @@ import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PremiumForceLoginPage extends StatefulWidget {
   const PremiumForceLoginPage({super.key});
@@ -491,6 +493,15 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                               TextSpan(
                                                 text:
                                                     " ${AppLocalizations.of(context)!.termsAndConditions}",
+                                                recognizer: TapGestureRecognizer()
+                                                  ..onTap = () async {
+                                                    final Uri url = Uri.parse('https://premiumforcegroup.com/terms-and-conditions');
+                                                    try {
+                                                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                                                    } catch (e) {
+                                                      debugPrint('Could not launch terms URL: $e');
+                                                    }
+                                                  },
                                                 style: TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 12,
@@ -514,6 +525,15 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                 text: AppLocalizations.of(
                                                   context,
                                                 )!.privacyPolicy,
+                                                recognizer: TapGestureRecognizer()
+                                                  ..onTap = () async {
+                                                    final Uri url = Uri.parse('https://premiumforcegroup.com/privacy-policy');
+                                                    try {
+                                                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                                                    } catch (e) {
+                                                      debugPrint('Could not launch privacy URL: $e');
+                                                    }
+                                                  },
                                                 style: TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 12,

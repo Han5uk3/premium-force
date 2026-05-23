@@ -1,14 +1,14 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/account/manage_profile.dart';
-import 'package:premium_force_main/account/terms_and_conditions.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/authentication/login.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -76,13 +76,13 @@ class _AccountPageState extends State<AccountPage> {
               //   ),
               // ),
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const TermsAndConditionsPage(),
-                    ),
-                  );
+                onTap: () async {
+                  final Uri url = Uri.parse('https://premiumforcegroup.com/terms-and-conditions');
+                  try {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } catch (e) {
+                    debugPrint('Could not launch terms URL: $e');
+                  }
                 },
                 child: ProfileTile(
                   loc: loc,
@@ -90,6 +90,22 @@ class _AccountPageState extends State<AccountPage> {
                   title: loc.termsAndConditions,
                   icon: Icons.file_copy_outlined,
                   svgPath: "assets/icons/terms_and_conditions.svg",
+                ),
+              ),
+              GestureDetector(
+                onTap: () async {
+                  final Uri url = Uri.parse('https://premiumforcegroup.com/privacy-policy');
+                  try {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } catch (e) {
+                    debugPrint('Could not launch privacy URL: $e');
+                  }
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  isSvg: false,
+                  title: loc.privacyPolicy,
+                  icon: Icons.privacy_tip_outlined,
                 ),
               ),
               GestureDetector(
