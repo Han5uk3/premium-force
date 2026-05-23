@@ -256,10 +256,52 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   String _normalizeCityName(String cityName) {
-    return cityName.toString().toLowerCase().trim().replaceAll(
+    String name = cityName.toString().toLowerCase().trim().replaceAll(
       RegExp(r'[^a-z0-9\u0600-\u06FF]'),
       '',
     );
+
+    // Normalize Medina / Madinah variants
+    if (name == 'medina' ||
+        name == 'madina' ||
+        name == 'medinah' ||
+        name == 'madinah' ||
+        name == 'almadinah' ||
+        name == 'almadina' ||
+        name == 'almedina' ||
+        name == 'almedinah') {
+      return 'madinah';
+    }
+
+    // Normalize Makkah / Mecca variants
+    if (name == 'makkah' ||
+        name == 'mecca' ||
+        name == 'maka' ||
+        name == 'meca' ||
+        name == 'almakkah' ||
+        name == 'almecca') {
+      return 'makkah';
+    }
+
+    // Normalize Riyadh variants
+    if (name == 'riyadh' || name == 'alriyadh') {
+      return 'riyadh';
+    }
+
+    // Normalize Jeddah variants
+    if (name == 'jeddah' ||
+        name == 'jiddah' ||
+        name == 'aljeddah' ||
+        name == 'aljiddah') {
+      return 'jeddah';
+    }
+
+    // Normalize Dammam variants
+    if (name == 'dammam' || name == 'addammam' || name == 'aldammam') {
+      return 'dammam';
+    }
+
+    return name;
   }
 
   String? _getCityIdFromName(String cityName) {
@@ -1854,14 +1896,6 @@ class _NewBookingState extends State<NewBooking> {
       default:
         return loc.riyadh;
     }
-  }
-
-  int _getCatCode(BuildContext context, String name) {
-    final loc = AppLocalizations.of(context)!;
-    if (name == loc.airportDeparture) return 1;
-    if (name == loc.chauffeurService) return 2;
-    if (name == loc.privateTransfer) return 3;
-    return 0;
   }
 
   Map<String, double> _getAirportCoordinates() {
@@ -3768,31 +3802,18 @@ class _NewBookingState extends State<NewBooking> {
           SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: (_selectedCatCode == 2 || _selectedCatCode == 3)
-                ? PremiumTextField(
-                    title: loc.serviceType,
-                    controller: TextEditingController(
-                      text: _getServiceName(context, _selectedCatCode),
-                    ),
-                    readOnly: true,
-                    needBorder: true,
-                    blackbg: true,
-                    borderRadius: 12,
-                    fontsize: 14,
-                    hintText: "",
-                  )
-                : PremiumDropDown(
-                    title: loc.serviceType,
-                    value: _getServiceName(context, _selectedCatCode),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _selectedCatCode = _getCatCode(context, val);
-                        });
-                      }
-                    },
-                    items: [loc.airportArrival, loc.airportDeparture],
-                  ),
+            child: PremiumTextField(
+              title: loc.serviceType,
+              controller: TextEditingController(
+                text: _getServiceName(context, _selectedCatCode),
+              ),
+              readOnly: true,
+              needBorder: true,
+              blackbg: true,
+              borderRadius: 12,
+              fontsize: 14,
+              hintText: "",
+            ),
           ),
           // City selector hidden
           SizedBox.shrink(),

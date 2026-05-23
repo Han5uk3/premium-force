@@ -602,7 +602,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookService => 'Book Service';
 
   @override
-  String get companyEmail => 'companyEmail';
+  String get companyEmail => 'company Email';
 
   @override
   String get logoutConfirm => 'Are you sure you want to log out?';

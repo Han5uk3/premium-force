@@ -24,9 +24,8 @@ class PremiumForceLoginPage extends StatefulWidget {
   State<PremiumForceLoginPage> createState() => _PremiumForceLoginPageState();
 }
 
-final _formKey = GlobalKey<FormState>();
-
 class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   bool _isAgreed = false;

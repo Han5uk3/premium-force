@@ -1259,7 +1259,7 @@ abstract class AppLocalizations {
   /// No description provided for @companyEmail.
   ///
   /// In en, this message translates to:
-  /// **'companyEmail'**
+  /// **'company Email'**
   String get companyEmail;
 
   /// No description provided for @logoutConfirm.

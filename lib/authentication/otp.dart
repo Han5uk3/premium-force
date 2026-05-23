@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pinput/pinput.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
@@ -75,7 +76,9 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           (route) => false,
         );
       } else {
-        debugPrint('â›” Existing user but blocked â€” navigating to BlockedPage');
+        debugPrint(
+          'â›” Existing user but blocked â€” navigating to BlockedPage',
+        );
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const BlockedPage()),
           (route) => false,
@@ -207,6 +210,27 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                 defaultPinTheme: defaultPinTheme,
                 obscureText: true,
                 obscuringCharacter: '*',
+                enableInteractiveSelection: true,
+                showCursor: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                contextMenuBuilder: (context, editableTextState) {
+                  final List<ContextMenuButtonItem> buttonItems = [
+                    ContextMenuButtonItem(
+                      onPressed: () {
+                        editableTextState.pasteText(
+                          SelectionChangedCause.toolbar,
+                        );
+                      },
+                      type: ContextMenuButtonType.paste,
+                    ),
+                  ];
+
+                  return AdaptiveTextSelectionToolbar.buttonItems(
+                    anchors: editableTextState.contextMenuAnchors,
+                    buttonItems: buttonItems,
+                  );
+                },
                 separatorBuilder: (index) => const SizedBox(width: 8),
                 focusedPinTheme: defaultPinTheme.copyWith(
                   decoration: defaultPinTheme.decoration!.copyWith(
