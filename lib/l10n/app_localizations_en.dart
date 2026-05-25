@@ -388,6 +388,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flightNumber => 'Flight Number (Optional)';
 
   @override
+  String get flightNumberMandatory => 'Flight Number';
+
+  @override
   String get arrivalDateAndTime => 'Pickup Date and Time';
 
   @override
@@ -602,7 +605,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookService => 'Book Service';
 
   @override
-  String get companyEmail => 'company Email';
+  String get companyEmail => 'Company Email';
 
   @override
   String get logoutConfirm => 'Are you sure you want to log out?';

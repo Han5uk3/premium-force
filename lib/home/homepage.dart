@@ -639,7 +639,11 @@ class _HomepageState extends State<Homepage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
+                          padding: const EdgeInsets.only(
+                            left: 24,
+                            right: 24,
+                            top: 12,
+                          ),
                           child: Text(
                             loc.trackYourDriver,
                             style: TextStyle(

@@ -842,6 +842,12 @@ abstract class AppLocalizations {
   /// **'Flight Number (Optional)'**
   String get flightNumber;
 
+  /// No description provided for @flightNumberMandatory.
+  ///
+  /// In en, this message translates to:
+  /// **'Flight Number'**
+  String get flightNumberMandatory;
+
   /// No description provided for @arrivalDateAndTime.
   ///
   /// In en, this message translates to:
@@ -1259,7 +1265,7 @@ abstract class AppLocalizations {
   /// No description provided for @companyEmail.
   ///
   /// In en, this message translates to:
-  /// **'company Email'**
+  /// **'Company Email'**
   String get companyEmail;
 
   /// No description provided for @logoutConfirm.

@@ -387,6 +387,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get flightNumber => 'رقم الرحلة (اختياري)';
 
   @override
+  String get flightNumberMandatory => 'رقم الرحلة';
+
+  @override
   String get arrivalDateAndTime => 'تاريخ ووقت الاستلام';
 
   @override

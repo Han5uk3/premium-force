@@ -124,6 +124,7 @@
   "tellUsAboutYourJourney": "أخبرنا عن رحلتك",
   "enterFlightNumber": "أدخل رقم الرحلة",
   "flightNumber": "رقم الرحلة (اختياري)",
+  "flightNumberMandatory": "رقم الرحلة",
   "arrivalDateAndTime": "تاريخ ووقت الاستلام",
   "departureDateAndTime": "تاريخ ووقت الاستلام",
   "pickupDateAndTime": "تاريخ ووقت الاستلام",

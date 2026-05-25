@@ -3896,13 +3896,19 @@ class _NewBookingState extends State<NewBooking> {
           child: PremiumTextField(
             titleFontWeight: FontWeight.normal,
             fontsize: 14,
-            title: loc.flightNumber,
+            title: loc.flightNumberMandatory,
             controller: flightNumberController,
             hintText: loc.enterFlightNumber,
             needBorder: true,
             blackbg: true,
             needAutoCapitalize: true,
             borderRadius: 8,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return loc.flightNumberIsRequired;
+              }
+              return null;
+            },
           ),
         ),
         SizedBox(height: 16),
