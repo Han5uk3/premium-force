@@ -2137,6 +2137,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications.'**
   String get similarVehicleNote;
+
+  /// No description provided for @contactUs.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Us'**
+  String get contactUs;
+
+  /// No description provided for @selectContactMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Select contact method'**
+  String get selectContactMethod;
 }
 
 class _AppLocalizationsDelegate

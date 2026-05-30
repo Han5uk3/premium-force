@@ -345,5 +345,7 @@
   "accountBlockedMessage": "Your account has been deactivated. Please contact support for assistance.",
   "contactSupport": "Contact Support",
   "backToLogin": "Back to Login",
-  "similarVehicleNote": "If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications."
+  "similarVehicleNote": "If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications.",
+  "contactUs": "Contact Us",
+  "selectContactMethod": "Select contact method"
 }

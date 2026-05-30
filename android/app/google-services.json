@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "265361809546",
+    "firebase_url": "https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app",
     "project_id": "premium-force",
     "storage_bucket": "premium-force.firebasestorage.app"
   },
@@ -14,11 +15,64 @@
       },
       "oauth_client": [
         {
+          "client_id": "265361809546-hofao0ne2h9n4cm1rfofrrbuei7894eh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.brandbik.premiumforce",
+            "certificate_hash": "9c85ab3a8cd4c21c0de30548b8c5fa9425ab4b05"
+          }
+        },
+        {
           "client_id": "265361809546-l7frcki7argtjttarntrgbaqvmj7c5o9.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.brandbik.premiumforce",
             "certificate_hash": "46381fc477ca0b166660a3c3f63e8c1053357202"
+          }
+        },
+        {
+          "client_id": "265361809546-rqr3th8836vq6ochnlk32h6vmfe5a9ha.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6gi_QKb398OgyqB9pTtLVvltijJVppBg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "265361809546-2db1fc42111enhg4tivodb7v0u52lf45.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "265361809546-8ucet0uausd5aacl6nsatt9b5inbchf8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.brandbik.premiumforce",
+                "app_store_id": "6759467571"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:265361809546:android:ab756b107b2c6c84b60d73",
+        "android_client_info": {
+          "package_name": "com.brandbik.premiumforcedriver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "265361809546-om3iohuuonbjjc3e227i99r4p6ej6g7f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.brandbik.premiumforcedriver",
+            "certificate_hash": "21897d289d267ac95754f590c861d898008d0d71"
           }
         },
         {

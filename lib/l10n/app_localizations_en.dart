@@ -1076,4 +1076,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get similarVehicleNote =>
       'If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications.';
+
+  @override
+  String get contactUs => 'Contact Us';
+
+  @override
+  String get selectContactMethod => 'Select contact method';
 }

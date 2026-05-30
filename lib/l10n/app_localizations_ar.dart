@@ -1065,4 +1065,10 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get similarVehicleNote =>
       'في حال عدم توفر المركبة المختارة، سنقوم بتوفير بديل مماثل يلبي جميع متطلباتك.';
+
+  @override
+  String get contactUs => 'اتصل بنا';
+
+  @override
+  String get selectContactMethod => 'اختر طريقة التواصل';
 }
