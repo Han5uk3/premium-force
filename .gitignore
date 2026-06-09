@@ -11,8 +11,8 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-AuthKey_GPU7PNVND5.p8
-
+AuthKey_*.p8
+applepayfiles
 # IntelliJ related
 *.iml
 *.ipr
@@ -64,4 +64,4 @@ premium force apple pay merchant/
 *.p12
 *.cer
 *.pem
-AppAuth_Key_*.p8
+*.mobileprovision
