@@ -54,13 +54,13 @@ class BlockedPage extends StatelessWidget {
               ),
               const SizedBox(height: 48),
               PremiumButton(
-                text: l10n.contactSupport,
+                text: l10n.email,
                 fontsize: 16,
                 showLoader: false,
                 onTap: () async {
                   final Uri emailLaunchUri = Uri(
                     scheme: 'mailto',
-                    path: 'support@premiumforcegroup.com',
+                    path: 'premium.force.sa@gmail.com',
                     queryParameters: {'subject': 'Blocked Account Inquiry'},
                   );
                   if (await canLaunchUrl(emailLaunchUri)) {
@@ -71,11 +71,28 @@ class BlockedPage extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'Support Email: support@premiumforcegroup.com',
+                            'Support Email: premium.force.sa@gmail.com',
                           ),
                         ),
                       );
                     }
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              PremiumButton(
+                text: l10n.phoneNumber,
+                fontsize: 16,
+                showLoader: false,
+                onTap: () async {
+                  final Uri phoneLaunchUri = Uri(
+                    scheme: 'tel',
+                    path: '+966591991749',
+                  );
+                  try {
+                    await launchUrl(phoneLaunchUri);
+                  } catch (e) {
+                    debugPrint('Could not launch phone: $e');
                   }
                 },
               ),
