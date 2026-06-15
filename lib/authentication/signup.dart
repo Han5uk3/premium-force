@@ -298,7 +298,9 @@ class _SignUpPageState extends State<SignUpPage>
         setState(() {
           _isPromoValid = true;
           _appliedPromoId = promo['code'] ?? code;
-          _promoSuccessText = promo['text'] ?? AppLocalizations.of(context)!.promoCodeAppliedSuccessfully;
+          _promoSuccessText =
+              promo['text'] ??
+              AppLocalizations.of(context)!.promoCodeAppliedSuccessfully;
         });
         if (mounted) {
           _showCustomSnackBar(
@@ -572,8 +574,11 @@ class _SignUpPageState extends State<SignUpPage>
                           keyboardType: TextInputType.name,
                           needTitle: true,
                           obscureText: false,
-                          enabled: !_isGoogleSignUp,
-                          readOnly: _isGoogleSignUp,
+                          enabled:
+                              !_isGoogleSignUp || _nameController.text.isEmpty,
+                          readOnly:
+                              _isGoogleSignUp &&
+                              _nameController.text.isNotEmpty,
                           prefixIcon: ShaderMask(
                             shaderCallback: (Rect bounds) {
                               return const LinearGradient(
@@ -744,9 +749,10 @@ class _SignUpPageState extends State<SignUpPage>
                           needTitle: true,
                           obscureText: false,
                           enabled:
-                              !_isGoogleSignUp, // Disable if from Google Sign-In
+                              !_isGoogleSignUp || _emailController.text.isEmpty,
                           readOnly:
-                              _isGoogleSignUp, // Read-only if from Google Sign-In
+                              _isGoogleSignUp &&
+                              _emailController.text.isNotEmpty,
                           prefixIcon: ShaderMask(
                             shaderCallback: (Rect bounds) {
                               return const LinearGradient(
@@ -998,7 +1004,10 @@ class _SignUpPageState extends State<SignUpPage>
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  const Divider(color: Colors.white24, height: 1),
+                                  const Divider(
+                                    color: Colors.white24,
+                                    height: 1,
+                                  ),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
