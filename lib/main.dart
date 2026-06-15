@@ -29,12 +29,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Google Maps Android platform view & renderer optimizations
-  final GoogleMapsFlutterPlatform mapsImplementation = GoogleMapsFlutterPlatform.instance;
+  final GoogleMapsFlutterPlatform mapsImplementation =
+      GoogleMapsFlutterPlatform.instance;
   if (mapsImplementation is GoogleMapsFlutterAndroid) {
     mapsImplementation.useAndroidViewSurface = true;
     try {
-      await mapsImplementation.initializeWithRenderer(AndroidMapRenderer.latest);
-      debugPrint('🗺️ Google Maps Android renderer initialized with LATEST version successfully!');
+      await mapsImplementation.initializeWithRenderer(
+        AndroidMapRenderer.latest,
+      );
+      debugPrint(
+        '🗺️ Google Maps Android renderer initialized with LATEST version successfully!',
+      );
     } catch (e) {
       debugPrint('⚠️ Google Maps Android renderer initialization error: $e');
     }
@@ -45,6 +50,15 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // Set system UI overlay style for dark theme visibility
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light, // Android
+      statusBarBrightness: Brightness.dark, // iOS
+    ),
+  );
 
   // Load environment variables
   await dotenv.load(fileName: "lib/.env");
@@ -139,6 +153,13 @@ class _MainAppState extends State<MainApp> {
         debugShowCheckedModeBanner: false,
         navigatorKey: navigatorKey,
         locale: _locale,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: Colors.black, // Assuming a dark theme
+          appBarTheme: const AppBarTheme(
+            systemOverlayStyle: SystemUiOverlayStyle.light,
+          ),
+        ),
         localizationsDelegates: [
           AppLocalizations.delegate,
           CountryLocalizations.delegate,

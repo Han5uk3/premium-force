@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/authentication/blocked_page.dart';
 import 'package:premium_force_main/authentication/login.dart';
@@ -57,39 +58,46 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Container(
-            height: double.infinity,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/splashimage.png'),
-                fit: BoxFit.cover,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Container(
+              height: double.infinity,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/splashimage.png'),
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ),
-          Container(
-            height: double.infinity,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                radius: 1.3,
-                colors: [Colors.transparent, Colors.black.withAlpha(180)],
-                stops: const [0.4, 1.0],
-                center: Alignment.center,
+            Container(
+              height: double.infinity,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  radius: 1.3,
+                  colors: [Colors.transparent, Colors.black.withAlpha(180)],
+                  stops: const [0.4, 1.0],
+                  center: Alignment.center,
+                ),
               ),
             ),
-          ),
-          Center(
-            child: Image.asset(
-              'assets/applogo/premiumforcelogo.png',
-              width: MediaQuery.of(context).size.width / 1.8,
-              height: 300,
+            Center(
+              child: Image.asset(
+                'assets/applogo/premiumforcelogo.png',
+                width: MediaQuery.of(context).size.width / 1.8,
+                height: 300,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

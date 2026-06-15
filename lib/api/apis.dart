@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer' as dev;
 import 'dart:io';
 
@@ -695,6 +694,9 @@ class ApiService {
         'cities',
         options: token != null ? _authOptions(token) : null,
       );
+      if (kDebugMode) {
+        debugPrint('🚀 🌐 API │ GET Cities Response: ${response.data}');
+      }
       return _success(response);
     } catch (e) {
       return _handleError(e);

@@ -130,6 +130,7 @@
   "tellUsAboutYourJourney": "Tell Us About Your Journey",
   "enterFlightNumber": "Enter Flight Number",
   "flightNumber": "Flight Number (Optional)",
+  "flightNumberMandatory": "Flight Number",
   "arrivalDateAndTime": "Pickup Date and Time",
   "departureDateAndTime": "Pickup Date and Time",
   "pickupDateAndTime": "Pickup Date and Time",
@@ -199,7 +200,7 @@
   "allowSimilarVehicle": "Allow Similar Vehicle",
   "noCarsAvailable": "No cars available",
   "bookService": "Book Service",
-  "companyEmail": "company Email",
+  "companyEmail": "Company Email",
   "logoutConfirm": "Are you sure you want to log out?",
   "cancel": "Cancel",
   "remove": "Remove",
@@ -344,5 +345,7 @@
   "accountBlockedMessage": "Your account has been deactivated. Please contact support for assistance.",
   "contactSupport": "Contact Support",
   "backToLogin": "Back to Login",
-  "similarVehicleNote": "If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications."
+  "similarVehicleNote": "If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications.",
+  "contactUs": "Contact Us",
+  "selectContactMethod": "Select contact method"
 }

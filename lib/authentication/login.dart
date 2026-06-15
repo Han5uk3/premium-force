@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:premium_force_main/main.dart';
 import 'package:provider/provider.dart';
@@ -155,543 +156,585 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      backgroundColor: const Color(0xFF1E1105),
-      body: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
-          final bool isAnyLoading =
-              _isLoading ||
-              authProvider.isGoogleLoading ||
-              authProvider.isAppleLoading;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        backgroundColor: const Color(0xFF1E1105),
+        body: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            final bool isAnyLoading =
+                _isLoading ||
+                authProvider.isGoogleLoading ||
+                authProvider.isAppleLoading;
 
-          return AbsorbPointer(
-            absorbing: isAnyLoading,
-            child: Form(
-              key: _formKey,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final double bottomInset = MediaQuery.of(
-                    context,
-                  ).viewInsets.bottom;
-                  final double screenHeight = constraints.maxHeight;
-                  final double initialFormTop = screenHeight * 0.35;
+            return AbsorbPointer(
+              absorbing: isAnyLoading,
+              child: Form(
+                key: _formKey,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double bottomInset = MediaQuery.of(
+                      context,
+                    ).viewInsets.bottom;
+                    final double screenHeight = constraints.maxHeight;
+                    final double initialFormTop = screenHeight * 0.35;
 
-                  // Sync settings
-                  const Duration animDuration = Duration(milliseconds: 250);
-                  const Curve animCurve = Curves.easeOutCubic;
+                    // Sync settings
+                    const Duration animDuration = Duration(milliseconds: 250);
+                    const Curve animCurve = Curves.easeOutCubic;
 
-                  // Movements
-                  // Only slide the background if the login screen's own field has focus
-                  final bool isMainKeyboardActive = _mobileFocusNode.hasFocus;
+                    // Movements
+                    // Only slide the background if the login screen's own field has focus
+                    final bool isMainKeyboardActive = _mobileFocusNode.hasFocus;
 
-                  // Logo moves up subtly (by 30% of keyboard)
-                  final double logoSlideUp = isMainKeyboardActive
-                      ? (bottomInset * 0.30)
-                      : 0;
-                  // Form slides over the logo (by 60% of keyboard)
-                  // Capped to ensure some logo area always remains visible
-                  final double maxFormSlide =
-                      initialFormTop - 60; // Leave 60px of top area
-                  final double formSlideUp = isMainKeyboardActive
-                      ? (bottomInset * 0.65).clamp(0, maxFormSlide)
-                      : 0;
+                    // Logo moves up subtly (by 30% of keyboard)
+                    final double logoSlideUp = isMainKeyboardActive
+                        ? (bottomInset * 0.30)
+                        : 0;
+                    // Form slides over the logo (by 60% of keyboard)
+                    // Capped to ensure some logo area always remains visible
+                    final double maxFormSlide =
+                        initialFormTop - 60; // Leave 60px of top area
+                    final double formSlideUp = isMainKeyboardActive
+                        ? (bottomInset * 0.65).clamp(0, maxFormSlide)
+                        : 0;
 
-                  return Stack(
-                    children: [
-                      // Logo Parallax
-                      AnimatedPositioned(
-                        duration: animDuration,
-                        curve: animCurve,
-                        top: -logoSlideUp,
-                        left: 0,
-                        right: 0,
-                        height: initialFormTop,
-                        child: Center(
-                          child: Image.asset(
-                            'assets/applogo/premiumforcelogo.png',
-                            width: 200,
-                            height: 100,
+                    return Stack(
+                      children: [
+                        // Logo Parallax
+                        AnimatedPositioned(
+                          duration: animDuration,
+                          curve: animCurve,
+                          top: -logoSlideUp,
+                          left: 0,
+                          right: 0,
+                          height: initialFormTop,
+                          child: Center(
+                            child: Image.asset(
+                              'assets/applogo/premiumforcelogo.png',
+                              width: 200,
+                              height: 100,
+                            ),
                           ),
                         ),
-                      ),
-                      // Form Slide
-                      AnimatedPositioned(
-                        duration: animDuration,
-                        curve: animCurve,
-                        top: initialFormTop - formSlideUp,
-                        left: 0,
-                        right: 0,
-                        bottom: -formSlideUp,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Color(0xFF3E230A), Color(0xFF141313)],
-                            ),
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(30),
-                              topRight: Radius.circular(30),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24.0,
-                            ),
-                            child: SingleChildScrollView(
-                              padding: EdgeInsets.only(
-                                bottom: bottomInset > 0 ? bottomInset + 20 : 0,
+                        // Form Slide
+                        AnimatedPositioned(
+                          duration: animDuration,
+                          curve: animCurve,
+                          top: initialFormTop - formSlideUp,
+                          left: 0,
+                          right: 0,
+                          bottom: -formSlideUp,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Color(0xFF3E230A), Color(0xFF141313)],
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 20),
-                                  // Sign In Title
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        AppLocalizations.of(context)!.signIn,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: 1.2,
-                                        ),
-                                      ),
-                                      CircleAvatar(
-                                        radius: 16,
-                                        child: Material(
-                                          borderRadius: BorderRadius.circular(
-                                            100,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(30),
+                                topRight: Radius.circular(30),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24.0,
+                              ),
+                              child: SingleChildScrollView(
+                                padding: EdgeInsets.only(
+                                  bottom: bottomInset > 0
+                                      ? bottomInset + 20
+                                      : 0,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 20),
+                                    // Sign In Title
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          AppLocalizations.of(context)!.signIn,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 1.2,
                                           ),
-
-                                          child: ClipRRect(
+                                        ),
+                                        CircleAvatar(
+                                          radius: 16,
+                                          child: Material(
                                             borderRadius: BorderRadius.circular(
                                               100,
                                             ),
-                                            child: InkWell(
-                                              splashColor: Colors.grey
-                                                  .withAlpha(200),
+
+                                            child: ClipRRect(
                                               borderRadius:
                                                   BorderRadius.circular(100),
-                                              onTap: () {
-                                                bool isCurrentlyEnglish =
-                                                    Localizations.localeOf(
-                                                      context,
-                                                    ).languageCode ==
-                                                    'en';
-                                                MainApp.setLocale(
-                                                  context,
-                                                  Locale(
-                                                    isCurrentlyEnglish
-                                                        ? 'ar'
-                                                        : 'en',
-                                                  ),
-                                                );
-                                              },
-                                              child: SvgPicture.asset(
-                                                Localizations.localeOf(
-                                                          context,
-                                                        ).languageCode ==
-                                                        'en'
-                                                    ? 'assets/flags/en.svg'
-                                                    : 'assets/flags/ar.svg',
-                                                fit: BoxFit.fill,
+                                              child: InkWell(
+                                                splashColor: Colors.grey
+                                                    .withAlpha(200),
+                                                borderRadius:
+                                                    BorderRadius.circular(100),
+                                                onTap: () {
+                                                  bool isCurrentlyEnglish =
+                                                      Localizations.localeOf(
+                                                        context,
+                                                      ).languageCode ==
+                                                      'en';
+                                                  MainApp.setLocale(
+                                                    context,
+                                                    Locale(
+                                                      isCurrentlyEnglish
+                                                          ? 'ar'
+                                                          : 'en',
+                                                    ),
+                                                  );
+                                                },
+                                                child: SvgPicture.asset(
+                                                  Localizations.localeOf(
+                                                            context,
+                                                          ).languageCode ==
+                                                          'en'
+                                                      ? 'assets/flags/en.svg'
+                                                      : 'assets/flags/ar.svg',
+                                                  fit: BoxFit.fill,
+                                                ),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 32),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 32),
 
-                                  PremiumTextField(
-                                    focusNode: _mobileFocusNode,
-                                    title: AppLocalizations.of(
-                                      context,
-                                    )!.mobileNumber,
-                                    validator: (value) {
-                                      if (value!.isEmpty) {
-                                        return AppLocalizations.of(
-                                          context,
-                                        )!.pleaseEnterYourMobileNumber;
-                                      }
-                                      if (value.length < 9) {
-                                        return AppLocalizations.of(
-                                          context,
-                                        )!.pleaseEnterValidMobileNumber;
-                                      }
-                                      return null;
-                                    },
-                                    controller: _mobileController,
-                                    hintText: AppLocalizations.of(
-                                      context,
-                                    )!.enterMobileNumber,
-                                    fontsize: 14,
-
-                                    keyboardType: TextInputType.phone,
-                                    needTitle: true,
-                                    obscureText: false,
-                                    prefixIcon: GestureDetector(
-                                      onTap: () {
-                                        showCountryPicker(
-                                          context: context,
-                                          showPhoneCode: true,
-                                          customFlagBuilder: (context) =>
-                                              const SizedBox.shrink(),
-                                          countryListTheme: CountryListThemeData(
-                                            backgroundColor: const Color(
-                                              0xFF141313,
-                                            ),
-                                            textStyle: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 14,
-                                            ),
-                                            searchTextStyle: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 14,
-                                            ),
-                                            borderRadius:
-                                                const BorderRadius.only(
-                                                  topLeft: Radius.circular(30),
-                                                  topRight: Radius.circular(30),
-                                                ),
-                                            inputDecoration: InputDecoration(
-                                              hintText: AppLocalizations.of(
-                                                context,
-                                              )!.search,
-                                              hintStyle: TextStyle(
-                                                color: Colors.white.withAlpha(
-                                                  180,
-                                                ),
-                                              ),
-                                              prefixIcon: const Icon(
-                                                Icons.search,
-                                                color: Colors.white,
-                                              ),
-                                              filled: true,
-                                              fillColor: const Color(
-                                                0xFF1A1410,
-                                              ),
-                                              border: OutlineInputBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                borderSide: BorderSide(
-                                                  color: Colors.grey.shade800,
-                                                ),
-                                              ),
-                                              enabledBorder: OutlineInputBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                borderSide: BorderSide(
-                                                  color: Colors.grey.shade800,
-                                                ),
-                                              ),
-                                              focusedBorder: OutlineInputBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                borderSide: const BorderSide(
-                                                  color: Color(0xFFE4A46B),
-                                                ),
-                                              ),
-                                            ),
-                                            bottomSheetHeight:
-                                                MediaQuery.of(
-                                                  context,
-                                                ).size.height *
-                                                0.75,
-                                          ),
-                                          onSelect: (Country country) {
-                                            setState(() {
-                                              _selectedCountryCode =
-                                                  country.phoneCode;
-                                            });
-                                          },
-                                        );
+                                    PremiumTextField(
+                                      focusNode: _mobileFocusNode,
+                                      title: AppLocalizations.of(
+                                        context,
+                                      )!.mobileNumber,
+                                      validator: (value) {
+                                        if (value!.isEmpty) {
+                                          return AppLocalizations.of(
+                                            context,
+                                          )!.pleaseEnterYourMobileNumber;
+                                        }
+                                        if (value.length < 9) {
+                                          return AppLocalizations.of(
+                                            context,
+                                          )!.pleaseEnterValidMobileNumber;
+                                        }
+                                        return null;
                                       },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.transparent,
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              '+$_selectedCountryCode',
-                                              textDirection: TextDirection.ltr,
-                                              style: const TextStyle(
+                                      controller: _mobileController,
+                                      hintText: AppLocalizations.of(
+                                        context,
+                                      )!.enterMobileNumber,
+                                      fontsize: 14,
+
+                                      keyboardType: TextInputType.phone,
+                                      needTitle: true,
+                                      obscureText: false,
+                                      prefixIcon: GestureDetector(
+                                        onTap: () {
+                                          showCountryPicker(
+                                            context: context,
+                                            showPhoneCode: true,
+                                            customFlagBuilder: (context) =>
+                                                const SizedBox.shrink(),
+                                            countryListTheme: CountryListThemeData(
+                                              backgroundColor: const Color(
+                                                0xFF141313,
+                                              ),
+                                              textStyle: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 14,
                                               ),
-                                            ),
-                                            const Icon(
-                                              Icons.arrow_drop_down,
-                                              color: Colors.white,
-                                            ),
-                                            Container(
-                                              margin:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
+                                              searchTextStyle: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                              ),
+                                              borderRadius:
+                                                  const BorderRadius.only(
+                                                    topLeft: Radius.circular(
+                                                      30,
+                                                    ),
+                                                    topRight: Radius.circular(
+                                                      30,
+                                                    ),
                                                   ),
-                                              height: 24,
-                                              width: 1,
-                                              color: Colors.grey,
+                                              inputDecoration: InputDecoration(
+                                                hintText: AppLocalizations.of(
+                                                  context,
+                                                )!.search,
+                                                hintStyle: TextStyle(
+                                                  color: Colors.white.withAlpha(
+                                                    180,
+                                                  ),
+                                                ),
+                                                prefixIcon: const Icon(
+                                                  Icons.search,
+                                                  color: Colors.white,
+                                                ),
+                                                filled: true,
+                                                fillColor: const Color(
+                                                  0xFF1A1410,
+                                                ),
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  borderSide: BorderSide(
+                                                    color: Colors.grey.shade800,
+                                                  ),
+                                                ),
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      borderSide: BorderSide(
+                                                        color: Colors
+                                                            .grey
+                                                            .shade800,
+                                                      ),
+                                                    ),
+                                                focusedBorder:
+                                                    OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      borderSide:
+                                                          const BorderSide(
+                                                            color: Color(
+                                                              0xFFE4A46B,
+                                                            ),
+                                                          ),
+                                                    ),
+                                              ),
+                                              bottomSheetHeight:
+                                                  MediaQuery.of(
+                                                    context,
+                                                  ).size.height *
+                                                  0.75,
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 24),
-
-                                  // Continue Button
-                                  const SizedBox(height: 20),
-                                  // Terms and Conditions
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      PremiumCheckbox(
-                                        ontap: () {
-                                          setState(() {
-                                            _isAgreed = !_isAgreed;
-                                          });
+                                            onSelect: (Country country) {
+                                              setState(() {
+                                                _selectedCountryCode =
+                                                    country.phoneCode;
+                                              });
+                                            },
+                                          );
                                         },
-                                        isAgreed: _isAgreed,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: RichText(
-                                          text: TextSpan(
-                                            style: TextStyle(
-                                              color: Color(0xFFB0B0B0),
-                                              fontSize: 11,
-                                              height: 1.4,
-                                            ),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.transparent,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              TextSpan(
-                                                text: AppLocalizations.of(
-                                                  context,
-                                                )!.byClickingContinueButton,
-                                                style: TextStyle(
+                                              Text(
+                                                '+$_selectedCountryCode',
+                                                textDirection:
+                                                    TextDirection.ltr,
+                                                style: const TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                  decoration:
-                                                      TextDecoration.none,
+                                                  fontSize: 14,
                                                 ),
                                               ),
-                                              TextSpan(
-                                                text:
-                                                    " ${AppLocalizations.of(context)!.termsAndConditions}",
-                                                recognizer: TapGestureRecognizer()
-                                                  ..onTap = () async {
-                                                    final Uri url = Uri.parse('https://premiumforcegroup.com/terms-and-conditions');
-                                                    try {
-                                                      await launchUrl(url, mode: LaunchMode.externalApplication);
-                                                    } catch (e) {
-                                                      debugPrint('Could not launch terms URL: $e');
-                                                    }
-                                                  },
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w900,
-                                                  decoration:
-                                                      TextDecoration.none,
-                                                ),
+                                              const Icon(
+                                                Icons.arrow_drop_down,
+                                                color: Colors.white,
                                               ),
-                                              TextSpan(
-                                                text:
-                                                    " ${AppLocalizations.of(context)!.and} ",
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                  decoration:
-                                                      TextDecoration.none,
-                                                ),
-                                              ),
-                                              TextSpan(
-                                                text: AppLocalizations.of(
-                                                  context,
-                                                )!.privacyPolicy,
-                                                recognizer: TapGestureRecognizer()
-                                                  ..onTap = () async {
-                                                    final Uri url = Uri.parse('https://premiumforcegroup.com/privacy-policy');
-                                                    try {
-                                                      await launchUrl(url, mode: LaunchMode.externalApplication);
-                                                    } catch (e) {
-                                                      debugPrint('Could not launch privacy URL: $e');
-                                                    }
-                                                  },
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w900,
-                                                  decoration:
-                                                      TextDecoration.none,
-                                                ),
+                                              Container(
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                    ),
+                                                height: 24,
+                                                width: 1,
+                                                color: Colors.grey,
                                               ),
                                             ],
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 25),
-                                  PremiumButton(
-                                    showLoader: _isLoading,
-                                    fontsize: 16,
-                                    text: AppLocalizations.of(
-                                      context,
-                                    )!.continueText,
-                                    onTap: () async {
-                                      if (_formKey.currentState!.validate() &&
-                                          _isAgreed) {
-                                        setState(() => _isLoading = true);
+                                    ),
 
-                                        final authProvider = context
-                                            .read<AuthProvider>();
-                                        final success = await authProvider
-                                            .requestOtp(
-                                              countryCode:
-                                                  '+$_selectedCountryCode',
-                                              phoneNumber: _mobileController
-                                                  .text
-                                                  .trim(),
-                                            );
+                                    const SizedBox(height: 24),
 
-                                        if (!mounted) return;
-                                        setState(() => _isLoading = false);
+                                    // Continue Button
+                                    const SizedBox(height: 20),
+                                    // Terms and Conditions
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        PremiumCheckbox(
+                                          ontap: () {
+                                            setState(() {
+                                              _isAgreed = !_isAgreed;
+                                            });
+                                          },
+                                          isAgreed: _isAgreed,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: RichText(
+                                            text: TextSpan(
+                                              style: TextStyle(
+                                                color: Color(0xFFB0B0B0),
+                                                fontSize: 11,
+                                                height: 1.4,
+                                              ),
+                                              children: [
+                                                TextSpan(
+                                                  text: AppLocalizations.of(
+                                                    context,
+                                                  )!.byClickingContinueButton,
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                    decoration:
+                                                        TextDecoration.none,
+                                                  ),
+                                                ),
+                                                TextSpan(
+                                                  text:
+                                                      " ${AppLocalizations.of(context)!.termsAndConditions}",
+                                                  recognizer: TapGestureRecognizer()
+                                                    ..onTap = () async {
+                                                      final Uri url = Uri.parse(
+                                                        'https://premiumforcegroup.com/terms-and-conditions',
+                                                      );
+                                                      try {
+                                                        await launchUrl(
+                                                          url,
+                                                          mode: LaunchMode
+                                                              .externalApplication,
+                                                        );
+                                                      } catch (e) {
+                                                        debugPrint(
+                                                          'Could not launch terms URL: $e',
+                                                        );
+                                                      }
+                                                    },
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w900,
+                                                    decoration:
+                                                        TextDecoration.none,
+                                                  ),
+                                                ),
+                                                TextSpan(
+                                                  text:
+                                                      " ${AppLocalizations.of(context)!.and} ",
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                    decoration:
+                                                        TextDecoration.none,
+                                                  ),
+                                                ),
+                                                TextSpan(
+                                                  text: AppLocalizations.of(
+                                                    context,
+                                                  )!.privacyPolicy,
+                                                  recognizer: TapGestureRecognizer()
+                                                    ..onTap = () async {
+                                                      final Uri url = Uri.parse(
+                                                        'https://premiumforcegroup.com/privacy-policy',
+                                                      );
+                                                      try {
+                                                        await launchUrl(
+                                                          url,
+                                                          mode: LaunchMode
+                                                              .externalApplication,
+                                                        );
+                                                      } catch (e) {
+                                                        debugPrint(
+                                                          'Could not launch privacy URL: $e',
+                                                        );
+                                                      }
+                                                    },
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w900,
+                                                    decoration:
+                                                        TextDecoration.none,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 25),
+                                    PremiumButton(
+                                      showLoader: _isLoading,
+                                      fontsize: 16,
+                                      text: AppLocalizations.of(
+                                        context,
+                                      )!.continueText,
+                                      onTap: () async {
+                                        if (_formKey.currentState!.validate() &&
+                                            _isAgreed) {
+                                          setState(() => _isLoading = true);
 
-                                        if (success) {
-                                          Navigator.of(context).push(
-                                            SmoothNavigation.route(
-                                              OTPVerificationPage(
+                                          final authProvider = context
+                                              .read<AuthProvider>();
+                                          final success = await authProvider
+                                              .requestOtp(
                                                 countryCode:
                                                     '+$_selectedCountryCode',
                                                 phoneNumber: _mobileController
                                                     .text
                                                     .trim(),
+                                              );
+
+                                          if (!mounted) return;
+                                          setState(() => _isLoading = false);
+
+                                          if (success) {
+                                            Navigator.of(context).push(
+                                              SmoothNavigation.route(
+                                                OTPVerificationPage(
+                                                  countryCode:
+                                                      '+$_selectedCountryCode',
+                                                  phoneNumber: _mobileController
+                                                      .text
+                                                      .trim(),
+                                                ),
+                                              ),
+                                            );
+                                          } else {
+                                            final error =
+                                                authProvider.errorMessage;
+                                            final message =
+                                                error ==
+                                                    "invalid phone number or country code"
+                                                ? AppLocalizations.of(
+                                                    context,
+                                                  )!.invalidPhoneNumberOrCountryCode
+                                                : (error ??
+                                                      AppLocalizations.of(
+                                                        context,
+                                                      )!.somethingWentWrong);
+                                            _showCustomSnackBar(message);
+                                          }
+                                        } else if (_isAgreed == false) {
+                                          _showCustomSnackBar(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
+                                          );
+                                        }
+                                      },
+                                    ),
+
+                                    const SizedBox(height: 24),
+
+                                    // â”€â”€ OR divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Container(
+                                            height: 1,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.white.withAlpha(60),
+                                                ],
                                               ),
                                             ),
-                                          );
-                                        } else {
-                                          final error =
-                                              authProvider.errorMessage;
-                                          final message =
-                                              error ==
-                                                  "invalid phone number or country code"
-                                              ? AppLocalizations.of(
-                                                  context,
-                                                )!.invalidPhoneNumberOrCountryCode
-                                              : (error ??
-                                                    AppLocalizations.of(
-                                                      context,
-                                                    )!.somethingWentWrong);
-                                          _showCustomSnackBar(message);
-                                        }
-                                      } else if (_isAgreed == false) {
-                                        _showCustomSnackBar(
-                                          AppLocalizations.of(
-                                            context,
-                                          )!.pleaseAgreeToTheTermsAndConditionsAndPrivacyPolicy,
-                                        );
-                                      }
-                                    },
-                                  ),
-
-                                  const SizedBox(height: 24),
-
-                                  // â”€â”€ OR divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          height: 1,
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                Colors.transparent,
-                                                Colors.white.withAlpha(60),
-                                              ],
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                          ),
+                                          child: Text(
+                                            AppLocalizations.of(context)!.or,
+                                            style: TextStyle(
+                                              color: Colors.white.withAlpha(
+                                                150,
+                                              ),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              letterSpacing: 1.5,
                                             ),
                                           ),
                                         ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                        ),
-                                        child: Text(
-                                          AppLocalizations.of(context)!.or,
-                                          style: TextStyle(
-                                            color: Colors.white.withAlpha(150),
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            letterSpacing: 1.5,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Container(
-                                          height: 1,
-                                          decoration: BoxDecoration(
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                Colors.white.withAlpha(60),
-                                                Colors.transparent,
-                                              ],
+                                        Expanded(
+                                          child: Container(
+                                            height: 1,
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.white.withAlpha(60),
+                                                  Colors.transparent,
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 24),
+
+                                    // â”€â”€ Google Sign-In button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                    _GoogleSignInButton(
+                                      isLoading: authProvider.isGoogleLoading,
+                                      onTap: _handleGoogleSignIn,
+                                    ),
+
+                                    if (!Platform.isAndroid) ...[
+                                      const SizedBox(height: 12),
+
+                                      // â”€â”€ Apple Sign-In button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                      _AppleSignInButton(
+                                        isLoading: authProvider.isAppleLoading,
+                                        onTap: _handleAppleSignIn,
                                       ),
                                     ],
-                                  ),
 
-                                  const SizedBox(height: 24),
-
-                                  // â”€â”€ Google Sign-In button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                                  _GoogleSignInButton(
-                                    isLoading: authProvider.isGoogleLoading,
-                                    onTap: _handleGoogleSignIn,
-                                  ),
-
-                                  if (!Platform.isAndroid) ...[
-                                    const SizedBox(height: 12),
-
-                                    // â”€â”€ Apple Sign-In button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                                    _AppleSignInButton(
-                                      isLoading: authProvider.isAppleLoading,
-                                      onTap: _handleAppleSignIn,
-                                    ),
+                                    const SizedBox(height: 32),
                                   ],
-
-                                  const SizedBox(height: 32),
-                                ],
-                              ), // Column
-                            ), // SingleChildScrollView
-                          ), // Padding
-                        ), // Container
-                      ), // AnimatedPositioned
-                    ], // Children
-                  ); // Stack
-                }, // Builder
-              ), // LayoutBuilder
-            ),
-          );
-        },
-      ), // Form
+                                ), // Column
+                              ), // SingleChildScrollView
+                            ), // Padding
+                          ), // Container
+                        ), // AnimatedPositioned
+                      ], // Children
+                    ); // Stack
+                  }, // Builder
+                ), // LayoutBuilder
+              ),
+            );
+          },
+        ), // Form
+      ),
     ); // Scaffold body (actually Form is the body)
   }
 }

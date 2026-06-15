@@ -842,6 +842,12 @@ abstract class AppLocalizations {
   /// **'Flight Number (Optional)'**
   String get flightNumber;
 
+  /// No description provided for @flightNumberMandatory.
+  ///
+  /// In en, this message translates to:
+  /// **'Flight Number'**
+  String get flightNumberMandatory;
+
   /// No description provided for @arrivalDateAndTime.
   ///
   /// In en, this message translates to:
@@ -1259,7 +1265,7 @@ abstract class AppLocalizations {
   /// No description provided for @companyEmail.
   ///
   /// In en, this message translates to:
-  /// **'company Email'**
+  /// **'Company Email'**
   String get companyEmail;
 
   /// No description provided for @logoutConfirm.
@@ -2131,6 +2137,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications.'**
   String get similarVehicleNote;
+
+  /// No description provided for @contactUs.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Us'**
+  String get contactUs;
+
+  /// No description provided for @selectContactMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Select contact method'**
+  String get selectContactMethod;
 }
 
 class _AppLocalizationsDelegate

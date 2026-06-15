@@ -77,7 +77,9 @@ class _AccountPageState extends State<AccountPage> {
               // ),
               GestureDetector(
                 onTap: () async {
-                  final Uri url = Uri.parse('https://premiumforcegroup.com/terms-and-conditions');
+                  final Uri url = Uri.parse(
+                    'https://premiumforcegroup.com/terms-and-conditions',
+                  );
                   try {
                     await launchUrl(url, mode: LaunchMode.externalApplication);
                   } catch (e) {
@@ -94,7 +96,9 @@ class _AccountPageState extends State<AccountPage> {
               ),
               GestureDetector(
                 onTap: () async {
-                  final Uri url = Uri.parse('https://premiumforcegroup.com/privacy-policy');
+                  final Uri url = Uri.parse(
+                    'https://premiumforcegroup.com/privacy-policy',
+                  );
                   try {
                     await launchUrl(url, mode: LaunchMode.externalApplication);
                   } catch (e) {
@@ -106,6 +110,18 @@ class _AccountPageState extends State<AccountPage> {
                   isSvg: false,
                   title: loc.privacyPolicy,
                   icon: Icons.privacy_tip_outlined,
+                ),
+              ),
+
+              GestureDetector(
+                onTap: () {
+                  _showContactUsBottomSheet(context, loc);
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  isSvg: false,
+                  title: loc.contactUs,
+                  icon: Icons.support_agent_outlined,
                 ),
               ),
               GestureDetector(
@@ -563,6 +579,107 @@ class _AccountPageState extends State<AccountPage> {
                 ),
               ),
               SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showContactUsBottomSheet(BuildContext context, AppLocalizations loc) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E1105),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: 24,
+                  bottom: 12,
+                  left: 24,
+                  right: 24,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        loc.contactUs,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(sheetContext),
+                      child: Icon(Icons.close, color: Colors.white, size: 24),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white, thickness: 1),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  loc.selectContactMethod,
+                  textAlign: TextAlign.start,
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: PremiumButton(
+                  text: loc.email,
+                  fontsize: 14,
+                  showLoader: false,
+                  onTap: () async {
+                    final Uri emailLaunchUri = Uri(
+                      scheme: 'mailto',
+                      path: 'premium.force.sa@gmail.com',
+                    );
+                    try {
+                      await launchUrl(emailLaunchUri);
+                    } catch (e) {
+                      debugPrint('Could not launch email: \$e');
+                    }
+                    if (context.mounted) Navigator.pop(sheetContext);
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: PremiumButton(
+                  text: loc.phoneNumber,
+                  fontsize: 14,
+                  showLoader: false,
+                  onTap: () async {
+                    final Uri phoneLaunchUri = Uri(
+                      scheme: 'tel',
+                      path: '+966591991749',
+                    );
+                    try {
+                      await launchUrl(phoneLaunchUri);
+                    } catch (e) {
+                      debugPrint('Could not launch phone: \$e');
+                    }
+                    if (context.mounted) Navigator.pop(sheetContext);
+                  },
+                ),
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         );
