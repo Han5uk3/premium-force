@@ -31,7 +31,7 @@ class PaytabsConfig {
   /// Your Paytabs profile ID
   static String get profileId => _useLiveKey
       ? dotenv.get('PAYTABS_PROFILE_LIVE_ID', fallback: '129739')
-      : dotenv.get('PAYTABS_PROFILE_ID', fallback: '153721');
+      : dotenv.get('PAYTABS_PROFILE_ID', fallback: '128366');
 
   /// Your merchant email
   static String get merchantEmail => dotenv.get('PAYTABS_MERCHANT_EMAIL', fallback: 'your-merchant@example.com');

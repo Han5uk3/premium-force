@@ -572,6 +572,8 @@ class _SignUpPageState extends State<SignUpPage>
                           keyboardType: TextInputType.name,
                           needTitle: true,
                           obscureText: false,
+                          enabled: !_isGoogleSignUp,
+                          readOnly: _isGoogleSignUp,
                           prefixIcon: ShaderMask(
                             shaderCallback: (Rect bounds) {
                               return const LinearGradient(
@@ -602,7 +604,6 @@ class _SignUpPageState extends State<SignUpPage>
                             return null;
                           },
                         ),
-
                         const SizedBox(height: 20),
 
                         // Phone number (editable with country code picker)
@@ -778,7 +779,6 @@ class _SignUpPageState extends State<SignUpPage>
                             return null;
                           },
                         ),
-
                         const SizedBox(height: 20),
 
                         // Location field (tap to open location picker)

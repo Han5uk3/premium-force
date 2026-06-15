@@ -2079,6 +2079,70 @@ class _NewBookingState extends State<NewBooking> {
                               if (showTripInfo) {
                                 if (_tripInfoFormKey.currentState?.validate() ??
                                     false) {
+                                  // Check booking buffer hours for all categories
+                                  int bufferHours = 0;
+                                  if (_apiCities.isNotEmpty &&
+                                      _selectedCityCode < _apiCities.length) {
+                                    final city = _apiCities[_selectedCityCode];
+                                    bufferHours = int.tryParse(
+                                            city['bookingBufferHours']?.toString() ?? '0') ??
+                                        0;
+                                  }
+
+                                  if (bufferHours > 0) {
+                                    DateTime? actualPickupDateTime;
+                                    if (_selectedCatCode == 1 || _selectedCatCode == 2) {
+                                      if (_selectedPickupDate != null &&
+                                          _selectedPickupTime != null) {
+                                        actualPickupDateTime = DateTime(
+                                          _selectedPickupDate!.year,
+                                          _selectedPickupDate!.month,
+                                          _selectedPickupDate!.day,
+                                          _selectedPickupTime!.hour,
+                                          _selectedPickupTime!.minute,
+                                        );
+                                      }
+                                    } else {
+                                      if (_selectedDate != null && _selectedTime != null) {
+                                        actualPickupDateTime = DateTime(
+                                          _selectedDate!.year,
+                                          _selectedDate!.month,
+                                          _selectedDate!.day,
+                                          _selectedTime!.hour,
+                                          _selectedTime!.minute,
+                                        );
+                                      }
+                                    }
+
+                                    if (actualPickupDateTime != null) {
+                                      if (actualPickupDateTime.isBefore(
+                                        DateTime.now().add(
+                                          Duration(hours: bufferHours),
+                                        ),
+                                      )) {
+                                        final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+                                        
+                                        String errorMsgEn = 'Bookings must be made at least $bufferHours hour${bufferHours == 1 ? '' : 's'} in advance.';
+                                        String errorMsgAr = '';
+                                        if (bufferHours == 1) {
+                                          errorMsgAr = 'يجب أن يتم الحجز قبل ساعة واحدة على الأقل';
+                                        } else if (bufferHours == 2) {
+                                          errorMsgAr = 'يجب أن يتم الحجز قبل ساعتين على الأقل';
+                                        } else if (bufferHours >= 3 && bufferHours <= 10) {
+                                          errorMsgAr = 'يجب أن يتم الحجز قبل $bufferHours ساعات على الأقل';
+                                        } else {
+                                          errorMsgAr = 'يجب أن يتم الحجز قبل $bufferHours ساعة على الأقل';
+                                        }
+
+                                        _showCustomSnackBar(
+                                          isArabic ? errorMsgAr : errorMsgEn,
+                                          'E',
+                                        );
+                                        return;
+                                      }
+                                    }
+                                  }
+
                                   if (_selectedCatCode == 1 &&
                                       _selectedDate != null &&
                                       _selectedTime != null &&
@@ -2135,6 +2199,7 @@ class _NewBookingState extends State<NewBooking> {
                                       return;
                                     }
                                   }
+
 
                                   // 🏎️ NEW: Check car availability before going to step 2
                                   await _checkCarAvailability();
