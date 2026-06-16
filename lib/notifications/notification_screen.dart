@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/notification_model.dart';
@@ -10,7 +10,6 @@ class NotificationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -26,11 +25,7 @@ class NotificationScreen extends StatelessWidget {
           ),
         ),
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios,
-            color: Colors.white,
-            size: 20,
-          ),
+          icon: Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -41,7 +36,7 @@ class NotificationScreen extends StatelessWidget {
               return TextButton(
                 onPressed: () => _showClearConfirmation(context, loc),
                 child: Text(
-                  isArabic ? 'Ù…Ø³Ø­ Ø§Ù„ÙƒÙ„' : 'Clear All',
+                  loc.clearAll,
                   style: const TextStyle(color: Color(0xFFE4A46B)),
                 ),
               );
@@ -59,10 +54,8 @@ class NotificationScreen extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: notifications.length,
-            separatorBuilder: (context, index) => Divider(
-              color: Colors.grey.withValues(alpha: 0.1),
-              height: 24,
-            ),
+            separatorBuilder: (context, index) =>
+                Divider(color: Colors.grey.withValues(alpha: 0.1), height: 24),
             itemBuilder: (context, index) {
               final notification = notifications[index];
               return _NotificationItem(
@@ -71,7 +64,8 @@ class NotificationScreen extends StatelessWidget {
                   NotificationStorage.markAsRead(notification.id);
                   // Optional: handle tap (navigation etc)
                 },
-                onDelete: () => NotificationStorage.deleteNotification(notification.id),
+                onDelete: () =>
+                    NotificationStorage.deleteNotification(notification.id),
               );
             },
           );
@@ -81,7 +75,6 @@ class NotificationScreen extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context, AppLocalizations loc) {
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -100,7 +93,7 @@ class NotificationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            isArabic ? 'Ù„Ø§ ØªÙˆØ¬Ø¯ ØªÙ†Ø¨ÙŠÙ‡Ø§Øª' : 'No Notifications Yet',
+            loc.noNotificationsYet,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -109,9 +102,7 @@ class NotificationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            isArabic 
-                ? 'Ø³ØªØ¸Ù‡Ø± Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ù…ØªØ¹Ù„Ù‚Ø© Ø¨Ø­Ø¬ÙˆØ²Ø§ØªÙƒ Ù‡Ù†Ø§' 
-                : 'Updates about your bookings will appear here.',
+            loc.updatesAboutBookings,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.grey.withValues(alpha: 0.7),
@@ -124,19 +115,13 @@ class NotificationScreen extends StatelessWidget {
   }
 
   void _showClearConfirmation(BuildContext context, AppLocalizations loc) {
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
-        title: Text(
-          isArabic ? 'Ù…Ø³Ø­ Ø§Ù„ÙƒÙ„' : 'Clear All',
-          style: const TextStyle(color: Colors.white),
-        ),
+        title: Text(loc.clearAll, style: const TextStyle(color: Colors.white)),
         content: Text(
-          isArabic 
-              ? 'Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ù…Ø³Ø­ Ø¬Ù…ÙŠØ¹ Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§ØªØŸ' 
-              : 'Are you sure you want to clear all notifications?',
+          loc.clearAllConfirmDesc,
           style: const TextStyle(color: Colors.grey),
         ),
         actions: [
@@ -153,7 +138,7 @@ class NotificationScreen extends StatelessWidget {
               Navigator.pop(context);
             },
             child: Text(
-              isArabic ? 'Ù…Ø³Ø­' : 'Clear',
+              loc.clear,
               style: const TextStyle(color: Colors.redAccent),
             ),
           ),
@@ -177,7 +162,9 @@ class _NotificationItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-    final timeStr = DateFormat('MMM dd, hh:mm a').format(notification.timestamp);
+    final timeStr = DateFormat(
+      'MMM dd, hh:mm a',
+    ).format(notification.timestamp);
 
     return Dismissible(
       key: Key(notification.id),
@@ -198,13 +185,13 @@ class _NotificationItem extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: notification.isRead 
-                ? Colors.transparent 
+            color: notification.isRead
+                ? Colors.transparent
                 : const Color(0xFFE4A46B).withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: notification.isRead 
-                  ? Colors.grey.withValues(alpha: 0.1) 
+              color: notification.isRead
+                  ? Colors.grey.withValues(alpha: 0.1)
                   : const Color(0xFFE4A46B).withValues(alpha: 0.2),
             ),
           ),
@@ -214,16 +201,16 @@ class _NotificationItem extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: notification.isRead 
-                      ? const Color(0xFF292929) 
+                  color: notification.isRead
+                      ? const Color(0xFF292929)
                       : const Color(0xFFE4A46B).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.notifications_active_outlined,
                   size: 20,
-                  color: notification.isRead 
-                      ? Colors.grey 
+                  color: notification.isRead
+                      ? Colors.grey
                       : const Color(0xFFE4A46B),
                 ),
               ),
@@ -241,8 +228,8 @@ class _NotificationItem extends StatelessWidget {
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 13,
-                              fontWeight: notification.isRead 
-                                  ? FontWeight.w500 
+                              fontWeight: notification.isRead
+                                  ? FontWeight.w500
                                   : FontWeight.bold,
                             ),
                           ),
@@ -275,4 +262,3 @@ class _NotificationItem extends StatelessWidget {
     );
   }
 }
-

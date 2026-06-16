@@ -69,9 +69,9 @@ class BlockedPage extends StatelessWidget {
                     // Fallback to clipboard or just showing the email
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text(
-                            'Support Email: premium.force.sa@gmail.com',
+                            l10n.supportEmail('premium.force.sa@gmail.com'),
                           ),
                         ),
                       );

@@ -1071,4 +1071,63 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get selectContactMethod => 'اختر طريقة التواصل';
+
+  @override
+  String get clearAll => 'مسح الكل';
+
+  @override
+  String get noNotificationsYet => 'لا توجد تنبيهات';
+
+  @override
+  String get updatesAboutBookings => 'ستظهر التنبيهات المتعلقة بحجوزاتك هنا';
+
+  @override
+  String get clearAllConfirmDesc => 'هل أنت متأكد من مسح جميع التنبيهات؟';
+
+  @override
+  String get clear => 'مسح';
+
+  @override
+  String get profileUpdatedSuccessfully => 'تم تحديث الملف الشخصي بنجاح!';
+
+  @override
+  String get updateFailed => 'فشل التحديث';
+
+  @override
+  String supportEmail(Object email) {
+    return 'البريد الإلكتروني للدعم: $email';
+  }
+
+  @override
+  String get vehicleNotSelected => 'لم يتم اختيار المركبة';
+
+  @override
+  String get noPricingAvailableForSelectedDuration =>
+      'لا يوجد تسعير متاح للمدة المحددة';
+
+  @override
+  String get unableToFetchPricingForThisVehicle =>
+      'تعذر جلب التسعير لهذه المركبة.';
+
+  @override
+  String get incompleteLocationData => 'بيانات الموقع غير مكتملة.';
+
+  @override
+  String get serviceNotAvailableToSelectedArea =>
+      'الخدمة غير متوفرة في المنطقة المحددة.';
+
+  @override
+  String get noPriceSetForThisVehicleOnThisRoute =>
+      'لم يتم تحديد سعر لهذه المركبة في هذا المسار.';
+
+  @override
+  String get noVehiclesAvailableForThisRoute =>
+      'لا توجد مركبات متاحة لهذا المسار.';
+
+  @override
+  String get selectedRouteNotAvailableForThisVehicle =>
+      'المسار المحدد غير متاح لهذه المركبة.';
+
+  @override
+  String get routeNotAvailable => 'المسار غير متاح.';
 }

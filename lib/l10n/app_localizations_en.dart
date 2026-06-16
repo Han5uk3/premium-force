@@ -1082,4 +1082,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectContactMethod => 'Select contact method';
+
+  @override
+  String get clearAll => 'Clear All';
+
+  @override
+  String get noNotificationsYet => 'No Notifications Yet';
+
+  @override
+  String get updatesAboutBookings =>
+      'Updates about your bookings will appear here.';
+
+  @override
+  String get clearAllConfirmDesc =>
+      'Are you sure you want to clear all notifications?';
+
+  @override
+  String get clear => 'Clear';
+
+  @override
+  String get profileUpdatedSuccessfully => 'Profile updated successfully!';
+
+  @override
+  String get updateFailed => 'Update failed';
+
+  @override
+  String supportEmail(Object email) {
+    return 'Support Email: $email';
+  }
+
+  @override
+  String get vehicleNotSelected => 'Vehicle not selected';
+
+  @override
+  String get noPricingAvailableForSelectedDuration =>
+      'No pricing available for the selected duration';
+
+  @override
+  String get unableToFetchPricingForThisVehicle =>
+      'Unable to fetch pricing for this vehicle.';
+
+  @override
+  String get incompleteLocationData => 'Incomplete location data.';
+
+  @override
+  String get serviceNotAvailableToSelectedArea =>
+      'Service not available to the selected area.';
+
+  @override
+  String get noPriceSetForThisVehicleOnThisRoute =>
+      'No price set for this vehicle on this route.';
+
+  @override
+  String get noVehiclesAvailableForThisRoute =>
+      'No vehicles available for this route.';
+
+  @override
+  String get selectedRouteNotAvailableForThisVehicle =>
+      'Selected route is not available for this vehicle.';
+
+  @override
+  String get routeNotAvailable => 'Route not available.';
 }

@@ -438,7 +438,7 @@ class _NewBookingState extends State<NewBooking> {
     if (_selectedCatCode == 2) {
       // Chauffeur Category - Fetch Hourly Pricing
       if (carId == null)
-        return {'success': false, 'message': 'Vehicle not selected'};
+        return {'success': false, 'message': AppLocalizations.of(context)!.vehicleNotSelected};
 
       final priceRes = await api.getHourlyPriceForVehicle(
         vehicleId: carId,
@@ -483,7 +483,7 @@ class _NewBookingState extends State<NewBooking> {
           debugPrint('🌐 API │ No pricing found for hour: $targetHour');
           return {
             'success': false,
-            'message': 'No pricing available for the selected duration',
+            'message': AppLocalizations.of(context)!.noPricingAvailableForSelectedDuration,
           };
         }
       } else {
@@ -491,7 +491,7 @@ class _NewBookingState extends State<NewBooking> {
           'success': false,
           'message':
               priceRes['message'] ??
-              'Unable to fetch pricing for this vehicle.',
+              AppLocalizations.of(context)!.unableToFetchPricingForThisVehicle,
         };
       }
     }
@@ -502,7 +502,7 @@ class _NewBookingState extends State<NewBooking> {
           _pickupLng == null ||
           _dropLat == null ||
           _dropLng == null) {
-        return {'success': false, 'message': 'Incomplete location data.'};
+        return {'success': false, 'message': AppLocalizations.of(context)!.incompleteLocationData};
       }
 
       final pPoint = LatLng(_pickupLat!, _pickupLng!);
@@ -515,7 +515,7 @@ class _NewBookingState extends State<NewBooking> {
       if (pZone == null || dZone == null) {
         return {
           'success': false,
-          'message': 'Service not available to the selected area.',
+          'message': AppLocalizations.of(context)!.serviceNotAvailableToSelectedArea,
         };
       }
 
@@ -523,7 +523,7 @@ class _NewBookingState extends State<NewBooking> {
       if (!pZone.isActive || !dZone.isActive) {
         return {
           'success': false,
-          'message': 'Service not available to the selected area.',
+          'message': AppLocalizations.of(context)!.serviceNotAvailableToSelectedArea,
         };
       }
 
@@ -560,7 +560,7 @@ class _NewBookingState extends State<NewBooking> {
           } catch (_) {
             return {
               'success': false,
-              'message': 'No price set for this vehicle on this route.',
+              'message': AppLocalizations.of(context)!.noPriceSetForThisVehicleOnThisRoute,
             };
           }
         } else {
@@ -580,7 +580,7 @@ class _NewBookingState extends State<NewBooking> {
           if (validCarIds.isEmpty) {
             return {
               'success': false,
-              'message': 'No vehicles available for this route.',
+              'message': AppLocalizations.of(context)!.noVehiclesAvailableForThisRoute,
             };
           }
           return {'success': true, 'data': validCarIds};
@@ -618,7 +618,7 @@ class _NewBookingState extends State<NewBooking> {
         if (routes.isEmpty) {
           return {
             'success': false,
-            'message': 'Selected route is not available for this vehicle.',
+            'message': AppLocalizations.of(context)!.selectedRouteNotAvailableForThisVehicle,
           };
         }
 
@@ -643,7 +643,7 @@ class _NewBookingState extends State<NewBooking> {
           );
           return {
             'success': false,
-            'message': 'Selected route is not available for this vehicle.',
+            'message': AppLocalizations.of(context)!.selectedRouteNotAvailableForThisVehicle,
           };
         }
       }
@@ -673,7 +673,7 @@ class _NewBookingState extends State<NewBooking> {
         if (routes.isNotEmpty) {
           return {'success': true, 'data': routes};
         } else {
-          return {'success': false, 'message': 'Route not available.'};
+          return {'success': false, 'message': AppLocalizations.of(context)!.routeNotAvailable};
         }
       }
       return filterRes;
@@ -703,8 +703,8 @@ class _NewBookingState extends State<NewBooking> {
                     size: 28,
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    "Service Not Available",
+                  Text(
+                    AppLocalizations.of(context)!.serviceNotAvailable,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -716,7 +716,7 @@ class _NewBookingState extends State<NewBooking> {
               const SizedBox(height: 20),
               Text(
                 message ??
-                    "Service not available for this route or vehicle. Please contact support or try another selection.",
+                    AppLocalizations.of(context)!.serviceNotAvailableMessage,
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 15,
@@ -735,8 +735,8 @@ class _NewBookingState extends State<NewBooking> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  "OK",
+                child: Text(
+                  AppLocalizations.of(context)!.ok,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -1711,7 +1711,7 @@ class _NewBookingState extends State<NewBooking> {
           );
           if (mounted) {
             _showNoServiceAlert(
-              message: "Service not available to the selected area.",
+              message: AppLocalizations.of(context)!.serviceNotAvailableToSelectedArea,
             );
           }
           setState(() {
@@ -1728,7 +1728,7 @@ class _NewBookingState extends State<NewBooking> {
           );
           if (mounted) {
             _showNoServiceAlert(
-              message: "Service not available to the selected area.",
+              message: AppLocalizations.of(context)!.serviceNotAvailableToSelectedArea,
             );
           }
           setState(() {
@@ -3390,7 +3390,7 @@ class _NewBookingState extends State<NewBooking> {
                 }
               });
               if (path != 'DELETED') {
-                _showCustomSnackBar('Voice note successfully saved.', 'S');
+                _showCustomSnackBar(loc.voiceNoteSaved, 'S');
               }
             }
           },

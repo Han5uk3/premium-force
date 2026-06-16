@@ -2149,6 +2149,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select contact method'**
   String get selectContactMethod;
+
+  /// No description provided for @clearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All'**
+  String get clearAll;
+
+  /// No description provided for @noNotificationsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No Notifications Yet'**
+  String get noNotificationsYet;
+
+  /// No description provided for @updatesAboutBookings.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates about your bookings will appear here.'**
+  String get updatesAboutBookings;
+
+  /// No description provided for @clearAllConfirmDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to clear all notifications?'**
+  String get clearAllConfirmDesc;
+
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// No description provided for @profileUpdatedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile updated successfully!'**
+  String get profileUpdatedSuccessfully;
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed'**
+  String get updateFailed;
+
+  /// No description provided for @supportEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Support Email: {email}'**
+  String supportEmail(Object email);
+
+  /// No description provided for @vehicleNotSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Vehicle not selected'**
+  String get vehicleNotSelected;
+
+  /// No description provided for @noPricingAvailableForSelectedDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'No pricing available for the selected duration'**
+  String get noPricingAvailableForSelectedDuration;
+
+  /// No description provided for @unableToFetchPricingForThisVehicle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to fetch pricing for this vehicle.'**
+  String get unableToFetchPricingForThisVehicle;
+
+  /// No description provided for @incompleteLocationData.
+  ///
+  /// In en, this message translates to:
+  /// **'Incomplete location data.'**
+  String get incompleteLocationData;
+
+  /// No description provided for @serviceNotAvailableToSelectedArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Service not available to the selected area.'**
+  String get serviceNotAvailableToSelectedArea;
+
+  /// No description provided for @noPriceSetForThisVehicleOnThisRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'No price set for this vehicle on this route.'**
+  String get noPriceSetForThisVehicleOnThisRoute;
+
+  /// No description provided for @noVehiclesAvailableForThisRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'No vehicles available for this route.'**
+  String get noVehiclesAvailableForThisRoute;
+
+  /// No description provided for @selectedRouteNotAvailableForThisVehicle.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected route is not available for this vehicle.'**
+  String get selectedRouteNotAvailableForThisVehicle;
+
+  /// No description provided for @routeNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Route not available.'**
+  String get routeNotAvailable;
 }
 
 class _AppLocalizationsDelegate

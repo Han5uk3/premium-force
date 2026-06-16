@@ -284,7 +284,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           _promoSuccessText = promo['text'] ?? "Promo code applied successfully!";
         });
         if (mounted) {
-          _showCustomSnackBar("Promo code applied successfully!", type: "S");
+          _showCustomSnackBar(AppLocalizations.of(context)!.promoCodeAppliedSuccessfully, type: "S");
         }
       } else {
         setState(() {
@@ -293,13 +293,13 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           _promoSuccessText = null;
         });
         if (mounted) {
-          _showCustomSnackBar("Invalid promo code", type: "E");
+          _showCustomSnackBar(AppLocalizations.of(context)!.invalidPromoCode, type: "E");
         }
       }
     } else {
       if (mounted) {
         _showCustomSnackBar(
-          result['message'] ?? "Invalid or inactive promo code",
+          result['message'] ?? AppLocalizations.of(context)!.invalidOrInactivePromoCode,
           type: "E",
         );
       }
@@ -315,7 +315,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       _promoSuccessText = null;
       _specialIdController.clear();
     });
-    _showCustomSnackBar("Promo code removed", type: "W");
+    _showCustomSnackBar(AppLocalizations.of(context)!.promoCodeRemoved, type: "W");
   }
 
   Future<void> _handleUpdateProfile() async {
@@ -361,7 +361,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           token: token,
         );
       }
-      _showCustomSnackBar("Profile updated successfully!", type: "S");
+      _showCustomSnackBar(AppLocalizations.of(context)!.profileUpdatedSuccessfully, type: "S");
       // Fetch user again to sync with provider
       await Provider.of<AuthProvider>(context, listen: false).fetchUser();
 
@@ -369,7 +369,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       Navigator.pop(context);
     } else {
       _showCustomSnackBar(
-        result['message'] as String? ?? 'Update failed',
+        result['message'] as String? ?? AppLocalizations.of(context)!.updateFailed,
         type: "E",
       );
     }

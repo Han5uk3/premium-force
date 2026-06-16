@@ -349,5 +349,27 @@
   "backToLogin": "العودة إلى تسجيل الدخول",
   "similarVehicleNote": "في حال عدم توفر المركبة المختارة، سنقوم بتوفير بديل مماثل يلبي جميع متطلباتك.",
   "contactUs": "اتصل بنا",
-  "selectContactMethod": "اختر طريقة التواصل"
+  "selectContactMethod": "اختر طريقة التواصل",
+  "clearAll": "مسح الكل",
+  "noNotificationsYet": "لا توجد تنبيهات",
+  "updatesAboutBookings": "ستظهر التنبيهات المتعلقة بحجوزاتك هنا",
+  "clearAllConfirmDesc": "هل أنت متأكد من مسح جميع التنبيهات؟",
+  "clear": "مسح",
+  "profileUpdatedSuccessfully": "تم تحديث الملف الشخصي بنجاح!",
+  "updateFailed": "فشل التحديث",
+  "supportEmail": "البريد الإلكتروني للدعم: {email}",
+  "@supportEmail": {
+    "placeholders": {
+      "email": {}
+    }
+  },
+  "vehicleNotSelected": "لم يتم اختيار المركبة",
+  "noPricingAvailableForSelectedDuration": "لا يوجد تسعير متاح للمدة المحددة",
+  "unableToFetchPricingForThisVehicle": "تعذر جلب التسعير لهذه المركبة.",
+  "incompleteLocationData": "بيانات الموقع غير مكتملة.",
+  "serviceNotAvailableToSelectedArea": "الخدمة غير متوفرة في المنطقة المحددة.",
+  "noPriceSetForThisVehicleOnThisRoute": "لم يتم تحديد سعر لهذه المركبة في هذا المسار.",
+  "noVehiclesAvailableForThisRoute": "لا توجد مركبات متاحة لهذا المسار.",
+  "selectedRouteNotAvailableForThisVehicle": "المسار المحدد غير متاح لهذه المركبة.",
+  "routeNotAvailable": "المسار غير متاح."
 }

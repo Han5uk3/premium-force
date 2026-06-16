@@ -347,5 +347,27 @@
   "backToLogin": "Back to Login",
   "similarVehicleNote": "If your selected vehicle is unavailable, we will provide a comparable alternative that meets all your specifications.",
   "contactUs": "Contact Us",
-  "selectContactMethod": "Select contact method"
+  "selectContactMethod": "Select contact method",
+  "clearAll": "Clear All",
+  "noNotificationsYet": "No Notifications Yet",
+  "updatesAboutBookings": "Updates about your bookings will appear here.",
+  "clearAllConfirmDesc": "Are you sure you want to clear all notifications?",
+  "clear": "Clear",
+  "profileUpdatedSuccessfully": "Profile updated successfully!",
+  "updateFailed": "Update failed",
+  "supportEmail": "Support Email: {email}",
+  "@supportEmail": {
+    "placeholders": {
+      "email": {}
+    }
+  },
+  "vehicleNotSelected": "Vehicle not selected",
+  "noPricingAvailableForSelectedDuration": "No pricing available for the selected duration",
+  "unableToFetchPricingForThisVehicle": "Unable to fetch pricing for this vehicle.",
+  "incompleteLocationData": "Incomplete location data.",
+  "serviceNotAvailableToSelectedArea": "Service not available to the selected area.",
+  "noPriceSetForThisVehicleOnThisRoute": "No price set for this vehicle on this route.",
+  "noVehiclesAvailableForThisRoute": "No vehicles available for this route.",
+  "selectedRouteNotAvailableForThisVehicle": "Selected route is not available for this vehicle.",
+  "routeNotAvailable": "Route not available."
 }
