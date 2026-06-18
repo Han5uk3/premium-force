@@ -36,6 +36,9 @@ class PaytabsConfig {
   /// Your merchant email
   static String get merchantEmail => dotenv.get('PAYTABS_MERCHANT_EMAIL', fallback: 'your-merchant@example.com');
 
+  /// Apple Pay Merchant ID
+  static String get applePayMerchantId => dotenv.get('PAYTABS_APPLE_PAY_MERCHANT_ID', fallback: 'merchant.com.brandbik.premiumforce');
+
   // ===== Country codes =====
   /// Merchant country code
   static String get merchantCountryCode => dotenv.get('PAYTABS_COUNTRY_CODE', fallback: 'SA');

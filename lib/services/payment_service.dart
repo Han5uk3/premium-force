@@ -140,7 +140,7 @@ class PaymentService {
       configuration.iOSThemeConfigurations = theme;
 
       // 3. Initiate Payment
-      FlutterPaytabsBridge.startCardPayment(configuration, (event) {
+      await FlutterPaytabsBridge.startCardPayment(configuration, (event) {
         debugPrint('🎯 PayTabs Callback Received: $event');
 
         if (completer.isCompleted) return;
@@ -235,6 +235,21 @@ class PaymentService {
               responseMessage: (status == "cancel" || msg == "cancel")
                   ? "Payment Cancelled"
                   : (event["message"] ?? 'Transaction failed or was stopped'),
+              customerEmail: request.customerEmail,
+              amount: request.amount,
+            ),
+          );
+        }
+      }).catchError((error) {
+        debugPrint('❌ Card Payment bridge error: $error');
+        if (!completer.isCompleted) {
+          completer.complete(
+            PaymentResult(
+              success: false,
+              transactionReference: '',
+              invoiceId: '',
+              responseCode: 'ERROR',
+              responseMessage: error.toString(),
               customerEmail: request.customerEmail,
               amount: request.amount,
             ),
@@ -352,9 +367,10 @@ class PaymentService {
           PaymentSDKNetworks.mada,
           PaymentSDKNetworks.amex,
         ],
+        merchantApplePayIndentifier: PaytabsConfig.applePayMerchantId,
       );
 
-      FlutterPaytabsBridge.startApplePayPayment(configuration, (event) {
+      await FlutterPaytabsBridge.startApplePayPayment(configuration, (event) {
         debugPrint('🍎 Apple Pay Callback: $event');
 
         if (completer.isCompleted) return;
@@ -405,6 +421,34 @@ class PaymentService {
               invoiceId: '',
               responseCode: 'CANCELLED',
               responseMessage: event["message"] ?? 'Apple Pay cancelled',
+              customerEmail: request.customerEmail,
+              amount: request.amount,
+            ),
+          );
+        } else {
+          final status = (event["status"] ?? 'UNKNOWN').toString().toUpperCase();
+          completer.complete(
+            PaymentResult(
+              success: false,
+              transactionReference: '',
+              invoiceId: '',
+              responseCode: status,
+              responseMessage: event["message"] ?? 'Apple Pay transaction stopped',
+              customerEmail: request.customerEmail,
+              amount: request.amount,
+            ),
+          );
+        }
+      }).catchError((error) {
+        debugPrint('❌ Apple Pay bridge error: $error');
+        if (!completer.isCompleted) {
+          completer.complete(
+            PaymentResult(
+              success: false,
+              transactionReference: '',
+              invoiceId: '',
+              responseCode: 'ERROR',
+              responseMessage: error.toString(),
               customerEmail: request.customerEmail,
               amount: request.amount,
             ),
