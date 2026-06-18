@@ -400,29 +400,35 @@ class _NewBookingState extends State<NewBooking> {
 
     if (_selectedCatCode == 0) {
       // Arrival: From Airport City to Drop Location City
-      if (_dropLat != null && _dropLng != null && cityId != null) {
-        if (!_isLocationWithinSelectedBookingCity(_dropCityName)) {
+      if (_dropLat != null && _dropLng != null) {
+        final dropCityId = _getCityIdFromName(_dropCityName ?? '');
+        if (dropCityId == null) {
           return {
             'success': false,
             'message':
-                'Airport bookings only support drop-off locations inside the selected city.',
+                'Airport bookings only support drop-off locations inside the available cities.',
           };
         }
+        toCity = dropCityId;
+      } else {
+        toCity = cityId;
       }
       fromCity = airportCityId ?? cityId;
-      toCity = cityId;
     } else if (_selectedCatCode == 1) {
       // Departure: From Pickup Location City to Airport City
-      if (_pickupLat != null && _pickupLng != null && cityId != null) {
-        if (!_isLocationWithinSelectedBookingCity(_pickupCityName)) {
+      if (_pickupLat != null && _pickupLng != null) {
+        final pickupCityId = _getCityIdFromName(_pickupCityName ?? '');
+        if (pickupCityId == null) {
           return {
             'success': false,
             'message':
-                'Airport bookings only support pickup locations inside the selected city.',
+                'Airport bookings only support pickup locations inside the available cities.',
           };
         }
+        fromCity = pickupCityId;
+      } else {
+        fromCity = cityId;
       }
-      fromCity = cityId;
       toCity = airportCityId ?? cityId;
     }
 
@@ -438,7 +444,10 @@ class _NewBookingState extends State<NewBooking> {
     if (_selectedCatCode == 2) {
       // Chauffeur Category - Fetch Hourly Pricing
       if (carId == null)
-        return {'success': false, 'message': AppLocalizations.of(context)!.vehicleNotSelected};
+        return {
+          'success': false,
+          'message': AppLocalizations.of(context)!.vehicleNotSelected,
+        };
 
       final priceRes = await api.getHourlyPriceForVehicle(
         vehicleId: carId,
@@ -483,7 +492,9 @@ class _NewBookingState extends State<NewBooking> {
           debugPrint('🌐 API │ No pricing found for hour: $targetHour');
           return {
             'success': false,
-            'message': AppLocalizations.of(context)!.noPricingAvailableForSelectedDuration,
+            'message': AppLocalizations.of(
+              context,
+            )!.noPricingAvailableForSelectedDuration,
           };
         }
       } else {
@@ -502,7 +513,10 @@ class _NewBookingState extends State<NewBooking> {
           _pickupLng == null ||
           _dropLat == null ||
           _dropLng == null) {
-        return {'success': false, 'message': AppLocalizations.of(context)!.incompleteLocationData};
+        return {
+          'success': false,
+          'message': AppLocalizations.of(context)!.incompleteLocationData,
+        };
       }
 
       final pPoint = LatLng(_pickupLat!, _pickupLng!);
@@ -515,7 +529,9 @@ class _NewBookingState extends State<NewBooking> {
       if (pZone == null || dZone == null) {
         return {
           'success': false,
-          'message': AppLocalizations.of(context)!.serviceNotAvailableToSelectedArea,
+          'message': AppLocalizations.of(
+            context,
+          )!.serviceNotAvailableToSelectedArea,
         };
       }
 
@@ -523,7 +539,9 @@ class _NewBookingState extends State<NewBooking> {
       if (!pZone.isActive || !dZone.isActive) {
         return {
           'success': false,
-          'message': AppLocalizations.of(context)!.serviceNotAvailableToSelectedArea,
+          'message': AppLocalizations.of(
+            context,
+          )!.serviceNotAvailableToSelectedArea,
         };
       }
 
@@ -560,7 +578,9 @@ class _NewBookingState extends State<NewBooking> {
           } catch (_) {
             return {
               'success': false,
-              'message': AppLocalizations.of(context)!.noPriceSetForThisVehicleOnThisRoute,
+              'message': AppLocalizations.of(
+                context,
+              )!.noPriceSetForThisVehicleOnThisRoute,
             };
           }
         } else {
@@ -580,7 +600,9 @@ class _NewBookingState extends State<NewBooking> {
           if (validCarIds.isEmpty) {
             return {
               'success': false,
-              'message': AppLocalizations.of(context)!.noVehiclesAvailableForThisRoute,
+              'message': AppLocalizations.of(
+                context,
+              )!.noVehiclesAvailableForThisRoute,
             };
           }
           return {'success': true, 'data': validCarIds};
@@ -618,7 +640,9 @@ class _NewBookingState extends State<NewBooking> {
         if (routes.isEmpty) {
           return {
             'success': false,
-            'message': AppLocalizations.of(context)!.selectedRouteNotAvailableForThisVehicle,
+            'message': AppLocalizations.of(
+              context,
+            )!.selectedRouteNotAvailableForThisVehicle,
           };
         }
 
@@ -643,7 +667,9 @@ class _NewBookingState extends State<NewBooking> {
           );
           return {
             'success': false,
-            'message': AppLocalizations.of(context)!.selectedRouteNotAvailableForThisVehicle,
+            'message': AppLocalizations.of(
+              context,
+            )!.selectedRouteNotAvailableForThisVehicle,
           };
         }
       }
@@ -673,7 +699,10 @@ class _NewBookingState extends State<NewBooking> {
         if (routes.isNotEmpty) {
           return {'success': true, 'data': routes};
         } else {
-          return {'success': false, 'message': AppLocalizations.of(context)!.routeNotAvailable};
+          return {
+            'success': false,
+            'message': AppLocalizations.of(context)!.routeNotAvailable,
+          };
         }
       }
       return filterRes;
@@ -1711,7 +1740,9 @@ class _NewBookingState extends State<NewBooking> {
           );
           if (mounted) {
             _showNoServiceAlert(
-              message: AppLocalizations.of(context)!.serviceNotAvailableToSelectedArea,
+              message: AppLocalizations.of(
+                context,
+              )!.serviceNotAvailableToSelectedArea,
             );
           }
           setState(() {
@@ -1728,7 +1759,9 @@ class _NewBookingState extends State<NewBooking> {
           );
           if (mounted) {
             _showNoServiceAlert(
-              message: AppLocalizations.of(context)!.serviceNotAvailableToSelectedArea,
+              message: AppLocalizations.of(
+                context,
+              )!.serviceNotAvailableToSelectedArea,
             );
           }
           setState(() {
@@ -2084,14 +2117,19 @@ class _NewBookingState extends State<NewBooking> {
                                   if (_apiCities.isNotEmpty &&
                                       _selectedCityCode < _apiCities.length) {
                                     final city = _apiCities[_selectedCityCode];
-                                    bufferHours = int.tryParse(
-                                            city['bookingBufferHours']?.toString() ?? '0') ??
+                                    bufferHours =
+                                        int.tryParse(
+                                          city['bookingBufferHours']
+                                                  ?.toString() ??
+                                              '0',
+                                        ) ??
                                         0;
                                   }
 
                                   if (bufferHours > 0) {
                                     DateTime? actualPickupDateTime;
-                                    if (_selectedCatCode == 1 || _selectedCatCode == 2) {
+                                    if (_selectedCatCode == 1 ||
+                                        _selectedCatCode == 2) {
                                       if (_selectedPickupDate != null &&
                                           _selectedPickupTime != null) {
                                         actualPickupDateTime = DateTime(
@@ -2103,7 +2141,8 @@ class _NewBookingState extends State<NewBooking> {
                                         );
                                       }
                                     } else {
-                                      if (_selectedDate != null && _selectedTime != null) {
+                                      if (_selectedDate != null &&
+                                          _selectedTime != null) {
                                         actualPickupDateTime = DateTime(
                                           _selectedDate!.year,
                                           _selectedDate!.month,
@@ -2120,18 +2159,28 @@ class _NewBookingState extends State<NewBooking> {
                                           Duration(hours: bufferHours),
                                         ),
                                       )) {
-                                        final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-                                        
-                                        String errorMsgEn = 'Bookings must be made at least $bufferHours hour${bufferHours == 1 ? '' : 's'} in advance.';
+                                        final isArabic =
+                                            Localizations.localeOf(
+                                              context,
+                                            ).languageCode ==
+                                            'ar';
+
+                                        String errorMsgEn =
+                                            'Bookings must be made at least $bufferHours hour${bufferHours == 1 ? '' : 's'} in advance.';
                                         String errorMsgAr = '';
                                         if (bufferHours == 1) {
-                                          errorMsgAr = 'يجب أن يتم الحجز قبل ساعة واحدة على الأقل';
+                                          errorMsgAr =
+                                              'يجب أن يتم الحجز قبل ساعة واحدة على الأقل';
                                         } else if (bufferHours == 2) {
-                                          errorMsgAr = 'يجب أن يتم الحجز قبل ساعتين على الأقل';
-                                        } else if (bufferHours >= 3 && bufferHours <= 10) {
-                                          errorMsgAr = 'يجب أن يتم الحجز قبل $bufferHours ساعات على الأقل';
+                                          errorMsgAr =
+                                              'يجب أن يتم الحجز قبل ساعتين على الأقل';
+                                        } else if (bufferHours >= 3 &&
+                                            bufferHours <= 10) {
+                                          errorMsgAr =
+                                              'يجب أن يتم الحجز قبل $bufferHours ساعات على الأقل';
                                         } else {
-                                          errorMsgAr = 'يجب أن يتم الحجز قبل $bufferHours ساعة على الأقل';
+                                          errorMsgAr =
+                                              'يجب أن يتم الحجز قبل $bufferHours ساعة على الأقل';
                                         }
 
                                         _showCustomSnackBar(
@@ -2199,7 +2248,6 @@ class _NewBookingState extends State<NewBooking> {
                                       return;
                                     }
                                   }
-
 
                                   // 🏎️ NEW: Check car availability before going to step 2
                                   await _checkCarAvailability();
@@ -2366,37 +2414,70 @@ class _NewBookingState extends State<NewBooking> {
                                   String selectedMethod = 'card';
                                   if (Platform.isIOS) {
                                     final loc = AppLocalizations.of(context)!;
-                                    final method = await showModalBottomSheet<String>(
-                                      context: context,
-                                      backgroundColor: const Color(0xFF1E1105),
-                                      shape: const RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                                      ),
-                                      builder: (context) => SafeArea(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const SizedBox(height: 16),
-                                            Text(
-                                              loc.selectPaymentMethod,
-                                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                    final method =
+                                        await showModalBottomSheet<String>(
+                                          context: context,
+                                          backgroundColor: const Color(
+                                            0xFF1E1105,
+                                          ),
+                                          shape: const RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(20),
                                             ),
-                                            const SizedBox(height: 16),
-                                            ListTile(
-                                              leading: const Icon(Icons.apple, color: Colors.white, size: 30),
-                                              title: Text(loc.applePay, style: const TextStyle(color: Colors.white)),
-                                              onTap: () => Navigator.pop(context, 'apple_pay'),
+                                          ),
+                                          builder: (context) => SafeArea(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const SizedBox(height: 16),
+                                                Text(
+                                                  loc.selectPaymentMethod,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                ListTile(
+                                                  leading: const Icon(
+                                                    Icons.apple,
+                                                    color: Colors.white,
+                                                    size: 30,
+                                                  ),
+                                                  title: Text(
+                                                    loc.applePay,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                  onTap: () => Navigator.pop(
+                                                    context,
+                                                    'apple_pay',
+                                                  ),
+                                                ),
+                                                ListTile(
+                                                  leading: const Icon(
+                                                    Icons.credit_card,
+                                                    color: Colors.white,
+                                                    size: 30,
+                                                  ),
+                                                  title: Text(
+                                                    loc.creditDebitCard,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                  onTap: () => Navigator.pop(
+                                                    context,
+                                                    'card',
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                              ],
                                             ),
-                                            ListTile(
-                                              leading: const Icon(Icons.credit_card, color: Colors.white, size: 30),
-                                              title: Text(loc.creditDebitCard, style: const TextStyle(color: Colors.white)),
-                                              onTap: () => Navigator.pop(context, 'card'),
-                                            ),
-                                            const SizedBox(height: 16),
-                                          ],
-                                        ),
-                                      ),
-                                    );
+                                          ),
+                                        );
                                     if (method == null) {
                                       setState(() {
                                         _isBooking = false;
@@ -2409,7 +2490,9 @@ class _NewBookingState extends State<NewBooking> {
                                   PaymentResult paymentResult;
                                   if (selectedMethod == 'apple_pay') {
                                     paymentResult = await PaymentService()
-                                        .startApplePayPayment(request: paymentRequest);
+                                        .startApplePayPayment(
+                                          request: paymentRequest,
+                                        );
                                   } else {
                                     paymentResult = await PaymentService()
                                         .startPayment(request: paymentRequest);
