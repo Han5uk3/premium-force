@@ -79,8 +79,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     final userEmail = userData?['email']?.toString() ?? '';
 
     // Check if discount is approved
-    final isDiscountApproved =
-        userData?['isDiscountApproved'] == 'approved';
+    final isDiscountApproved = userData?['isDiscountApproved'] == 'approved';
 
     if (!isDiscountApproved) return;
 
@@ -203,6 +202,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       appBar: buidAppBar(context),
 
       body: SingleChildScrollView(
+        physics: ClampingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1271,17 +1271,35 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 const SizedBox(height: 16),
                 Text(
                   loc.selectPaymentMethod,
-                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  leading: const Icon(Icons.apple, color: Colors.white, size: 30),
-                  title: Text(loc.applePay, style: const TextStyle(color: Colors.white)),
+                  leading: const Icon(
+                    Icons.apple,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                  title: Text(
+                    loc.applePay,
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   onTap: () => Navigator.pop(context, 'apple_pay'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.credit_card, color: Colors.white, size: 30),
-                  title: Text(loc.creditDebitCard, style: const TextStyle(color: Colors.white)),
+                  leading: const Icon(
+                    Icons.credit_card,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                  title: Text(
+                    loc.creditDebitCard,
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   onTap: () => Navigator.pop(context, 'card'),
                 ),
                 const SizedBox(height: 16),
@@ -1304,21 +1322,26 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         orderId: orderId,
         customerEmail: userData?['email'] ?? '',
         customerName: userData?['name'] ?? 'Customer',
-        customerPhone: (booking.passengerMobile != null &&
+        customerPhone:
+            (booking.passengerMobile != null &&
                 booking.passengerMobile!.isNotEmpty)
             ? booking.passengerMobile!
             : (userData?['phoneNumber'] ??
-                UserLocalStorage.getPhoneNumber() ??
-                ''),
+                  UserLocalStorage.getPhoneNumber() ??
+                  ''),
         cartId: orderId,
         cartDescription:
             'Extra ${booking.extraHours} hour(s) — Chauffeur booking ${booking.id}',
       );
 
       if (selectedMethod == 'apple_pay') {
-        paymentResult = await PaymentService().startApplePayPayment(request: paymentRequest);
+        paymentResult = await PaymentService().startApplePayPayment(
+          request: paymentRequest,
+        );
       } else {
-        paymentResult = await PaymentService().startPayment(request: paymentRequest);
+        paymentResult = await PaymentService().startPayment(
+          request: paymentRequest,
+        );
       }
 
       if (paymentResult.success) {
@@ -1361,30 +1384,30 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             );
           }
         }
-        } else {
-          if (mounted) {
-            if (paymentResult.responseCode == 'EVENT_CANCELLED' ||
-                paymentResult.responseMessage.toLowerCase() == "cancel" ||
-                paymentResult.responseMessage.toLowerCase() ==
-                    "payment cancelled") {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PaymentCancelledPage(),
+      } else {
+        if (mounted) {
+          if (paymentResult.responseCode == 'EVENT_CANCELLED' ||
+              paymentResult.responseMessage.toLowerCase() == "cancel" ||
+              paymentResult.responseMessage.toLowerCase() ==
+                  "payment cancelled") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PaymentCancelledPage(),
+              ),
+            );
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentRejectedPage(
+                  errorMessage: paymentResult.responseMessage,
                 ),
-              );
-            } else {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PaymentRejectedPage(
-                    errorMessage: paymentResult.responseMessage,
-                  ),
-                ),
-              );
-            }
+              ),
+            );
           }
         }
+      }
     } catch (e) {
       if (mounted) {
         AnimatedSnackBar.show(

@@ -659,7 +659,15 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Future<void> _makePhoneCall(String? phoneNumber) async {
     if (phoneNumber == null || phoneNumber.isEmpty) return;
     final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunchUrl(launchUri)) await launchUrl(launchUri);
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cannot make phone calls on this device.')),
+        );
+      }
+    }
   }
 
   @override
@@ -782,32 +790,47 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                               fontSize: 16),
                         ),
                         const SizedBox(height: 4),
-                        Row(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.timer_outlined,
-                                color: Colors.white.withAlpha(150), size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              _isChauffeur
-                                  ? (_tripEnded
-                                      ? loc.tripEnded
-                                      : (_chauffeurStartTime == null
-                                          ? "00:00:00"
-                                          : _formatElapsed(_elapsed)))
-                                  : "$_currentEta (approx)",
-                              style: TextStyle(
-                                  color: Colors.white.withAlpha(150),
-                                  fontSize: 12),
+                            Row(
+                              children: [
+                                Icon(Icons.timer_outlined,
+                                    color: Colors.white.withAlpha(150), size: 14),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _isChauffeur
+                                        ? (_tripEnded
+                                            ? loc.tripEnded
+                                            : (_chauffeurStartTime == null
+                                                ? "00:00:00"
+                                                : _formatElapsed(_elapsed)))
+                                        : "$_currentEta (approx)",
+                                    style: TextStyle(
+                                        color: Colors.white.withAlpha(150),
+                                        fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 12),
-                            Icon(Icons.location_on_outlined,
-                                color: Colors.white.withAlpha(150), size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              _currentDistance,
-                              style: TextStyle(
-                                  color: Colors.white.withAlpha(150),
-                                  fontSize: 12),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    color: Colors.white.withAlpha(150), size: 14),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _currentDistance,
+                                    style: TextStyle(
+                                        color: Colors.white.withAlpha(150),
+                                        fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

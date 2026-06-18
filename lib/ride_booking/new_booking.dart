@@ -261,43 +261,19 @@ class _NewBookingState extends State<NewBooking> {
       '',
     );
 
-    // Normalize Medina / Madinah variants
-    if (name == 'medina' ||
-        name == 'madina' ||
-        name == 'medinah' ||
-        name == 'madinah' ||
-        name == 'almadinah' ||
-        name == 'almadina' ||
-        name == 'almedina' ||
-        name == 'almedinah') {
+    if (name.contains('medina') || name.contains('madina')) {
       return 'madinah';
     }
-
-    // Normalize Makkah / Mecca variants
-    if (name == 'makkah' ||
-        name == 'mecca' ||
-        name == 'maka' ||
-        name == 'meca' ||
-        name == 'almakkah' ||
-        name == 'almecca') {
+    if (name.contains('makkah') || name.contains('mecca') || name.contains('maka')) {
       return 'makkah';
     }
-
-    // Normalize Riyadh variants
-    if (name == 'riyadh' || name == 'alriyadh') {
+    if (name.contains('riyadh')) {
       return 'riyadh';
     }
-
-    // Normalize Jeddah variants
-    if (name == 'jeddah' ||
-        name == 'jiddah' ||
-        name == 'aljeddah' ||
-        name == 'aljiddah') {
+    if (name.contains('jeddah') || name.contains('jiddah')) {
       return 'jeddah';
     }
-
-    // Normalize Dammam variants
-    if (name == 'dammam' || name == 'addammam' || name == 'aldammam') {
+    if (name.contains('dammam')) {
       return 'dammam';
     }
 
@@ -322,6 +298,31 @@ class _NewBookingState extends State<NewBooking> {
     return null;
   }
 
+  String? _resolveCityId(String? cityName, String? address, double lat, double lng) {
+    debugPrint('🔍 _resolveCityId: Start resolving for CatCode: $_selectedCatCode');
+    debugPrint('🔍 _resolveCityId: Input -> CityName: "$cityName", Address: "$address", LatLng: ($lat, $lng)');
+    debugPrint('🔍 _resolveCityId: _apiCities count: ${_apiCities.length}');
+    for (var c in _apiCities) {
+      debugPrint('🔍 _resolveCityId: City in API -> ID: ${c['_id'] ?? c['id']}, Name: ${c['cityName']}, Ar: ${c['cityNameAr']}');
+    }
+    
+    // 1. Try exact match from city name
+    String? cityId = _getCityIdFromName(cityName ?? '');
+    debugPrint('🔍 _resolveCityId: Exact match result for CityName: $cityId');
+    
+    // 2. Try matching the address string (REMOVED due to false positives with province names)    
+    // 3. Fallback to zone check ONLY IF it's not airport services
+    if (cityId == null && _selectedCatCode != 0 && _selectedCatCode != 1) {
+      cityId = _detectCityIdFromCoordinates(lat, lng);
+      debugPrint('🔍 _resolveCityId: Zone fallback result: $cityId');
+    } else if (cityId == null) {
+      debugPrint('🔍 _resolveCityId: Zone fallback SKIPPED because CatCode is $_selectedCatCode. Returning null.');
+    }
+    
+    debugPrint('🔍 _resolveCityId: Final Resolved CityId: $cityId');
+    return cityId;
+  }
+
 
 
   /// Check route availability and optionally fetch price
@@ -342,8 +343,7 @@ class _NewBookingState extends State<NewBooking> {
     if (_selectedCatCode == 0) {
       // Arrival: From Airport City to Drop Location City
       if (_dropLat != null && _dropLng != null) {
-        final dropCityId = _getCityIdFromName(_dropCityName ?? '') ??
-                           _detectCityIdFromCoordinates(_dropLat!, _dropLng!);
+        final dropCityId = _resolveCityId(_dropCityName, _dropAddress, _dropLat!, _dropLng!);
         if (dropCityId == null) {
           return {
             'success': false,
@@ -358,8 +358,7 @@ class _NewBookingState extends State<NewBooking> {
     } else if (_selectedCatCode == 1) {
       // Departure: From Pickup Location City to Airport City
       if (_pickupLat != null && _pickupLng != null) {
-        final pickupCityId = _getCityIdFromName(_pickupCityName ?? '') ??
-                             _detectCityIdFromCoordinates(_pickupLat!, _pickupLng!);
+        final pickupCityId = _resolveCityId(_pickupCityName, _pickupAddress, _pickupLat!, _pickupLng!);
         if (pickupCityId == null) {
           return {
             'success': false,
@@ -1556,8 +1555,7 @@ class _NewBookingState extends State<NewBooking> {
           fromCity = airportCityId ?? cityId ?? '';
 
           if (_dropLat != null && _dropLng != null) {
-            final dropCityId = _getCityIdFromName(_dropCityName ?? '') ??
-                               _detectCityIdFromCoordinates(_dropLat!, _dropLng!);
+            final dropCityId = _resolveCityId(_dropCityName, _dropAddress, _dropLat!, _dropLng!);
             if (dropCityId == null || dropCityId.isEmpty) {
               if (mounted) {
                 _showNoServiceAlert(
@@ -1577,8 +1575,7 @@ class _NewBookingState extends State<NewBooking> {
           toCity = airportCityId ?? cityId ?? '';
 
           if (_pickupLat != null && _pickupLng != null) {
-            final pickupCityId = _getCityIdFromName(_pickupCityName ?? '') ??
-                                 _detectCityIdFromCoordinates(_pickupLat!, _pickupLng!);
+            final pickupCityId = _resolveCityId(_pickupCityName, _pickupAddress, _pickupLat!, _pickupLng!);
             if (pickupCityId == null || pickupCityId.isEmpty) {
               if (mounted) {
                 _showNoServiceAlert(
@@ -4402,14 +4399,12 @@ class _NewBookingState extends State<NewBooking> {
                       if (_selectedCatCode == 0) {
                         // Arrival: Airport -> Selected Drop Location
                         fromCity = airportCityId ?? cityId ?? '';
-                        final dropCityId = _getCityIdFromName(result['city']?.toString() ?? '') ??
-                                           _detectCityIdFromCoordinates(newLat, newLng);
+                        final dropCityId = _resolveCityId(result['city']?.toString(), result['address']?.toString(), newLat, newLng);
                         toCity = dropCityId ?? '';
                       } else {
                         // Departure: Selected Pickup Location -> Airport
                         toCity = airportCityId ?? cityId ?? '';
-                        final pickupCityId = _getCityIdFromName(result['city']?.toString() ?? '') ??
-                                             _detectCityIdFromCoordinates(newLat, newLng);
+                        final pickupCityId = _resolveCityId(result['city']?.toString(), result['address']?.toString(), newLat, newLng);
                         fromCity = pickupCityId ?? '';
                       }
 

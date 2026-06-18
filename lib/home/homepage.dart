@@ -620,7 +620,7 @@ class _HomepageState extends State<Homepage>
         backgroundColor: Colors.black,
         onRefresh: _handleRefresh,
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const ClampingScrollPhysics(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1458,7 +1458,7 @@ class _HomepageState extends State<Homepage>
                                     (activeCities[selectedCityIndex]['_id'] ??
                                             activeCities[selectedCityIndex]['id'])
                                         ?.toString(),
-                                preloadedCities: activeCities,
+                                preloadedCities: _apiCities,
                                 preloadedAirports: _apiAirports,
                                 preloadedTerminals: _apiTerminals,
                               ),
