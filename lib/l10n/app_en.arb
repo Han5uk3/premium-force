@@ -369,5 +369,8 @@
   "noPriceSetForThisVehicleOnThisRoute": "No price set for this vehicle on this route.",
   "noVehiclesAvailableForThisRoute": "No vehicles available for this route.",
   "selectedRouteNotAvailableForThisVehicle": "Selected route is not available for this vehicle.",
-  "routeNotAvailable": "Route not available."
+  "routeNotAvailable": "Route not available.",
+  "selectPaymentMethod": "Select Payment Method",
+  "applePay": "Apple Pay",
+  "creditDebitCard": "Credit/Debit Card"
 }

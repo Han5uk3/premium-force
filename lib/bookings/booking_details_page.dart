@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart' show Shimmer;
@@ -1254,26 +1255,71 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       final orderId =
           'EXTRA_${booking.id}_${DateTime.now().millisecondsSinceEpoch}';
 
-      // --- 💳 Live PayTabs Payment ---
-      final paymentResult = await PaymentService().startPayment(
-        request: PaymentRequest(
-          amount: extraTotal,
-          currency: PaytabsConfig.defaultCurrency,
-          merchantCountryCode: PaytabsConfig.merchantCountryCode,
-          orderId: orderId,
-          customerEmail: userData?['email'] ?? '',
-          customerName: userData?['name'] ?? 'Customer',
-          customerPhone: (booking.passengerMobile != null &&
-                  booking.passengerMobile!.isNotEmpty)
-              ? booking.passengerMobile!
-              : (userData?['phoneNumber'] ??
-                  UserLocalStorage.getPhoneNumber() ??
-                  ''),
-          cartId: orderId,
-          cartDescription:
-              'Extra ${booking.extraHours} hour(s) — Chauffeur booking ${booking.id}',
-        ),
+      String selectedMethod = 'card';
+      if (Platform.isIOS) {
+        final loc = AppLocalizations.of(context)!;
+        final method = await showModalBottomSheet<String>(
+          context: context,
+          backgroundColor: const Color(0xFF1E1105),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          builder: (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  loc.selectPaymentMethod,
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.apple, color: Colors.white, size: 30),
+                  title: Text(loc.applePay, style: const TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(context, 'apple_pay'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.credit_card, color: Colors.white, size: 30),
+                  title: Text(loc.creditDebitCard, style: const TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(context, 'card'),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+        if (method == null) {
+          setState(() => _isPayingExtraHours = false);
+          return;
+        }
+        selectedMethod = method;
+      }
+
+      PaymentResult paymentResult;
+      final paymentRequest = PaymentRequest(
+        amount: extraTotal,
+        currency: PaytabsConfig.defaultCurrency,
+        merchantCountryCode: PaytabsConfig.merchantCountryCode,
+        orderId: orderId,
+        customerEmail: userData?['email'] ?? '',
+        customerName: userData?['name'] ?? 'Customer',
+        customerPhone: (booking.passengerMobile != null &&
+                booking.passengerMobile!.isNotEmpty)
+            ? booking.passengerMobile!
+            : (userData?['phoneNumber'] ??
+                UserLocalStorage.getPhoneNumber() ??
+                ''),
+        cartId: orderId,
+        cartDescription:
+            'Extra ${booking.extraHours} hour(s) — Chauffeur booking ${booking.id}',
       );
+
+      if (selectedMethod == 'apple_pay') {
+        paymentResult = await PaymentService().startApplePayPayment(request: paymentRequest);
+      } else {
+        paymentResult = await PaymentService().startPayment(request: paymentRequest);
+      }
 
       if (paymentResult.success) {
         // Update booking extra details and mark as completed

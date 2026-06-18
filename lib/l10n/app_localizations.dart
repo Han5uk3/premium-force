@@ -2251,6 +2251,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Route not available.'**
   String get routeNotAvailable;
+
+  /// No description provided for @selectPaymentMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Payment Method'**
+  String get selectPaymentMethod;
+
+  /// No description provided for @applePay.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Pay'**
+  String get applePay;
+
+  /// No description provided for @creditDebitCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit/Debit Card'**
+  String get creditDebitCard;
 }
 
 class _AppLocalizationsDelegate

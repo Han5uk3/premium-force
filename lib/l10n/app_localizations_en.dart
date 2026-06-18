@@ -1143,4 +1143,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get routeNotAvailable => 'Route not available.';
+
+  @override
+  String get selectPaymentMethod => 'Select Payment Method';
+
+  @override
+  String get applePay => 'Apple Pay';
+
+  @override
+  String get creditDebitCard => 'Credit/Debit Card';
 }

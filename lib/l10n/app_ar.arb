@@ -371,5 +371,8 @@
   "noPriceSetForThisVehicleOnThisRoute": "لم يتم تحديد سعر لهذه المركبة في هذا المسار.",
   "noVehiclesAvailableForThisRoute": "لا توجد مركبات متاحة لهذا المسار.",
   "selectedRouteNotAvailableForThisVehicle": "المسار المحدد غير متاح لهذه المركبة.",
-  "routeNotAvailable": "المسار غير متاح."
+  "routeNotAvailable": "المسار غير متاح.",
+  "selectPaymentMethod": "اختر طريقة الدفع",
+  "applePay": "Apple Pay",
+  "creditDebitCard": "بطاقة ائتمان / مدى"
 }

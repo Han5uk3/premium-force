@@ -2363,8 +2363,57 @@ class _NewBookingState extends State<NewBooking> {
                                         "Ride Booking for $_selectedVehicleClass",
                                   );
 
-                                  final paymentResult = await PaymentService()
-                                      .startPayment(request: paymentRequest);
+                                  String selectedMethod = 'card';
+                                  if (Platform.isIOS) {
+                                    final loc = AppLocalizations.of(context)!;
+                                    final method = await showModalBottomSheet<String>(
+                                      context: context,
+                                      backgroundColor: const Color(0xFF1E1105),
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                      ),
+                                      builder: (context) => SafeArea(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              loc.selectPaymentMethod,
+                                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            ListTile(
+                                              leading: const Icon(Icons.apple, color: Colors.white, size: 30),
+                                              title: Text(loc.applePay, style: const TextStyle(color: Colors.white)),
+                                              onTap: () => Navigator.pop(context, 'apple_pay'),
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(Icons.credit_card, color: Colors.white, size: 30),
+                                              title: Text(loc.creditDebitCard, style: const TextStyle(color: Colors.white)),
+                                              onTap: () => Navigator.pop(context, 'card'),
+                                            ),
+                                            const SizedBox(height: 16),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                    if (method == null) {
+                                      setState(() {
+                                        _isBooking = false;
+                                      });
+                                      return;
+                                    }
+                                    selectedMethod = method;
+                                  }
+
+                                  PaymentResult paymentResult;
+                                  if (selectedMethod == 'apple_pay') {
+                                    paymentResult = await PaymentService()
+                                        .startApplePayPayment(request: paymentRequest);
+                                  } else {
+                                    paymentResult = await PaymentService()
+                                        .startPayment(request: paymentRequest);
+                                  }
 
                                   debugPrint(
                                     '💳 PayTabs Result: success=${paymentResult.success}, '

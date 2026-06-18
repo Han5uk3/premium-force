@@ -1130,4 +1130,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get routeNotAvailable => 'المسار غير متاح.';
+
+  @override
+  String get selectPaymentMethod => 'اختر طريقة الدفع';
+
+  @override
+  String get applePay => 'Apple Pay';
+
+  @override
+  String get creditDebitCard => 'بطاقة ائتمان / مدى';
 }
