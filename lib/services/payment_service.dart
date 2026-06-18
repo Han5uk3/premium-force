@@ -127,15 +127,51 @@ class PaymentService {
       );
 
       var theme = IOSThemeConfigurations();
-      theme.backgroundColor = "#000000";
-      theme.primaryColor = "#FFFFFF";
-      theme.secondaryColor = "#000000";
-      theme.primaryFontColor = "#FFFFFF";
-      theme.secondaryFontColor = "#FFFFFF";
-      theme.buttonColor = "#FFFFFF";
-      theme.buttonFontColor = "#000000";
-      theme.titleFontColor = "#FFFFFF";
       theme.logoImage = "assets/applogo/premiumforcelogo.png";
+      
+      // Screen background (black)
+      theme.backgroundColor = "000000";
+      theme.backgroundColorDark = "000000";
+      
+      // Primary accent color (Premium Gold)
+      theme.primaryColor = "E4A46B";
+      theme.primaryColorDark = "E4A46B";
+      
+      // Secondary/Card container background color
+      theme.secondaryColor = "1E1E1E";
+      theme.secondaryColorDark = "1E1E1E";
+      
+      // Text color in text fields (white)
+      theme.primaryFontColor = "FFFFFF";
+      theme.primaryFontColorDark = "FFFFFF";
+      
+      // Label / helper text color (light gray)
+      theme.secondaryFontColor = "E0E0E0";
+      theme.secondaryFontColorDark = "E0E0E0";
+      
+      // Button background and text color
+      theme.buttonColor = "E4A46B";
+      theme.buttonColorDark = "E4A46B";
+      theme.buttonFontColor = "000000";
+      theme.buttonFontColorDark = "000000";
+      
+      // Navigation title color
+      theme.titleFontColor = "FFFFFF";
+      theme.titleFontColorDark = "FFFFFF";
+      
+      // Borders/Stroke color and thickness
+      theme.strokeColor = "E4A46B";
+      theme.strokeColorDark = "E4A46B";
+      theme.strokeThinckness = 1;
+      
+      // Corners rounding
+      theme.inputsCornerRadius = 8;
+      
+      // Text fields placeholder and background colors
+      theme.placeholderColor = "888888";
+      theme.placeholderColorDark = "888888";
+      theme.inputFieldBackgroundColor = "141313";
+      theme.inputFieldBackgroundColorDark = "141313";
 
       configuration.iOSThemeConfigurations = theme;
 

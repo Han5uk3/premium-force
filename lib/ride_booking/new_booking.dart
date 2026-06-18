@@ -322,66 +322,7 @@ class _NewBookingState extends State<NewBooking> {
     return null;
   }
 
-  String _getSelectedBookingCityLocalizedName(AppLocalizations loc) {
-    if (_apiCities.isEmpty ||
-        _selectedCityCode < 0 ||
-        _selectedCityCode >= _apiCities.length) {
-      return loc.city;
-    }
 
-    final selectedCity = _apiCities[_selectedCityCode];
-    final cityNameAr = selectedCity['cityNameAr']?.toString().trim();
-    final cityNameEn = selectedCity['cityName']?.toString().trim();
-
-    if (loc.localeName.toLowerCase().startsWith('ar') &&
-        cityNameAr != null &&
-        cityNameAr.isNotEmpty) {
-      return cityNameAr;
-    }
-
-    if (cityNameEn != null && cityNameEn.isNotEmpty) {
-      return cityNameEn;
-    }
-
-    return cityNameAr ?? loc.city;
-  }
-
-  bool _isLocationWithinSelectedBookingCity(String? locationCityName) {
-    if (locationCityName == null || locationCityName.trim().isEmpty) {
-      return false;
-    }
-
-    if (_apiCities.isEmpty ||
-        _selectedCityCode < 0 ||
-        _selectedCityCode >= _apiCities.length) {
-      return false;
-    }
-
-    final selectedCity = _apiCities[_selectedCityCode];
-    final selectedNames = <String?>[
-      selectedCity['cityName']?.toString(),
-      selectedCity['cityNameAr']?.toString(),
-    ].where((name) => name != null).cast<String>().toList();
-
-    final normalizedLocationCity = _normalizeCityName(locationCityName);
-
-    for (final selectedName in selectedNames) {
-      if (_normalizeCityName(selectedName) == normalizedLocationCity) {
-        return true;
-      }
-    }
-
-    // Also allow partial matches when the selected city name appears inside the location name
-    for (final selectedName in selectedNames) {
-      final normalizedSelected = _normalizeCityName(selectedName);
-      if (normalizedSelected.isNotEmpty &&
-          normalizedLocationCity.contains(normalizedSelected)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
 
   /// Check route availability and optionally fetch price
   Future<Map<String, dynamic>> _fetchRouteDetails({
@@ -401,12 +342,12 @@ class _NewBookingState extends State<NewBooking> {
     if (_selectedCatCode == 0) {
       // Arrival: From Airport City to Drop Location City
       if (_dropLat != null && _dropLng != null) {
-        final dropCityId = _getCityIdFromName(_dropCityName ?? '');
+        final dropCityId = _getCityIdFromName(_dropCityName ?? '') ??
+                           _detectCityIdFromCoordinates(_dropLat!, _dropLng!);
         if (dropCityId == null) {
           return {
             'success': false,
-            'message':
-                'Airport bookings only support drop-off locations inside the available cities.',
+            'message': 'This route is not available at the moment.',
           };
         }
         toCity = dropCityId;
@@ -417,12 +358,12 @@ class _NewBookingState extends State<NewBooking> {
     } else if (_selectedCatCode == 1) {
       // Departure: From Pickup Location City to Airport City
       if (_pickupLat != null && _pickupLng != null) {
-        final pickupCityId = _getCityIdFromName(_pickupCityName ?? '');
+        final pickupCityId = _getCityIdFromName(_pickupCityName ?? '') ??
+                             _detectCityIdFromCoordinates(_pickupLat!, _pickupLng!);
         if (pickupCityId == null) {
           return {
             'success': false,
-            'message':
-                'Airport bookings only support pickup locations inside the available cities.',
+            'message': 'This route is not available at the moment.',
           };
         }
         fromCity = pickupCityId;
@@ -640,9 +581,7 @@ class _NewBookingState extends State<NewBooking> {
         if (routes.isEmpty) {
           return {
             'success': false,
-            'message': AppLocalizations.of(
-              context,
-            )!.selectedRouteNotAvailableForThisVehicle,
+            'message': 'This route is not available at the moment.',
           };
         }
 
@@ -667,9 +606,7 @@ class _NewBookingState extends State<NewBooking> {
           );
           return {
             'success': false,
-            'message': AppLocalizations.of(
-              context,
-            )!.selectedRouteNotAvailableForThisVehicle,
+            'message': 'This route is not available at the moment.',
           };
         }
       }
@@ -701,12 +638,46 @@ class _NewBookingState extends State<NewBooking> {
         } else {
           return {
             'success': false,
-            'message': AppLocalizations.of(context)!.routeNotAvailable,
+            'message': 'This route is not available at the moment.',
           };
         }
       }
       return filterRes;
     }
+  }
+
+  Future<bool> _isRouteAvailable(String fromCity, String toCity) async {
+    if (fromCity.isEmpty || toCity.isEmpty) return false;
+    try {
+      final api = ApiService();
+      final token = UserLocalStorage.getToken();
+      final res = await api.getRoutesBetweenCities(
+        fromCityId: fromCity,
+        toCityId: toCity,
+        token: token,
+      );
+      if (res['success'] == true && res['data'] != null) {
+        final List routes = (res['data'] is Map)
+            ? (res['data']['cars'] ?? [])
+            : (res['data'] is List ? res['data'] : []);
+        return routes.isNotEmpty;
+      }
+    } catch (e) {
+      debugPrint('Error checking route availability: $e');
+    }
+    return false;
+  }
+
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: PremiumLoader(),
+        );
+      },
+    );
   }
 
   void _showNoServiceAlert({String? message}) {
@@ -1584,12 +1555,13 @@ class _NewBookingState extends State<NewBooking> {
           // Arrival: Airport -> City
           fromCity = airportCityId ?? cityId ?? '';
 
-          if (_dropLat != null && _dropLng != null && cityId != null) {
-            if (!_isLocationWithinSelectedBookingCity(_dropCityName)) {
+          if (_dropLat != null && _dropLng != null) {
+            final dropCityId = _getCityIdFromName(_dropCityName ?? '') ??
+                               _detectCityIdFromCoordinates(_dropLat!, _dropLng!);
+            if (dropCityId == null || dropCityId.isEmpty) {
               if (mounted) {
                 _showNoServiceAlert(
-                  message:
-                      "Airport bookings only support drop-off locations inside the selected city.",
+                  message: "This route is not available at the moment.",
                 );
               }
               setState(() {
@@ -1598,17 +1570,19 @@ class _NewBookingState extends State<NewBooking> {
               });
               return;
             }
+            toCity = dropCityId;
           }
         } else {
           // Departure: City -> Airport
           toCity = airportCityId ?? cityId ?? '';
 
-          if (_pickupLat != null && _pickupLng != null && cityId != null) {
-            if (!_isLocationWithinSelectedBookingCity(_pickupCityName)) {
+          if (_pickupLat != null && _pickupLng != null) {
+            final pickupCityId = _getCityIdFromName(_pickupCityName ?? '') ??
+                                 _detectCityIdFromCoordinates(_pickupLat!, _pickupLng!);
+            if (pickupCityId == null || pickupCityId.isEmpty) {
               if (mounted) {
                 _showNoServiceAlert(
-                  message:
-                      "Airport bookings only support pickup locations inside the selected city.",
+                  message: "This route is not available at the moment.",
                 );
               }
               setState(() {
@@ -1617,6 +1591,7 @@ class _NewBookingState extends State<NewBooking> {
               });
               return;
             }
+            fromCity = pickupCityId;
           }
         }
 
@@ -1662,10 +1637,13 @@ class _NewBookingState extends State<NewBooking> {
           }
           if (supportedIds.isEmpty) {
             _showNoServiceAlert(
-              message:
-                  "No vehicles available for this route. Please try another selection.",
+              message: "This route is not available at the moment.",
             );
           }
+        } else {
+          _showNoServiceAlert(
+            message: "This route is not available at the moment.",
+          );
         }
       } else if (_selectedCatCode == 2) {
         // --- ⏱️ Hourly Service ---
@@ -2317,7 +2295,7 @@ class _NewBookingState extends State<NewBooking> {
                                         _routePrice = null;
                                       } else {
                                         _showNoServiceAlert(
-                                          message: routeResult['message'],
+                                          message: routeResult['message'] ?? 'This route is not available at the moment.',
                                         );
                                         return;
                                       }
@@ -2325,7 +2303,7 @@ class _NewBookingState extends State<NewBooking> {
                                   } else {
                                     // No price/route found
                                     _showNoServiceAlert(
-                                      message: routeResult['message'],
+                                      message: routeResult['message'] ?? 'This route is not available at the moment.',
                                     );
                                     return;
                                   }
@@ -4414,43 +4392,56 @@ class _NewBookingState extends State<NewBooking> {
                       return; // Do not update state/location with new airport location
                     }
 
-                    if (_selectedCatCode == 0 && isDropLocation) {
-                      if (!_isLocationWithinSelectedBookingCity(
-                        result['city']?.toString(),
-                      )) {
-                        _showCustomSnackBar(
-                          loc.pleaseChooseLocationWithinCity(
-                            _getSelectedBookingCityLocalizedName(loc),
-                          ),
-                          'E',
-                        );
-                        setState(() {
-                          _dropAddress = null;
-                          _dropCityName = null;
-                          _dropLat = null;
-                          _dropLng = null;
-                        });
-                        state.didChange(true);
-                        return;
-                      }
-                    }
+                    if ((_selectedCatCode == 0 && isDropLocation) ||
+                        (_selectedCatCode == 1 && !isDropLocation)) {
+                      final cityId = _getSelectedCityId();
+                      final airportCityId = _getAirportCityId();
+                      String fromCity = cityId ?? '';
+                      String toCity = cityId ?? '';
 
-                    if (_selectedCatCode == 1 && !isDropLocation) {
-                      if (!_isLocationWithinSelectedBookingCity(
-                        result['city']?.toString(),
-                      )) {
+                      if (_selectedCatCode == 0) {
+                        // Arrival: Airport -> Selected Drop Location
+                        fromCity = airportCityId ?? cityId ?? '';
+                        final dropCityId = _getCityIdFromName(result['city']?.toString() ?? '') ??
+                                           _detectCityIdFromCoordinates(newLat, newLng);
+                        toCity = dropCityId ?? '';
+                      } else {
+                        // Departure: Selected Pickup Location -> Airport
+                        toCity = airportCityId ?? cityId ?? '';
+                        final pickupCityId = _getCityIdFromName(result['city']?.toString() ?? '') ??
+                                             _detectCityIdFromCoordinates(newLat, newLng);
+                        fromCity = pickupCityId ?? '';
+                      }
+
+                      _showLoadingDialog();
+                      bool isAvailable = false;
+                      if (fromCity.isNotEmpty && toCity.isNotEmpty) {
+                        isAvailable = await _isRouteAvailable(fromCity, toCity);
+                      }
+                      if (mounted) {
+                        Navigator.pop(context);
+                      }
+
+                      if (!isAvailable) {
                         _showCustomSnackBar(
-                          loc.pleaseChooseLocationWithinCity(
-                            _getSelectedBookingCityLocalizedName(loc),
-                          ),
+                          "This route is not available at the moment.",
                           'E',
                         );
-                        setState(() {
-                          _pickupAddress = null;
-                          _pickupCityName = null;
-                          _pickupLat = null;
-                          _pickupLng = null;
-                        });
+                        if (isDropLocation) {
+                          setState(() {
+                            _dropAddress = null;
+                            _dropCityName = null;
+                            _dropLat = null;
+                            _dropLng = null;
+                          });
+                        } else {
+                          setState(() {
+                            _pickupAddress = null;
+                            _pickupCityName = null;
+                            _pickupLat = null;
+                            _pickupLng = null;
+                          });
+                        }
                         state.didChange(true);
                         return;
                       }
