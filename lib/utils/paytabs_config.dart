@@ -8,45 +8,46 @@ class PaytabsConfig {
   /// Helper to determine if we should use live PayTabs credentials.
   /// Release mode always uses live.
   /// On Android debug mode, we allow live credentials if PAYTABS_USE_LIVE_IN_ANDROID_DEBUG is 'true' (defaults to true).
-  static bool get _useLiveKey {
-    if (!kDebugMode) return true;
-    if (!kIsWeb && Platform.isAndroid) {
-      final useLiveInAndroidDebug = dotenv.get('PAYTABS_USE_LIVE_IN_ANDROID_DEBUG', fallback: 'true').toLowerCase() == 'true';
-      return useLiveInAndroidDebug;
-    }
-    return false;
-  }
+  static bool get _useLiveKey => true;
 
   // ===== REQUIRED: Loaded from .env =====
   /// Your Paytabs server key
   static String get serverKey => _useLiveKey
-      ? dotenv.get('PAYTABS_SERVER_LIVE_KEY', fallback: '')
-      : dotenv.get('PAYTABS_SERVER_KEY', fallback: '');
+      ? dotenv.get('PAYTABS_SERVER_LIVE_KEY', fallback: '').trim()
+      : dotenv.get('PAYTABS_SERVER_KEY', fallback: '').trim();
 
   /// Your Paytabs client key
   static String get clientKey => _useLiveKey
-      ? dotenv.get('PAYTABS_CLIENT_LIVE_KEY', fallback: '')
-      : dotenv.get('PAYTABS_CLIENT_KEY', fallback: '');
+      ? dotenv.get('PAYTABS_CLIENT_LIVE_KEY', fallback: '').trim()
+      : dotenv.get('PAYTABS_CLIENT_KEY', fallback: '').trim();
 
   /// Your Paytabs profile ID
   static String get profileId => _useLiveKey
-      ? dotenv.get('PAYTABS_PROFILE_LIVE_ID', fallback: '129739')
-      : dotenv.get('PAYTABS_PROFILE_ID', fallback: '128366');
+      ? dotenv.get('PAYTABS_PROFILE_LIVE_ID', fallback: '129739').trim()
+      : dotenv.get('PAYTABS_PROFILE_ID', fallback: '128366').trim();
 
   /// Your merchant email
-  static String get merchantEmail => dotenv.get('PAYTABS_MERCHANT_EMAIL', fallback: 'your-merchant@example.com');
+  static String get merchantEmail => dotenv.get(
+    'PAYTABS_MERCHANT_EMAIL',
+    fallback: 'your-merchant@example.com',
+  );
 
   /// Apple Pay Merchant ID
-  static String get applePayMerchantId => dotenv.get('PAYTABS_APPLE_PAY_MERCHANT_ID', fallback: 'merchant.com.brandbik.premiumforce');
+  static String get applePayMerchantId => dotenv.get(
+    'PAYTABS_APPLE_PAY_MERCHANT_ID',
+    fallback: 'merchant.com.brandbik.premiumforce',
+  );
 
   // ===== Country codes =====
   /// Merchant country code
-  static String get merchantCountryCode => dotenv.get('PAYTABS_COUNTRY_CODE', fallback: 'SA');
+  static String get merchantCountryCode =>
+      dotenv.get('PAYTABS_COUNTRY_CODE', fallback: 'SA');
 
   // ===== Currency settings =====
   /// Default currency for transactions
-  static String get defaultCurrency => dotenv.get('PAYTABS_CURRENCY', fallback: 'SAR');
-  
+  static String get defaultCurrency =>
+      dotenv.get('PAYTABS_CURRENCY', fallback: 'SAR');
+
   // Alternative currencies
   static const String currencyUSD = 'USD';
   static const String currencySAR = 'SAR'; // Saudi Riyal

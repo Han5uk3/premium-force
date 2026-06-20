@@ -115,8 +115,8 @@ class PaymentService {
         shippingDetails: shippingDetails,
         locale: PaymentSdkLocale.EN,
         transactionType: PaymentSdkTransactionType.SALE,
-        tokeniseType: PaymentSdkTokeniseType.USER_OPTIONAL,
-        tokenFormat: PaymentSdkTokenFormat.Hex32Format,
+        tokeniseType: PaymentSdkTokeniseType.NONE,
+        // tokenFormat: PaymentSdkTokenFormat.Hex32Format,
         simplifyApplePayValidation: true,
         paymentNetworks: [
           PaymentSDKNetworks.visa,
