@@ -189,7 +189,10 @@ class _LocationPickerPageState extends State<LocationPickerPage>
         setState(() {
           _searchResults = [];
           _searchController.clear();
+          _selectedLocation = position;
         });
+
+        await _getAddressFromLatLng(position);
 
         final controller = await _mapController.future;
         await controller.animateCamera(
