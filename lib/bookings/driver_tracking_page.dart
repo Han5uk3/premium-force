@@ -55,6 +55,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
   bool _mapLayoutReady = false;
   bool _hasFittedDriverInitialLocation = false;
+  int _fetchDirectionsSeq = 0;
 
   static const String _mapStyle = '''
 [
@@ -216,7 +217,13 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       }
     }
     _updateDriverMarker();
-    _fetchDirections();
+    // Only fetch directions if driver location is already available.
+    // Otherwise, the Firebase listener will trigger _fetchDirections()
+    // once the driver location arrives, avoiding a race condition where
+    // a stale (no-driver) response could overwrite the correct route.
+    if (_driverLocation != null) {
+      _fetchDirections();
+    }
   }
 
   Future<void> _addMarkerWithCustomIcon({
@@ -550,6 +557,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   // --- Directions API ---
 
   Future<void> _fetchDirections() async {
+    final seq = ++_fetchDirectionsSeq;
     final booking = widget.booking;
     final pickupLat = booking.pickupLat ?? 0;
     final pickupLng = booking.pickupLong ?? 0;
@@ -609,7 +617,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
             }
           }
 
-          if (mounted) {
+          if (mounted && seq == _fetchDirectionsSeq) {
             setState(() {
               _polylines = {};
               _addRoutePolyline(polyPoints);

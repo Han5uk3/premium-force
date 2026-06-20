@@ -109,6 +109,18 @@ class _LocationPickerPageState extends State<LocationPickerPage>
         data: {
           'input': query,
           'includedRegionCodes': ['sa'],
+          'locationBias': {
+            'rectangle': {
+              'low': {
+                'latitude': 16.38,
+                'longitude': 34.54,
+              },
+              'high': {
+                'latitude': 32.15,
+                'longitude': 55.66,
+              },
+            },
+          },
         },
         options: Options(
           headers: {
