@@ -1152,4 +1152,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creditDebitCard => 'Credit/Debit Card';
+
+  @override
+  String get selectDuration => 'Select Duration';
+
+  @override
+  String nHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Hours',
+      one: '1 Hour',
+    );
+    return '$_temp0';
+  }
 }

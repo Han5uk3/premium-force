@@ -1139,4 +1139,20 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get creditDebitCard => 'بطاقة ائتمان / مدى';
+
+  @override
+  String get selectDuration => 'حدد المدة';
+
+  @override
+  String nHours(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ساعة',
+      few: '$count ساعات',
+      two: 'ساعتين',
+      one: 'ساعة واحدة',
+    );
+    return '$_temp0';
+  }
 }

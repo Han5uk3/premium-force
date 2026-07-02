@@ -1,4 +1,6 @@
+import 'package:flutter/rendering.dart';
 import 'package:premium_force_main/common_widgets/fleet_card_shimmer.dart';
+import 'package:premium_force_main/models/booking_model.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/common_widgets/booking_shimmer.dart';
@@ -877,7 +879,7 @@ class _HomepageState extends State<Homepage>
                 : ListView.builder(
                     itemCount: 5,
                     scrollDirection: Axis.horizontal,
-                    cacheExtent: 1000,
+                    scrollCacheExtent: ScrollCacheExtent.viewport(1000),
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: EdgeInsetsDirectional.only(
@@ -1257,6 +1259,7 @@ class _HomepageState extends State<Homepage>
     }
     bool isEnglish = Localizations.localeOf(context).languageCode == 'en';
     int selectedCityIndex = 0; // default to Riyadh
+    bool _isFetchingPrices = false;
 
     showModalBottomSheet(
       context: context,
@@ -1442,29 +1445,134 @@ class _HomepageState extends State<Homepage>
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: PremiumButton(
-                        showLoader: false,
+                        showLoader: _isFetchingPrices,
                         borderRadius: 12,
                         text: loc.continueText,
-                        onTap: () {
-                          final activeCities = _getFilteredCities(catcode);
-                          if (activeCities.isEmpty) return;
+                        onTap: _isFetchingPrices
+                            ? () {}
+                            : () async {
+                                final activeCities = _getFilteredCities(
+                                  catcode,
+                                );
+                                if (activeCities.isEmpty) return;
 
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => NewBooking(
-                                catcode: catcode,
-                                citycode: selectedCityIndex,
-                                cityId:
+                                final cityId =
                                     (activeCities[selectedCityIndex]['_id'] ??
                                             activeCities[selectedCityIndex]['id'])
-                                        ?.toString(),
-                                preloadedCities: _apiCities,
-                                preloadedAirports: _apiAirports,
-                                preloadedTerminals: _apiTerminals,
-                              ),
-                            ),
-                          );
-                        },
+                                        ?.toString();
+
+                                Map<String, List<Map<String, dynamic>>>?
+                                preloadedHourlyPricing;
+                                List<int>? preloadedHourOptions;
+
+                                if (catcode == 2 && cityId != null) {
+                                  setState(() {
+                                    _isFetchingPrices = true;
+                                  });
+                                  try {
+                                    final carsResponse = await ApiService()
+                                        .getCars(
+                                          token: UserLocalStorage.getToken(),
+                                        );
+                                    if (carsResponse['success'] == true) {
+                                      final List<dynamic> carsData =
+                                          carsResponse['cars'] ??
+                                          carsResponse['data'] ??
+                                          [];
+
+                                      final Map<
+                                        String,
+                                        List<Map<String, dynamic>>
+                                      >
+                                      pricingByVehicle = {};
+                                      final Set<int> allHours = {};
+
+                                      await Future.wait(
+                                        carsData.map((carObj) async {
+                                          final carMap =
+                                              carObj as Map<String, dynamic>;
+                                          final carId =
+                                              (carMap['_id'] ?? carMap['id'])
+                                                  ?.toString();
+                                          if (carId == null || carId.isEmpty) {
+                                            return;
+                                          }
+
+                                          final res = await ApiService()
+                                              .getHourlyPriceForVehicle(
+                                                vehicleId: carId,
+                                                token:
+                                                    UserLocalStorage.getToken(),
+                                              );
+                                          if (res['success'] == true &&
+                                              res['data'] != null) {
+                                            final pricingList =
+                                                (res['data']['pricing']
+                                                        as List?)
+                                                    ?.map(
+                                                      (p) =>
+                                                          Map<
+                                                            String,
+                                                            dynamic
+                                                          >.from(p as Map),
+                                                    )
+                                                    .where(
+                                                      (e) =>
+                                                          e['hour'] != null &&
+                                                          e['price'] != null,
+                                                    )
+                                                    .toList() ??
+                                                [];
+
+                                            if (pricingList.isNotEmpty) {
+                                              pricingByVehicle[carId] =
+                                                  pricingList;
+                                              for (var item in pricingList) {
+                                                allHours.add(
+                                                  int.tryParse(
+                                                        item['hour'].toString(),
+                                                      ) ??
+                                                      0,
+                                                );
+                                              }
+                                            }
+                                          }
+                                        }),
+                                      );
+
+                                      preloadedHourlyPricing = pricingByVehicle;
+                                      preloadedHourOptions = allHours.toList()
+                                        ..sort();
+                                    }
+                                  } catch (e) {
+                                    debugPrint("Error prefetching prices: $e");
+                                  }
+                                  if (context.mounted) {
+                                    setState(() {
+                                      _isFetchingPrices = false;
+                                    });
+                                  }
+                                }
+
+                                if (context.mounted) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => NewBooking(
+                                        catcode: catcode,
+                                        citycode: selectedCityIndex,
+                                        cityId: cityId,
+                                        preloadedCities: _apiCities,
+                                        preloadedAirports: _apiAirports,
+                                        preloadedTerminals: _apiTerminals,
+                                        preloadedHourlyPricing:
+                                            preloadedHourlyPricing,
+                                        preloadedHourOptions:
+                                            preloadedHourOptions,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
                         fontsize: 12,
                       ),
                     ),

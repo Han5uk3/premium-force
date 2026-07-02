@@ -372,5 +372,14 @@
   "routeNotAvailable": "Route not available.",
   "selectPaymentMethod": "Select Payment Method",
   "applePay": "Apple Pay",
-  "creditDebitCard": "Credit/Debit Card"
+  "creditDebitCard": "Credit/Debit Card",
+  "selectDuration": "Select Duration",
+  "nHours": "{count, plural, =1{1 Hour} other{{count} Hours}}",
+  "@nHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

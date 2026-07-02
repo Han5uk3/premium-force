@@ -2269,6 +2269,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Credit/Debit Card'**
   String get creditDebitCard;
+
+  /// No description provided for @selectDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Duration'**
+  String get selectDuration;
+
+  /// No description provided for @nHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 Hour} other{{count} Hours}}'**
+  String nHours(int count);
 }
 
 class _AppLocalizationsDelegate

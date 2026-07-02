@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/splashscreen/splashscreen.dart';
@@ -141,6 +143,10 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
+    final double bottomPadding = MediaQueryData.fromView(
+      View.of(context),
+    ).padding.bottom;
+    final bool isThickNavBar = bottomPadding > 24.0;
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _authProvider),
@@ -148,27 +154,31 @@ class _MainAppState extends State<MainApp> {
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
       ],
-      child: MaterialApp(
-        title: "Premium Force",
-        debugShowCheckedModeBanner: false,
-        navigatorKey: navigatorKey,
-        locale: _locale,
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: Colors.black, // Assuming a dark theme
-          appBarTheme: const AppBarTheme(
-            systemOverlayStyle: SystemUiOverlayStyle.light,
+      child: SafeArea(
+        top: false,
+        bottom: Platform.isAndroid ? isThickNavBar : true,
+        child: MaterialApp(
+          title: "Premium Force",
+          debugShowCheckedModeBanner: false,
+          navigatorKey: navigatorKey,
+          locale: _locale,
+          theme: ThemeData(
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: Colors.black, // Assuming a dark theme
+            appBarTheme: const AppBarTheme(
+              systemOverlayStyle: SystemUiOverlayStyle.light,
+            ),
           ),
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            CountryLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SplashScreen(),
         ),
-        localizationsDelegates: [
-          AppLocalizations.delegate,
-          CountryLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: SplashScreen(),
       ),
     );
   }

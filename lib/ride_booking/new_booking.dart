@@ -39,6 +39,8 @@ class NewBooking extends StatefulWidget {
   final List<Map<String, dynamic>>? preloadedCities;
   final List<Map<String, dynamic>>? preloadedAirports;
   final List<Map<String, dynamic>>? preloadedTerminals;
+  final Map<String, List<Map<String, dynamic>>>? preloadedHourlyPricing;
+  final List<int>? preloadedHourOptions;
 
   const NewBooking({
     super.key,
@@ -48,6 +50,8 @@ class NewBooking extends StatefulWidget {
     this.preloadedCities,
     this.preloadedAirports,
     this.preloadedTerminals,
+    this.preloadedHourlyPricing,
+    this.preloadedHourOptions,
   });
 
   final String? cityId;
@@ -121,12 +125,17 @@ class _NewBookingState extends State<NewBooking> {
   bool _isPromoValid = false;
   String? _appliedPromoId;
   double _discountPercentage = 0.0;
-  int _selectedServiceDuration =
-      0; // 0 for hourly, 1 for 8 hours, 2 for 12 hours
-  int _selectedEstimatedHours = 1; // 1 to 12
+
+  int _selectedEstimatedHours = 0; // 0 means not selected yet
   bool _allowSimilarVehicle = true;
   double _vatPercentage = 15.0;
   final Map<String, double> _hourlyPrices = {};
+
+  // Cached hourly pricing data: vehicleId → list of {hour, price} entries
+  Map<String, List<Map<String, dynamic>>> _allHourlyPricingByVehicle = {};
+  List<int> _availableHourOptions =
+      []; // unique hours across all vehicles, sorted ascending
+  bool _isLoadingHourlyPrices = false;
 
   double get _calculatedCharge {
     if (_routePrice != null && _routePrice! > 0) return _routePrice!;
@@ -136,16 +145,9 @@ class _NewBookingState extends State<NewBooking> {
 
     // For Chauffeur Service
     if (_selectedCatCode == 2) {
-      double basePrice = _hourlyPrices[car.id] ?? car.price;
-
-      // If we are in "Hourly" mode (duration 0), we multiply by the number of hours.
-      // The API returns the price for 1 hour when we pass 1.
-      if (_selectedServiceDuration == 0) {
-        return basePrice * _selectedEstimatedHours;
-      }
-
-      // For fixed packages (8h, 12h, 999), the API returns the package price.
-      return basePrice;
+      // Each hour option is a fixed package price from the API.
+      // _hourlyPrices[car.id] is set to the price for the selected hour.
+      return _hourlyPrices[car.id] ?? car.price;
     }
 
     // For Private Transfer (CatCode 3)
@@ -264,7 +266,9 @@ class _NewBookingState extends State<NewBooking> {
     if (name.contains('medina') || name.contains('madina')) {
       return 'madinah';
     }
-    if (name.contains('makkah') || name.contains('mecca') || name.contains('maka')) {
+    if (name.contains('makkah') ||
+        name.contains('mecca') ||
+        name.contains('maka')) {
       return 'makkah';
     }
     if (name.contains('riyadh')) {
@@ -298,32 +302,43 @@ class _NewBookingState extends State<NewBooking> {
     return null;
   }
 
-  String? _resolveCityId(String? cityName, String? address, double lat, double lng) {
-    debugPrint('🔍 _resolveCityId: Start resolving for CatCode: $_selectedCatCode');
-    debugPrint('🔍 _resolveCityId: Input -> CityName: "$cityName", Address: "$address", LatLng: ($lat, $lng)');
+  String? _resolveCityId(
+    String? cityName,
+    String? address,
+    double lat,
+    double lng,
+  ) {
+    debugPrint(
+      '🔍 _resolveCityId: Start resolving for CatCode: $_selectedCatCode',
+    );
+    debugPrint(
+      '🔍 _resolveCityId: Input -> CityName: "$cityName", Address: "$address", LatLng: ($lat, $lng)',
+    );
     debugPrint('🔍 _resolveCityId: _apiCities count: ${_apiCities.length}');
     for (var c in _apiCities) {
-      debugPrint('🔍 _resolveCityId: City in API -> ID: ${c['_id'] ?? c['id']}, Name: ${c['cityName']}, Ar: ${c['cityNameAr']}');
+      debugPrint(
+        '🔍 _resolveCityId: City in API -> ID: ${c['_id'] ?? c['id']}, Name: ${c['cityName']}, Ar: ${c['cityNameAr']}',
+      );
     }
-    
+
     // 1. Try exact match from city name
     String? cityId = _getCityIdFromName(cityName ?? '');
     debugPrint('🔍 _resolveCityId: Exact match result for CityName: $cityId');
-    
-    // 2. Try matching the address string (REMOVED due to false positives with province names)    
+
+    // 2. Try matching the address string (REMOVED due to false positives with province names)
     // 3. Fallback to zone check ONLY IF it's not airport services
     if (cityId == null && _selectedCatCode != 0 && _selectedCatCode != 1) {
       cityId = _detectCityIdFromCoordinates(lat, lng);
       debugPrint('🔍 _resolveCityId: Zone fallback result: $cityId');
     } else if (cityId == null) {
-      debugPrint('🔍 _resolveCityId: Zone fallback SKIPPED because CatCode is $_selectedCatCode. Returning null.');
+      debugPrint(
+        '🔍 _resolveCityId: Zone fallback SKIPPED because CatCode is $_selectedCatCode. Returning null.',
+      );
     }
-    
+
     debugPrint('🔍 _resolveCityId: Final Resolved CityId: $cityId');
     return cityId;
   }
-
-
 
   /// Check route availability and optionally fetch price
   Future<Map<String, dynamic>> _fetchRouteDetails({
@@ -343,7 +358,12 @@ class _NewBookingState extends State<NewBooking> {
     if (_selectedCatCode == 0) {
       // Arrival: From Airport City to Drop Location City
       if (_dropLat != null && _dropLng != null) {
-        final dropCityId = _resolveCityId(_dropCityName, _dropAddress, _dropLat!, _dropLng!);
+        final dropCityId = _resolveCityId(
+          _dropCityName,
+          _dropAddress,
+          _dropLat!,
+          _dropLng!,
+        );
         if (dropCityId == null) {
           return {
             'success': false,
@@ -358,7 +378,12 @@ class _NewBookingState extends State<NewBooking> {
     } else if (_selectedCatCode == 1) {
       // Departure: From Pickup Location City to Airport City
       if (_pickupLat != null && _pickupLng != null) {
-        final pickupCityId = _resolveCityId(_pickupCityName, _pickupAddress, _pickupLat!, _pickupLng!);
+        final pickupCityId = _resolveCityId(
+          _pickupCityName,
+          _pickupAddress,
+          _pickupLat!,
+          _pickupLng!,
+        );
         if (pickupCityId == null) {
           return {
             'success': false,
@@ -397,21 +422,8 @@ class _NewBookingState extends State<NewBooking> {
       if (priceRes['success'] == true && priceRes['data'] != null) {
         final pricing = (priceRes['data']['pricing'] as List?) ?? [];
 
-        // Logic based on service duration
-        int targetHour;
-        bool multiplyByHours = false;
-
-        if (_selectedServiceDuration == 0) {
-          // Hourly: Find price for 1 hour then multiply
-          targetHour = 1;
-          multiplyByHours = true;
-        } else if (_selectedServiceDuration == 1) {
-          // 8 Hours preset
-          targetHour = 8;
-        } else {
-          // 12 Hours preset
-          targetHour = 12;
-        }
+        // Use the selected hour directly — each hour is a fixed package
+        final int targetHour = _selectedEstimatedHours;
 
         final match = pricing.firstWhere(
           (p) => p['hour'] == targetHour,
@@ -420,13 +432,10 @@ class _NewBookingState extends State<NewBooking> {
 
         if (match != null) {
           double price = _parseDouble(match['price'] ?? 0);
-          double finalCharge = multiplyByHours
-              ? (price * _selectedEstimatedHours)
-              : price;
 
           return {
             'success': true,
-            'data': {'charge': finalCharge},
+            'data': {'charge': price},
           };
         } else {
           debugPrint('🌐 API │ No pricing found for hour: $targetHour');
@@ -672,9 +681,7 @@ class _NewBookingState extends State<NewBooking> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return const Center(
-          child: PremiumLoader(),
-        );
+        return const Center(child: PremiumLoader());
       },
     );
   }
@@ -772,6 +779,12 @@ class _NewBookingState extends State<NewBooking> {
     _apiCities = widget.preloadedCities ?? [];
     _apiAirports = widget.preloadedAirports ?? [];
     _apiTerminals = widget.preloadedTerminals ?? [];
+    if (widget.preloadedHourlyPricing != null) {
+      _allHourlyPricingByVehicle = widget.preloadedHourlyPricing!;
+    }
+    if (widget.preloadedHourOptions != null) {
+      _availableHourOptions = widget.preloadedHourOptions!;
+    }
 
     // Autofill passenger details using customer data
     final userDataMap = UserLocalStorage.getUserData();
@@ -1247,8 +1260,93 @@ class _NewBookingState extends State<NewBooking> {
           }
         });
       }
+
+      // For chauffeur service, fetch hourly pricing for all vehicles
+      if (_selectedCatCode == 2 && _cars.isNotEmpty) {
+        _loadAllHourlyPrices();
+      }
     } catch (e) {
       debugPrint('Error loading car data: $e');
+    }
+  }
+
+  /// Fetch hourly pricing for all vehicles in parallel.
+  /// Builds [_allHourlyPricingByVehicle] and [_availableHourOptions].
+  Future<void> _loadAllHourlyPrices() async {
+    // If preloaded via widget, skip fetching to prevent empty states
+    if (widget.preloadedHourlyPricing != null &&
+        widget.preloadedHourOptions != null) {
+      return;
+    }
+
+    if (_cars.isEmpty) return;
+
+    if (mounted) setState(() => _isLoadingHourlyPrices = true);
+
+    try {
+      final api = ApiService();
+      final token = UserLocalStorage.getToken();
+
+      // Fire all requests in parallel
+      final futures = _cars.map((car) async {
+        try {
+          final res = await api.getHourlyPriceForVehicle(
+            vehicleId: car.id,
+            token: token,
+          );
+          return MapEntry(car.id, res);
+        } catch (e) {
+          debugPrint('⏱️ Hourly │ Error fetching price for ${car.id}: $e');
+          return MapEntry(car.id, <String, dynamic>{'success': false});
+        }
+      }).toList();
+
+      final results = await Future.wait(futures);
+
+      final Map<String, List<Map<String, dynamic>>> pricingByVehicle = {};
+      final Set<int> allHours = {};
+
+      for (final entry in results) {
+        final carId = entry.key;
+        final res = entry.value;
+
+        if (res['success'] == true && res['data'] != null) {
+          final pricing = (res['data']['pricing'] as List?);
+          if (pricing != null && pricing.isNotEmpty) {
+            final pricingList = pricing
+                .map((p) => Map<String, dynamic>.from(p as Map))
+                .toList();
+            pricingByVehicle[carId] = pricingList;
+
+            for (final p in pricingList) {
+              final hour = p['hour'];
+              if (hour is int && hour > 0) {
+                allHours.add(hour);
+              }
+            }
+
+            debugPrint(
+              '⏱️ Hourly │ Vehicle $carId: ${pricingList.length} pricing entries',
+            );
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _allHourlyPricingByVehicle = pricingByVehicle;
+          _availableHourOptions = allHours.toList()..sort();
+          _isLoadingHourlyPrices = false;
+
+          debugPrint('⏱️ Hourly │ Available hours: $_availableHourOptions');
+          debugPrint(
+            '⏱️ Hourly │ Vehicles with pricing: ${pricingByVehicle.length}',
+          );
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading hourly prices: $e');
+      if (mounted) setState(() => _isLoadingHourlyPrices = false);
     }
   }
 
@@ -1555,7 +1653,12 @@ class _NewBookingState extends State<NewBooking> {
           fromCity = airportCityId ?? cityId ?? '';
 
           if (_dropLat != null && _dropLng != null) {
-            final dropCityId = _resolveCityId(_dropCityName, _dropAddress, _dropLat!, _dropLng!);
+            final dropCityId = _resolveCityId(
+              _dropCityName,
+              _dropAddress,
+              _dropLat!,
+              _dropLng!,
+            );
             if (dropCityId == null || dropCityId.isEmpty) {
               if (mounted) {
                 _showNoServiceAlert(
@@ -1575,7 +1678,12 @@ class _NewBookingState extends State<NewBooking> {
           toCity = airportCityId ?? cityId ?? '';
 
           if (_pickupLat != null && _pickupLng != null) {
-            final pickupCityId = _resolveCityId(_pickupCityName, _pickupAddress, _pickupLat!, _pickupLng!);
+            final pickupCityId = _resolveCityId(
+              _pickupCityName,
+              _pickupAddress,
+              _pickupLat!,
+              _pickupLng!,
+            );
             if (pickupCityId == null || pickupCityId.isEmpty) {
               if (mounted) {
                 _showNoServiceAlert(
@@ -1643,53 +1751,41 @@ class _NewBookingState extends State<NewBooking> {
           );
         }
       } else if (_selectedCatCode == 2) {
-        // --- ⏱️ Hourly Service ---
-        // Pass hour value as requested: 1 (hourly), 8 (8h), 12 (12h), 999 (extra)
-        final int hoursToPass = (_selectedServiceDuration == 1)
-            ? 8
-            : (_selectedServiceDuration == 2 ? 12 : 1);
+        // --- ⏱️ Hourly Service (using cached pricing data) ---
+        final int selectedHour = _selectedEstimatedHours;
 
         debugPrint(
-          '🏎️ Filtering │ Checking Hourly cars (Duration: $_selectedServiceDuration, Hours: $hoursToPass)',
+          '🏎️ Filtering │ Checking Hourly cars from cache (Hour: $selectedHour)',
         );
 
-        final res = await api.getHourlyCars(hours: hoursToPass, token: token);
+        _hourlyPrices.clear(); // Refresh prices
 
-        if (res['success'] == true && res['cars'] != null) {
-          final List routes = res['cars'];
-          _hourlyPrices.clear(); // Refresh prices
+        for (final entry in _allHourlyPricingByVehicle.entries) {
+          final carId = entry.key;
+          final pricingList = entry.value;
 
-          for (var r in routes) {
-            if (r is! Map) continue;
+          // Find the pricing entry matching the selected hour
+          final match = pricingList.firstWhere(
+            (p) => p['hour'] == selectedHour,
+            orElse: () => <String, dynamic>{},
+          );
 
-            final carData = r['car'];
-            final routeData = r['route'];
-
-            if (carData is Map && carData.isNotEmpty) {
-              final vId = (carData['id'] ?? carData['_id'])?.toString();
-              if (vId != null) {
-                supportedIds.add(vId);
-
-                // Store the price from the route object
-                if (routeData is Map) {
-                  final double price = _parseDouble(
-                    routeData['hourlyPrice'] ?? routeData['price'] ?? 0,
-                  );
-                  if (price > 0) {
-                    _hourlyPrices[vId] = price;
-                  }
-                }
-                debugPrint(
-                  '🏎️ Filtering │ Hourly car found: $vId (Price: ${_hourlyPrices[vId]})',
-                );
-              }
+          if (match.isNotEmpty) {
+            final double price = _parseDouble(match['price'] ?? 0);
+            if (price > 0) {
+              supportedIds.add(carId);
+              _hourlyPrices[carId] = price;
+              debugPrint(
+                '🏎️ Filtering │ Hourly car found: $carId (Price: $price for $selectedHour hr)',
+              );
             }
           }
-          if (supportedIds.isEmpty) {
-            _showNoServiceAlert(
-              message: "No vehicles available for the selected duration.",
-            );
-          }
+        }
+
+        if (supportedIds.isEmpty) {
+          _showNoServiceAlert(
+            message: "No vehicles available for the selected duration.",
+          );
         }
       } else if (_selectedCatCode == 3) {
         // --- 🏎️ Private Transfer: New API Zone-based Filtering ---
@@ -2073,7 +2169,8 @@ class _NewBookingState extends State<NewBooking> {
                       text:
                           (_isCalculatingDistance ||
                               _isCheckingRoute ||
-                              _isFilteringCars)
+                              _isFilteringCars ||
+                              _isLoadingHourlyPrices)
                           ? loc.processing
                           : showReviewAndConfirm
                           ? loc.bookService
@@ -2081,10 +2178,17 @@ class _NewBookingState extends State<NewBooking> {
                       onTap:
                           _isCalculatingDistance ||
                               _isCheckingRoute ||
-                              _isFilteringCars
+                              _isFilteringCars ||
+                              _isLoadingHourlyPrices
                           ? () {}
                           : () async {
                               if (showTripInfo) {
+                                if (_selectedCatCode == 2 &&
+                                    _selectedEstimatedHours == 0) {
+                                  _showCustomSnackBar(loc.selectDuration, 'E');
+                                  return;
+                                }
+
                                 if (_tripInfoFormKey.currentState?.validate() ??
                                     false) {
                                   // Check booking buffer hours for all categories
@@ -2292,7 +2396,9 @@ class _NewBookingState extends State<NewBooking> {
                                         _routePrice = null;
                                       } else {
                                         _showNoServiceAlert(
-                                          message: routeResult['message'] ?? 'This route is not available at the moment.',
+                                          message:
+                                              routeResult['message'] ??
+                                              'This route is not available at the moment.',
                                         );
                                         return;
                                       }
@@ -2300,7 +2406,9 @@ class _NewBookingState extends State<NewBooking> {
                                   } else {
                                     // No price/route found
                                     _showNoServiceAlert(
-                                      message: routeResult['message'] ?? 'This route is not available at the moment.',
+                                      message:
+                                          routeResult['message'] ??
+                                          'This route is not available at the moment.',
                                     );
                                     return;
                                   }
@@ -2621,12 +2729,10 @@ class _NewBookingState extends State<NewBooking> {
                                       carbrand: _selectedVehicleBrand,
                                       carmodel: _selectedVehicleModel,
                                       serviceDuration: _selectedCatCode == 2
-                                          ? _selectedServiceDuration
+                                          ? _selectedEstimatedHours
                                           : null,
                                       estimatedHours: _selectedCatCode == 2
-                                          ? _selectedServiceDuration == 0
-                                                ? _selectedEstimatedHours
-                                                : null
+                                          ? _selectedEstimatedHours
                                           : null,
                                       orderID: orderId,
                                       transactionID:
@@ -2861,7 +2967,7 @@ class _NewBookingState extends State<NewBooking> {
                 status: "",
                 isChauffeur: _selectedCatCode == 2,
                 type: _selectedCatCode == 2
-                    ? "${loc.chauffeur} - ${_getServiceDurationLabel(_selectedServiceDuration)}"
+                    ? "${loc.chauffeur} - ${_getServiceDurationLabel(loc, _selectedEstimatedHours)}"
                     : _getServiceName(context, _selectedCatCode),
                 pickup: getPickup(),
                 dropoff: getDropoff(),
@@ -3247,14 +3353,7 @@ class _NewBookingState extends State<NewBooking> {
 
   String getBaseChargeText(AppLocalizations loc) {
     if (_selectedCatCode == 2) {
-      switch (_selectedServiceDuration) {
-        case 0:
-          return loc.baseChauffeurChargeHourly;
-        case 1:
-          return loc.baseChauffeurCharge8Hours;
-        case 2:
-          return loc.baseChauffeurCharge12Hours;
-      }
+      return "${loc.charge} (${_getServiceDurationLabel(loc, _selectedEstimatedHours)})";
     }
     return loc.charge;
   }
@@ -3839,37 +3938,17 @@ class _NewBookingState extends State<NewBooking> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Checkbox(
-                value: _allowSimilarVehicle,
-                onChanged: (value) {
-                  setState(() {
-                    _allowSimilarVehicle = value ?? false;
-                  });
-                },
-                activeColor: const Color(0xFFE4A46B),
-                checkColor: Colors.black,
-                side: const BorderSide(color: Colors.white54),
-              ),
-              Text(
-                loc.allowSimilarVehicle,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-              ),
-            ],
-          ),
-          if (_allowSimilarVehicle)
-            Padding(
-              padding: const EdgeInsets.only(left: 12, bottom: 8, right: 12),
-              child: Text(
-                loc.similarVehicleNote,
-                style: TextStyle(
-                  color: Colors.white.withAlpha(179),
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                ),
+          Padding(
+            padding: const EdgeInsets.only(left: 12, right: 12, top: 12),
+            child: Text(
+              loc.similarVehicleNote,
+              style: TextStyle(
+                color: Colors.white.withAlpha(179),
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
               ),
             ),
+          ),
         ],
       ),
     );
@@ -4179,65 +4258,48 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildHoursDataSelectors(BuildContext context, AppLocalizations loc) {
+    // Build dropdown items from available hour options
+    final items = [loc.selectDuration];
+    items.addAll(
+      _availableHourOptions.map((h) => _getServiceDurationLabel(loc, h)),
+    );
+
+    final currentLabel = _selectedEstimatedHours == 0
+        ? loc.selectDuration
+        : _getServiceDurationLabel(loc, _selectedEstimatedHours);
+
+    final displayValue = items.contains(currentLabel)
+        ? currentLabel
+        : items.first;
+
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: PremiumDropDown(
             title: loc.serviceDuration,
-            value: _getServiceDurationLabel(_selectedServiceDuration),
-            items: ["Hourly", "8 Hours", "12 Hours"],
+            value: displayValue,
+            items: items,
             onChanged: (val) {
               if (val != null) {
                 setState(() {
-                  if (val == "Hourly") {
-                    _selectedServiceDuration = 0;
-                    _selectedEstimatedHours = 1;
-                  } else if (val == "8 Hours") {
-                    _selectedServiceDuration = 1;
-                    _selectedEstimatedHours = 8;
-                  } else if (val == "12 Hours") {
-                    _selectedServiceDuration = 2;
-                    _selectedEstimatedHours = 12;
+                  if (val == loc.selectDuration) {
+                    _selectedEstimatedHours = 0;
+                  } else {
+                    final hourVal = int.tryParse(val.split(' ').first) ?? 0;
+                    _selectedEstimatedHours = hourVal;
                   }
                 });
               }
             },
           ),
         ),
-        if (_selectedServiceDuration == 0) ...[
-          SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: PremiumDropDown(
-              title: "Estimated hours",
-              value: _selectedEstimatedHours.toString(),
-              items: List.generate(12, (index) => (index + 1).toString()),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _selectedEstimatedHours = int.tryParse(val) ?? 1;
-                  });
-                }
-              },
-            ),
-          ),
-        ],
       ],
     );
   }
 
-  String _getServiceDurationLabel(int value) {
-    switch (value) {
-      case 0:
-        return "Hourly";
-      case 1:
-        return "8 Hours";
-      case 2:
-        return "12 Hours";
-      default:
-        return "Hourly";
-    }
+  String _getServiceDurationLabel(AppLocalizations loc, int value) {
+    return loc.nHours(value);
   }
 
   Widget buildDropLocation(
@@ -4399,12 +4461,22 @@ class _NewBookingState extends State<NewBooking> {
                       if (_selectedCatCode == 0) {
                         // Arrival: Airport -> Selected Drop Location
                         fromCity = airportCityId ?? cityId ?? '';
-                        final dropCityId = _resolveCityId(result['city']?.toString(), result['address']?.toString(), newLat, newLng);
+                        final dropCityId = _resolveCityId(
+                          result['city']?.toString(),
+                          result['address']?.toString(),
+                          newLat,
+                          newLng,
+                        );
                         toCity = dropCityId ?? '';
                       } else {
                         // Departure: Selected Pickup Location -> Airport
                         toCity = airportCityId ?? cityId ?? '';
-                        final pickupCityId = _resolveCityId(result['city']?.toString(), result['address']?.toString(), newLat, newLng);
+                        final pickupCityId = _resolveCityId(
+                          result['city']?.toString(),
+                          result['address']?.toString(),
+                          newLat,
+                          newLng,
+                        );
                         fromCity = pickupCityId ?? '';
                       }
 

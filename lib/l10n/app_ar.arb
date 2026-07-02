@@ -374,5 +374,7 @@
   "routeNotAvailable": "المسار غير متاح.",
   "selectPaymentMethod": "اختر طريقة الدفع",
   "applePay": "Apple Pay",
-  "creditDebitCard": "بطاقة ائتمان / مدى"
+  "creditDebitCard": "بطاقة ائتمان / مدى",
+  "selectDuration": "حدد المدة",
+  "nHours": "{count, plural, =1{ساعة واحدة} =2{ساعتين} few{{count} ساعات} other{{count} ساعة}}"
 }
