@@ -156,7 +156,7 @@ class _MainAppState extends State<MainApp> {
       ],
       child: SafeArea(
         top: false,
-        bottom: Platform.isAndroid ? isThickNavBar : true,
+        bottom: Platform.isAndroid ? isThickNavBar : false,
         child: MaterialApp(
           title: "Premium Force",
           debugShowCheckedModeBanner: false,
