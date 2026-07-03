@@ -1,6 +1,5 @@
 import 'package:flutter/rendering.dart';
 import 'package:premium_force_main/common_widgets/fleet_card_shimmer.dart';
-import 'package:premium_force_main/models/booking_model.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/common_widgets/booking_shimmer.dart';

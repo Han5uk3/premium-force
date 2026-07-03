@@ -1320,7 +1320,7 @@ class _NewBookingState extends State<NewBooking> {
 
             for (final p in pricingList) {
               final hour = p['hour'];
-              if (hour is int && hour > 0) {
+              if (hour is int && hour > 0 && hour != 999) {
                 allHours.add(hour);
               }
             }

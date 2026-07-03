@@ -246,8 +246,8 @@ abstract class BookingModel {
     return null;
   }
 
-  int? get estimatedHours => null;
-  int? get extraHours => null;
+  double? get estimatedHours => null;
+  double? get extraHours => null;
   String? get extraOrderID => null;
   String? get extraTransactionID => null;
   double? get extraPayment => null;
@@ -595,9 +595,9 @@ class HourlyBookingModel extends BookingModel {
   @override
   final String? pickupdatetime;
   @override
-  final int? estimatedHours;
+  final double? estimatedHours;
   @override
-  final int? extraHours;
+  final double? extraHours;
   @override
   final String? extraOrderID;
   @override
@@ -737,8 +737,8 @@ class HourlyBookingModel extends BookingModel {
           json['pickup_date_time']?.toString() ??
           json['startedAt']?.toString() ??
           json['arrival']?.toString(),
-      estimatedHours: _toInt(json['estimatedHours'] ?? json['hours']),
-      extraHours: _toInt(json['extraHours']),
+      estimatedHours: _toDouble(json['estimatedHours'] ?? json['hours']),
+      extraHours: _toDouble(json['extraHours']),
       extraOrderID: json['extraOrderID']?.toString(),
       extraTransactionID: json['extraTransactionID']?.toString(),
       extraPayment: _toDouble(json['extraPayment']),
@@ -799,8 +799,8 @@ class HourlyBookingModel extends BookingModel {
     String? startedAt,
     String? stoppedAt,
     String? pickupdatetime,
-    int? estimatedHours,
-    int? extraHours,
+    double? estimatedHours,
+    double? extraHours,
     String? extraOrderID,
     String? extraTransactionID,
     double? extraPayment,

@@ -28,7 +28,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   final Completer<GoogleMapController> _controller = Completer();
   final FirebaseDatabase _database = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
-    databaseURL: 'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
+    databaseURL:
+        'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
   StreamSubscription? _locationSubscription;
   StreamSubscription? _sessionSubscription;
@@ -351,77 +352,98 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     _locationSubscription = _database
         .ref(path)
         .onValue
-        .listen((event) {
-          final data = event.snapshot.value;
-          debugPrint('📡 Received Firebase location update: $data (Type: ${data.runtimeType})');
+        .listen(
+          (event) {
+            final data = event.snapshot.value;
+            debugPrint(
+              '📡 Received Firebase location update: $data (Type: ${data.runtimeType})',
+            );
 
-          if (data == null) {
-            debugPrint('📡 Location update is null');
-            return;
-          }
+            if (data == null) {
+              debugPrint('📡 Location update is null');
+              return;
+            }
 
-          double? lat;
-          double? lng;
+            double? lat;
+            double? lng;
 
-          if (data is Map) {
-            final rawLat = data['lat'] ?? data['latitude'] ?? data['Latitude'];
-            final rawLng = data['lng'] ?? data['longitude'] ?? data['Longitude'] ?? data['long'] ?? data['Long'];
+            if (data is Map) {
+              final rawLat =
+                  data['lat'] ?? data['latitude'] ?? data['Latitude'];
+              final rawLng =
+                  data['lng'] ??
+                  data['longitude'] ??
+                  data['Longitude'] ??
+                  data['long'] ??
+                  data['Long'];
 
-            if (rawLat is num) lat = rawLat.toDouble();
-            if (rawLng is num) lng = rawLng.toDouble();
-          } else if (data is String) {
-            final trimmed = data.trim();
-            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-              try {
-                final Map<String, dynamic> parsed = Map<String, dynamic>.from(
-                  json.decode(trimmed) as Map
-                );
-                final rawLat = parsed['lat'] ?? parsed['latitude'] ?? parsed['Latitude'];
-                final rawLng = parsed['lng'] ?? parsed['longitude'] ?? parsed['Longitude'] ?? parsed['long'] ?? parsed['Long'];
+              if (rawLat is num) lat = rawLat.toDouble();
+              if (rawLng is num) lng = rawLng.toDouble();
+            } else if (data is String) {
+              final trimmed = data.trim();
+              if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                try {
+                  final Map<String, dynamic> parsed = Map<String, dynamic>.from(
+                    json.decode(trimmed) as Map,
+                  );
+                  final rawLat =
+                      parsed['lat'] ?? parsed['latitude'] ?? parsed['Latitude'];
+                  final rawLng =
+                      parsed['lng'] ??
+                      parsed['longitude'] ??
+                      parsed['Longitude'] ??
+                      parsed['long'] ??
+                      parsed['Long'];
 
-                if (rawLat is num) lat = rawLat.toDouble();
-                if (rawLng is num) lng = rawLng.toDouble();
-              } catch (e) {
-                debugPrint('⚠️ Error decoding JSON location string: $e');
-              }
-            } else if (trimmed.contains(',')) {
-              final parts = trimmed.split(',');
-              if (parts.length >= 2) {
-                lat = double.tryParse(parts[0].trim());
-                lng = double.tryParse(parts[1].trim());
+                  if (rawLat is num) lat = rawLat.toDouble();
+                  if (rawLng is num) lng = rawLng.toDouble();
+                } catch (e) {
+                  debugPrint('⚠️ Error decoding JSON location string: $e');
+                }
+              } else if (trimmed.contains(',')) {
+                final parts = trimmed.split(',');
+                if (parts.length >= 2) {
+                  lat = double.tryParse(parts[0].trim());
+                  lng = double.tryParse(parts[1].trim());
+                }
               }
             }
-          }
 
-          if (lat != null && lng != null) {
-            final double nonNullLat = lat;
-            final double nonNullLng = lng;
-            debugPrint('📡 Parsed coordinates successfully: ($nonNullLat, $nonNullLng)');
+            if (lat != null && lng != null) {
+              final double nonNullLat = lat;
+              final double nonNullLng = lng;
+              debugPrint(
+                '📡 Parsed coordinates successfully: ($nonNullLat, $nonNullLng)',
+              );
 
-            if (mounted) {
-              setState(() {
-                _driverLocation = LatLng(nonNullLat, nonNullLng);
-                _updateDriverMarker();
-              });
-              _moveCameraToDriver();
-              if (_lastFetchLocation == null ||
-                  Geolocator.distanceBetween(
-                        _lastFetchLocation!.latitude,
-                        _lastFetchLocation!.longitude,
-                        nonNullLat,
-                        nonNullLng,
-                      ) >
-                      100) {
-                _lastFetchLocation = _driverLocation;
-                _fetchDirections();
+              if (mounted) {
+                setState(() {
+                  _driverLocation = LatLng(nonNullLat, nonNullLng);
+                  _updateDriverMarker();
+                });
+                _moveCameraToDriver();
+                if (_lastFetchLocation == null ||
+                    Geolocator.distanceBetween(
+                          _lastFetchLocation!.latitude,
+                          _lastFetchLocation!.longitude,
+                          nonNullLat,
+                          nonNullLng,
+                        ) >
+                        100) {
+                  _lastFetchLocation = _driverLocation;
+                  _fetchDirections();
+                }
               }
+            } else {
+              debugPrint('⚠️ Failed to parse coordinates from: $data');
             }
-          } else {
-            debugPrint('⚠️ Failed to parse coordinates from: $data');
-          }
-        }, onError: (error) {
-          debugPrint('❌ Firebase location stream error at path "$path": $error');
-        });
+          },
+          onError: (error) {
+            debugPrint(
+              '❌ Firebase location stream error at path "$path": $error',
+            );
+          },
+        );
   }
 
   void _listenToSessionForChauffeur() {
@@ -459,19 +481,27 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Future<void> _loadDriverIcon() async {
     if (_driverIcon != null) return;
     try {
-      debugPrint('🚗 Loading driver pin custom asset: assets/images/car_image_generated.png');
-      final ByteData data = await rootBundle.load('assets/images/car_image_generated.png');
+      debugPrint(
+        '🚗 Loading driver pin custom asset: assets/images/car_image_generated.png',
+      );
+      final ByteData data = await rootBundle.load(
+        'assets/images/car_image_generated.png',
+      );
       final ui.Codec codec = await ui.instantiateImageCodec(
         data.buffer.asUint8List(),
         targetWidth: 80, // Reduced size to match UI
       );
       final ui.FrameInfo fi = await codec.getNextFrame();
-      final ByteData? byteData = await fi.image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await fi.image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       _driverIcon = BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
       debugPrint('🚗 Driver pin custom asset loaded successfully!');
     } catch (e) {
       debugPrint('⚠️ Error loading driver pin: $e');
-      _driverIcon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+      _driverIcon = BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueOrange,
+      );
     }
     if (mounted && _driverLocation != null) {
       setState(() {
@@ -492,11 +522,11 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       Marker(
         markerId: const MarkerId('driver'),
         position: _driverLocation!,
-        icon: _driverIcon ?? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        icon:
+            _driverIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         anchor: const Offset(0.5, 0.5),
-        infoWindow: InfoWindow(
-          title: markerTitle,
-        ),
+        infoWindow: InfoWindow(title: markerTitle),
       ),
     );
     _markers = newMarkers;
@@ -504,7 +534,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
   Future<void> _moveCameraToDriver() async {
     if (!_mapLayoutReady || _driverLocation == null) return;
-    
+
     if (!_hasFittedDriverInitialLocation) {
       _hasFittedDriverInitialLocation = true;
       _zoomToFitAllPins();
@@ -532,7 +562,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       if (m.position.longitude < minLng) minLng = m.position.longitude;
       if (m.position.longitude > maxLng) maxLng = m.position.longitude;
     }
-    
+
     try {
       if (minLat == maxLat && minLng == maxLng) {
         await controller.animateCamera(
@@ -672,7 +702,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cannot make phone calls on this device.')),
+          const SnackBar(
+            content: Text('Cannot make phone calls on this device.'),
+          ),
         );
       }
     }
@@ -711,17 +743,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
             onMapCreated: (c) {
               _controller.complete(c);
               c.setMapStyle(_mapStyle);
-              Future.delayed(
-                const Duration(milliseconds: 500),
-                () {
-                  if (mounted) {
-                    setState(() {
-                      _mapLayoutReady = true;
-                    });
-                    _zoomToFitAllPins();
-                  }
-                },
-              );
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) {
+                  setState(() {
+                    _mapLayoutReady = true;
+                  });
+                  _zoomToFitAllPins();
+                }
+              });
             },
 
             markers: _markers,
@@ -755,7 +784,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                   CircleAvatar(
                     radius: 26,
                     backgroundColor: const Color(0xFFE4A46B),
-                    child: widget.booking.driver?.profileImageUrl != null &&
+                    child:
+                        widget.booking.driver?.profileImageUrl != null &&
                             widget.booking.driver!.profileImageUrl!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(26),
@@ -765,22 +795,24 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                               width: 52,
                               height: 52,
                               errorWidget: (c, u, e) => Text(
-                                (widget.booking.driver?.driverName ??
-                                    "D")[0].toUpperCase(),
+                                (widget.booking.driver?.driverName ?? "D")[0]
+                                    .toUpperCase(),
                                 style: const TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18),
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
                               ),
                             ),
                           )
                         : Text(
-                            (widget.booking.driver?.driverName ??
-                                "D")[0].toUpperCase(),
+                            (widget.booking.driver?.driverName ?? "D")[0]
+                                .toUpperCase(),
                             style: const TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18),
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
                           ),
                   ),
                   const SizedBox(width: 16),
@@ -793,9 +825,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                         Text(
                           widget.booking.driver?.driverName ?? "Driver",
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16),
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Column(
@@ -803,21 +836,25 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.timer_outlined,
-                                    color: Colors.white.withAlpha(150), size: 14),
+                                Icon(
+                                  Icons.timer_outlined,
+                                  color: Colors.white.withAlpha(150),
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     _isChauffeur
                                         ? (_tripEnded
-                                            ? loc.tripEnded
-                                            : (_chauffeurStartTime == null
-                                                ? "00:00:00"
-                                                : _formatElapsed(_elapsed)))
+                                              ? loc.tripEnded
+                                              : (_chauffeurStartTime == null
+                                                    ? "00:00:00"
+                                                    : _formatElapsed(_elapsed)))
                                         : "$_currentEta (approx)",
                                     style: TextStyle(
-                                        color: Colors.white.withAlpha(150),
-                                        fontSize: 12),
+                                      color: Colors.white.withAlpha(150),
+                                      fontSize: 12,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -826,15 +863,19 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Icon(Icons.location_on_outlined,
-                                    color: Colors.white.withAlpha(150), size: 14),
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  color: Colors.white.withAlpha(150),
+                                  size: 14,
+                                ),
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     _currentDistance,
                                     style: TextStyle(
-                                        color: Colors.white.withAlpha(150),
-                                        fontSize: 12),
+                                      color: Colors.white.withAlpha(150),
+                                      fontSize: 12,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -867,6 +908,4 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       ),
     );
   }
-
 }
-

@@ -9,8 +9,6 @@ import 'package:flutter_paytabs_bridge/PaymentSDKNetworks.dart';
 import 'package:flutter_paytabs_bridge/flutter_paytabs_bridge.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkTokeniseType.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkTransactionType.dart';
-import 'package:flutter_paytabs_bridge/PaymentSdkTokenFormat.dart';
-
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
 
