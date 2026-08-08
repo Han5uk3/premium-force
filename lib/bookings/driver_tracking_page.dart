@@ -489,7 +489,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       );
       final ui.Codec codec = await ui.instantiateImageCodec(
         data.buffer.asUint8List(),
-        targetWidth: 80, // Reduced size to match UI
+        targetWidth: 140, // Increased size for better visibility on the map
       );
       final ui.FrameInfo fi = await codec.getNextFrame();
       final ByteData? byteData = await fi.image.toByteData(

@@ -318,6 +318,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                     const SizedBox(height: 32),
 
                                     PremiumTextField(
+                                      isPhoneNumber: true,
                                       focusNode: _mobileFocusNode,
                                       title: AppLocalizations.of(
                                         context,

@@ -188,12 +188,18 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                         color: Colors.white,
                       ),
                     ),
-                    TextSpan(
-                      text: '${widget.countryCode} ${widget.phoneNumber}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Text(
+                          '${widget.countryCode} ${widget.phoneNumber}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -203,43 +209,50 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
               const SizedBox(height: 40),
 
               // OTP Input Fields
-              Pinput(
-                length: 6,
-                controller: _otpController,
-                focusNode: _otpFocusNode,
-                defaultPinTheme: defaultPinTheme,
-                obscureText: true,
-                obscuringCharacter: '*',
-                enableInteractiveSelection: true,
-                showCursor: true,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                contextMenuBuilder: (context, editableTextState) {
-                  final List<ContextMenuButtonItem> buttonItems = [
-                    ContextMenuButtonItem(
-                      onPressed: () {
-                        editableTextState.pasteText(
-                          SelectionChangedCause.toolbar,
-                        );
-                      },
-                      type: ContextMenuButtonType.paste,
-                    ),
-                  ];
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: AutofillGroup(
+                  // Ensures the OS-level "code from Messages" autofill
+                  // suggestion reliably appears for this field.
+                  child: Pinput(
+                    length: 6,
+                    controller: _otpController,
+                    focusNode: _otpFocusNode,
+                    defaultPinTheme: defaultPinTheme,
+                    obscureText: true,
+                    obscuringCharacter: '*',
+                    enableInteractiveSelection: true,
+                    showCursor: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    contextMenuBuilder: (context, editableTextState) {
+                      final List<ContextMenuButtonItem> buttonItems = [
+                        ContextMenuButtonItem(
+                          onPressed: () {
+                            editableTextState.pasteText(
+                              SelectionChangedCause.toolbar,
+                            );
+                          },
+                          type: ContextMenuButtonType.paste,
+                        ),
+                      ];
 
-                  return AdaptiveTextSelectionToolbar.buttonItems(
-                    anchors: editableTextState.contextMenuAnchors,
-                    buttonItems: buttonItems,
-                  );
-                },
-                separatorBuilder: (index) => const SizedBox(width: 8),
-                focusedPinTheme: defaultPinTheme.copyWith(
-                  decoration: defaultPinTheme.decoration!.copyWith(
-                    border: Border.all(color: const Color(0xFFD4A574)),
+                      return AdaptiveTextSelectionToolbar.buttonItems(
+                        anchors: editableTextState.contextMenuAnchors,
+                        buttonItems: buttonItems,
+                      );
+                    },
+                    separatorBuilder: (index) => const SizedBox(width: 8),
+                    focusedPinTheme: defaultPinTheme.copyWith(
+                      decoration: defaultPinTheme.decoration!.copyWith(
+                        border: Border.all(color: const Color(0xFFD4A574)),
+                      ),
+                    ),
+                    onCompleted: (pin) {
+                      debugPrint('OTP Completed: $pin');
+                    },
                   ),
                 ),
-                onCompleted: (pin) {
-                  debugPrint('OTP Completed: $pin');
-                },
               ),
 
               const SizedBox(height: 24),

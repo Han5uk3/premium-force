@@ -613,6 +613,7 @@ class _SignUpPageState extends State<SignUpPage>
 
                         // Phone number (editable with country code picker)
                         PremiumTextField(
+                          isPhoneNumber: true,
                           title: AppLocalizations.of(context)!.phoneNumber,
                           controller: _phoneController,
                           hintText: AppLocalizations.of(

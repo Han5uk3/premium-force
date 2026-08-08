@@ -51,6 +51,13 @@ class PremiumTextField extends StatelessWidget {
     this.focusNode,
   });
 
+  // Phone numbers (and their country code prefix) must always read
+  // left-to-right, even inside an RTL (Arabic) locale.
+  Widget _maybeForceLtr(Widget child) {
+    if (!isPhoneNumber) return child;
+    return Directionality(textDirection: TextDirection.ltr, child: child);
+  }
+
   @override
   Widget build(BuildContext context) {
     return FormField<String>(
@@ -76,88 +83,92 @@ class PremiumTextField extends StatelessWidget {
             ],
 
             // â”€â”€ Styled input container â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            GestureDetector(
-              onTap: onTap,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: blackbg ? Colors.black : const Color(0xFF1A1410),
-                  borderRadius: BorderRadius.circular(borderRadius),
-                  border: Border.all(
-                    color: hasError
-                        ? const Color(0xFFCF6679)
-                        : needBorder
-                        ? Colors.grey.shade800
-                        : const Color(0xFF1A1410),
-                    width: 1,
+            _maybeForceLtr(
+              GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: blackbg ? Colors.black : const Color(0xFF1A1410),
+                    borderRadius: BorderRadius.circular(borderRadius),
+                    border: Border.all(
+                      color: hasError
+                          ? const Color(0xFFCF6679)
+                          : needBorder
+                          ? Colors.grey.shade800
+                          : const Color(0xFF1A1410),
+                      width: 1,
+                    ),
                   ),
-                ),
-                child: Row(
-                  crossAxisAlignment: maxLines > 1
-                      ? CrossAxisAlignment.start
-                      : CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(width: 20),
+                  child: Row(
+                    crossAxisAlignment: maxLines > 1
+                        ? CrossAxisAlignment.start
+                        : CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(width: 20),
 
-                    if (prefixIcon != null) ...[
-                      Padding(
-                        padding: EdgeInsets.only(top: maxLines > 1 ? 14.0 : 0),
-                        child: prefixIcon!,
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    Expanded(
-                      child: TextFormField(
-                        textCapitalization: needAutoCapitalize
-                            ? TextCapitalization.characters
-                            : TextCapitalization.none,
-                        // Validation is handled by the outer FormField;
-                        // we skip it here so no error text renders inside.
-                        inputFormatters: [
-                          if (needAutoCapitalize) UpperCaseTextFormatter(),
-                     
-                          if (isPhoneNumber)
-                            FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        controller: controller,
-                        keyboardType: keyboardType,
-                        focusNode: focusNode,
-                        obscureText: obscureText,
-                        enabled: enabled,
-                        readOnly: readOnly,
-                        maxLines: maxLines,
-                        onTap: onTap,
-                        style: TextStyle(
-                          color: enabled
-                              ? Colors.white
-                              : Colors.white.withAlpha(120),
-                          fontSize: fontsize,
+                      if (prefixIcon != null) ...[
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: maxLines > 1 ? 14.0 : 0,
+                          ),
+                          child: prefixIcon!,
                         ),
-                        decoration: InputDecoration(
-                          suffix: suffix,
-                          hintText: hintText,
-                          hintStyle: TextStyle(
-                            color: Colors.white.withAlpha(180),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: TextFormField(
+                          textCapitalization: needAutoCapitalize
+                              ? TextCapitalization.characters
+                              : TextCapitalization.none,
+                          // Validation is handled by the outer FormField;
+                          // we skip it here so no error text renders inside.
+                          inputFormatters: [
+                            if (needAutoCapitalize) UpperCaseTextFormatter(),
+
+                            if (isPhoneNumber)
+                              FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          controller: controller,
+                          keyboardType: keyboardType,
+                          focusNode: focusNode,
+                          obscureText: obscureText,
+                          enabled: enabled,
+                          readOnly: readOnly,
+                          maxLines: maxLines,
+                          onTap: onTap,
+                          style: TextStyle(
+                            color: enabled
+                                ? Colors.white
+                                : Colors.white.withAlpha(120),
                             fontSize: fontsize,
                           ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 18,
+                          decoration: InputDecoration(
+                            suffix: suffix,
+                            hintText: hintText,
+                            hintStyle: TextStyle(
+                              color: Colors.white.withAlpha(180),
+                              fontSize: fontsize,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 18,
+                            ),
+                            suffixIcon: maxLines > 1 ? null : suffixIcon,
                           ),
-                          suffixIcon: maxLines > 1 ? null : suffixIcon,
+                          cursorColor: Colors.white,
                         ),
-                        cursorColor: Colors.white,
                       ),
-                    ),
-                    if (maxLines > 1 && suffixIcon != null) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: suffixIcon!,
-                      ),
-                      const SizedBox(width: 16),
-                    ] else ...[
-                      const SizedBox(width: 20),
+                      if (maxLines > 1 && suffixIcon != null) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: suffixIcon!,
+                        ),
+                        const SizedBox(width: 16),
+                      ] else ...[
+                        const SizedBox(width: 20),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),

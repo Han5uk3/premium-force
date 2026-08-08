@@ -573,6 +573,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
 
                         // Phone number (display only)
                         PremiumTextField(
+                          isPhoneNumber: true,
                           title: AppLocalizations.of(context)!.phoneNumber,
                           controller: _phoneController,
                           hintText: "",
