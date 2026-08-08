@@ -878,7 +878,7 @@ class _HomepageState extends State<Homepage>
                 : ListView.builder(
                     itemCount: 5,
                     scrollDirection: Axis.horizontal,
-                    scrollCacheExtent: ScrollCacheExtent.viewport(1000),
+                    cacheExtent: 1000,
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: EdgeInsetsDirectional.only(

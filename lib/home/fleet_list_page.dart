@@ -238,7 +238,7 @@ class _FleetListPageState extends State<FleetListPage> {
                   vertical: 12,
                 ),
 
-                scrollCacheExtent: ScrollCacheExtent.pixels(1000),
+                cacheExtent: 1000,
                 itemCount: _allFleetCars.length,
                 itemBuilder: (context, index) {
                   final car = _allFleetCars[index];
