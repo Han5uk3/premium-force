@@ -1,0 +1,287 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_paytabs_bridge/BaseBillingShippingInfo.dart';
+import 'package:flutter_paytabs_bridge/PaymentSDKNetworks.dart';
+import 'package:flutter_paytabs_bridge/PaymentSdkConfigurationDetails.dart';
+import 'package:flutter_paytabs_bridge/PaymentSdkLocale.dart';
+import 'package:flutter_paytabs_bridge/PaymentSdkTokeniseType.dart';
+import 'package:flutter_paytabs_bridge/PaymentSdkTransactionType.dart';
+import 'package:flutter_paytabs_bridge/flutter_paytabs_bridge.dart';
+import 'package:premium_force_main/models/payment_model.dart';
+import 'package:premium_force_main/models/v2/checkout_models.dart';
+import 'package:premium_force_main/utils/paytabs_config.dart';
+import 'package:premium_force_main/utils/paytabs_theme.dart';
+
+/// Launches the PayTabs SDK using gateway parameters issued by the backend.
+///
+/// This is the v2 counterpart to [PaymentService]. The difference is where the
+/// numbers come from: the profile id, keys, cart id, **amount** and currency all
+/// arrive in the `POST /bookings/session/confirm` response, bound to a
+/// `PaymentTransaction` the server already created. The client cannot charge an
+/// amount the backend did not authorise, and never reads them from `.env`.
+///
+/// The SDK result is *not* treated as proof of payment — callers must follow up
+/// with `verifyPayment` so the backend settles the booking against the gateway.
+///
+/// Usage:
+/// ```dart
+/// final result = await SessionPaymentService().startCardPayment(
+///   config: confirmation.paytabsConfig!,
+///   customerName: name, customerEmail: email, customerPhone: phone,
+/// );
+/// ```
+class SessionPaymentService {
+  static final SessionPaymentService _instance =
+      SessionPaymentService._internal();
+  factory SessionPaymentService() => _instance;
+  SessionPaymentService._internal();
+
+  /// Present the card payment sheet for [config].
+  Future<PaymentResult> startCardPayment({
+    required PaytabsSessionConfig config,
+    required String customerName,
+    required String customerEmail,
+    required String customerPhone,
+    String merchantCountryCode = 'SA',
+  }) {
+    return _start(
+      config: config,
+      customerName: customerName,
+      customerEmail: customerEmail,
+      customerPhone: customerPhone,
+      merchantCountryCode: merchantCountryCode,
+      useApplePay: false,
+    );
+  }
+
+  /// Present the Apple Pay sheet for [config]. iOS only.
+  Future<PaymentResult> startApplePayPayment({
+    required PaytabsSessionConfig config,
+    required String customerName,
+    required String customerEmail,
+    required String customerPhone,
+    String merchantCountryCode = 'SA',
+  }) {
+    if (!Platform.isIOS) {
+      return Future.value(
+        _failure(
+          config: config,
+          customerEmail: customerEmail,
+          code: 'UNSUPPORTED',
+          message: 'Apple Pay is only available on iOS devices',
+        ),
+      );
+    }
+
+    return _start(
+      config: config,
+      customerName: customerName,
+      customerEmail: customerEmail,
+      customerPhone: customerPhone,
+      merchantCountryCode: merchantCountryCode,
+      useApplePay: true,
+    );
+  }
+
+  Future<PaymentResult> _start({
+    required PaytabsSessionConfig config,
+    required String customerName,
+    required String customerEmail,
+    required String customerPhone,
+    required String merchantCountryCode,
+    required bool useApplePay,
+  }) async {
+    final completer = Completer<PaymentResult>();
+
+    debugPrint(
+      '💳 Session payment │ cart=${config.cartId} '
+      'amount=${config.amount} ${config.currency} applePay=$useApplePay',
+    );
+
+    try {
+      // PayTabs rejects empty billing fields, so fall back to merchant defaults
+      // rather than sending blanks the user never entered.
+      final billingDetails = BillingDetails(
+        customerName,
+        customerEmail,
+        customerPhone,
+        'Saudi Arabia',
+        merchantCountryCode,
+        'Riyadh',
+        'Riyadh',
+        '00000',
+      );
+
+      final configuration = PaymentSdkConfigurationDetails(
+        // Credentials and amount come from the backend, not PaytabsConfig.
+        profileId: config.profileId,
+        serverKey: config.serverKey,
+        clientKey: config.clientKey,
+        cartId: config.cartId,
+        cartDescription: config.cartDescription,
+        merchantName: 'Premium Force',
+        screentTitle: useApplePay ? 'Apple Pay' : 'Pay with Card',
+        amount: config.amount,
+        showBillingInfo: false,
+        showShippingInfo: false,
+        isDigitalProduct: true,
+        currencyCode: config.currency,
+        merchantCountryCode: merchantCountryCode,
+        billingDetails: billingDetails,
+        locale: PaymentSdkLocale.EN,
+        transactionType: PaymentSdkTransactionType.SALE,
+        tokeniseType: PaymentSdkTokeniseType.NONE,
+        simplifyApplePayValidation: true,
+        paymentNetworks: [
+          PaymentSDKNetworks.visa,
+          PaymentSDKNetworks.masterCard,
+          PaymentSDKNetworks.mada,
+          PaymentSDKNetworks.amex,
+        ],
+        merchantApplePayIndentifier: useApplePay
+            ? PaytabsConfig.applePayMerchantId
+            : null,
+      );
+
+      configuration.iOSThemeConfigurations = buildPremiumForceTheme();
+
+      void onEvent(dynamic event) {
+        // The SDK callback is the only record of what the gateway decided, so
+        // it is logged raw before being interpreted.
+        debugPrint('💳 PayTabs event │ cart=${config.cartId} │ $event');
+
+        if (completer.isCompleted) return;
+
+        final result = _mapEvent(
+          event,
+          config: config,
+          customerEmail: customerEmail,
+        );
+        debugPrint(
+          '💳 PayTabs result │ success=${result.success} '
+          'code=${result.responseCode} ref=${result.transactionReference} '
+          'msg=${result.responseMessage}',
+        );
+
+        completer.complete(result);
+      }
+
+      void onBridgeError(Object error) {
+        debugPrint('❌ Session payment bridge error: $error');
+        if (completer.isCompleted) return;
+        completer.complete(
+          _failure(
+            config: config,
+            customerEmail: customerEmail,
+            code: 'ERROR',
+            message: error.toString(),
+          ),
+        );
+      }
+
+      // Launch without awaiting so the completer future is what callers get.
+      if (useApplePay) {
+        FlutterPaytabsBridge.startApplePayPayment(
+          configuration,
+          onEvent,
+        ).catchError(onBridgeError);
+      } else {
+        FlutterPaytabsBridge.startCardPayment(
+          configuration,
+          onEvent,
+        ).catchError(onBridgeError);
+      }
+
+      return completer.future;
+    } catch (error) {
+      debugPrint('❌ Session payment failed to start: $error');
+      return _failure(
+        config: config,
+        customerEmail: customerEmail,
+        code: 'EXCEPTION',
+        message: error.toString(),
+      );
+    }
+  }
+
+  /// Translate an SDK callback into a [PaymentResult].
+  ///
+  /// The bridge reports four shapes: `success` (with a nested `isSuccess`),
+  /// `error`, `event` (internal, including user cancellation), and, on some SDK
+  /// versions, a bare `cancel` status.
+  PaymentResult _mapEvent(
+    dynamic event, {
+    required PaytabsSessionConfig config,
+    required String customerEmail,
+  }) {
+    final map = event is Map ? event : const {};
+    final status = (map['status'] ?? 'UNKNOWN').toString().toLowerCase();
+    final message = map['message']?.toString();
+
+    if (status == 'success') {
+      final details = map['data'];
+      final detailsMap = details is Map ? details : const {};
+      final paymentResult = detailsMap['paymentResult'];
+      final resultMap = paymentResult is Map ? paymentResult : const {};
+      final isSuccess = detailsMap['isSuccess'] == true;
+
+      return PaymentResult(
+        success: isSuccess,
+        transactionReference:
+            detailsMap['transactionReference']?.toString() ?? '',
+        invoiceId: detailsMap['cartId']?.toString() ?? config.cartId,
+        responseCode:
+            resultMap['responseCode']?.toString() ??
+            (isSuccess ? '000' : 'ERR'),
+        responseMessage:
+            resultMap['responseMessage']?.toString() ??
+            (isSuccess ? 'Success' : 'Payment Failed'),
+        agreementId: detailsMap['agreementId']?.toString(),
+        customerEmail: customerEmail,
+        amount: config.amount,
+      );
+    }
+
+    final isCancellation =
+        status == 'cancel' || message?.toLowerCase() == 'cancel';
+
+    return _failure(
+      config: config,
+      customerEmail: customerEmail,
+      code: isCancellation ? 'CANCELLED' : status.toUpperCase(),
+      message: isCancellation
+          ? 'Payment Cancelled'
+          : (message ?? 'Transaction failed or was stopped'),
+    );
+  }
+
+  PaymentResult _failure({
+    required PaytabsSessionConfig config,
+    required String customerEmail,
+    required String code,
+    required String message,
+  }) {
+    return PaymentResult(
+      success: false,
+      transactionReference: '',
+      invoiceId: config.cartId,
+      responseCode: code,
+      responseMessage: message,
+      customerEmail: customerEmail,
+      amount: config.amount,
+    );
+  }
+}
+
+/// Whether a failed [PaymentResult] represents the user backing out rather than
+/// a decline, which decides between the cancelled and rejected screens.
+bool isUserCancellation(PaymentResult result) {
+  final code = result.responseCode.toUpperCase();
+  final message = result.responseMessage.toLowerCase();
+  return code == 'CANCELLED' ||
+      code == 'EVENT_CANCELLED' ||
+      code == 'CANCEL' ||
+      message.contains('cancel');
+}

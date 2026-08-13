@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -14,24 +13,26 @@ import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/authentication/location_picker.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/ride_booking/voice_note_dialog.dart';
-import 'dart:convert';
 import 'dart:io';
-import 'package:dio/dio.dart';
-import 'package:premium_force_main/models/booking_request_model.dart';
 import 'package:premium_force_main/models/car_model.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/models/payment_model.dart';
-import 'package:premium_force_main/services/payment_service.dart';
-import 'package:premium_force_main/utils/paytabs_config.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:premium_force_main/ride_booking/payment_rejected_page.dart';
 import 'package:premium_force_main/ride_booking/payment_cancelled_page.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:premium_force_main/utils/zone_helper.dart';
 import 'package:premium_force_main/models/pricing/zone_model.dart';
+import 'package:premium_force_main/api/booking_api_v2.dart';
+import 'package:premium_force_main/models/v2/available_vehicle.dart';
+import 'package:premium_force_main/models/v2/booking_service_type.dart';
+import 'package:premium_force_main/models/v2/checkout_models.dart';
+import 'package:premium_force_main/models/v2/geo_models.dart';
+import 'package:premium_force_main/providers/booking_session_provider.dart';
+import 'package:premium_force_main/services/service_availability_service.dart';
+import 'package:premium_force_main/services/session_payment_service.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -39,8 +40,6 @@ class NewBooking extends StatefulWidget {
   final List<Map<String, dynamic>>? preloadedCities;
   final List<Map<String, dynamic>>? preloadedAirports;
   final List<Map<String, dynamic>>? preloadedTerminals;
-  final Map<String, List<Map<String, dynamic>>>? preloadedHourlyPricing;
-  final List<int>? preloadedHourOptions;
 
   const NewBooking({
     super.key,
@@ -50,8 +49,6 @@ class NewBooking extends StatefulWidget {
     this.preloadedCities,
     this.preloadedAirports,
     this.preloadedTerminals,
-    this.preloadedHourlyPricing,
-    this.preloadedHourOptions,
   });
 
   final String? cityId;
@@ -70,18 +67,15 @@ class _NewBookingState extends State<NewBooking> {
   double _totalDistance = 50.0;
 
   // Fetched car data from the backend
-  List<Map<String, dynamic>> _brands = [];
   List<CarModel> _cars = [];
   List<Map<String, dynamic>> _apiCategories = [];
   List<Map<String, dynamic>> _apiCities = [];
   List<Map<String, dynamic>> _apiAirports = [];
   List<Map<String, dynamic>> _apiTerminals = [];
   Map<String, String> _brandIcons = {}; // Added this
-  double? _routePrice;
   bool _isCheckingRoute = false;
   List<ZoneModel> _allZones = []; // New field: List of all fetched API zones
 
-  Set<String>? _supportedCarIds; // IDs of cars that have valid routes
   bool _isFilteringCars = false;
 
   final _tripInfoFormKey = GlobalKey<FormState>();
@@ -104,16 +98,18 @@ class _NewBookingState extends State<NewBooking> {
   TimeOfDay? _selectedPickupTime;
 
   String? _dropAddress;
-  String? _dropCityName;
   double? _dropLat;
   double? _dropLng;
   String? _pickupAddress;
-  String? _pickupCityName;
   double? _pickupLat;
   double? _pickupLng;
 
   TextEditingController flightNumberController = TextEditingController();
   TextEditingController specialRequestsController = TextEditingController();
+  final TextEditingController _couponController = TextEditingController();
+
+  /// Rejection reason for the last coupon attempt, shown under the field.
+  String? _couponError;
   TextEditingController _passengerNameController = TextEditingController();
   TextEditingController _mobileNumberController = TextEditingController();
   String? _specialRequestsVoiceNotePath;
@@ -122,87 +118,646 @@ class _NewBookingState extends State<NewBooking> {
   String _selectedPassengerCountryCode = '966';
 
   // Promo Code variables
-  bool _isPromoValid = false;
-  String? _appliedPromoId;
   double _discountPercentage = 0.0;
 
   int _selectedEstimatedHours = 0; // 0 means not selected yet
-  bool _allowSimilarVehicle = true;
   double _vatPercentage = 15.0;
-  final Map<String, double> _hourlyPrices = {};
 
-  // Cached hourly pricing data: vehicleId → list of {hour, price} entries
-  Map<String, List<Map<String, dynamic>>> _allHourlyPricingByVehicle = {};
-  List<int> _availableHourOptions =
-      []; // unique hours across all vehicles, sorted ascending
   bool _isLoadingHourlyPrices = false;
 
-  double get _calculatedCharge {
-    if (_routePrice != null && _routePrice! > 0) return _routePrice!;
+  /// Durations offered in the chauffeur picker.
+  ///
+  /// Fixed client-side because session initiation needs `hours` *before* any
+  /// vehicle is known, and v2 has no endpoint that publishes the bookable
+  /// durations. The backend still validates the choice on init and rejects an
+  /// unsupported one, so this only decides what is offered.
+  static const List<int> _hourOptions = [4, 6, 8, 12];
 
-    final car = _getSelectedCar();
-    if (car == null) return 50.0; // Minimal default
+  // ---------------------------------------------------------------------------
+  // v2 backend-driven session
+  //
+  // The booking draft lives on the server (Redis, 1-hour TTL). Each step posts
+  // to the session API and the response replaces local state, so availability,
+  // fares, VAT, discounts and the payable total are all decided server-side.
+  // Nothing below computes a price.
+  // ---------------------------------------------------------------------------
 
-    // For Chauffeur Service
-    if (_selectedCatCode == 2) {
-      // Each hour option is a fixed package price from the API.
-      // _hourlyPrices[car.id] is set to the price for the selected hour.
-      return _hourlyPrices[car.id] ?? car.price;
+  /// Scoped to this screen: one draft per booking attempt.
+  final BookingSessionProvider _session = BookingSessionProvider();
+  final ServiceAvailabilityService _availability = ServiceAvailabilityService();
+  final BookingApiV2 _apiV2 = BookingApiV2();
+
+  /// Cities from the v2 API, reshaped for the existing dropdowns.
+  ///
+  /// The trip-info form reads untyped maps keyed by the legacy field names, so
+  /// the typed model is flattened back to that shape rather than rewriting the
+  /// form. Inactive cities are dropped — they are not bookable.
+  Future<Map<String, dynamic>> _fetchCitiesV2() async {
+    final result = await _apiV2.getCities();
+    final cities = result.data;
+    if (cities == null) {
+      return {'success': false, 'message': result.message};
     }
 
-    // For Private Transfer (CatCode 3)
-    if (_selectedCatCode == 3) {
-      return _routePrice ?? 0.0;
+    return {
+      'success': true,
+      'data': [
+        for (final city in cities.where((c) => c.isActive))
+          {
+            '_id': city.id,
+            'cityName': city.name,
+            'cityNameAr': city.nameAr,
+            'bookingBufferHours': city.bookingBufferHours,
+            'isActive': city.isActive,
+            'lat': city.lat,
+            'long': city.lng,
+          },
+      ],
+      // Kept so airports/terminals can be read from the nested payload when the
+      // backend returns them that way.
+      'cities': cities,
+    };
+  }
+
+  /// Airports for the dropdowns, preferring any nested in the cities payload.
+  ///
+  /// Falls back to the standalone v2 endpoint, then to v1, because whether
+  /// `GET /cities` nests them is not yet settled.
+  Future<Map<String, dynamic>> _fetchAirportsV2(
+    List<CityV2> citiesFromV2,
+  ) async {
+    final nested = [
+      for (final city in citiesFromV2)
+        for (final airport in city.airports)
+          if (airport.isActive)
+            {
+              '_id': airport.id,
+              'airportName': airport.name,
+              'airportNameAr': airport.nameAr,
+              'cityID': airport.cityId ?? city.id,
+              'lat': airport.lat,
+              'long': airport.lng,
+              'isActive': airport.isActive,
+            },
+    ];
+    if (nested.isNotEmpty) return {'success': true, 'data': nested};
+
+    final result = await _apiV2.getAirports();
+    final airports = result.data;
+    if (airports != null && airports.isNotEmpty) {
+      return {
+        'success': true,
+        'data': [
+          for (final airport in airports.where((a) => a.isActive))
+            {
+              '_id': airport.id,
+              'airportName': airport.name,
+              'airportNameAr': airport.nameAr,
+              'cityID': airport.cityId,
+              'lat': airport.lat,
+              'long': airport.lng,
+              'isActive': airport.isActive,
+            },
+        ],
+      };
     }
 
-    // Distance-based pricing for Airport service if no route price found
-    double distance = _totalDistance;
-    double minCharge = car.price;
-    double minDistance = car.distance;
+    return ApiService().getAirports();
+  }
 
-    if (distance <= minDistance) {
-      return minCharge;
-    } else {
-      double extraDistance = distance - minDistance;
-      // Extra charge per km
-      double pricePerExtraKm = (minCharge / minDistance) * 1.2;
-      return minCharge + (extraDistance * pricePerExtraKm);
+  /// Terminals for the dropdowns, with the same nested-then-fallback strategy.
+  Future<Map<String, dynamic>> _fetchTerminalsV2(
+    List<CityV2> citiesFromV2,
+  ) async {
+    final nested = [
+      for (final city in citiesFromV2)
+        for (final airport in city.airports)
+          for (final terminal in airport.terminals)
+            if (terminal.isActive)
+              {
+                '_id': terminal.id,
+                'terminalName': terminal.name,
+                'terminalNameAr': terminal.nameAr,
+                'airportID': terminal.airportId ?? airport.id,
+                'isActive': terminal.isActive,
+              },
+    ];
+    if (nested.isNotEmpty) return {'success': true, 'data': nested};
+
+    final result = await _apiV2.getTerminals();
+    final terminals = result.data;
+    if (terminals != null && terminals.isNotEmpty) {
+      return {
+        'success': true,
+        'data': [
+          for (final terminal in terminals.where((t) => t.isActive))
+            {
+              '_id': terminal.id,
+              'terminalName': terminal.name,
+              'terminalNameAr': terminal.nameAr,
+              'airportID': terminal.airportId,
+              'isActive': terminal.isActive,
+            },
+        ],
+      };
     }
+
+    return ApiService().getTerminals();
+  }
+
+  /// The product being booked, derived from the legacy `catcode`.
+  BookingServiceType get _serviceType =>
+      BookingServiceType.fromCatCode(_selectedCatCode);
+
+  /// The pickup instant the user chose.
+  ///
+  /// Airport departure and chauffeur capture pickup in their own date/time
+  /// fields; arrival and private transfer use the primary pair.
+  DateTime? get _pickupInstant {
+    final usesPickupFields = _selectedCatCode == 1 || _selectedCatCode == 2;
+    final date = usesPickupFields ? _selectedPickupDate : _selectedDate;
+    final time = usesPickupFields ? _selectedPickupTime : _selectedTime;
+    if (date == null || time == null) return null;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  /// Step 1 → 2: create the server draft, then load the vehicles it prices.
+  ///
+  /// The backend re-resolves cities/zones and re-checks the booking buffer here,
+  /// so a rejection at this point is authoritative and its message is shown
+  /// verbatim.
+  Future<bool> _startSessionAndLoadVehicles(AppLocalizations loc) async {
+    final pickupAt = _pickupInstant;
+    if (pickupAt == null) {
+      _showCustomSnackBar(loc.somethingWentWrong, 'E');
+      return false;
+    }
+
+    bool started = false;
+
+    switch (_serviceType) {
+      case BookingServiceType.airportArrival:
+      case BookingServiceType.airportDeparture:
+        final airportId = _getSelectedAirportId();
+        final terminalId = _getSelectedTerminalId();
+        if (airportId == null ||
+            airportId.isEmpty ||
+            terminalId == null ||
+            terminalId.isEmpty) {
+          _showCustomSnackBar(loc.somethingWentWrong, 'E');
+          return false;
+        }
+
+        // The customer-side endpoint is the drop-off on arrival and the pickup
+        // on departure; the other end is always the airport terminal.
+        final isArrival = _serviceType == BookingServiceType.airportArrival;
+        final lat = isArrival ? _dropLat : _pickupLat;
+        final lng = isArrival ? _dropLng : _pickupLng;
+        final address = isArrival ? _dropAddress : _pickupAddress;
+
+        if (lat == null || lng == null || address == null || address.isEmpty) {
+          _showCustomSnackBar(loc.pickupLocationIsRequired, 'E');
+          return false;
+        }
+
+        started = await _session.startAirportSession(
+          serviceType: _serviceType,
+          airportId: airportId,
+          terminalId: terminalId,
+          customerLat: lat,
+          customerLng: lng,
+          customerAddress: address,
+          pickupDateTime: pickupAt,
+          flightNumber: flightNumberController.text,
+        );
+
+      case BookingServiceType.chauffeur:
+        if (_pickupLat == null ||
+            _pickupLng == null ||
+            _pickupAddress == null) {
+          _showCustomSnackBar(loc.pickupLocationIsRequired, 'E');
+          return false;
+        }
+        started = await _session.startChauffeurSession(
+          pickupLat: _pickupLat!,
+          pickupLng: _pickupLng!,
+          pickupAddress: _pickupAddress!,
+          hours: _selectedEstimatedHours,
+          pickupDateTime: pickupAt,
+        );
+
+      case BookingServiceType.privateTransfer:
+        if (_pickupLat == null ||
+            _pickupLng == null ||
+            _pickupAddress == null ||
+            _dropLat == null ||
+            _dropLng == null ||
+            _dropAddress == null) {
+          _showCustomSnackBar(loc.pickupLocationIsRequired, 'E');
+          return false;
+        }
+        started = await _session.startPrivateTransferSession(
+          pickupLat: _pickupLat!,
+          pickupLng: _pickupLng!,
+          pickupAddress: _pickupAddress!,
+          dropOffLat: _dropLat!,
+          dropOffLng: _dropLng!,
+          dropOffAddress: _dropAddress!,
+          pickupDateTime: pickupAt,
+        );
+    }
+
+    if (!started) {
+      _showNoServiceAlert(
+        message: _session.errorMessage ?? loc.somethingWentWrong,
+      );
+      return false;
+    }
+
+    if (!await _session.loadVehicles()) {
+      _showNoServiceAlert(
+        message: _session.errorMessage ?? loc.somethingWentWrong,
+      );
+      return false;
+    }
+
+    _adoptSessionVehicles();
+
+    if (_cars.isEmpty) {
+      _showNoServiceAlert(message: loc.somethingWentWrong);
+      return false;
+    }
+    return true;
+  }
+
+  /// Feed the server-priced vehicles into the existing selection UI.
+  ///
+  /// Mapping them onto [CarModel] keeps the class/brand/model pickers and the
+  /// fleet cards unchanged, while the ids they carry become v2 vehicle ids.
+  void _adoptSessionVehicles() {
+    final response = _session.vehicles;
+    if (response == null) return;
+
+    final bookable = response.vehicles.where((v) => v.isAvailable).toList();
+    if (!mounted) return;
+
+    setState(() {
+      _cars = bookable.map(_toCarModel).toList();
+
+      // Classes, brands and logos ship with the vehicle list, so the pickers
+      // can never offer an option this route does not actually support.
+      _apiCategories = [
+        for (final category in response.categories)
+          {
+            '_id': category.id,
+            'name': category.name,
+            'nameAr': category.nameAr,
+          },
+      ];
+      _brandIcons = {
+        for (final brand in response.brands)
+          if (brand.icon != null && brand.icon!.isNotEmpty)
+            brand.name: brand.icon!,
+      };
+    });
+
+    _selectInitialVehicleClass();
+    _syncSelectionToSupportedCars();
+  }
+
+  /// Pick a sensible default class the first time vehicles arrive.
+  ///
+  /// Runs here rather than at screen load because the class list is now scoped
+  /// to the resolved route, and only exists once the session has been created.
+  void _selectInitialVehicleClass() {
+    if (_apiCategories.isEmpty) return;
+
+    final names = _apiCategories
+        .map((c) => (c['name'] ?? '').toString().trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+    if (names.isEmpty) return;
+
+    // Keep an existing choice when it survived into the new list.
+    if (_selectedVehicleClass != null &&
+        names.contains(_selectedVehicleClass)) {
+      return;
+    }
+
+    final preferred = _selectedCatCode == 2 ? 'chauffeur' : 'sedan';
+    _selectedVehicleClass = names.firstWhere(
+      (name) => name.toLowerCase().contains(preferred),
+      orElse: () => names.first,
+    );
+  }
+
+  /// Bridge a server-priced vehicle into the legacy view model.
+  CarModel _toCarModel(AvailableVehicle vehicle) {
+    return CarModel(
+      id: vehicle.vehicleId,
+      className: vehicle.category?.name ?? '',
+      brand: vehicle.brand?.name ?? '',
+      modelName: vehicle.displayName.isNotEmpty
+          ? vehicle.displayName
+          : vehicle.name,
+      imagePath: vehicle.image ?? '',
+      // Price and distance are vestigial on this view model — the backend owns
+      // pricing, and nothing on screen reads either field.
+      price: 0,
+      distance: 0,
+      maxPassengers: vehicle.maxPassengers ?? 4,
+      brandId: vehicle.brand?.id,
+      categoryId: vehicle.category?.id,
+    );
+  }
+
+  /// Step 2 → 3: attach the chosen vehicle and ride notes to the draft.
+  Future<bool> _submitVehicleSelection(AppLocalizations loc) async {
+    final vehicleId = _getSelectedCarId();
+    if (vehicleId == null || vehicleId.isEmpty) {
+      _showCustomSnackBar(loc.somethingWentWrong, 'E');
+      return false;
+    }
+
+    final saved = await _session.selectVehicle(
+      vehicleId: vehicleId,
+      rideNotes: specialRequestsController.text,
+    );
+
+    if (!saved) {
+      _showCustomSnackBar(_session.errorMessage ?? loc.somethingWentWrong, 'E');
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Step 3 → 4: save passengers, then pull the authoritative price breakdown.
+  Future<bool> _submitPassengerAndLoadCheckout(AppLocalizations loc) async {
+    final names = _passengerNameController.text
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .join(', ');
+
+    final saved = await _session.savePassengerDetails(
+      passengersCount: int.tryParse(_numberOfPassengers ?? '1') ?? 1,
+      passengerNames: names,
+      passengerPhone:
+          '+$_selectedPassengerCountryCode'
+          '${_mobileNumberController.text.replaceAll(' ', '')}',
+    );
+
+    if (!saved) {
+      _showCustomSnackBar(_session.errorMessage ?? loc.somethingWentWrong, 'E');
+      return false;
+    }
+
+    if (!await _session.loadCheckout()) {
+      _showCustomSnackBar(_session.errorMessage ?? loc.somethingWentWrong, 'E');
+      return false;
+    }
+
+    _adoptCheckoutPricing();
+    return true;
+  }
+
+  /// Mirror the parts of the server breakdown the summary shows as labels.
+  ///
+  /// Amounts are read straight from [_serverPricing]; only the VAT and discount
+  /// *percentages* are kept here, because the summary labels them as percentages
+  /// while the API reports the discount as an absolute amount.
+  void _adoptCheckoutPricing() {
+    final pricing = _session.pricing;
+    if (pricing == null || !mounted) return;
+
+    setState(() {
+      _vatPercentage = pricing.vat.percentage;
+      _discountPercentage = pricing.baseFare > 0
+          ? (pricing.discounts.totalDiscount / pricing.baseFare) * 100
+          : 0;
+      _totalDistance = _session.route?.distanceKm ?? _totalDistance;
+    });
+  }
+
+  // ── Coupons ──────────────────────────────────────────────────────────────
+
+  /// The server's price breakdown, once checkout has been loaded.
+  ///
+  /// The summary renders these amounts directly rather than recomputing them,
+  /// so what the user sees is exactly what the gateway will charge.
+  CheckoutPricing? get _serverPricing => _session.pricing;
+
+  // Zero until checkout has been fetched; the review step is only reachable
+  // after it succeeds, so these never render a client-derived figure.
+  double get _summaryBaseFare => _serverPricing?.baseFare ?? 0;
+
+  double get _summaryDiscount => _serverPricing?.discounts.totalDiscount ?? 0;
+
+  double get _summaryVatAmount => _serverPricing?.vat.amount ?? 0;
+
+  double get _summaryTotal => _serverPricing?.totalAmount ?? 0;
+
+  /// The coupon currently applied to the draft, if any.
+  AppliedCoupon? get _appliedCoupon => _serverPricing?.discounts.coupon;
+
+  bool get _isCouponBusy => _session.busy == SessionBusy.applyingCoupon;
+
+  /// Send the entered code to the backend, which recalculates the whole
+  /// checkout and returns it.
+  Future<void> _applyCouponCode(AppLocalizations loc) async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _couponError = loc.pleaseEnterYourPromoCode);
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() => _couponError = null);
+
+    if (!await _session.applyCoupon(code)) {
+      setState(
+        () => _couponError = _session.errorMessage ?? loc.invalidPromoCode,
+      );
+      return;
+    }
+
+    _adoptCheckoutPricing();
+    _couponController.clear();
+    _showCustomSnackBar(loc.promoCodeAppliedSuccessfully, 'S');
+  }
+
+  /// Drop the applied coupon and re-read the restored pricing.
+  Future<void> _removeCouponCode(AppLocalizations loc) async {
+    FocusScope.of(context).unfocus();
+
+    if (!await _session.removeCoupon()) {
+      _showCustomSnackBar(_session.errorMessage ?? loc.somethingWentWrong, 'E');
+      return;
+    }
+
+    _adoptCheckoutPricing();
+    setState(() => _couponError = null);
+    _showCustomSnackBar(loc.promoCodeRemoved, 'S');
+  }
+
+  /// Step 4: confirm the draft, pay if required, and let the backend settle it.
+  ///
+  /// Order matters — the booking row is created by `confirm` *before* the SDK
+  /// opens, so a charge can never exist without a booking attached to it.
+  Future<void> _confirmAndPay(AppLocalizations loc) async {
+    if (_isBooking) return;
+    setState(() => _isBooking = true);
+
+    try {
+      final confirmation = await _session.confirm();
+      if (confirmation == null) {
+        _showCustomSnackBar(_session.errorMessage ?? loc.bookingFailed, 'E');
+        return;
+      }
+
+      // A fully-discounted booking is already confirmed; no gateway involved.
+      if (!confirmation.paymentRequired) {
+        _goToSuccess(loc);
+        return;
+      }
+
+      final config = confirmation.paytabsConfig!;
+      final method = await _choosePaymentMethod(loc);
+      if (method == null) return;
+
+      final userData = UserLocalStorage.getUserData();
+      final customerName =
+          userData?['name'] ?? userData?['username'] ?? 'Customer';
+      final customerEmail = userData?['email'] ?? '';
+      final customerPhone =
+          userData?['phone'] ?? userData?['phoneNumber'] ?? '';
+
+      final service = SessionPaymentService();
+      final paymentResult = method == 'apple_pay'
+          ? await service.startApplePayPayment(
+              config: config,
+              customerName: customerName,
+              customerEmail: customerEmail,
+              customerPhone: customerPhone,
+            )
+          : await service.startCardPayment(
+              config: config,
+              customerName: customerName,
+              customerEmail: customerEmail,
+              customerPhone: customerPhone,
+            );
+
+      debugPrint(
+        '💳 Session payment │ success=${paymentResult.success} '
+        'ref=${paymentResult.transactionReference} '
+        'msg=${paymentResult.responseMessage}',
+      );
+
+      if (!paymentResult.success) {
+        _goToPaymentFailure(paymentResult);
+        return;
+      }
+
+      // The SDK reporting success is not proof — the backend settles it.
+      final verification = await _session.verifyPayment(
+        transactionReference: paymentResult.transactionReference,
+      );
+
+      if (verification?.isConfirmed ?? false) {
+        _goToSuccess(loc);
+      } else {
+        _showCustomSnackBar(
+          verification?.message ??
+              _session.errorMessage ??
+              loc.somethingWentWrong,
+          'E',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Booking error: $e');
+      _showCustomSnackBar(loc.somethingWentWrong, 'E');
+    } finally {
+      if (mounted) setState(() => _isBooking = false);
+    }
+  }
+
+  /// Ask iOS users for a payment method; Android always pays by card.
+  ///
+  /// Returns `null` when the sheet is dismissed without choosing.
+  Future<String?> _choosePaymentMethod(AppLocalizations loc) async {
+    if (!Platform.isIOS) return 'card';
+
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1E1105),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Text(
+              loc.selectPaymentMethod,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.apple, color: Colors.white, size: 30),
+              title: Text(
+                loc.applePay,
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () => Navigator.pop(context, 'apple_pay'),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.credit_card,
+                color: Colors.white,
+                size: 30,
+              ),
+              title: Text(
+                loc.creditDebitCard,
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () => Navigator.pop(context, 'card'),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _goToSuccess(AppLocalizations loc) {
+    if (!mounted) return;
+    _showCustomSnackBar(loc.bookingConfirmedSuccessfully, 'S');
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const SuccessPage()),
+      (route) => false,
+    );
+  }
+
+  void _goToPaymentFailure(PaymentResult result) {
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => isUserCancellation(result)
+            ? const PaymentCancelledPage()
+            : PaymentRejectedPage(errorMessage: result.responseMessage),
+      ),
+    );
   }
 
   /// Helper to trigger price re-fetch
-  Future<void> _updatePricing() async {
-    if (_selectedCatCode != 3) return;
-
-    // Check if we have all needed data
-    bool hasLocations =
-        _pickupLat != null &&
-        _pickupLng != null &&
-        _dropLat != null &&
-        _dropLng != null;
-    if (!hasLocations) return;
-
-    if (mounted) setState(() => _isCheckingRoute = true);
-
-    try {
-      final res = await _fetchRouteDetails(withVehicle: true);
-      if (mounted) {
-        setState(() {
-          _isCheckingRoute = false;
-          if (res['success'] == true && res['data'] != null) {
-            _routePrice = _parseDouble(
-              res['data']['charge'] ?? res['data']['price'] ?? 0,
-            );
-          } else {
-            _routePrice = null;
-          }
-        });
-      }
-    } catch (e) {
-      debugPrint('❌ Firebase Pricing Error: $e');
-      if (mounted) setState(() => _isCheckingRoute = false);
-    }
-  }
 
   /// Get the current selected CarModel
   CarModel? _getSelectedCar() {
@@ -224,457 +779,10 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   /// Gets the city ID for the selected airport
-  String? _getAirportCityId() {
-    if (_apiAirports.isEmpty) return null;
-
-    final availableAirports = _getAvailableAirports(context);
-    if (availableAirports.isEmpty) return null;
-
-    final selectedAirportName =
-        availableAirports[_selectedAirportCode < availableAirports.length
-            ? _selectedAirportCode
-            : 0];
-
-    try {
-      final airport = _apiAirports.firstWhere(
-        (a) => a['airportName']?.toString() == selectedAirportName,
-      );
-      var cityId = airport['cityID'] ?? airport['cityId'] ?? airport['city_id'];
-      if (cityId is Map) {
-        cityId = cityId['_id'] ?? cityId['id'];
-      }
-      return cityId?.toString();
-    } catch (_) {
-      return null;
-    }
-  }
 
   /// Detects which city a location (lat/lng) belongs to using zones
-  String? _detectCityIdFromCoordinates(double lat, double lng) {
-    if (_allZones.isEmpty) return null;
-
-    final zone = ZoneHelper.detectZone(LatLng(lat, lng), _allZones);
-    return zone?.cityId;
-  }
-
-  String _normalizeCityName(String cityName) {
-    String name = cityName.toString().toLowerCase().trim().replaceAll(
-      RegExp(r'[^a-z0-9\u0600-\u06FF]'),
-      '',
-    );
-
-    if (name.contains('medina') || name.contains('madina')) {
-      return 'madinah';
-    }
-    if (name.contains('makkah') ||
-        name.contains('mecca') ||
-        name.contains('maka')) {
-      return 'makkah';
-    }
-    if (name.contains('riyadh')) {
-      return 'riyadh';
-    }
-    if (name.contains('jeddah') || name.contains('jiddah')) {
-      return 'jeddah';
-    }
-    if (name.contains('dammam')) {
-      return 'dammam';
-    }
-
-    return name;
-  }
-
-  String? _getCityIdFromName(String cityName) {
-    if (_apiCities.isEmpty || cityName.trim().isEmpty) return null;
-    final normalized = _normalizeCityName(cityName);
-    for (final city in _apiCities) {
-      final names = <String?>[
-        city['cityName']?.toString(),
-        city['cityNameAr']?.toString(),
-      ];
-      for (final name in names) {
-        if (name == null) continue;
-        if (_normalizeCityName(name) == normalized) {
-          return (city['_id'] ?? city['id'])?.toString();
-        }
-      }
-    }
-    return null;
-  }
-
-  String? _resolveCityId(
-    String? cityName,
-    String? address,
-    double lat,
-    double lng,
-  ) {
-    debugPrint(
-      '🔍 _resolveCityId: Start resolving for CatCode: $_selectedCatCode',
-    );
-    debugPrint(
-      '🔍 _resolveCityId: Input -> CityName: "$cityName", Address: "$address", LatLng: ($lat, $lng)',
-    );
-    debugPrint('🔍 _resolveCityId: _apiCities count: ${_apiCities.length}');
-    for (var c in _apiCities) {
-      debugPrint(
-        '🔍 _resolveCityId: City in API -> ID: ${c['_id'] ?? c['id']}, Name: ${c['cityName']}, Ar: ${c['cityNameAr']}',
-      );
-    }
-
-    // 1. Try exact match from city name
-    String? cityId = _getCityIdFromName(cityName ?? '');
-    debugPrint('🔍 _resolveCityId: Exact match result for CityName: $cityId');
-
-    // 2. Try matching the address string (REMOVED due to false positives with province names)
-    // 3. Fallback to zone check ONLY IF it's not airport services
-    if (cityId == null && _selectedCatCode != 0 && _selectedCatCode != 1) {
-      cityId = _detectCityIdFromCoordinates(lat, lng);
-      debugPrint('🔍 _resolveCityId: Zone fallback result: $cityId');
-    } else if (cityId == null) {
-      debugPrint(
-        '🔍 _resolveCityId: Zone fallback SKIPPED because CatCode is $_selectedCatCode. Returning null.',
-      );
-    }
-
-    debugPrint('🔍 _resolveCityId: Final Resolved CityId: $cityId');
-    return cityId;
-  }
 
   /// Check route availability and optionally fetch price
-  Future<Map<String, dynamic>> _fetchRouteDetails({
-    bool withVehicle = false,
-  }) async {
-    final cityId = _getSelectedCityId();
-    final carId = _getSelectedCarId();
-    final airportCityId = _getAirportCityId();
-
-    if (cityId == null) {
-      return {'success': false, 'message': 'City not selected'};
-    }
-
-    String fromCity = cityId;
-    String toCity = cityId;
-
-    if (_selectedCatCode == 0) {
-      // Arrival: From Airport City to Drop Location City
-      if (_dropLat != null && _dropLng != null) {
-        final dropCityId = _resolveCityId(
-          _dropCityName,
-          _dropAddress,
-          _dropLat!,
-          _dropLng!,
-        );
-        if (dropCityId == null) {
-          return {
-            'success': false,
-            'message': 'This route is not available at the moment.',
-          };
-        }
-        toCity = dropCityId;
-      } else {
-        toCity = cityId;
-      }
-      fromCity = airportCityId ?? cityId;
-    } else if (_selectedCatCode == 1) {
-      // Departure: From Pickup Location City to Airport City
-      if (_pickupLat != null && _pickupLng != null) {
-        final pickupCityId = _resolveCityId(
-          _pickupCityName,
-          _pickupAddress,
-          _pickupLat!,
-          _pickupLng!,
-        );
-        if (pickupCityId == null) {
-          return {
-            'success': false,
-            'message': 'This route is not available at the moment.',
-          };
-        }
-        fromCity = pickupCityId;
-      } else {
-        fromCity = cityId;
-      }
-      toCity = airportCityId ?? cityId;
-    }
-
-    final api = ApiService();
-    final token = UserLocalStorage.getToken();
-
-    if (kDebugMode) {
-      debugPrint(
-        '🚀 🌐 API │ Route Check: From $fromCity To $toCity Cat: $_selectedCatCode',
-      );
-    }
-
-    if (_selectedCatCode == 2) {
-      // Chauffeur Category - Fetch Hourly Pricing
-      if (carId == null)
-        return {
-          'success': false,
-          'message': AppLocalizations.of(context)!.vehicleNotSelected,
-        };
-
-      final priceRes = await api.getHourlyPriceForVehicle(
-        vehicleId: carId,
-        token: token,
-      );
-
-      if (priceRes['success'] == true && priceRes['data'] != null) {
-        final pricing = (priceRes['data']['pricing'] as List?) ?? [];
-
-        // Use the selected hour directly — each hour is a fixed package
-        final int targetHour = _selectedEstimatedHours;
-
-        final match = pricing.firstWhere(
-          (p) => p['hour'] == targetHour,
-          orElse: () => null,
-        );
-
-        if (match != null) {
-          double price = _parseDouble(match['price'] ?? 0);
-
-          return {
-            'success': true,
-            'data': {'charge': price},
-          };
-        } else {
-          debugPrint('🌐 API │ No pricing found for hour: $targetHour');
-          return {
-            'success': false,
-            'message': AppLocalizations.of(
-              context,
-            )!.noPricingAvailableForSelectedDuration,
-          };
-        }
-      } else {
-        return {
-          'success': false,
-          'message':
-              priceRes['message'] ??
-              AppLocalizations.of(context)!.unableToFetchPricingForThisVehicle,
-        };
-      }
-    }
-
-    if (_selectedCatCode == 3) {
-      // --- 🏎️ Private Transfer: New Zone-based Pricing Logic ---
-      if (_pickupLat == null ||
-          _pickupLng == null ||
-          _dropLat == null ||
-          _dropLng == null) {
-        return {
-          'success': false,
-          'message': AppLocalizations.of(context)!.incompleteLocationData,
-        };
-      }
-
-      final pPoint = LatLng(_pickupLat!, _pickupLng!);
-      final dPoint = LatLng(_dropLat!, _dropLng!);
-
-      // 1. Detect Pickup & Drop Zones from fetched API zones
-      final pZone = ZoneHelper.detectZone(pPoint, _allZones);
-      final dZone = ZoneHelper.detectZone(dPoint, _allZones);
-
-      if (pZone == null || dZone == null) {
-        return {
-          'success': false,
-          'message': AppLocalizations.of(
-            context,
-          )!.serviceNotAvailableToSelectedArea,
-        };
-      }
-
-      // 2. Check if service is active to the zones
-      if (!pZone.isActive || !dZone.isActive) {
-        return {
-          'success': false,
-          'message': AppLocalizations.of(
-            context,
-          )!.serviceNotAvailableToSelectedArea,
-        };
-      }
-
-      // 3. Fetch prices for this zone route
-      final priceRes = await api.getZonePrices(
-        fromZoneId: pZone.id,
-        toZoneId: dZone.id,
-        token: token,
-      );
-
-      if (priceRes['success'] == true && priceRes['data'] != null) {
-        final List priceList = priceRes['data'] is List
-            ? priceRes['data']
-            : (priceRes['data']['prices'] ?? []);
-
-        if (withVehicle && carId != null) {
-          // Find price for the specific car
-          try {
-            final match = priceList.firstWhere((p) {
-              dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
-              String vId =
-                  (vIdRaw is Map ? (vIdRaw['_id'] ?? vIdRaw['id']) : vIdRaw)
-                      ?.toString() ??
-                  '';
-              return vId == carId;
-            });
-
-            return {
-              'success': true,
-              'data': {
-                'charge': _parseDouble(match['charge'] ?? match['price'] ?? 0),
-              },
-            };
-          } catch (_) {
-            return {
-              'success': false,
-              'message': AppLocalizations.of(
-                context,
-              )!.noPriceSetForThisVehicleOnThisRoute,
-            };
-          }
-        } else {
-          // return all valid vehicle IDs for filtering
-          final validCarIds = priceList
-              .where((p) => _parseDouble(p['charge'] ?? p['price'] ?? 0) > 0)
-              .map((p) {
-                dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
-                return (vIdRaw is Map
-                        ? (vIdRaw['_id'] ?? vIdRaw['id'])
-                        : vIdRaw)
-                    ?.toString();
-              })
-              .whereType<String>()
-              .toSet();
-
-          if (validCarIds.isEmpty) {
-            return {
-              'success': false,
-              'message': AppLocalizations.of(
-                context,
-              )!.noVehiclesAvailableForThisRoute,
-            };
-          }
-          return {'success': true, 'data': validCarIds};
-        }
-      }
-      return priceRes;
-    }
-
-    if (withVehicle && carId != null) {
-      Map<String, dynamic> priceRes;
-
-      if (_selectedCatCode == 0 || _selectedCatCode == 1) {
-        // --- ✈️ Airport Service: Use the same filtering endpoint that showed the car ---
-        priceRes = await api.getRoutesBetweenCities(
-          fromCityId: fromCity,
-          toCityId: toCity,
-          token: token,
-        );
-      } else {
-        // Fallback or other specific price fetching
-        priceRes = await api.getRoutePrice(
-          fromCityId: fromCity,
-          toCityId: toCity,
-          vehicleId: carId,
-          token: token,
-        );
-      }
-
-      if (priceRes['success'] == true && priceRes['data'] != null) {
-        // Handle both direct List or Map (with 'cars' list) from getRoutesBetweenCities
-        final List routes = (priceRes['data'] is Map)
-            ? (priceRes['data']['cars'] ?? [])
-            : (priceRes['data'] is List ? priceRes['data'] : []);
-
-        if (routes.isEmpty) {
-          return {
-            'success': false,
-            'message': 'This route is not available at the moment.',
-          };
-        }
-
-        try {
-          final match = routes.firstWhere((r) {
-            String? vId;
-            if (r['carDetails'] is Map) {
-              vId = r['carDetails']['_id']?.toString();
-            } else {
-              vId =
-                  (r['vehicleID'] is Map
-                          ? r['vehicleID']['_id']
-                          : (r['vehicle_id'] ?? r['vehicleID'] ?? ''))
-                      .toString();
-            }
-            return vId == carId;
-          });
-          return {'success': true, 'data': match};
-        } catch (_) {
-          debugPrint(
-            '🌐 API │ No matching route found in list for vehicle: $carId',
-          );
-          return {
-            'success': false,
-            'message': 'This route is not available at the moment.',
-          };
-        }
-      }
-      return priceRes;
-    } else {
-      Map<String, dynamic> filterRes;
-      if (_selectedCatCode == 0 || _selectedCatCode == 1) {
-        filterRes = await api.getRoutesBetweenCities(
-          fromCityId: fromCity,
-          toCityId: toCity,
-          token: token,
-        );
-      } else {
-        filterRes = await api.filterRoutes(
-          fromCityId: fromCity,
-          toCityId: toCity,
-          vehicleId: null,
-          token: token,
-        );
-      }
-
-      if (filterRes['success'] == true && filterRes['data'] != null) {
-        final List routes = (filterRes['data'] is Map)
-            ? (filterRes['data']['cars'] ?? [])
-            : (filterRes['data'] is List ? filterRes['data'] : []);
-
-        if (routes.isNotEmpty) {
-          return {'success': true, 'data': routes};
-        } else {
-          return {
-            'success': false,
-            'message': 'This route is not available at the moment.',
-          };
-        }
-      }
-      return filterRes;
-    }
-  }
-
-  Future<bool> _isRouteAvailable(String fromCity, String toCity) async {
-    if (fromCity.isEmpty || toCity.isEmpty) return false;
-    try {
-      final api = ApiService();
-      final token = UserLocalStorage.getToken();
-      final res = await api.getRoutesBetweenCities(
-        fromCityId: fromCity,
-        toCityId: toCity,
-        token: token,
-      );
-      if (res['success'] == true && res['data'] != null) {
-        final List routes = (res['data'] is Map)
-            ? (res['data']['cars'] ?? [])
-            : (res['data'] is List ? res['data'] : []);
-        return routes.isNotEmpty;
-      }
-    } catch (e) {
-      debugPrint('Error checking route availability: $e');
-    }
-    return false;
-  }
 
   void _showLoadingDialog() {
     showDialog(
@@ -779,12 +887,6 @@ class _NewBookingState extends State<NewBooking> {
     _apiCities = widget.preloadedCities ?? [];
     _apiAirports = widget.preloadedAirports ?? [];
     _apiTerminals = widget.preloadedTerminals ?? [];
-    if (widget.preloadedHourlyPricing != null) {
-      _allHourlyPricingByVehicle = widget.preloadedHourlyPricing!;
-    }
-    if (widget.preloadedHourOptions != null) {
-      _availableHourOptions = widget.preloadedHourOptions!;
-    }
 
     // Autofill passenger details using customer data
     final userDataMap = UserLocalStorage.getUserData();
@@ -804,43 +906,7 @@ class _NewBookingState extends State<NewBooking> {
     }
 
     _loadCarData();
-    _loadUserPromoCode();
     _loadVat();
-  }
-
-  Future<void> _loadUserPromoCode() async {
-    final userData = UserLocalStorage.getUserData();
-    final specialId = userData?['specialId']?.toString();
-    if (specialId == null || specialId.isEmpty) return;
-
-    // Only apply if discount is approved
-    if (userData?['isDiscountApproved'] != 'approved') return;
-
-    final result = await ApiService().validatePromoCode(
-      code: specialId,
-      companyEmail: userData?['email']?.toString(),
-    );
-    if (result['success'] == true) {
-      final promo = result['data'];
-      if (promo != null) {
-        if (mounted) {
-          setState(() {
-            _isPromoValid = true;
-            _appliedPromoId = promo['_id'] ?? promo['id'];
-            _discountPercentage = _parseDouble(
-              promo['discountPercentage'] ?? promo['discount'] ?? 0,
-            );
-          });
-        }
-      } else {
-        if (mounted) {
-          _showCustomSnackBar(
-            "Promo code expired, please add a new promo code",
-            "E",
-          );
-        }
-      }
-    }
   }
 
   Future<void> _loadVat() async {
@@ -859,495 +925,104 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   /// Load car data (categories, brands, cars) from the backend API.
+  /// Load the reference data the trip-info form needs.
+  ///
+  /// Vehicles, classes and brands are deliberately absent here: they arrive
+  /// with the session's `GET /bookings/session/vehicles` response, already
+  /// priced and scoped to the resolved route, so there is no longer a
+  /// catalogue-wide fetch when the screen opens.
   Future<void> _loadCarData() async {
     try {
-      final api = ApiService();
-      final token = UserLocalStorage.getToken();
+      final citiesResponse = _apiCities.isEmpty
+          ? await _fetchCitiesV2()
+          : <String, dynamic>{'success': true, 'data': _apiCities};
 
-      final List<Future<Map<String, dynamic>>> futures = [
-        api.getCategories(token: token),
-        api.getBrands(token: token),
-        api.getCars(token: token),
-        api.getZones(token: token), // Fetch zones
-      ];
+      final citiesFromV2 =
+          (citiesResponse['cities'] as List<CityV2>?) ?? const <CityV2>[];
 
-      if (_apiCities.isEmpty) {
-        futures.add(api.getCities());
-      } else {
-        futures.add(Future.value({'success': true, 'data': _apiCities}));
-      }
+      final results =
+          await Future.wait<Map<String, dynamic>>([
+            _apiAirports.isEmpty
+                ? _fetchAirportsV2(citiesFromV2)
+                : Future.value({'success': true, 'data': _apiAirports}),
+            _apiTerminals.isEmpty
+                ? _fetchTerminalsV2(citiesFromV2)
+                : Future.value({'success': true, 'data': _apiTerminals}),
+            ApiService().getZones(token: UserLocalStorage.getToken()),
+          ]).catchError((e) {
+            debugPrint('Error loading location data: $e');
+            return <Map<String, dynamic>>[{}, {}, {}];
+          });
 
-      if (_apiAirports.isEmpty) {
-        futures.add(api.getAirports());
-      } else {
-        futures.add(Future.value({'success': true, 'data': _apiAirports}));
-      }
+      if (!mounted) return;
 
-      if (_apiTerminals.isEmpty) {
-        futures.add(api.getTerminals());
-      } else {
-        futures.add(Future.value({'success': true, 'data': _apiTerminals}));
-      }
+      final airportsResult = results[0];
+      final terminalsResult = results[1];
+      final zonesResult = results[2];
 
-      final results = await Future.wait(futures).catchError((e) {
-        debugPrint('Error in Future.wait: $e');
-        return <Map<String, dynamic>>[{}, {}, {}, {}, {}, {}];
+      setState(() {
+        if (citiesResponse['success'] == true) {
+          final citiesData = citiesResponse['data'];
+          if (citiesData is List) _apiCities = rawDataToList(citiesData);
+        }
+
+        if (airportsResult['success'] == true) {
+          final airportsData =
+              airportsResult['data'] ?? airportsResult['airports'];
+          if (airportsData is List) _apiAirports = rawDataToList(airportsData);
+        }
+
+        if (terminalsResult['success'] == true) {
+          final terminalsData =
+              terminalsResult['data'] ?? terminalsResult['terminals'];
+          if (terminalsData is List) {
+            _apiTerminals = rawDataToList(terminalsData);
+          }
+        }
+
+        if (zonesResult['success'] == true) {
+          final zonesData = zonesResult['data'] ?? zonesResult['zones'];
+          if (zonesData is List) {
+            _allZones = zonesData.map((z) => ZoneModel.fromJson(z)).toList();
+          }
+        }
+
+        // Private transfer only lists cities covered by an active zone, so a
+        // preselected city outside that set has to be corrected.
+        if (_selectedCatCode == 3) _resetCityIfUnzoned();
       });
-
-      final categoriesResult = results[0];
-      final brandsResult = results[1];
-      final carsResult = results[2];
-      final zonesResult = results[3]; // Index 3: Zones
-      final citiesResult = results[4]; // Index 4: Cities
-      final airportsResult = results[5]; // Index 5: Airports
-      final terminalsResult = results[6]; // Index 6: Terminals
-
-      if (mounted) {
-        setState(() {
-          // Normalise Zones
-          if (zonesResult['success'] == true) {
-            final zonesData = zonesResult['data'] ?? zonesResult['zones'];
-            if (zonesData is List) {
-              _allZones = zonesData.map((z) => ZoneModel.fromJson(z)).toList();
-              debugPrint('🌐 API │ Zones Normalized: ${_allZones.length}');
-            }
-          }
-
-          Map<String, String> categoryIdToName = {};
-          if (categoriesResult['success'] == true) {
-            final categoriesData =
-                categoriesResult['data'] ??
-                categoriesResult['categories'] ??
-                categoriesResult['payload'];
-            _apiCategories = rawDataToList(categoriesData);
-
-            if (categoriesData != null) {
-              final List categoriesList = categoriesData is List
-                  ? categoriesData
-                  : [categoriesData];
-              for (var category in categoriesList) {
-                if (category is Map) {
-                  final id = (category['_id'] ?? category['id'] ?? '')
-                      .toString();
-                  final name =
-                      (category['name'] ??
-                              category['categoryName'] ??
-                              category['category_name'] ??
-                              category['title'] ??
-                              'Unknown')
-                          .toString()
-                          .trim();
-                  if (id.isNotEmpty && name != 'Unknown') {
-                    categoryIdToName[id] = name;
-                  }
-                }
-              }
-            }
-          }
-
-          // Robust Brand data extraction
-          Map<String, String> brandIdToName = {};
-          if (brandsResult['success'] == true) {
-            dynamic brandsRaw =
-                brandsResult['data'] ??
-                brandsResult['brands'] ??
-                brandsResult['payload'];
-
-            // Handle if data is an object containing a brands list
-            if (brandsRaw is Map && brandsRaw.containsKey('brands')) {
-              brandsRaw = brandsRaw['brands'];
-            }
-
-            if (brandsRaw is List) {
-              _brands = rawDataToList(brandsRaw);
-              _brandIcons = {};
-              brandIdToName = {};
-
-              for (var brandObj in _brands) {
-                // Support both flat and nested brandInfo structure
-                final info = brandObj['brandInfo'] is Map
-                    ? brandObj['brandInfo']
-                    : brandObj;
-                final name =
-                    (info['name'] ??
-                            info['brandName'] ??
-                            info['brand'] ??
-                            'Unknown')
-                        .toString()
-                        .trim();
-                final id = (info['_id'] ?? info['id'] ?? info['brandID'] ?? '')
-                    .toString();
-
-                if (id.isNotEmpty && name != 'Unknown') {
-                  brandIdToName[id] = name;
-                  debugPrint('🌐 API │ Brand Mapping: $id -> $name');
-
-                  // Resolve Icon URL
-                  dynamic iconData =
-                      info['brandIcon'] ??
-                      info['icon'] ??
-                      info['brandimage'] ??
-                      info['image'];
-                  String iconUrl = '';
-                  if (iconData is Map) {
-                    iconUrl = iconData['url']?.toString() ?? '';
-                  } else if (iconData != null) {
-                    iconUrl = iconData.toString();
-                  }
-                  if (iconUrl.isNotEmpty) {
-                    _brandIcons[name] = iconUrl;
-                  }
-                }
-              }
-              debugPrint('🌐 API │ Brands Normalized: ${_brands.length}');
-            }
-          }
-
-          if (carsResult['success'] == true) {
-            dynamic carsRaw =
-                carsResult['data'] ??
-                carsResult['cars'] ??
-                carsResult['payload'];
-
-            // Handle if data is an object containing a cars list
-            if (carsRaw is Map && carsRaw.containsKey('cars')) {
-              carsRaw = carsRaw['cars'];
-            }
-
-            if (carsRaw is List) {
-              _cars = carsRaw
-                  .map((car) {
-                    if (car is CarModel) return car;
-                    if (car is Map) {
-                      final map = Map<String, dynamic>.from(car);
-
-                      String apiCategory = '';
-                      // Handle if categoryID is an object or a flat string
-                      dynamic cidRaw =
-                          map['categoryID'] ??
-                          map['categoryId'] ??
-                          map['category'];
-                      String cid =
-                          (cidRaw is Map
-                                  ? (cidRaw['_id'] ?? cidRaw['id'])
-                                  : cidRaw)
-                              ?.toString() ??
-                          '';
-
-                      if (cid.isNotEmpty)
-                        apiCategory = categoryIdToName[cid] ?? '';
-
-                      if (apiCategory.isEmpty ||
-                          apiCategory.toLowerCase() == 'unknown') {
-                        final catData = cidRaw is Map
-                            ? cidRaw['name']
-                            : (map['categoryName'] ?? map['className']);
-                        if (catData is String)
-                          apiCategory = catData;
-                        else if (catData is Map)
-                          apiCategory = catData['name'] ?? '';
-                      }
-                      apiCategory = apiCategory.isEmpty
-                          ? 'Unknown'
-                          : apiCategory;
-
-                      String apiBrand = '';
-                      // Handle if brandID is an object or a flat string
-                      dynamic bidRaw =
-                          map['brandID'] ?? map['brandId'] ?? map['brand'];
-                      String bid =
-                          (bidRaw is Map
-                                  ? (bidRaw['_id'] ??
-                                        bidRaw['id'] ??
-                                        bidRaw['brandID'])
-                                  : bidRaw)
-                              ?.toString() ??
-                          '';
-
-                      if (bid.isNotEmpty) apiBrand = brandIdToName[bid] ?? '';
-
-                      if (apiBrand.isEmpty ||
-                          apiBrand.toLowerCase() == 'unknown') {
-                        final brandData = bidRaw is Map
-                            ? (bidRaw['brandName'] ?? bidRaw['name'])
-                            : (map['brandName'] ?? map['brand']);
-                        if (brandData is String)
-                          apiBrand = brandData;
-                        else if (brandData is Map)
-                          apiBrand = brandData['name'] ?? '';
-                      }
-                      apiBrand = apiBrand.isEmpty ? 'Unknown' : apiBrand;
-
-                      String? carImage;
-                      final rawImage = map['carImage'] ?? map['image'];
-                      if (rawImage is String)
-                        carImage = rawImage;
-                      else if (rawImage is Map)
-                        carImage = rawImage['url'];
-
-                      if (carImage != null &&
-                          !carImage.startsWith('http') &&
-                          !carImage.startsWith('assets/')) {
-                        const host = 'https://api.premiumforcegroup.com';
-                        carImage = carImage.startsWith('/')
-                            ? '$host$carImage'
-                            : '$host/$carImage';
-                      }
-                      final carNameStr = (map['carName'] ?? '')
-                          .toString()
-                          .trim();
-                      final modelStr = (map['model'] ?? '').toString().trim();
-                      String modelLabel = "$modelStr $carNameStr".trim();
-                      // Hide any 4-digit year (e.g. 2024) from the model selection label
-                      modelLabel = modelLabel
-                          .replaceAll(RegExp(r'\b(19|20)\d{2}\b'), '')
-                          .replaceAll(RegExp(r'\s+'), ' ')
-                          .trim();
-                      if (modelLabel.isEmpty) modelLabel = 'Unknown';
-
-                      debugPrint(
-                        '🌐 API │ Car parsed: $apiBrand $modelLabel (Category: $apiCategory)',
-                      );
-
-                      return CarModel(
-                        id: (map['_id'] ?? map['id'] ?? '').toString(),
-                        className: apiCategory,
-                        brand: apiBrand,
-                        brandId: bid,
-                        categoryId: cid,
-                        modelName: modelLabel,
-                        imagePath: carImage ?? 'assets/images/bmwdummy.jpg',
-                        price: _parseDouble(
-                          map['minCharge'] ?? map['price'] ?? 0,
-                        ),
-                        distance: _parseDouble(
-                          map['minimumChargeDistance'] ?? map['distance'] ?? 10,
-                        ),
-                        maxPassengers: _parseInt(
-                          map['numberOfPassengers'] ?? 4,
-                        ),
-                      );
-                    }
-                    return null;
-                  })
-                  .whereType<CarModel>()
-                  .toList();
-            }
-          }
-
-          if (citiesResult['success'] == true) {
-            final citiesData = citiesResult['data'] ?? citiesResult['cities'];
-            if (citiesData is List) {
-              _apiCities = rawDataToList(
-                citiesData,
-              ).where((c) => c['isActive'] == true).toList();
-
-              // Resync: Ensure the index matches the cityId after full reload
-              if (widget.cityId != null) {
-                final index = _apiCities.indexWhere((c) {
-                  final id = (c['_id'] ?? c['id'])?.toString();
-                  return id == widget.cityId;
-                });
-                if (index != -1) {
-                  _selectedCityCode = index;
-                }
-              }
-            }
-          }
-          if (airportsResult['success'] == true) {
-            final airportsData =
-                airportsResult['data'] ?? airportsResult['airports'];
-            if (airportsData is List)
-              _apiAirports = rawDataToList(airportsData);
-          }
-          if (terminalsResult['success'] == true) {
-            final terminalsData =
-                terminalsResult['data'] ?? terminalsResult['terminals'];
-            if (terminalsData is List)
-              _apiTerminals = rawDataToList(terminalsData);
-          }
-
-          if (_apiCategories.isNotEmpty) {
-            String initialClass =
-                (_apiCategories.first['name'] ??
-                        _apiCategories.first['categoryName'] ??
-                        'Unknown')
-                    .toString()
-                    .trim();
-            if (_selectedCatCode == 2) {
-              for (var cat in _apiCategories) {
-                final name = (cat['name'] ?? cat['categoryName'] ?? '')
-                    .toString()
-                    .trim();
-                if (name.toLowerCase().contains('chauffeur')) {
-                  initialClass = name;
-                  break;
-                }
-              }
-            } else {
-              for (var cat in _apiCategories) {
-                final name = (cat['name'] ?? cat['categoryName'] ?? '')
-                    .toString()
-                    .trim();
-                if (name.toLowerCase().contains('sedan')) {
-                  initialClass = name;
-                  break;
-                }
-              }
-            }
-            if (initialClass.toLowerCase() == 'unknown') {
-              for (var cat in _apiCategories) {
-                final name = (cat['name'] ?? cat['categoryName'] ?? 'Unknown')
-                    .toString()
-                    .trim();
-                if (name.toLowerCase() != 'unknown') {
-                  initialClass = name;
-                  break;
-                }
-              }
-            }
-            _selectedVehicleClass = initialClass;
-            final brandsInClass = _getAvailableBrands(_selectedVehicleClass);
-            if (brandsInClass.isNotEmpty) {
-              _selectedVehicleBrand = brandsInClass.first;
-              final modelsInBrand = _getAvailableModels(
-                _selectedVehicleClass,
-                _selectedVehicleBrand,
-              );
-              _selectedVehicleModel = modelsInBrand.isNotEmpty
-                  ? modelsInBrand.first
-                  : null;
-            } else {
-              _selectedVehicleBrand = null;
-              _selectedVehicleModel = null;
-            }
-
-            // Final Safety Check for Private Transfer:
-            // If the currently selected city is one that should be hidden (has zone pricing),
-            // reset it to the first visible city according to the filter.
-            if (_selectedCatCode == 3) {
-              final String currentCityId =
-                  (_apiCities.isNotEmpty &&
-                      _selectedCityCode < _apiCities.length)
-                  ? (_apiCities[_selectedCityCode]['_id'] ??
-                            _apiCities[_selectedCityCode]['id'] ??
-                            '')
-                        .toString()
-                  : '';
-
-              final bool isCurrentCityHidden = !_allZones.any(
-                (z) => z.cityId == currentCityId && z.isActive,
-              );
-
-              if (isCurrentCityHidden) {
-                final visibleNames = _getAvailableCityNames(context);
-                if (visibleNames.isNotEmpty) {
-                  final firstVisibleName = visibleNames.first;
-                  final index = _apiCities.indexWhere((c) {
-                    final isArabic =
-                        Localizations.localeOf(context).languageCode == 'ar';
-                    final name =
-                        (isArabic
-                                ? (c['cityNameAr'] ?? c['cityName'])
-                                : c['cityName'])
-                            .toString();
-                    return name == firstVisibleName;
-                  });
-                  if (index != -1) _selectedCityCode = index;
-                }
-              }
-            }
-          }
-        });
-      }
-
-      // For chauffeur service, fetch hourly pricing for all vehicles
-      if (_selectedCatCode == 2 && _cars.isNotEmpty) {
-        _loadAllHourlyPrices();
-      }
     } catch (e) {
-      debugPrint('Error loading car data: $e');
+      debugPrint('Error loading location data: $e');
     }
   }
 
-  /// Fetch hourly pricing for all vehicles in parallel.
-  /// Builds [_allHourlyPricingByVehicle] and [_availableHourOptions].
-  Future<void> _loadAllHourlyPrices() async {
-    // If preloaded via widget, skip fetching to prevent empty states
-    if (widget.preloadedHourlyPricing != null &&
-        widget.preloadedHourOptions != null) {
-      return;
-    }
+  /// Move the selection to the first zone-covered city when the current one
+  /// would be hidden from the picker.
+  void _resetCityIfUnzoned() {
+    final currentCityId =
+        (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length)
+        ? (_apiCities[_selectedCityCode]['_id'] ??
+                  _apiCities[_selectedCityCode]['id'] ??
+                  '')
+              .toString()
+        : '';
 
-    if (_cars.isEmpty) return;
+    final isVisible = _allZones.any(
+      (z) => z.cityId == currentCityId && z.isActive,
+    );
+    if (isVisible) return;
 
-    if (mounted) setState(() => _isLoadingHourlyPrices = true);
+    final visibleNames = _getAvailableCityNames(context);
+    if (visibleNames.isEmpty) return;
 
-    try {
-      final api = ApiService();
-      final token = UserLocalStorage.getToken();
-
-      // Fire all requests in parallel
-      final futures = _cars.map((car) async {
-        try {
-          final res = await api.getHourlyPriceForVehicle(
-            vehicleId: car.id,
-            token: token,
-          );
-          return MapEntry(car.id, res);
-        } catch (e) {
-          debugPrint('⏱️ Hourly │ Error fetching price for ${car.id}: $e');
-          return MapEntry(car.id, <String, dynamic>{'success': false});
-        }
-      }).toList();
-
-      final results = await Future.wait(futures);
-
-      final Map<String, List<Map<String, dynamic>>> pricingByVehicle = {};
-      final Set<int> allHours = {};
-
-      for (final entry in results) {
-        final carId = entry.key;
-        final res = entry.value;
-
-        if (res['success'] == true && res['data'] != null) {
-          final pricing = (res['data']['pricing'] as List?);
-          if (pricing != null && pricing.isNotEmpty) {
-            final pricingList = pricing
-                .map((p) => Map<String, dynamic>.from(p as Map))
-                .toList();
-            pricingByVehicle[carId] = pricingList;
-
-            for (final p in pricingList) {
-              final hour = p['hour'];
-              if (hour is int && hour > 0 && hour != 999) {
-                allHours.add(hour);
-              }
-            }
-
-            debugPrint(
-              '⏱️ Hourly │ Vehicle $carId: ${pricingList.length} pricing entries',
-            );
-          }
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _allHourlyPricingByVehicle = pricingByVehicle;
-          _availableHourOptions = allHours.toList()..sort();
-          _isLoadingHourlyPrices = false;
-
-          debugPrint('⏱️ Hourly │ Available hours: $_availableHourOptions');
-          debugPrint(
-            '⏱️ Hourly │ Vehicles with pricing: ${pricingByVehicle.length}',
-          );
-        });
-      }
-    } catch (e) {
-      debugPrint('❌ Error loading hourly prices: $e');
-      if (mounted) setState(() => _isLoadingHourlyPrices = false);
-    }
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final index = _apiCities.indexWhere((c) {
+      final name =
+          (isArabic ? (c['cityNameAr'] ?? c['cityName']) : c['cityName'])
+              .toString();
+      return name == visibleNames.first;
+    });
+    if (index != -1) _selectedCityCode = index;
   }
 
   /// Helper to parse double values from API responses
@@ -1356,14 +1031,6 @@ class _NewBookingState extends State<NewBooking> {
     if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
-  }
-
-  /// Helper to parse int values from API responses
-  int _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value) ?? 0;
-    if (value is double) return value.toInt();
-    return 0;
   }
 
   bool _isNearAirport(double lat, double lng, String address) {
@@ -1383,156 +1050,38 @@ class _NewBookingState extends State<NewBooking> {
     return false;
   }
 
-  /// Get available brands for a given car class (category)
+  /// Brands available within a vehicle class.
+  ///
+  /// Derived straight from the fetched vehicles: the endpoint already returns
+  /// only what this route supports, so presence in [_cars] is the whole test.
   List<String> _getAvailableBrands(String? className) {
-    if (className == null) return [];
-    final categoryId = _getSelectedCategoryId();
-    debugPrint(
-      '🔍 Filter │ Getting brands for Class: $className (ID: $categoryId)',
-    );
+    if (className == null) return const [];
+    final target = className.toLowerCase().trim();
 
-    List<String> candidateBrands = [];
-
-    if (_brands.isNotEmpty) {
-      candidateBrands = _brands
-          .where((brand) {
-            // Primary Check: Match by categoryId if available
-            final categories =
-                brand['categories'] ??
-                brand['categoryID'] ??
-                brand['categoryId'] ??
-                brand['category'];
-
-            if (categories is List) {
-              return categories.any((c) {
-                String cid = (c is Map
-                    ? (c['id'] ?? c['_id'] ?? '').toString()
-                    : c.toString());
-                String cname =
-                    (c is Map
-                            ? (c['name'] ?? c['categoryName'] ?? '')
-                                  .toString()
-                                  .trim()
-                            : '')
-                        .toLowerCase();
-                return (categoryId != null && cid == categoryId) ||
-                    cname == className.toLowerCase().trim();
-              });
-            } else if (categories != null) {
-              String cid = (categories is Map
-                  ? (categories['id'] ?? categories['_id'] ?? '').toString()
-                  : categories.toString());
-              String cname =
-                  (categories is Map
-                          ? (categories['name'] ??
-                                    categories['categoryName'] ??
-                                    '')
-                                .toString()
-                                .trim()
-                          : '')
-                      .toLowerCase();
-              return (categoryId != null && cid == categoryId) ||
-                  cname == className.toLowerCase().trim();
-            }
-            return false;
-          })
-          .map((brand) {
-            final info = brand['brandInfo'] is Map ? brand['brandInfo'] : brand;
-            return (info['name'] ?? info['brandName'] ?? 'Unknown')
-                .toString()
-                .trim();
-          })
-          .where((name) => name != 'Unknown')
-          .toSet()
-          .toList();
-    }
-
-    // Fallback: Match brands by ID from cars in this class
-    if (candidateBrands.isEmpty) {
-      candidateBrands = _cars
-          .where(
-            (c) =>
-                (categoryId != null && c.categoryId == categoryId) ||
-                c.className.toLowerCase().trim() ==
-                    className.toLowerCase().trim(),
-          )
-          .map((c) => c.brand)
-          .where((b) => b != 'Unknown')
-          .toSet()
-          .toList();
-    }
-
-    debugPrint('🔍 Filter │ Candidate Brands before check: $candidateBrands');
-
-    // 🏎️ FILTER: Hide brands that have no supported cars if filtering is active
-    if (_supportedCarIds != null) {
-      final supportedResults = candidateBrands.where((brandName) {
-        return _cars.any(
-          (c) =>
-              _supportedCarIds!.contains(c.id) &&
-              c.brand.toLowerCase().trim() == brandName.toLowerCase().trim() &&
-              c.className.toLowerCase().trim() ==
-                  className.toLowerCase().trim(),
-        );
-      }).toList();
-      debugPrint('🔍 Filter │ Supported Brands result: $supportedResults');
-      return supportedResults;
-    }
-
-    return candidateBrands;
+    return _cars
+        .where((c) => c.className.toLowerCase().trim() == target)
+        .map((c) => c.brand.trim())
+        .where((b) => b.isNotEmpty && b.toLowerCase() != 'unknown')
+        .toSet()
+        .toList();
   }
 
-  /// Get available models for a given class and brand
+  /// Models available for a class and brand.
   List<String> _getAvailableModels(String? className, String? brand) {
-    if (className == null ||
-        brand == null ||
-        className == 'Unknown' ||
-        brand == 'Unknown')
-      return [];
+    if (className == null || brand == null) return const [];
+    final targetClass = className.toLowerCase().trim();
+    final targetBrand = brand.toLowerCase().trim();
 
-    final categoryId = _getSelectedCategoryId();
-    final brandId = _getSelectedBrandId();
-    debugPrint(
-      '🔍 Filter │ Getting models for ClassID: $categoryId ($className), BrandID: $brandId ($brand)',
-    );
-
-    final lowerClass = className.toLowerCase().trim();
-    final lowerBrand = brand.toLowerCase().trim();
-
-    final results = _cars
-        .where((c) {
-          // ID-based matching is more reliable than name-based strings
-          if (categoryId != null && brandId != null) {
-            return c.categoryId == categoryId && c.brandId == brandId;
-          }
-          // Name-based fallback if IDs not resolved
-          return c.className.toLowerCase().trim() == lowerClass &&
-              c.brand.toLowerCase().trim() == lowerBrand;
-        })
+    return _cars
+        .where(
+          (c) =>
+              c.className.toLowerCase().trim() == targetClass &&
+              c.brand.toLowerCase().trim() == targetBrand,
+        )
         .map((c) => c.modelName.trim())
         .where((m) => m.isNotEmpty && m.toLowerCase() != 'unknown')
-        .toSet() // Ensure uniqueness
+        .toSet()
         .toList();
-
-    debugPrint('🔍 Filter │ Filtered Models result: $results');
-
-    // 🏎️ FILTER: Hide models that have no supported cars if filtering is active
-    if (_supportedCarIds != null) {
-      final supportedResults = results.where((modelName) {
-        return _cars.any(
-          (c) =>
-              _supportedCarIds!.contains(c.id) &&
-              c.modelName.trim().toLowerCase() == modelName.toLowerCase() &&
-              c.className.toLowerCase().trim() ==
-                  className.toLowerCase().trim() &&
-              c.brand.toLowerCase().trim() == brand.toLowerCase().trim(),
-        );
-      }).toList();
-      debugPrint('🔍 Filter │ Supported Models result: $supportedResults');
-      return supportedResults;
-    }
-
-    return results;
   }
 
   /// Get passenger options based on selected car's max passengers
@@ -1561,360 +1110,22 @@ class _NewBookingState extends State<NewBooking> {
     AnimatedSnackBar.dismiss();
     flightNumberController.dispose();
     specialRequestsController.dispose();
+    _couponController.dispose();
     _scrollController.dispose();
+    _session.dispose();
     super.dispose();
-  }
-
-  Future<void> _calculateActualDistance() async {
-    String originStr = "";
-    String destStr = "";
-
-    String airportQuery;
-    if (_selectedCityCode == 1) {
-      airportQuery = "King Fahd International Airport, Dammam, Saudi Arabia";
-    } else if (_selectedCityCode == 2) {
-      airportQuery =
-          "King Abdulaziz International Airport, Jeddah, Saudi Arabia";
-    } else {
-      airportQuery = "King Khalid International Airport, Riyadh, Saudi Arabia";
-    }
-
-    if (_selectedCatCode == 0) {
-      // Airport Arrival
-      originStr = airportQuery;
-      destStr = "${_dropLat ?? 0},${_dropLng ?? 0}";
-    } else if (_selectedCatCode == 1) {
-      // Airport Departure
-      originStr = "${_pickupLat ?? 0},${_pickupLng ?? 0}";
-      destStr = airportQuery;
-    } else {
-      // Chauffeur
-      originStr = "${_pickupLat ?? 0},${_pickupLng ?? 0}";
-      destStr = "${_dropLat ?? 0},${_dropLng ?? 0}";
-    }
-
-    if (originStr.contains("0.0,0.0") || destStr.contains("0.0,0.0")) return;
-
-    try {
-      final dio = Dio();
-      const String apiKey =
-          "AIzaSyCMz7AHUHfw1BV6MTtWS2zwvLPk3XsnpGk"; // Extracted from AndroidManifest
-
-      final String encodedOrigin = Uri.encodeComponent(originStr);
-      final String encodedDest = Uri.encodeComponent(destStr);
-
-      final url =
-          "https://maps.googleapis.com/maps/api/directions/json?origin=$encodedOrigin&destination=$encodedDest&key=$apiKey";
-
-      final response = await dio.get(url);
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['status'] == 'OK' && (data['routes'] as List).isNotEmpty) {
-          final legs = data['routes'][0]['legs'];
-          if (legs != null && legs.isNotEmpty) {
-            final distanceMeters = legs[0]['distance']['value'];
-            setState(() {
-              _totalDistance = distanceMeters / 1000.0;
-              print("Distance: $_totalDistance");
-            });
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Distance calculation error: \$e");
-    }
   }
 
   void _showCustomSnackBar(String message, String type) {
     AnimatedSnackBar.show(context, message, type);
   }
 
-  /// 🏎️ NEW: Check car availability for the selected route/trip parameters
-  Future<void> _checkCarAvailability() async {
-    setState(() {
-      _isFilteringCars = true;
-      _supportedCarIds = null;
-    });
-
-    final Set<String> supportedIds = {};
-    final token = UserLocalStorage.getToken();
-    final api = ApiService();
-
-    try {
-      if (_selectedCatCode == 0 || _selectedCatCode == 1) {
-        // --- ✈️ Airport Service (Regular Routes) ---
-        final cityId = _getSelectedCityId();
-        final airportCityId = _getAirportCityId();
-        String fromCity = cityId ?? '';
-        String toCity = cityId ?? '';
-
-        if (_selectedCatCode == 0) {
-          // Arrival: Airport -> City
-          fromCity = airportCityId ?? cityId ?? '';
-
-          if (_dropLat != null && _dropLng != null) {
-            final dropCityId = _resolveCityId(
-              _dropCityName,
-              _dropAddress,
-              _dropLat!,
-              _dropLng!,
-            );
-            if (dropCityId == null || dropCityId.isEmpty) {
-              if (mounted) {
-                _showNoServiceAlert(
-                  message: "This route is not available at the moment.",
-                );
-              }
-              setState(() {
-                _supportedCarIds = {};
-                _isFilteringCars = false;
-              });
-              return;
-            }
-            toCity = dropCityId;
-          }
-        } else {
-          // Departure: City -> Airport
-          toCity = airportCityId ?? cityId ?? '';
-
-          if (_pickupLat != null && _pickupLng != null) {
-            final pickupCityId = _resolveCityId(
-              _pickupCityName,
-              _pickupAddress,
-              _pickupLat!,
-              _pickupLng!,
-            );
-            if (pickupCityId == null || pickupCityId.isEmpty) {
-              if (mounted) {
-                _showNoServiceAlert(
-                  message: "This route is not available at the moment.",
-                );
-              }
-              setState(() {
-                _supportedCarIds = {};
-                _isFilteringCars = false;
-              });
-              return;
-            }
-            fromCity = pickupCityId;
-          }
-        }
-
-        if (fromCity.isNotEmpty && toCity.isNotEmpty) {
-          debugPrint(
-            '🏎️ Filtering │ Checking Airport routes (From: $fromCity, To: $toCity)',
-          );
-          final res = await api.getRoutesBetweenCities(
-            fromCityId: fromCity,
-            toCityId: toCity,
-            token: token,
-          );
-          if (res['success'] == true && res['data'] != null) {
-            // Updated to handle the new Map structure: {"success":true, "data":{"totalCars":10, "cars":[...]}}
-            final List routes = (res['data'] is Map)
-                ? (res['data']['cars'] ?? [])
-                : (res['data'] is List ? res['data'] : []);
-
-            for (var r in routes) {
-              final price =
-                  double.tryParse(
-                    (r['price'] ?? r['charge'] ?? '0').toString(),
-                  ) ??
-                  0;
-              if (price > 0) {
-                String? vId;
-                if (r['carDetails'] is Map) {
-                  vId = r['carDetails']['_id']?.toString();
-                } else if (r['vehicleID'] is Map) {
-                  vId = r['vehicleID']['_id']?.toString();
-                } else {
-                  vId =
-                      (r['vehicle_id'] ?? r['vehicleID'] ?? r['_id'] ?? r['id'])
-                          ?.toString();
-                }
-
-                if (vId != null) {
-                  supportedIds.add(vId);
-                  debugPrint('🏎️ Filtering │ Airport car found: $vId');
-                }
-              }
-            }
-          }
-          if (supportedIds.isEmpty) {
-            _showNoServiceAlert(
-              message: "This route is not available at the moment.",
-            );
-          }
-        } else {
-          _showNoServiceAlert(
-            message: "This route is not available at the moment.",
-          );
-        }
-      } else if (_selectedCatCode == 2) {
-        // --- ⏱️ Hourly Service (using cached pricing data) ---
-        final int selectedHour = _selectedEstimatedHours;
-
-        debugPrint(
-          '🏎️ Filtering │ Checking Hourly cars from cache (Hour: $selectedHour)',
-        );
-
-        _hourlyPrices.clear(); // Refresh prices
-
-        for (final entry in _allHourlyPricingByVehicle.entries) {
-          final carId = entry.key;
-          final pricingList = entry.value;
-
-          // Find the pricing entry matching the selected hour
-          final match = pricingList.firstWhere(
-            (p) => p['hour'] == selectedHour,
-            orElse: () => <String, dynamic>{},
-          );
-
-          if (match.isNotEmpty) {
-            final double price = _parseDouble(match['price'] ?? 0);
-            if (price > 0) {
-              supportedIds.add(carId);
-              _hourlyPrices[carId] = price;
-              debugPrint(
-                '🏎️ Filtering │ Hourly car found: $carId (Price: $price for $selectedHour hr)',
-              );
-            }
-          }
-        }
-
-        if (supportedIds.isEmpty) {
-          _showNoServiceAlert(
-            message: "No vehicles available for the selected duration.",
-          );
-        }
-      } else if (_selectedCatCode == 3) {
-        // --- 🏎️ Private Transfer: New API Zone-based Filtering ---
-        if (_pickupLat == null ||
-            _pickupLng == null ||
-            _dropLat == null ||
-            _dropLng == null) {
-          debugPrint('❌ Filtering │ Location data incomplete');
-          setState(() => _isFilteringCars = false);
-          return;
-        }
-
-        final pPoint = LatLng(_pickupLat!, _pickupLng!);
-        final dPoint = LatLng(_dropLat!, _dropLng!);
-
-        // 1. Detect Pickup & Drop Zones from fetched API zones
-        final pZone = ZoneHelper.detectZone(pPoint, _allZones);
-        final dZone = ZoneHelper.detectZone(dPoint, _allZones);
-
-        if (pZone == null || dZone == null) {
-          debugPrint(
-            '❌ Filtering │ Zone not detected for P or D (P:${pZone?.id}, D:${dZone?.id})',
-          );
-          if (mounted) {
-            _showNoServiceAlert(
-              message: AppLocalizations.of(
-                context,
-              )!.serviceNotAvailableToSelectedArea,
-            );
-          }
-          setState(() {
-            _supportedCarIds = {}; // No cars
-            _isFilteringCars = false;
-          });
-          return;
-        }
-
-        // 2. Check if service is active to the zones
-        if (!pZone.isActive || !dZone.isActive) {
-          debugPrint(
-            '❌ Filtering │ Zone(s) inactive: P:${pZone.isActive}, D:${dZone.isActive}',
-          );
-          if (mounted) {
-            _showNoServiceAlert(
-              message: AppLocalizations.of(
-                context,
-              )!.serviceNotAvailableToSelectedArea,
-            );
-          }
-          setState(() {
-            _supportedCarIds = {}; // No cars
-            _isFilteringCars = false;
-          });
-          return;
-        }
-
-        debugPrint(
-          '🏎️ Filtering │ Detected Zones -> P: ${pZone.nameEn} (${pZone.id}), D: ${dZone.nameEn} (${dZone.id})',
-        );
-
-        // 3. Fetch prices for this zone route to see which cars are available
-        final priceRes = await api.getZonePrices(
-          fromZoneId: pZone.id,
-          toZoneId: dZone.id,
-          token: token,
-        );
-
-        if (priceRes['success'] == true && priceRes['data'] != null) {
-          final List priceList = priceRes['data'] is List
-              ? priceRes['data']
-              : (priceRes['data']['prices'] ?? []);
-
-          final validCarIds = priceList
-              .where((p) => _parseDouble(p['charge'] ?? p['price'] ?? 0) > 0)
-              .map((p) {
-                dynamic vIdRaw = p['vehicleId'] ?? p['vehicleID'];
-                return (vIdRaw is Map
-                        ? (vIdRaw['_id'] ?? vIdRaw['id'])
-                        : vIdRaw)
-                    ?.toString();
-              })
-              .whereType<String>()
-              .toSet();
-
-          if (validCarIds.isEmpty) {
-            debugPrint(
-              '⚠️ Filtering │ No cars with prices found for this zone route.',
-            );
-            if (mounted) {
-              _showNoServiceAlert(
-                message: "No vehicles available for this route.",
-              );
-            }
-          } else {
-            supportedIds.addAll(validCarIds);
-            debugPrint('✅ Filtering │ Zone cars found: ${supportedIds.length}');
-          }
-        } else {
-          debugPrint(
-            '❌ Filtering │ API Error fetching zone prices: ${priceRes['message']}',
-          );
-          if (mounted) {
-            _showNoServiceAlert(
-              message: "Service not available for this route.",
-            );
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("❌ Error checking car availability: $e");
-    }
-
-    debugPrint('🏎️ Filtering │ Final Supported Vehicle IDs: $supportedIds');
-
-    if (mounted) {
-      setState(() {
-        _supportedCarIds = supportedIds;
-        _isFilteringCars = false;
-
-        // ── Auto-select the first supported class → brand → model ──
-        _syncSelectionToSupportedCars();
-      });
-    }
-  }
-
-  /// Sync the selected class/brand/model to only show supported vehicles.
-  /// Called after `_supportedCarIds` is populated.
+  /// Cascade the class → brand → model selection onto what the route offers.
+  ///
+  /// Run whenever the vehicle list changes, so a choice carried over from a
+  /// previous route cannot survive into one that does not support it.
   void _syncSelectionToSupportedCars() {
-    if (_supportedCarIds == null || _supportedCarIds!.isEmpty) return;
+    if (_cars.isEmpty) return;
 
     final availableClasses = _getAvailableVehicleClasses();
     if (availableClasses.isEmpty) return;
@@ -1967,20 +1178,6 @@ class _NewBookingState extends State<NewBooking> {
     }
   }
 
-  String _getCategoryForApi(int code) {
-    switch (code) {
-      case 1:
-        return 'airport departure';
-      case 2:
-        return 'chauffeured';
-      case 3:
-        return 'private transfer';
-      case 0:
-      default:
-        return 'airport arrival';
-    }
-  }
-
   String _getCityName(BuildContext context, int code) {
     if (_apiCities.isNotEmpty && code < _apiCities.length) {
       final city = _apiCities[code];
@@ -1999,48 +1196,6 @@ class _NewBookingState extends State<NewBooking> {
       case 0:
       default:
         return loc.riyadh;
-    }
-  }
-
-  Map<String, double> _getAirportCoordinates() {
-    // Try to find the airport from API data first
-    if (_apiAirports.isNotEmpty) {
-      final availableAirports = _getAvailableAirports(context);
-      if (availableAirports.isNotEmpty) {
-        final selectedAirportName =
-            availableAirports[_selectedAirportCode < availableAirports.length
-                ? _selectedAirportCode
-                : 0];
-        try {
-          final airport = _apiAirports.firstWhere(
-            (a) => a['airportName'] == selectedAirportName,
-            orElse: () => _apiAirports.first,
-          );
-          if (airport.containsKey('lat') && airport.containsKey('long')) {
-            final latitude = _parseDouble(airport['lat']);
-            final longitude = _parseDouble(airport['long']);
-            if (latitude != 0 && longitude != 0) {
-              return {'lat': latitude, 'lng': longitude};
-            }
-          }
-        } catch (e) {
-          debugPrint('Error getting airport coordinates from API: $e');
-        }
-      }
-    }
-
-    // Fallback Returns airport coordinates based on selected city code
-    switch (_selectedCityCode) {
-      case 1:
-        // Dammam - King Fahd International Airport
-        return {'lat': 26.1604, 'lng': 50.1508};
-      case 2:
-        // Jeddah - King Abdulaziz International Airport
-        return {'lat': 21.5433, 'lng': 39.1564};
-      case 0:
-      default:
-        // Riyadh - King Khalid International Airport
-        return {'lat': 24.9575, 'lng': 46.6982};
     }
   }
 
@@ -2328,13 +1483,15 @@ class _NewBookingState extends State<NewBooking> {
                                     }
                                   }
 
-                                  // 🏎️ NEW: Check car availability before going to step 2
-                                  await _checkCarAvailability();
-
-                                  if (_supportedCarIds != null &&
-                                      _supportedCarIds!.isEmpty) {
-                                    return;
+                                  // Create the server draft, which resolves the
+                                  // route and returns the vehicles it prices.
+                                  setState(() => _isCheckingRoute = true);
+                                  final started =
+                                      await _startSessionAndLoadVehicles(loc);
+                                  if (mounted) {
+                                    setState(() => _isCheckingRoute = false);
                                   }
+                                  if (!started) return;
 
                                   setState(() {
                                     showPreferances = true;
@@ -2354,64 +1511,18 @@ class _NewBookingState extends State<NewBooking> {
                                     _isCheckingRoute = true;
                                   });
 
-                                  final routeResult = await _fetchRouteDetails(
-                                    withVehicle: true,
-                                  );
+                                  // Attach the vehicle to the draft; its fare
+                                  // was already quoted by the server.
+                                  final vehicleSaved =
+                                      await _submitVehicleSelection(loc);
 
-                                  setState(() {
-                                    _isCheckingRoute = false;
-                                  });
-
-                                  if (routeResult['success'] == true) {
-                                    final data =
-                                        routeResult['data'] ??
-                                        routeResult['payload'] ??
-                                        routeResult;
-
-                                    // Data could be a List or a Map depending on filter vs priceRes
-                                    double fetchedCharge = 0;
-                                    if (data is Map) {
-                                      fetchedCharge = _parseDouble(
-                                        data['charge'] ?? data['price'] ?? 0,
-                                      );
-                                    } else if (data is List &&
-                                        data.isNotEmpty) {
-                                      // If it's filterRoutes output, it might not have the charge directly
-                                      // but we prioritize getRoutePrice which returns a map with 'charge'
-                                      fetchedCharge = _parseDouble(
-                                        data[0]['charge'] ??
-                                            data[0]['price'] ??
-                                            0,
-                                      );
-                                    }
-
-                                    if (fetchedCharge > 0) {
-                                      setState(() {
-                                        _routePrice = fetchedCharge;
-                                      });
-                                    } else {
-                                      // If we got success but no price, check if at least one route exists
-                                      if (data is List && data.isNotEmpty) {
-                                        // Route exists but using distance-based pricing fallback
-                                        _routePrice = null;
-                                      } else {
-                                        _showNoServiceAlert(
-                                          message:
-                                              routeResult['message'] ??
-                                              'This route is not available at the moment.',
-                                        );
-                                        return;
-                                      }
-                                    }
-                                  } else {
-                                    // No price/route found
-                                    _showNoServiceAlert(
-                                      message:
-                                          routeResult['message'] ??
-                                          'This route is not available at the moment.',
-                                    );
-                                    return;
+                                  if (mounted) {
+                                    setState(() {
+                                      _isCheckingRoute = false;
+                                    });
                                   }
+
+                                  if (!vehicleSaved) return;
 
                                   setState(() {
                                     showPassenger = true;
@@ -2430,437 +1541,38 @@ class _NewBookingState extends State<NewBooking> {
                                   setState(() {
                                     _isCalculatingDistance = true;
                                   });
-                                  await _calculateActualDistance();
+
+                                  // Save passengers, then pull the server's
+                                  // authoritative price breakdown.
+                                  final ready =
+                                      await _submitPassengerAndLoadCheckout(
+                                        loc,
+                                      );
+
+                                  if (mounted) {
+                                    setState(() {
+                                      _isCalculatingDistance = false;
+                                    });
+                                  }
+
+                                  if (!ready) return;
 
                                   setState(() {
                                     showReviewAndConfirm = true;
                                     showTripInfo = false;
                                     showPreferances = false;
                                     showPassenger = false;
-                                    _isCalculatingDistance = false;
                                   });
                                   if (_scrollController.hasClients) {
                                     _scrollController.jumpTo(0);
                                   }
                                 }
                               } else if (showReviewAndConfirm) {
-                                if (_isBooking) return;
-
-                                setState(() {
-                                  _isBooking = true;
-                                });
-
-                                try {
-                                  // 1. Prepare Request Data
-                                  final userData =
-                                      UserLocalStorage.getUserData();
-                                  final userId = UserLocalStorage.getUserId();
-                                  final userEmail = userData?['email'] ?? "";
-                                  final userName =
-                                      userData?['name'] ??
-                                      userData?['username'] ??
-                                      "Customer";
-
-                                  final totalWithVat =
-                                      _calculatedCharge *
-                                      (_isPromoValid
-                                          ? (1 - _discountPercentage / 100)
-                                          : 1) *
-                                      (1 +
-                                          _vatPercentage /
-                                              100); // Including VAT
-                                  final orderId =
-                                      "BOOK_${DateTime.now().millisecondsSinceEpoch}";
-
-                                  // 2. Process Payment via PayTabs SDK
-                                  final passengerPhone =
-                                      userData?['phone'] ??
-                                      userData?['phoneNumber'] ??
-                                      "";
-
-                                  final paymentRequest = PaymentRequest(
-                                    amount: double.parse(
-                                      totalWithVat.toStringAsFixed(2),
-                                    ),
-                                    currency: PaytabsConfig.defaultCurrency,
-                                    merchantCountryCode:
-                                        PaytabsConfig.merchantCountryCode,
-                                    orderId: orderId,
-                                    customerEmail: userEmail,
-                                    customerName: userName,
-                                    customerPhone: passengerPhone,
-                                    cartId: orderId,
-                                    cartDescription:
-                                        "Ride Booking for $_selectedVehicleClass",
-                                  );
-
-                                  String selectedMethod = 'card';
-                                  if (Platform.isIOS) {
-                                    final loc = AppLocalizations.of(context)!;
-                                    final method =
-                                        await showModalBottomSheet<String>(
-                                          context: context,
-                                          backgroundColor: const Color(
-                                            0xFF1E1105,
-                                          ),
-                                          shape: const RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.vertical(
-                                              top: Radius.circular(20),
-                                            ),
-                                          ),
-                                          builder: (context) => SafeArea(
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const SizedBox(height: 16),
-                                                Text(
-                                                  loc.selectPaymentMethod,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 16),
-                                                ListTile(
-                                                  leading: const Icon(
-                                                    Icons.apple,
-                                                    color: Colors.white,
-                                                    size: 30,
-                                                  ),
-                                                  title: Text(
-                                                    loc.applePay,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                  onTap: () => Navigator.pop(
-                                                    context,
-                                                    'apple_pay',
-                                                  ),
-                                                ),
-                                                ListTile(
-                                                  leading: const Icon(
-                                                    Icons.credit_card,
-                                                    color: Colors.white,
-                                                    size: 30,
-                                                  ),
-                                                  title: Text(
-                                                    loc.creditDebitCard,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                  onTap: () => Navigator.pop(
-                                                    context,
-                                                    'card',
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 16),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                    if (method == null) {
-                                      setState(() {
-                                        _isBooking = false;
-                                      });
-                                      return;
-                                    }
-                                    selectedMethod = method;
-                                  }
-
-                                  PaymentResult paymentResult;
-                                  if (selectedMethod == 'apple_pay') {
-                                    paymentResult = await PaymentService()
-                                        .startApplePayPayment(
-                                          request: paymentRequest,
-                                        );
-                                  } else {
-                                    paymentResult = await PaymentService()
-                                        .startPayment(request: paymentRequest);
-                                  }
-
-                                  debugPrint(
-                                    '💳 PayTabs Result: success=${paymentResult.success}, '
-                                    'ref=${paymentResult.transactionReference}, '
-                                    'msg=${paymentResult.responseMessage}',
-                                  );
-
-                                  if (paymentResult.success) {
-                                    // 3. If Payment Successful, Create Booking Record
-                                    String getIsoDateTime(
-                                      DateTime? d,
-                                      TimeOfDay? t,
-                                    ) {
-                                      if (d == null || t == null) return "";
-                                      // Always send the selected date/time as a plain string, no timezone, no offset
-                                      String two(int n) =>
-                                          n.toString().padLeft(2, '0');
-                                      return '${d.year}-${two(d.month)}-${two(d.day)}T${two(t.hour)}:${two(t.minute)}:00';
-                                    }
-
-                                    final airportCoords =
-                                        _getAirportCoordinates();
-                                    double? finalPickupLat;
-                                    double? finalPickupLng;
-                                    double? finalDropOffLat;
-                                    double? finalDropOffLng;
-                                    String? finalPickupAddress;
-                                    String? finalDropOffAddress;
-
-                                    if (_selectedCatCode == 0) {
-                                      finalPickupLat = airportCoords['lat'];
-                                      finalPickupLng = airportCoords['lng'];
-                                      finalDropOffLat = _dropLat;
-                                      finalDropOffLng = _dropLng;
-
-                                      final String airport =
-                                          _getSelectedAirportName(context) ??
-                                          "";
-                                      final String terminal =
-                                          _getSelectedTerminalName(context) ??
-                                          "";
-                                      finalPickupAddress = terminal.isNotEmpty
-                                          ? "$airport - $terminal"
-                                          : airport;
-                                      finalDropOffAddress = _dropAddress;
-                                    } else if (_selectedCatCode == 1) {
-                                      finalPickupLat = _pickupLat;
-                                      finalPickupLng = _pickupLng;
-                                      finalDropOffLat = airportCoords['lat'];
-                                      finalDropOffLng = airportCoords['lng'];
-
-                                      final String airport =
-                                          _getSelectedAirportName(context) ??
-                                          "";
-                                      final String terminal =
-                                          _getSelectedTerminalName(context) ??
-                                          "";
-                                      finalDropOffAddress = terminal.isNotEmpty
-                                          ? "$airport - $terminal"
-                                          : airport;
-                                      finalPickupAddress = _pickupAddress;
-                                    } else {
-                                      finalPickupLat = _pickupLat;
-                                      finalPickupLng = _pickupLng;
-                                      finalDropOffLat = _dropLat;
-                                      finalDropOffLng = _dropLng;
-                                      finalPickupAddress = _pickupAddress;
-                                      finalDropOffAddress = _dropAddress;
-                                    }
-
-                                    // Logging raw items removed to focus on exact API data
-
-                                    final BookingRequestModel
-                                    requestModel = BookingRequestModel(
-                                      category: _getCategoryForApi(
-                                        _selectedCatCode,
-                                      ),
-                                      city: _getCityName(
-                                        context,
-                                        _selectedCityCode,
-                                      ),
-                                      airport:
-                                          _getSelectedAirportName(context) ??
-                                          "",
-                                      flightNumber: flightNumberController.text,
-                                      cityID: _getSelectedCityId(),
-                                      airportID: _getSelectedAirportId(),
-                                      terminalID: _getSelectedTerminalId(),
-                                      terminal:
-                                          _getSelectedTerminalName(context) ??
-                                          "",
-                                      pickupdatetime: (_selectedCatCode == 2)
-                                          ? getIsoDateTime(
-                                              _selectedPickupDate,
-                                              _selectedPickupTime,
-                                            )
-                                          : getIsoDateTime(
-                                              _selectedDate,
-                                              _selectedTime,
-                                            ),
-                                      pickupLat: finalPickupLat
-                                          ?.toString()
-                                          .trim(),
-                                      pickupLong: finalPickupLng
-                                          ?.toString()
-                                          .trim(),
-                                      dropOffLat: finalDropOffLat
-                                          ?.toString()
-                                          .trim(),
-                                      dropOffLong: finalDropOffLng
-                                          ?.toString()
-                                          .trim(),
-                                      dropOffAddress: finalDropOffAddress,
-                                      pickupAddress: finalPickupAddress,
-                                      specialRequestText:
-                                          specialRequestsController.text,
-                                      specialRequestAudio:
-                                          _specialRequestsVoiceNotePath != null
-                                          ? File(_specialRequestsVoiceNotePath!)
-                                          : null,
-                                      passengerCount: _numberOfPassengers
-                                          .toString(),
-                                      passengerNames: jsonEncode(
-                                        _passengerNameController.text
-                                            .split(',')
-                                            .map((e) => e.trim())
-                                            .where((e) => e.isNotEmpty)
-                                            .toList(),
-                                      ),
-                                      passengerMobile:
-                                          "+$_selectedPassengerCountryCode${_mobileNumberController.text.replaceAll(' ', '')}",
-                                      distance:
-                                          "${_totalDistance.toStringAsFixed(2)} km",
-                                      charge: double.parse(
-                                        totalWithVat.toStringAsFixed(2),
-                                      ),
-                                      bookingStatus: "pending",
-                                      customerID: userId,
-                                      driverID: "null",
-                                      carID: _getSelectedCarId(),
-                                      brandID: _getSelectedBrandId(),
-                                      categoryID: _getSelectedCategoryId(),
-                                      specialId: _appliedPromoId,
-                                      customerName: userName,
-                                      carclass: _selectedVehicleClass,
-                                      carName: _selectedVehicleModel,
-                                      carbrand: _selectedVehicleBrand,
-                                      carmodel: _selectedVehicleModel,
-                                      serviceDuration: _selectedCatCode == 2
-                                          ? _selectedEstimatedHours
-                                          : null,
-                                      estimatedHours: _selectedCatCode == 2
-                                          ? _selectedEstimatedHours
-                                          : null,
-                                      orderID: orderId,
-                                      transactionID:
-                                          paymentResult.transactionReference,
-                                      discountPercentage: _isPromoValid
-                                          ? _discountPercentage
-                                          : null,
-                                      vat: _vatPercentage,
-                                      allowSimilarVehicle: _allowSimilarVehicle,
-                                    );
-
-                                    if (kDebugMode) {
-                                      final finalDataMap = requestModel.toMap();
-                                      debugPrint(
-                                        '🚀 🌐 API │ EXACT DATA FOR BOOKING:',
-                                      );
-                                      final prettyJson = JsonEncoder.withIndent(
-                                        '  ',
-                                      ).convert(finalDataMap);
-                                      debugPrint(prettyJson);
-                                      debugPrint(
-                                        '📍 pickupLat: ${requestModel.pickupLat}',
-                                      );
-                                      debugPrint(
-                                        '📍 pickupLong: ${requestModel.pickupLong}',
-                                      );
-                                    }
-
-                                    // Guard: ensure pickup coordinates are present for hourly bookings
-                                    if (_selectedCatCode == 2 &&
-                                        (requestModel.pickupLong == null ||
-                                            requestModel.pickupLong!.isEmpty)) {
-                                      _showCustomSnackBar(
-                                        loc.pickupLocationIsRequired,
-                                        'E',
-                                      );
-                                      setState(() {
-                                        _isBooking = false;
-                                      });
-                                      return;
-                                    }
-
-                                    final apiResponse = _selectedCatCode == 2
-                                        ? await ApiService()
-                                              .createHourlyBooking(
-                                                booking: requestModel,
-                                                token:
-                                                    UserLocalStorage.getToken(),
-                                              )
-                                        : await ApiService().createBooking(
-                                            booking: requestModel,
-                                            token: UserLocalStorage.getToken(),
-                                          );
-
-                                    if (kDebugMode) {
-                                      debugPrint(
-                                        "✅ 🌐 API │ BOOKING RESPONSE RECEIVED",
-                                      );
-                                      debugPrint(
-                                        "✅ 🌐 API │ Status: ${apiResponse['success']}",
-                                      );
-                                      debugPrint(
-                                        "✅ 🌐 API │ Full Response: $apiResponse",
-                                      );
-                                    }
-
-                                    if (apiResponse['success'] == true) {
-                                      _showCustomSnackBar(
-                                        loc.bookingConfirmedSuccessfully,
-                                        'S',
-                                      );
-                                      Navigator.pushAndRemoveUntil(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const SuccessPage(),
-                                        ),
-                                        (route) => false,
-                                      );
-                                    } else {
-                                      _showCustomSnackBar(
-                                        apiResponse['message'] ??
-                                            loc.bookingFailed,
-                                        'E',
-                                      );
-                                    }
-                                  } else {
-                                    if (paymentResult.responseCode ==
-                                            'EVENT_CANCELLED' ||
-                                        paymentResult.responseMessage
-                                                .toLowerCase() ==
-                                            "cancel" ||
-                                        paymentResult.responseMessage
-                                                .toLowerCase() ==
-                                            "payment cancelled") {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const PaymentCancelledPage(),
-                                        ),
-                                      );
-                                    } else {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              PaymentRejectedPage(
-                                                errorMessage: paymentResult
-                                                    .responseMessage,
-                                              ),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                } catch (e) {
-                                  debugPrint('❌ Booking error: $e');
-                                  _showCustomSnackBar(
-                                    loc.somethingWentWrong,
-                                    'E',
-                                  );
-                                } finally {
-                                  if (mounted) {
-                                    setState(() {
-                                      _isBooking = false;
-                                    });
-                                  }
-                                }
+                                // Confirm creates the booking server-side
+                                // before any money moves, then pays with the
+                                // gateway parameters it issued and lets the
+                                // backend settle the result.
+                                await _confirmAndPay(loc);
                               }
                             },
                       fontsize: 14,
@@ -3044,6 +1756,7 @@ class _NewBookingState extends State<NewBooking> {
             },
           ),
         ),
+        buildCouponSection(context, loc),
         buildPaymentSummary(context, loc),
         if (_selectedCatCode == 2)
           Padding(
@@ -3085,6 +1798,144 @@ class _NewBookingState extends State<NewBooking> {
             ),
           ),
       ],
+    );
+  }
+
+  /// Coupon entry for the review step.
+  ///
+  /// Applying or removing a code is a server round-trip that returns the whole
+  /// recalculated checkout, so the price summary below updates from the same
+  /// response — the client never adjusts the total itself.
+  Widget buildCouponSection(BuildContext context, AppLocalizations loc) {
+    final applied = _appliedCoupon;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            loc.promoCode,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (applied != null)
+            _buildAppliedCouponRow(loc, applied)
+          else
+            _buildCouponInputRow(loc),
+          if (_couponError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _couponError!,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// The applied-coupon state: code, the amount it took off, and a remove action.
+  Widget _buildAppliedCouponRow(AppLocalizations loc, AppliedCoupon applied) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade700),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.local_offer_outlined, color: Colors.green, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  applied.code,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  textDirection: TextDirection.ltr,
+                  children: [
+                    const Text(
+                      "-",
+                      style: TextStyle(color: Colors.green, fontSize: 13),
+                    ),
+                    const RiyalSymbol(color: Colors.green, size: 13),
+                    Text(
+                      " ${applied.amount.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        color: Colors.green,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _isCouponBusy
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: PremiumLoader(size: 16, color: Color(0xFFE4A46B)),
+                )
+              : TextButton(
+                  onPressed: () => _removeCouponCode(loc),
+                  child: Text(
+                    loc.remove,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
+  /// The empty state: a code field with an apply action.
+  Widget _buildCouponInputRow(AppLocalizations loc) {
+    return PremiumTextField(
+      controller: _couponController,
+      needTitle: false,
+      title: loc.promoCode,
+      hintText: loc.enterYourPromoCode,
+      needBorder: true,
+      blackbg: true,
+      borderRadius: 12,
+      enabled: !_isCouponBusy,
+      needAutoCapitalize: true,
+      suffixIcon: _isCouponBusy
+          ? const Padding(
+              padding: EdgeInsets.all(12),
+              child: PremiumLoader(size: 16, color: Color(0xFFE4A46B)),
+            )
+          : TextButton(
+              onPressed: () => _applyCouponCode(loc),
+              child: Text(
+                loc.apply,
+                style: const TextStyle(
+                  color: Color(0xFFE4A46B),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
     );
   }
 
@@ -3208,7 +2059,7 @@ class _NewBookingState extends State<NewBooking> {
                                 ),
                               )
                             : Text(
-                                " ${_calculatedCharge.toStringAsFixed(2)}",
+                                " ${_summaryBaseFare.toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -3219,7 +2070,7 @@ class _NewBookingState extends State<NewBooking> {
                     ),
                   ],
                 ),
-                if (_isPromoValid && _discountPercentage > 0) ...[
+                if (_summaryDiscount > 0) ...[
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3251,7 +2102,7 @@ class _NewBookingState extends State<NewBooking> {
                                   ),
                                 )
                               : Text(
-                                  " ${(_calculatedCharge * (_discountPercentage / 100)).toStringAsFixed(2)}",
+                                  " ${_summaryDiscount.toStringAsFixed(2)}",
                                   style: const TextStyle(
                                     color: Colors.green,
                                     fontSize: 14,
@@ -3291,7 +2142,7 @@ class _NewBookingState extends State<NewBooking> {
                                 ),
                               )
                             : Text(
-                                " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * (_vatPercentage / 100)).toStringAsFixed(2)}",
+                                " ${_summaryVatAmount.toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -3332,7 +2183,7 @@ class _NewBookingState extends State<NewBooking> {
                                 ),
                               )
                             : Text(
-                                " ${((_calculatedCharge - (_isPromoValid ? (_calculatedCharge * (_discountPercentage / 100)) : 0)) * (1 + _vatPercentage / 100)).toStringAsFixed(2)}",
+                                " ${_summaryTotal.toStringAsFixed(2)}",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -3485,7 +2336,7 @@ class _NewBookingState extends State<NewBooking> {
                       setState(() {
                         _selectedPassengerCountryCode = country.phoneCode;
                       });
-                      if (_selectedCatCode == 3) _updatePricing();
+                      // Pricing is quoted by the backend when the session is created.
                     },
                   );
                 },
@@ -3643,58 +2494,28 @@ class _NewBookingState extends State<NewBooking> {
     };
   }
 
+  /// Vehicle classes offered for the current route.
+  ///
+  /// Keeps the order the backend listed its categories in, narrowed to those
+  /// that actually have a vehicle in the response.
   List<String> _getAvailableVehicleClasses() {
-    // Approach requested: Fetch all categories from backend
-    if (_apiCategories.isNotEmpty) {
-      final names = _apiCategories
-          .map(
-            (cat) => (cat['name'] ?? cat['categoryName'] ?? 'Unknown')
-                .toString()
-                .trim(),
-          )
-          .where((name) => name != 'Unknown')
-          .toSet()
-          .toList();
-
-      if (names.isNotEmpty) {
-        // 🏎️ FILTER: Hide categories that have no supported cars if filtering is active
-        if (_supportedCarIds != null) {
-          final supportedNames = names.where((name) {
-            return _cars.any(
-              (c) =>
-                  _supportedCarIds!.contains(c.id) &&
-                  c.className.toLowerCase().trim() == name.toLowerCase().trim(),
-            );
-          }).toList();
-          supportedNames.sort();
-          return supportedNames;
-        }
-
-        names.sort();
-        return names;
-      }
+    if (_cars.isEmpty) {
+      // Only reachable before a session exists, where the picker is not shown.
+      return _getVehicleClasses(AppLocalizations.of(context)!).keys.toList();
     }
 
-    // Fallback: If no categories loaded, get categories from cars
-    if (_cars.isNotEmpty) {
-      var classes = _supportedCarIds != null
-          ? _cars
-                .where((c) => _supportedCarIds!.contains(c.id))
-                .map((c) => c.className)
-                .toSet()
-                .toList()
-          : _cars.map((c) => c.className).toSet().toList();
+    final withVehicles = _cars
+        .map((c) => c.className.trim())
+        .where((name) => name.isNotEmpty && name.toLowerCase() != 'unknown')
+        .toSet();
 
-      classes.sort();
+    final ordered = _apiCategories
+        .map((cat) => (cat['name'] ?? '').toString().trim())
+        .where(withVehicles.contains)
+        .toList();
 
-      if (classes.length > 1) {
-        classes.removeWhere((c) => c.toLowerCase() == 'unknown');
-      }
-
-      return classes;
-    }
-    // Deep Fallback: Hardcoded classes
-    return _getVehicleClasses(AppLocalizations.of(context)!).keys.toList();
+    // Fall back to the vehicles' own classes if the category list is absent.
+    return ordered.isNotEmpty ? ordered : withVehicles.toList();
   }
 
   Widget buildVehicleClassSelector(BuildContext context, AppLocalizations loc) {
@@ -3760,7 +2581,7 @@ class _NewBookingState extends State<NewBooking> {
                     _selectedVehicleBrand = null;
                     _selectedVehicleModel = null;
                   }
-                  if (_selectedCatCode == 3) _updatePricing();
+                  // Pricing is quoted by the backend when the session is created.
                 });
               }
             },
@@ -3823,7 +2644,7 @@ class _NewBookingState extends State<NewBooking> {
                     } else {
                       _selectedVehicleModel = null;
                     }
-                    if (_selectedCatCode == 3) _updatePricing();
+                    // Pricing is quoted by the backend when the session is created.
                   });
                 },
                 child: Container(
@@ -3922,7 +2743,7 @@ class _NewBookingState extends State<NewBooking> {
             setState(() {
               _selectedVehicleModel = value;
             });
-            if (_selectedCatCode == 3) _updatePricing();
+            // Pricing is quoted by the backend when the session is created.
           }
         },
       ),
@@ -4260,9 +3081,7 @@ class _NewBookingState extends State<NewBooking> {
   Widget buildHoursDataSelectors(BuildContext context, AppLocalizations loc) {
     // Build dropdown items from available hour options
     final items = [loc.selectDuration];
-    items.addAll(
-      _availableHourOptions.map((h) => _getServiceDurationLabel(loc, h)),
-    );
+    items.addAll(_hourOptions.map((h) => _getServiceDurationLabel(loc, h)));
 
     final currentLabel = _selectedEstimatedHours == 0
         ? loc.selectDuration
@@ -4435,14 +3254,12 @@ class _NewBookingState extends State<NewBooking> {
                       if (isDropLocation) {
                         setState(() {
                           _dropAddress = null;
-                          _dropCityName = null;
                           _dropLat = null;
                           _dropLng = null;
                         });
                       } else {
                         setState(() {
                           _pickupAddress = null;
-                          _pickupCityName = null;
                           _pickupLat = null;
                           _pickupLng = null;
                         });
@@ -4451,86 +3268,58 @@ class _NewBookingState extends State<NewBooking> {
                       return; // Do not update state/location with new airport location
                     }
 
-                    if ((_selectedCatCode == 0 && isDropLocation) ||
-                        (_selectedCatCode == 1 && !isDropLocation)) {
-                      final cityId = _getSelectedCityId();
-                      final airportCityId = _getAirportCityId();
-                      String fromCity = cityId ?? '';
-                      String toCity = cityId ?? '';
+                    // Every picked location must resolve to a serviced city.
+                    // Private transfer additionally requires the point to fall
+                    // inside an active transfer zone, so the backend decides
+                    // both before the address is accepted.
+                    _showLoadingDialog();
+                    final availability = await _availability.checkLocation(
+                      lat: newLat,
+                      lng: newLng,
+                      serviceType: _serviceType,
+                    );
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
 
-                      if (_selectedCatCode == 0) {
-                        // Arrival: Airport -> Selected Drop Location
-                        fromCity = airportCityId ?? cityId ?? '';
-                        final dropCityId = _resolveCityId(
-                          result['city']?.toString(),
-                          result['address']?.toString(),
-                          newLat,
-                          newLng,
-                        );
-                        toCity = dropCityId ?? '';
+                    if (!availability.isAvailable) {
+                      _showCustomSnackBar(
+                        availability.message ??
+                            'We do not currently operate in this area.',
+                        'E',
+                      );
+                      if (isDropLocation) {
+                        setState(() {
+                          _dropAddress = null;
+                          _dropLat = null;
+                          _dropLng = null;
+                        });
                       } else {
-                        // Departure: Selected Pickup Location -> Airport
-                        toCity = airportCityId ?? cityId ?? '';
-                        final pickupCityId = _resolveCityId(
-                          result['city']?.toString(),
-                          result['address']?.toString(),
-                          newLat,
-                          newLng,
-                        );
-                        fromCity = pickupCityId ?? '';
+                        setState(() {
+                          _pickupAddress = null;
+                          _pickupLat = null;
+                          _pickupLng = null;
+                        });
                       }
-
-                      _showLoadingDialog();
-                      bool isAvailable = false;
-                      if (fromCity.isNotEmpty && toCity.isNotEmpty) {
-                        isAvailable = await _isRouteAvailable(fromCity, toCity);
-                      }
-                      if (mounted) {
-                        Navigator.pop(context);
-                      }
-
-                      if (!isAvailable) {
-                        _showCustomSnackBar(
-                          "This route is not available at the moment.",
-                          'E',
-                        );
-                        if (isDropLocation) {
-                          setState(() {
-                            _dropAddress = null;
-                            _dropCityName = null;
-                            _dropLat = null;
-                            _dropLng = null;
-                          });
-                        } else {
-                          setState(() {
-                            _pickupAddress = null;
-                            _pickupCityName = null;
-                            _pickupLat = null;
-                            _pickupLng = null;
-                          });
-                        }
-                        state.didChange(true);
-                        return;
-                      }
+                      state.didChange(true);
+                      return;
                     }
 
                     if (isDropLocation) {
                       setState(() {
                         _dropAddress = newAddress;
-                        _dropCityName = result['city']?.toString();
                         _dropLat = newLat;
                         _dropLng = newLng;
                       });
                     } else {
                       setState(() {
                         _pickupAddress = newAddress;
-                        _pickupCityName = result['city']?.toString();
                         _pickupLat = newLat;
                         _pickupLng = newLng;
                       });
                     }
                     state.didChange(true);
-                    if (_selectedCatCode == 3) _updatePricing();
+                    // Pricing is quoted by the backend when the session is created.
                   }
                 },
                 child: ConstrainedBox(
@@ -5292,14 +4081,6 @@ class _NewBookingState extends State<NewBooking> {
     return "";
   }
 
-  String? _getSelectedCityId() {
-    if (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length) {
-      final city = _apiCities[_selectedCityCode];
-      return (city['_id'] ?? city['id'])?.toString();
-    }
-    return null;
-  }
-
   String? _getSelectedAirportId() {
     if (_apiAirports.isNotEmpty) {
       final airportNames = _getAvailableAirports(context);
@@ -5364,95 +4145,6 @@ class _NewBookingState extends State<NewBooking> {
           ),
         );
         return selectedCar.id.isNotEmpty ? selectedCar.id : null;
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  String? _getSelectedBrandId() {
-    // 1. Try to find from the selected car in _cars list (most reliable if car was loaded via API)
-    if (_cars.isNotEmpty) {
-      try {
-        final selectedCar = _cars.firstWhere(
-          (c) =>
-              c.className == _selectedVehicleClass &&
-              c.brand == _selectedVehicleBrand &&
-              c.modelName == _selectedVehicleModel,
-          orElse: () => CarModel(
-            id: '',
-            className: '',
-            brand: '',
-            modelName: '',
-            imagePath: '',
-            price: 0,
-            distance: 0,
-            maxPassengers: 0,
-          ),
-        );
-        if (selectedCar.brandId != null && selectedCar.brandId!.isNotEmpty) {
-          return selectedCar.brandId;
-        }
-      } catch (_) {}
-    }
-
-    // 2. Fallback to searching the _brands list
-    if (_brands.isNotEmpty && _selectedVehicleBrand != null) {
-      try {
-        final brand = _brands.firstWhere(
-          (b) =>
-              (b['brandName']?.toString() == _selectedVehicleBrand ||
-              b['name']?.toString() == _selectedVehicleBrand ||
-              b['brand']?.toString() == _selectedVehicleBrand),
-          orElse: () => {},
-        );
-        return (brand['_id'] ?? brand['id'] ?? brand['brandID'])?.toString();
-      } catch (e) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  String? _getSelectedCategoryId() {
-    // 1. Try to find from the selected car in _cars list
-    if (_cars.isNotEmpty) {
-      try {
-        final selectedCar = _cars.firstWhere(
-          (c) =>
-              c.className == _selectedVehicleClass &&
-              c.brand == _selectedVehicleBrand &&
-              c.modelName == _selectedVehicleModel,
-          orElse: () => CarModel(
-            id: '',
-            className: '',
-            brand: '',
-            modelName: '',
-            imagePath: '',
-            price: 0,
-            distance: 0,
-            maxPassengers: 0,
-          ),
-        );
-        if (selectedCar.categoryId != null &&
-            selectedCar.categoryId!.isNotEmpty) {
-          return selectedCar.categoryId;
-        }
-      } catch (_) {}
-    }
-
-    // 2. Fallback to searching the _apiCategories list
-    if (_apiCategories.isNotEmpty && _selectedVehicleClass != null) {
-      try {
-        final category = _apiCategories.firstWhere(
-          (c) =>
-              (c['name']?.toString() == _selectedVehicleClass ||
-              c['categoryName']?.toString() == _selectedVehicleClass ||
-              c['category_name']?.toString() == _selectedVehicleClass),
-          orElse: () => {},
-        );
-        return (category['_id'] ?? category['id'])?.toString();
       } catch (e) {
         return null;
       }

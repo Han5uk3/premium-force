@@ -7,7 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
-import 'package:premium_force_main/models/booking_model.dart';
+import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
@@ -16,7 +16,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 /// Displays a live map of the driver's location for a given booking.
 class DriverTrackingPage extends StatefulWidget {
-  final BookingModel booking;
+  final BookingV2 booking;
 
   const DriverTrackingPage({super.key, required this.booking});
 
@@ -122,9 +122,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     super.dispose();
   }
 
-  bool _detectChauffeur() =>
-      (widget.booking.category ?? '').toLowerCase().contains('chauffeur') ||
-      widget.booking.estimatedHours != null;
+  bool _detectChauffeur() => widget.booking.isChauffeur;
 
   // --- Permissions ---
 
@@ -177,14 +175,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
   void _initStaticMarkersAndPolylines() {
     final booking = widget.booking;
-    final cat = (booking.category ?? '').toLowerCase();
-    final isArrival = cat.contains('arrival');
-    final isDeparture = cat.contains('departure');
+    // Direction determines which endpoint carries the airport marker.
+    final isArrival = booking.isAirportArrival;
+    final isDeparture = booking.isAirportDeparture;
 
     final pickupLat = booking.pickupLat ?? 0;
-    final pickupLng = booking.pickupLong ?? 0;
+    final pickupLng = booking.pickupLng ?? 0;
     final dropoffLat = booking.dropOffLat ?? 0;
-    final dropoffLng = booking.dropOffLong ?? 0;
+    final dropoffLng = booking.dropOffLng ?? 0;
 
     if (pickupLat == 0 || pickupLng == 0) return;
 
@@ -590,9 +588,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     final seq = ++_fetchDirectionsSeq;
     final booking = widget.booking;
     final pickupLat = booking.pickupLat ?? 0;
-    final pickupLng = booking.pickupLong ?? 0;
+    final pickupLng = booking.pickupLng ?? 0;
     final dropoffLat = booking.dropOffLat ?? 0;
-    final dropoffLng = booking.dropOffLong ?? 0;
+    final dropoffLng = booking.dropOffLng ?? 0;
     final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
 
     String origin, destination, waypoints = '';
@@ -735,8 +733,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
           GoogleMap(
             initialCameraPosition: CameraPosition(
               target: LatLng(
-                widget.booking.pickupLat ?? 24.7136,
-                widget.booking.pickupLong ?? 46.6753,
+                widget.booking.route?.pickupLocation?.lat ?? 24.7136,
+                widget.booking.route?.pickupLocation?.lng ?? 46.6753,
               ),
               zoom: 14,
             ),
@@ -785,17 +783,17 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                     radius: 26,
                     backgroundColor: const Color(0xFFE4A46B),
                     child:
-                        widget.booking.driver?.profileImageUrl != null &&
-                            widget.booking.driver!.profileImageUrl!.isNotEmpty
+                        widget.booking.driver?.avatar != null &&
+                            widget.booking.driver!.avatar!.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(26),
                             child: CachedNetworkImage(
-                              imageUrl: widget.booking.driver!.profileImageUrl!,
+                              imageUrl: widget.booking.driver!.avatar!,
                               fit: BoxFit.cover,
                               width: 52,
                               height: 52,
                               errorWidget: (c, u, e) => Text(
-                                (widget.booking.driver?.driverName ?? "D")[0]
+                                (widget.booking.driver?.name ?? "D")[0]
                                     .toUpperCase(),
                                 style: const TextStyle(
                                   color: Colors.black,
@@ -806,7 +804,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                             ),
                           )
                         : Text(
-                            (widget.booking.driver?.driverName ?? "D")[0]
+                            (widget.booking.driver?.name ?? "D")[0]
                                 .toUpperCase(),
                             style: const TextStyle(
                               color: Colors.black,
@@ -823,7 +821,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.booking.driver?.driverName ?? "Driver",
+                          widget.booking.driver?.name ?? "Driver",
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -891,8 +889,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                     color: const Color(0xFFE4A46B),
                     shape: const CircleBorder(),
                     child: InkWell(
-                      onTap: () =>
-                          _makePhoneCall(widget.booking.driver?.phoneNumber),
+                      onTap: () => _makePhoneCall(widget.booking.driver?.phone),
                       borderRadius: BorderRadius.circular(25),
                       child: const Padding(
                         padding: EdgeInsets.all(12),

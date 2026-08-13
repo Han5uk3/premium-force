@@ -1157,6 +1157,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectDuration => 'Select Duration';
 
   @override
+  String get retry => 'Retry';
+
+  @override
+  String get refunded => 'Refunded';
+
+  @override
   String nHours(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

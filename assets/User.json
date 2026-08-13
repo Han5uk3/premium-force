@@ -1,0 +1,1010 @@
+{
+  "v": 12,
+  "id": "cmsghgsfr148efu1ix433z40j",
+  "name": "User",
+  "folders": [
+    {
+      "v": 12,
+      "id": "cmsljf5n60epdfu1jhdyg3gw1",
+      "name": "Auth",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "body": "{\n  \"countryCode\": \"+91\",\n  \"phoneNumber\": \"8921992381\",\n  \"channel\": \"sms\"\n}",
+            "contentType": "application/json"
+          },
+          "name": "Send OTP",
+          "method": "POST",
+          "params": [],
+          "headers": [],
+          "endpoint": "http://localhost:5000/api/otp/send-otp",
+          "responses": {},
+          "testScript": "",
+          "description": null,
+          "preRequestScript": "",
+          "requestVariables": [],
+          "id": "cmsljfn7k0gsigb1j4cgxy3w7"
+        },
+        {
+          "v": "17",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "body": "{\n  \"countryCode\": \"+91\",\n  \"phoneNumber\": \"8921992381\",\n  \"otp\": \"123456\"\n}",
+            "contentType": "application/json"
+          },
+          "name": "Verify OTP",
+          "method": "POST",
+          "params": [],
+          "headers": [],
+          "endpoint": "http://localhost:5000/api/otp/verify-otp",
+          "responses": {},
+          "testScript": "",
+          "description": null,
+          "preRequestScript": "",
+          "requestVariables": [],
+          "id": "cmsljftlz0gsjgb1jun3aetno"
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "description": null,
+      "preRequestScript": "",
+      "testScript": ""
+    },
+    {
+      "v": 12,
+      "id": "cmsghheep148gfu1ifryb4xzk",
+      "name": "Common",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "body": null,
+            "contentType": null
+          },
+          "name": "Get Cities",
+          "method": "GET",
+          "params": [],
+          "headers": [],
+          "endpoint": "<<baseUrl>>/cities",
+          "responses": {},
+          "testScript": "",
+          "description": null,
+          "preRequestScript": "",
+          "requestVariables": [],
+          "id": "cmsghhkfj148hfu1iud4z7i3w"
+        },
+        {
+          "v": "17",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "body": "{\n  \"lat\": 24.4672,\n  \"lng\": 39.6112\n}\n",
+            "contentType": "application/json"
+          },
+          "name": "Resolve City",
+          "method": "POST",
+          "params": [],
+          "headers": [],
+          "endpoint": "<<baseUrl>>/geo/resolve-city",
+          "responses": {},
+          "testScript": "",
+          "description": null,
+          "preRequestScript": "",
+          "requestVariables": [],
+          "id": "cmsghtw4n148yfu1irs5rehjr"
+        },
+        {
+          "v": "17",
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "body": {
+            "body": "{\n  \"lat\": 24.4672,\n  \"lng\": 39.6112\n}\n",
+            "contentType": "application/json"
+          },
+          "name": "Resolve Zone",
+          "method": "POST",
+          "params": [],
+          "headers": [],
+          "endpoint": "<<baseUrl>>/resolve-zone",
+          "responses": {},
+          "testScript": "",
+          "description": null,
+          "preRequestScript": "",
+          "requestVariables": [],
+          "id": "cmsghy0401am2gb1iacsvxypl"
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "description": null,
+      "preRequestScript": "",
+      "testScript": ""
+    },
+    {
+      "v": 12,
+      "id": "cmsgkhxz61aqegb1i8kh2gytg",
+      "name": "Booking Session",
+      "folders": [
+        {
+          "v": 12,
+          "id": "cmslkmz9x0gsrgb1jauwnl8hs",
+          "name": "Initiate",
+          "folders": [],
+          "requests": [
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": "{\n  \"transferSubType\": \"airport_arrival\", // airport_departure\n  \"airportId\": \"69b455cf4bb67baf1a0377ce\",\n  \"terminalId\": \"69b456774bb67baf1a0377d3\",\n  \"dropOffLat\": 24.7136,\n  \"dropOffLng\": 46.6753,\n  \"dropOffAddress\": \"Ritz Carlton Hotel, Riyadh\",\n  \"flightNumber\": \"SV 1024\",\n  \"pickupDate\": \"2026-08-12\",\n  \"pickupTime\": \"18:00\"\n}",
+                "contentType": "application/json"
+              },
+              "name": "Initialize Airport Transfer Booking Session",
+              "method": "POST",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/airport-transfer",
+              "responses": {
+                "Initialize Airport Transfer Booking Session": {
+                  "body": "{\"success\":true,\"message\":\"Airport transfer booking session initialized\",\"data\":{\"userId\":\"69cfcc1f16a318f7ae6669f0\",\"step\":1,\"serviceType\":\"airport_transfer\",\"transferSubType\":\"airport_arrival\",\"route\":{\"cityFromId\":\"69b454ed4bb67baf1a0377c8\",\"cityFromName\":\"Riyadh\",\"cityFromNameAr\":\"الرياض\",\"cityToId\":\"69b454ed4bb67baf1a0377c8\",\"cityToName\":\"Riyadh\",\"cityToNameAr\":\"الرياض\",\"airport\":{\"id\":\"69b455cf4bb67baf1a0377ce\",\"name\":\"King Khalid International Airport\",\"nameAr\":\"مطار الملك خالد الدولي\",\"terminal\":{\"id\":\"69b456774bb67baf1a0377d3\",\"name\":\"Terminal 1\"}},\"pickupLocation\":{\"address\":\"King Khalid International Airport\",\"airportId\":\"69b455cf4bb67baf1a0377ce\",\"terminalId\":\"69b456774bb67baf1a0377d3\"},\"dropOffLocation\":{\"address\":\"Ritz Carlton Hotel, Riyadh\",\"lat\":24.7136,\"lng\":46.6753},\"flightNumber\":\"SV 1024\",\"pickupDate\":\"2026-08-12\",\"pickupTime\":\"18:00\",\"pickupDateTime\":\"2026-08-12T15:00:00.000Z\",\"pickupTimezone\":\"Asia/Riyadh\",\"pickupLocalTimeFormatted\":\"Aug 12, 2026, 06:00 PM\"},\"updatedAt\":\"2026-08-09T08:43:39.467Z\"}}",
+                  "code": 200,
+                  "name": "Initialize Airport Transfer Booking Session",
+                  "status": "OK",
+                  "headers": [
+                    {
+                      "key": "access-control-allow-origin",
+                      "value": "*"
+                    },
+                    {
+                      "key": "connection",
+                      "value": "keep-alive"
+                    },
+                    {
+                      "key": "content-length",
+                      "value": "1066"
+                    },
+                    {
+                      "key": "content-type",
+                      "value": "application/json; charset=utf-8"
+                    },
+                    {
+                      "key": "date",
+                      "value": "Sun, 09 Aug 2026 08:43:39 GMT"
+                    },
+                    {
+                      "key": "etag",
+                      "value": "W/\"42a-c34x6LEtQeCG6c2tJjltBbs1dxY\""
+                    },
+                    {
+                      "key": "keep-alive",
+                      "value": "timeout=5"
+                    },
+                    {
+                      "key": "x-powered-by",
+                      "value": "Express"
+                    }
+                  ],
+                  "originalRequest": {
+                    "v": "6",
+                    "auth": {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                      "authType": "bearer",
+                      "authActive": true
+                    },
+                    "body": {
+                      "body": "{\n  \"transferSubType\": \"airport_arrival\", \n  \"airportId\": \"69b455cf4bb67baf1a0377ce\",\n  \"terminalId\": \"69b456774bb67baf1a0377d3\",\n  \"dropOffLat\": 24.7136,\n  \"dropOffLng\": 46.6753,\n  \"dropOffAddress\": \"Ritz Carlton Hotel, Riyadh\",\n  \"flightNumber\": \"SV 1024\",\n  \"pickupDate\": \"2026-08-12\",\n  \"pickupTime\": \"18:00\"\n}",
+                      "contentType": "application/json"
+                    },
+                    "name": "Initialize Airport Transfer Booking Session",
+                    "method": "POST",
+                    "params": [],
+                    "headers": [],
+                    "endpoint": "<<baseUrl>>/bookings/session/airport-transfer",
+                    "requestVariables": []
+                  }
+                }
+              },
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmslj2t1h0gqegb1jq81f2eey"
+            },
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": "{\n  \"pickupLat\": 24.8012,\n  \"pickupLng\": 46.6234,\n  \"pickupAddress\": \"Al Malqa, Riyadh\",\n  \"dropOffLat\": 24.689,\n  \"dropOffLng\": 46.685,\n  \"dropOffAddress\": \"Olaya Towers, Riyadh\",\n  \"pickupDate\": \"2026-08-12\",\n  \"pickupTime\": \"18:00\"\n}",
+                "contentType": "application/json"
+              },
+              "name": "Initiate Private Transfer Booking Session",
+              "method": "POST",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/private-transfer",
+              "responses": {
+                "Initiate Private Transfer Booking Session": {
+                  "body": "{\"success\":true,\"message\":\"Private transfer booking session initialized\",\"data\":{\"userId\":\"69cfcc1f16a318f7ae6669f0\",\"step\":1,\"serviceType\":\"private_transfer\",\"route\":{\"cityFromId\":\"69b454ed4bb67baf1a0377c8\",\"cityFromName\":\"Riyadh\",\"cityFromNameAr\":\"الرياض\",\"zoneFromId\":\"6a2fc254f65ad45abff7c105\",\"zoneFromName\":\"Riyadh City\",\"zoneFromNameAr\":\"الرياض\",\"zoneToId\":\"6a2fc254f65ad45abff7c105\",\"zoneToName\":\"Riyadh City\",\"zoneToNameAr\":\"الرياض\",\"pickupLocation\":{\"address\":\"Al Malqa, Riyadh\",\"lat\":24.8012,\"lng\":46.6234},\"dropOffLocation\":{\"address\":\"Olaya Towers, Riyadh\",\"lat\":24.689,\"lng\":46.685},\"pickupDate\":\"2026-08-12\",\"pickupTime\":\"18:00\",\"pickupDateTime\":\"2026-08-12T15:00:00.000Z\",\"pickupTimezone\":\"Asia/Riyadh\",\"pickupLocalTimeFormatted\":\"Aug 12, 2026, 06:00 PM\"},\"updatedAt\":\"2026-08-09T08:46:48.497Z\"}}",
+                  "code": 200,
+                  "name": "Initiate Private Transfer Booking Session",
+                  "status": "OK",
+                  "headers": [
+                    {
+                      "key": "access-control-allow-origin",
+                      "value": "*"
+                    },
+                    {
+                      "key": "connection",
+                      "value": "keep-alive"
+                    },
+                    {
+                      "key": "content-length",
+                      "value": "830"
+                    },
+                    {
+                      "key": "content-type",
+                      "value": "application/json; charset=utf-8"
+                    },
+                    {
+                      "key": "date",
+                      "value": "Sun, 09 Aug 2026 08:46:48 GMT"
+                    },
+                    {
+                      "key": "etag",
+                      "value": "W/\"33e-LeFjjzZ0bwK2q+7TwBYbTCEalrY\""
+                    },
+                    {
+                      "key": "keep-alive",
+                      "value": "timeout=5"
+                    },
+                    {
+                      "key": "x-powered-by",
+                      "value": "Express"
+                    }
+                  ],
+                  "originalRequest": {
+                    "v": "6",
+                    "auth": {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                      "authType": "bearer",
+                      "authActive": true
+                    },
+                    "body": {
+                      "body": "{\n  \"pickupLat\": 24.8012,\n  \"pickupLng\": 46.6234,\n  \"pickupAddress\": \"Al Malqa, Riyadh\",\n  \"dropOffLat\": 24.689,\n  \"dropOffLng\": 46.685,\n  \"dropOffAddress\": \"Olaya Towers, Riyadh\",\n  \"pickupDate\": \"2026-08-12\",\n  \"pickupTime\": \"18:00\"\n}",
+                      "contentType": "application/json"
+                    },
+                    "name": "Initiate Private Transfer Booking Session",
+                    "method": "POST",
+                    "params": [],
+                    "headers": [],
+                    "endpoint": "<<baseUrl>>/bookings/session/private-transfer",
+                    "requestVariables": []
+                  }
+                }
+              },
+              "testScript": "",
+              "description": "# 🚗 API Specification & Testing Guide — Private Transfer Session\n\n**Target Endpoint:** `POST /api/v2/bookings/session/private-transfer`  \n**Access Level:** Protected (Requires `Authorization: Bearer <Customer_JWT_Token>`)\n\n---\n\n## 🎯 Overview & Purpose\n\nThis API initializes **Step 1** of the booking process for **Private Point-to-Point Transfers** (Zone-to-Zone) in the customer app.\n\n### What the Backend Does:\n- Resolves transfer zone boundaries (`zoneFrom` and `zoneTo`) for the pickup and dropoff coordinates.\n- Validates `pickupDate` (YYYY-MM-DD) and `pickupTime` (HH:mm) against the origin city's `bookingBufferHours`.\n- Checks `ServiceRate` to verify at least one active vehicle rate card exists for `zoneFromId` $\\rightarrow$ `zoneToId`.\n- Saves the draft session in Redis under `booking_session:<userId>` with a **1-Hour TTL (3600 seconds)**.\n\n---\n\n## 📡 Request Headers\n\n| Header Name | Value | Required |\n| :--- | :--- | :--- |\n| `Content-Type` | `application/json` | Yes |\n| `Authorization` | `Bearer <CUSTOMER_JWT_TOKEN>` | Yes |\n\n---\n\n## 📄 Request Payload Example\n\n```json\n{\n  \"pickupLat\": 24.8012,\n  \"pickupLng\": 46.6234,\n  \"pickupAddress\": \"Al Malqa, Riyadh\",\n  \"dropOffLat\": 24.6890,\n  \"dropOffLng\": 46.6850,\n  \"dropOffAddress\": \"Olaya Towers, Riyadh\",\n  \"pickupDate\": \"2026-08-12\",\n  \"pickupTime\": \"18:00\"\n}\n```\n\n---\n\n## 💡 Field Validation Rules\n\n| Field | Type | Required? | Validation Rules |\n| :--- | :--- | :--- | :--- |\n| **`pickupLat`** | Number | **Yes** | Latitude (-90 to 90). |\n| **`pickupLng`** | Number | **Yes** | Longitude (-180 to 180). |\n| **`pickupAddress`** | String | **Yes** | Pickup address string. |\n| **`dropOffLat`** | Number | **Yes** | Latitude (-90 to 90). |\n| **`dropOffLng`** | Number | **Yes** | Longitude (-180 to 180). |\n| **`dropOffAddress`** | String | **Yes** | Dropoff address string. |\n| **`pickupDate`** | String | **Yes** | Date format `YYYY-MM-DD` (e.g. `\"2026-08-12\"`). |\n| **`pickupTime`** | String | **Yes** | 24-hour time format `HH:mm` (e.g. `\"18:00\"`). |\n\n---\n\n## ✅ Success Response Example (`HTTP 200 OK`)\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Private transfer booking session initialized\",\n  \"data\": {\n    \"userId\": \"66b1a2c3d4e5f67890123411\",\n    \"step\": 1,\n    \"serviceType\": \"private_transfer\",\n    \"route\": {\n      \"cityFromId\": \"69b454ed4bb67baf1a0377c8\",\n      \"cityFromName\": \"Riyadh\",\n      \"cityFromNameAr\": \"الرياض\",\n      \"zoneFromId\": \"69b500114bb67baf1a0377e0\",\n      \"zoneFromName\": \"Al Malqa Zone\",\n      \"zoneFromNameAr\": \"منطقة الملقا\",\n      \"zoneToId\": \"69b500224bb67baf1a0377e5\",\n      \"zoneToName\": \"Olaya Zone\",\n      \"zoneToNameAr\": \"منطقة العليا\",\n      \"pickupLocation\": {\n        \"address\": \"Al Malqa, Riyadh\",\n        \"lat\": 24.8012,\n        \"lng\": 46.6234\n      },\n      \"dropOffLocation\": {\n        \"address\": \"Olaya Towers, Riyadh\",\n        \"lat\": 24.6890,\n        \"lng\": 46.6850\n      },\n      \"pickupDate\": \"2026-08-12\",\n      \"pickupTime\": \"18:00\",\n      \"pickupDateTime\": \"2026-08-12T15:00:00.000Z\",\n      \"pickupTimezone\": \"Asia/Riyadh\",\n      \"pickupLocalTimeFormatted\": \"12 Aug 2026, 06:00 PM\"\n    },\n    \"updatedAt\": \"2026-08-09T08:00:00.000Z\"\n  }\n}\n```\n\n---\n\n## ❌ Common Error Responses\n\n### 1. Location Outside Supported Zones (`HTTP 404 Not Found`)\n```json\n{\n  \"success\": false,\n  \"message\": \"Pickup location is outside our supported transfer zones\"\n}\n```\n\n### 2. No Vehicles Configured for Route (`HTTP 404 Not Found`)\n```json\n{\n  \"success\": false,\n  \"message\": \"No available vehicles for this private transfer route\"\n}\n```\n\n---\n\n## 🧪 cURL Command Example\n\n```bash\ncurl -X POST http://localhost:5000/api/v2/bookings/session/private-transfer \\\n  -H \"Content-Type: application/json\" \\\n  -H \"Authorization: Bearer YOUR_CUSTOMER_JWT_TOKEN\" \\\n  -d '{\n    \"pickupLat\": 24.8012,\n    \"pickupLng\": 46.6234,\n    \"pickupAddress\": \"Al Malqa, Riyadh\",\n    \"dropOffLat\": 24.6890,\n    \"dropOffLng\": 46.6850,\n    \"dropOffAddress\": \"Olaya Towers, Riyadh\",\n    \"pickupDate\": \"2026-08-12\",\n    \"pickupTime\": \"18:00\"\n  }'\n```\n",
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmslk5vhi0f3mfu1j3pbnoh6f"
+            },
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": "{\n  \"chauffeurType\": \"hourly\",\n  \"pickupLat\": 24.7136,\n  \"pickupLng\": 46.6753,\n  \"pickupAddress\": \"Four Seasons Hotel, Riyadh\",\n  \"hours\": 5,\n  \"pickupDate\": \"2026-08-12\",\n  \"pickupTime\": \"10:00\"\n}",
+                "contentType": "application/json"
+              },
+              "name": "Initiate Chauffer Service Booking Session",
+              "method": "POST",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/chauffeur",
+              "responses": {
+                "Initiate Chauffer Service Booking Session": {
+                  "body": "{\"success\":true,\"message\":\"Chauffeur booking session initialized\",\"data\":{\"userId\":\"69cfcc1f16a318f7ae6669f0\",\"step\":1,\"serviceType\":\"hourly\",\"chauffeurType\":\"hourly\",\"route\":{\"cityFromId\":\"69b454ed4bb67baf1a0377c8\",\"cityFromName\":\"Riyadh\",\"cityFromNameAr\":\"الرياض\",\"durationHours\":5,\"pickupLocation\":{\"address\":\"Four Seasons Hotel, Riyadh\",\"lat\":24.7136,\"lng\":46.6753},\"pickupDate\":\"2026-08-12\",\"pickupTime\":\"10:00\",\"pickupDateTime\":\"2026-08-12T07:00:00.000Z\",\"pickupTimezone\":\"Asia/Riyadh\",\"pickupLocalTimeFormatted\":\"Aug 12, 2026, 10:00 AM\"},\"updatedAt\":\"2026-08-09T08:49:43.025Z\"}}",
+                  "code": 200,
+                  "name": "Initiate Chauffer Service Booking Session",
+                  "status": "OK",
+                  "headers": [
+                    {
+                      "key": "access-control-allow-origin",
+                      "value": "*"
+                    },
+                    {
+                      "key": "connection",
+                      "value": "keep-alive"
+                    },
+                    {
+                      "key": "content-length",
+                      "value": "591"
+                    },
+                    {
+                      "key": "content-type",
+                      "value": "application/json; charset=utf-8"
+                    },
+                    {
+                      "key": "date",
+                      "value": "Sun, 09 Aug 2026 08:49:43 GMT"
+                    },
+                    {
+                      "key": "etag",
+                      "value": "W/\"24f-ouG8LQN0xNdOqjVfvUbUeU0beiI\""
+                    },
+                    {
+                      "key": "keep-alive",
+                      "value": "timeout=5"
+                    },
+                    {
+                      "key": "x-powered-by",
+                      "value": "Express"
+                    }
+                  ],
+                  "originalRequest": {
+                    "v": "6",
+                    "auth": {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                      "authType": "bearer",
+                      "authActive": true
+                    },
+                    "body": {
+                      "body": "{\n  \"chauffeurType\": \"hourly\",\n  \"pickupLat\": 24.7136,\n  \"pickupLng\": 46.6753,\n  \"pickupAddress\": \"Four Seasons Hotel, Riyadh\",\n  \"hours\": 5,\n  \"pickupDate\": \"2026-08-12\",\n  \"pickupTime\": \"10:00\"\n}",
+                      "contentType": "application/json"
+                    },
+                    "name": "Initiate Chauffer Service Booking Session",
+                    "method": "POST",
+                    "params": [],
+                    "headers": [],
+                    "endpoint": "<<baseUrl>>/bookings/session/chauffeur",
+                    "requestVariables": []
+                  }
+                }
+              },
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmslk8c1k0f3pfu1j9heg55zl"
+            }
+          ],
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "headers": [],
+          "variables": [],
+          "description": null,
+          "preRequestScript": "",
+          "testScript": ""
+        },
+        {
+          "v": 12,
+          "id": "cmslkn7n20gssgb1jinwzx26d",
+          "name": "Vehicle",
+          "folders": [],
+          "requests": [
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": null,
+                "contentType": null
+              },
+              "name": "Get Available Vehicles",
+              "method": "GET",
+              "params": [
+                {
+                  "key": "categoryId",
+                  "value": "69c92b3955994025b73aaa71",
+                  "active": false,
+                  "description": ""
+                },
+                {
+                  "key": "brandId",
+                  "value": "69c9300355994025b73aab28",
+                  "active": false,
+                  "description": ""
+                }
+              ],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/vehicles",
+              "responses": {},
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmslknju00gstgb1jk11wzkwf"
+            },
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": "{\n  \"vehicleId\": \"69c9306255994025b73aab3e\",\n  \"rideNotes\": \"Please keep AC cold.\"\n}",
+                "contentType": "application/json"
+              },
+              "name": "Select Vehicles",
+              "method": "PATCH",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/vehicle",
+              "responses": {},
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmsll7nrl0gszgb1j4vbfd91b"
+            }
+          ],
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "headers": [],
+          "variables": [],
+          "description": null,
+          "preRequestScript": "",
+          "testScript": ""
+        },
+        {
+          "v": 12,
+          "id": "cmslm0fz10gtdgb1jx0wspxmx",
+          "name": "Passenger Details",
+          "folders": [],
+          "requests": [
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": "{\n  \"passengersCount\": 2,\n  \"passengerNames\": \"Najib Muhammed, Tariq Mansoor\",\n  \"passengerPhone\": \"+918921992381\"\n}",
+                "contentType": "application/json"
+              },
+              "name": "Passenger Details",
+              "method": "PATCH",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/passenger",
+              "responses": {
+                "Passenger Details": {
+                  "body": "{\"success\":true,\"message\":\"Passenger details saved successfully\",\"data\":{\"userId\":\"69cfcc1f16a318f7ae6669f0\",\"step\":3,\"serviceType\":\"airport_transfer\",\"transferSubType\":\"airport_arrival\",\"route\":{\"cityFromId\":\"69b454ed4bb67baf1a0377c8\",\"cityFromName\":\"Riyadh\",\"cityFromNameAr\":\"الرياض\",\"cityToId\":\"69b454ed4bb67baf1a0377c8\",\"cityToName\":\"Riyadh\",\"cityToNameAr\":\"الرياض\",\"airport\":{\"id\":\"69b455cf4bb67baf1a0377ce\",\"name\":\"King Khalid International Airport\",\"nameAr\":\"مطار الملك خالد الدولي\",\"terminal\":{\"id\":\"69b456774bb67baf1a0377d3\",\"name\":\"Terminal 1\"}},\"pickupLocation\":{\"address\":\"King Khalid International Airport\",\"airportId\":\"69b455cf4bb67baf1a0377ce\",\"terminalId\":\"69b456774bb67baf1a0377d3\"},\"dropOffLocation\":{\"address\":\"Ritz Carlton Hotel, Riyadh\",\"lat\":24.7136,\"lng\":46.6753},\"flightNumber\":\"SV 1024\",\"pickupDate\":\"2026-08-12\",\"pickupTime\":\"18:00\",\"pickupDateTime\":\"2026-08-12T15:00:00.000Z\",\"pickupTimezone\":\"Asia/Riyadh\",\"pickupLocalTimeFormatted\":\"Aug 12, 2026, 06:00 PM\"},\"updatedAt\":\"2026-08-09T09:18:40.945Z\",\"selectedVehicle\":{\"vehicleId\":\"69c9306255994025b73aab3e\",\"name\":\"S450\",\"model\":\"2023\",\"maxPassengers\":2,\"maxLuggage\":2,\"image\":\"https://premiumforcebacket.s3.ap-southeast-2.amazonaws.com/cars/1775307398556-10668c0fe0096e4b1aa92e90cc3099a0.webp\"},\"rideNotes\":\"Please keep AC cold.\",\"passengerDetails\":{\"passengersCount\":2,\"passengerNames\":\"Najib Muhammed, Tariq Mansoor\",\"passengerPhone\":\"+918921992381\"}}}",
+                  "code": 200,
+                  "name": "Passenger Details",
+                  "status": "OK",
+                  "headers": [
+                    {
+                      "key": "access-control-allow-origin",
+                      "value": "*"
+                    },
+                    {
+                      "key": "connection",
+                      "value": "keep-alive"
+                    },
+                    {
+                      "key": "content-length",
+                      "value": "1463"
+                    },
+                    {
+                      "key": "content-type",
+                      "value": "application/json; charset=utf-8"
+                    },
+                    {
+                      "key": "date",
+                      "value": "Sun, 09 Aug 2026 09:18:40 GMT"
+                    },
+                    {
+                      "key": "etag",
+                      "value": "W/\"5b7-SFlrwlS9RzD2cXBtuKjdlnsHhJA\""
+                    },
+                    {
+                      "key": "keep-alive",
+                      "value": "timeout=5"
+                    },
+                    {
+                      "key": "x-powered-by",
+                      "value": "Express"
+                    }
+                  ],
+                  "originalRequest": {
+                    "v": "6",
+                    "auth": {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                      "authType": "bearer",
+                      "authActive": true
+                    },
+                    "body": {
+                      "body": "{\n  \"passengersCount\": 2,\n  \"passengerNames\": \"Najib Muhammed, Tariq Mansoor\",\n  \"passengerPhone\": \"+918921992381\"\n}",
+                      "contentType": "application/json"
+                    },
+                    "name": "Passenger Details",
+                    "method": "PATCH",
+                    "params": [],
+                    "headers": [],
+                    "endpoint": "<<baseUrl>>/bookings/session/passenger",
+                    "requestVariables": []
+                  }
+                }
+              },
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmsllavpx0fksfu1j1q20n8yn"
+            }
+          ],
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "headers": [],
+          "variables": [],
+          "description": null,
+          "preRequestScript": "",
+          "testScript": ""
+        },
+        {
+          "v": 12,
+          "id": "cmslm0l060gtegb1jh4n79frh",
+          "name": "Checkout",
+          "folders": [],
+          "requests": [
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": null,
+                "contentType": null
+              },
+              "name": "Get Checkout",
+              "method": "GET",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/checkout",
+              "responses": {
+                "Get Checkout": {
+                  "body": "{\"success\":true,\"message\":\"Checkout summary calculated successfully\",\"data\":{\"summary\":{\"serviceType\":\"airport_transfer\",\"transferSubType\":\"airport_arrival\",\"route\":{\"cityFromId\":\"69b454ed4bb67baf1a0377c8\",\"cityFromName\":\"Riyadh\",\"cityFromNameAr\":\"الرياض\",\"cityToId\":\"69b454ed4bb67baf1a0377c8\",\"cityToName\":\"Riyadh\",\"cityToNameAr\":\"الرياض\",\"airport\":{\"id\":\"69b455cf4bb67baf1a0377ce\",\"name\":\"King Khalid International Airport\",\"nameAr\":\"مطار الملك خالد الدولي\",\"terminal\":{\"id\":\"69b456774bb67baf1a0377d3\",\"name\":\"Terminal 1\"}},\"pickupLocation\":{\"address\":\"King Khalid International Airport\",\"airportId\":\"69b455cf4bb67baf1a0377ce\",\"terminalId\":\"69b456774bb67baf1a0377d3\"},\"dropOffLocation\":{\"address\":\"Ritz Carlton Hotel, Riyadh\",\"lat\":24.7136,\"lng\":46.6753},\"flightNumber\":\"SV 1024\",\"pickupDate\":\"2026-08-12\",\"pickupTime\":\"18:00\",\"pickupDateTime\":\"2026-08-12T15:00:00.000Z\",\"pickupTimezone\":\"Asia/Riyadh\",\"pickupLocalTimeFormatted\":\"Aug 12, 2026, 06:00 PM\"},\"selectedVehicle\":{\"vehicleId\":\"69c9306255994025b73aab3e\",\"name\":\"S450\",\"model\":\"2023\",\"maxPassengers\":2,\"maxLuggage\":2,\"image\":\"https://premiumforcebacket.s3.ap-southeast-2.amazonaws.com/cars/1775307398556-10668c0fe0096e4b1aa92e90cc3099a0.webp\"},\"passengerDetails\":{\"passengersCount\":2,\"passengerNames\":\"Najib Muhammed, Tariq Mansoor\",\"passengerPhone\":\"+918921992381\"},\"rideNotes\":\"Please keep AC cold.\"},\"pricing\":{\"currency\":\"SAR\",\"baseFare\":400,\"discounts\":{\"specialIdDiscount\":0,\"coupon\":{\"code\":\"TEST10\",\"amount\":40},\"totalDiscount\":40},\"subtotal\":360,\"vat\":{\"percentage\":15,\"amount\":54},\"totalAmount\":414,\"isZeroCheckout\":false}}}",
+                  "code": 200,
+                  "name": "Get Checkout",
+                  "status": "OK",
+                  "headers": [
+                    {
+                      "key": "access-control-allow-origin",
+                      "value": "*"
+                    },
+                    {
+                      "key": "content-length",
+                      "value": "1625"
+                    },
+                    {
+                      "key": "content-type",
+                      "value": "application/json; charset=utf-8"
+                    },
+                    {
+                      "key": "date",
+                      "value": "Sun, 09 Aug 2026 09:46:46 GMT"
+                    },
+                    {
+                      "key": "etag",
+                      "value": "W/\"659-f9m+jFvkJ6Y+qXMbxxmDenjHf4Q\""
+                    },
+                    {
+                      "key": "x-powered-by",
+                      "value": "Express"
+                    }
+                  ],
+                  "originalRequest": {
+                    "v": "6",
+                    "auth": {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                      "authType": "bearer",
+                      "authActive": true
+                    },
+                    "body": {
+                      "body": null,
+                      "contentType": null
+                    },
+                    "name": "Get Checkout",
+                    "method": "GET",
+                    "params": [],
+                    "headers": [],
+                    "endpoint": "<<baseUrl>>/bookings/session/checkout",
+                    "requestVariables": []
+                  }
+                }
+              },
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmslm0wre0gtfgb1jr240x62c"
+            },
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": "{\n  \"couponCode\": \"FREE100\"\n}",
+                "contentType": "application/json"
+              },
+              "name": "Apply Coupon",
+              "method": "POST",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/coupon",
+              "responses": {
+                "Apply Coupon": {
+                  "body": "{\"success\":true,\"message\":\"Coupon applied successfully\",\"data\":{\"summary\":{\"serviceType\":\"airport_transfer\",\"transferSubType\":\"airport_arrival\",\"route\":{\"cityFromId\":\"69b454ed4bb67baf1a0377c8\",\"cityFromName\":\"Riyadh\",\"cityFromNameAr\":\"الرياض\",\"cityToId\":\"69b454ed4bb67baf1a0377c8\",\"cityToName\":\"Riyadh\",\"cityToNameAr\":\"الرياض\",\"airport\":{\"id\":\"69b455cf4bb67baf1a0377ce\",\"name\":\"King Khalid International Airport\",\"nameAr\":\"مطار الملك خالد الدولي\",\"terminal\":{\"id\":\"69b456774bb67baf1a0377d3\",\"name\":\"Terminal 1\"}},\"pickupLocation\":{\"address\":\"King Khalid International Airport\",\"airportId\":\"69b455cf4bb67baf1a0377ce\",\"terminalId\":\"69b456774bb67baf1a0377d3\"},\"dropOffLocation\":{\"address\":\"Ritz Carlton Hotel, Riyadh\",\"lat\":24.7136,\"lng\":46.6753},\"flightNumber\":\"SV 1024\",\"pickupDate\":\"2026-08-12\",\"pickupTime\":\"18:00\",\"pickupDateTime\":\"2026-08-12T15:00:00.000Z\",\"pickupTimezone\":\"Asia/Riyadh\",\"pickupLocalTimeFormatted\":\"Aug 12, 2026, 06:00 PM\"},\"selectedVehicle\":{\"vehicleId\":\"69c9306255994025b73aab3e\",\"name\":\"S450\",\"model\":\"2023\",\"maxPassengers\":2,\"maxLuggage\":2,\"image\":\"https://premiumforcebacket.s3.ap-southeast-2.amazonaws.com/cars/1775307398556-10668c0fe0096e4b1aa92e90cc3099a0.webp\"},\"passengerDetails\":{\"passengersCount\":2,\"passengerNames\":\"Najib Muhammed, Tariq Mansoor\",\"passengerPhone\":\"+918921992381\"},\"rideNotes\":\"Please keep AC cold.\"},\"pricing\":{\"currency\":\"SAR\",\"baseFare\":400,\"discounts\":{\"specialIdDiscount\":0,\"coupon\":{\"code\":\"FREE100\",\"amount\":400},\"totalDiscount\":400},\"subtotal\":0,\"vat\":{\"percentage\":15,\"amount\":0},\"totalAmount\":0,\"isZeroCheckout\":true}}}",
+                  "code": 200,
+                  "name": "Apply Coupon",
+                  "status": "OK",
+                  "headers": [
+                    {
+                      "key": "access-control-allow-origin",
+                      "value": "*"
+                    },
+                    {
+                      "key": "connection",
+                      "value": "keep-alive"
+                    },
+                    {
+                      "key": "content-length",
+                      "value": "1609"
+                    },
+                    {
+                      "key": "content-type",
+                      "value": "application/json; charset=utf-8"
+                    },
+                    {
+                      "key": "date",
+                      "value": "Sun, 09 Aug 2026 09:49:41 GMT"
+                    },
+                    {
+                      "key": "etag",
+                      "value": "W/\"649-IKP00Hj2zJolmIAQWeWlSGrcQKI\""
+                    },
+                    {
+                      "key": "keep-alive",
+                      "value": "timeout=5"
+                    },
+                    {
+                      "key": "x-powered-by",
+                      "value": "Express"
+                    }
+                  ],
+                  "originalRequest": {
+                    "v": "6",
+                    "auth": {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                      "authType": "bearer",
+                      "authActive": true
+                    },
+                    "body": {
+                      "body": "{\n  \"couponCode\": \"FREE100\"\n}",
+                      "contentType": "application/json"
+                    },
+                    "name": "Apply Coupon",
+                    "method": "POST",
+                    "params": [],
+                    "headers": [],
+                    "endpoint": "<<baseUrl>>/bookings/session/coupon",
+                    "requestVariables": []
+                  }
+                }
+              },
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmslm8aog0gthgb1jc5t50vcl"
+            },
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": null,
+                "contentType": null
+              },
+              "name": "Remove Coupon",
+              "method": "DELETE",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/coupon",
+              "responses": {
+                "Remove Coupon": {
+                  "body": "{\"success\":true,\"message\":\"Coupon removed successfully\",\"data\":{\"summary\":{\"serviceType\":\"airport_transfer\",\"transferSubType\":\"airport_arrival\",\"route\":{\"cityFromId\":\"69b454ed4bb67baf1a0377c8\",\"cityFromName\":\"Riyadh\",\"cityFromNameAr\":\"الرياض\",\"cityToId\":\"69b454ed4bb67baf1a0377c8\",\"cityToName\":\"Riyadh\",\"cityToNameAr\":\"الرياض\",\"airport\":{\"id\":\"69b455cf4bb67baf1a0377ce\",\"name\":\"King Khalid International Airport\",\"nameAr\":\"مطار الملك خالد الدولي\",\"terminal\":{\"id\":\"69b456774bb67baf1a0377d3\",\"name\":\"Terminal 1\"}},\"pickupLocation\":{\"address\":\"King Khalid International Airport\",\"airportId\":\"69b455cf4bb67baf1a0377ce\",\"terminalId\":\"69b456774bb67baf1a0377d3\"},\"dropOffLocation\":{\"address\":\"Ritz Carlton Hotel, Riyadh\",\"lat\":24.7136,\"lng\":46.6753},\"flightNumber\":\"SV 1024\",\"pickupDate\":\"2026-08-12\",\"pickupTime\":\"18:00\",\"pickupDateTime\":\"2026-08-12T15:00:00.000Z\",\"pickupTimezone\":\"Asia/Riyadh\",\"pickupLocalTimeFormatted\":\"Aug 12, 2026, 06:00 PM\"},\"selectedVehicle\":{\"vehicleId\":\"69c9306255994025b73aab3e\",\"name\":\"S450\",\"model\":\"2023\",\"maxPassengers\":2,\"maxLuggage\":2,\"image\":\"https://premiumforcebacket.s3.ap-southeast-2.amazonaws.com/cars/1775307398556-10668c0fe0096e4b1aa92e90cc3099a0.webp\"},\"passengerDetails\":{\"passengersCount\":2,\"passengerNames\":\"Najib Muhammed, Tariq Mansoor\",\"passengerPhone\":\"+918921992381\"},\"rideNotes\":\"Please keep AC cold.\"},\"pricing\":{\"currency\":\"SAR\",\"baseFare\":400,\"discounts\":{\"specialIdDiscount\":0,\"coupon\":null,\"totalDiscount\":0},\"subtotal\":400,\"vat\":{\"percentage\":15,\"amount\":60},\"totalAmount\":460,\"isZeroCheckout\":false}}}",
+                  "code": 200,
+                  "name": "Remove Coupon",
+                  "status": "OK",
+                  "headers": [
+                    {
+                      "key": "access-control-allow-origin",
+                      "value": "*"
+                    },
+                    {
+                      "key": "connection",
+                      "value": "keep-alive"
+                    },
+                    {
+                      "key": "content-length",
+                      "value": "1586"
+                    },
+                    {
+                      "key": "content-type",
+                      "value": "application/json; charset=utf-8"
+                    },
+                    {
+                      "key": "date",
+                      "value": "Sun, 09 Aug 2026 09:50:14 GMT"
+                    },
+                    {
+                      "key": "etag",
+                      "value": "W/\"632-nd2Mt9aM2/HwNbQT7FIiSdM2xd8\""
+                    },
+                    {
+                      "key": "keep-alive",
+                      "value": "timeout=5"
+                    },
+                    {
+                      "key": "x-powered-by",
+                      "value": "Express"
+                    }
+                  ],
+                  "originalRequest": {
+                    "v": "6",
+                    "auth": {
+                      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                      "authType": "bearer",
+                      "authActive": true
+                    },
+                    "body": {
+                      "body": null,
+                      "contentType": null
+                    },
+                    "name": "Remove Coupon",
+                    "method": "DELETE",
+                    "params": [],
+                    "headers": [],
+                    "endpoint": "<<baseUrl>>/bookings/session/coupon",
+                    "requestVariables": []
+                  }
+                }
+              },
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmslmdw9v0gtkgb1jntaw06q0"
+            },
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": null,
+                "contentType": null
+              },
+              "name": "Confirm Booking",
+              "method": "POST",
+              "params": [],
+              "headers": [],
+              "endpoint": "<<baseUrl>>/bookings/session/confirm",
+              "responses": {},
+              "testScript": "",
+              "description": "# 💳 Step 4 API Specification — Confirm Booking & PayTabs SDK Initiation\n\n**Endpoint:** `POST /api/v2/bookings/session/confirm`  \n**Access Level:** Protected (Requires `Authorization: Bearer <Customer_JWT_Token>`)\n\n---\n\n## 🎯 Overview & Purpose\n\nConfirms the active draft session and either:\n1. **Zero Checkout (`totalAmount === 0`)** $\\rightarrow$ Creates `BookingV2` in MongoDB with status `confirmed`, clears draft Redis session, and returns `paymentRequired: false`.\n2. **Paid Booking (`totalAmount > 0`)** $\\rightarrow$ Creates `BookingV2` in MongoDB in `pending_payment` state, creates `PaymentTransaction` in `initiated` state, and returns PayTabs Flutter SDK configuration parameters (`profileId`, `serverKey`, `clientKey`, `cartId`, `amount`, `currency`).\n\n---\n\n## 📡 Request Headers\n\n| Header Name | Value | Required |\n| :--- | :--- | :--- |\n| `Authorization` | `Bearer <CUSTOMER_JWT_TOKEN>` | Yes |\n\n*No Request Body required.*\n\n---\n\n## ✅ Response Examples\n\n### Case 1: Standard Paid Booking (`paymentRequired: true`)\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Payment initiated successfully\",\n  \"data\": {\n    \"paymentRequired\": true,\n    \"bookingNumber\": \"PF-APT-2608-9842\",\n    \"bookingId\": \"66b1a2c3d4e5f67890123888\",\n    \"paytabsConfig\": {\n      \"profileId\": \"109432\",\n      \"serverKey\": \"SJKNKD82...\",\n      \"clientKey\": \"CKJND83...\",\n      \"cartId\": \"PF-APT-2608-9842\",\n      \"cartDescription\": \"Premium Force AIRPORT TRANSFER\",\n      \"amount\": 232.88,\n      \"currency\": \"SAR\"\n    }\n  }\n}\n```\n\n---\n\n### Case 2: Zero Checkout / 100% Free Booking (`paymentRequired: false`)\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Booking confirmed successfully with zero total\",\n  \"data\": {\n    \"paymentRequired\": false,\n    \"bookingNumber\": \"PF-APT-2608-9842\",\n    \"status\": \"confirmed\",\n    \"bookingId\": \"66b1a2c3d4e5f67890123999\",\n    \"summary\": { ... },\n    \"pricing\": {\n      \"currency\": \"SAR\",\n      \"baseFare\": 250.00,\n      \"discounts\": {\n        \"specialIdDiscount\": 0,\n        \"coupon\": {\n          \"code\": \"FREE100\",\n          \"amount\": 250.00\n        },\n        \"totalDiscount\": 250.00\n      },\n      \"subtotal\": 0.00,\n      \"vat\": {\n        \"percentage\": 15,\n        \"amount\": 0.00\n      },\n      \"totalAmount\": 0.00,\n      \"isZeroCheckout\": true\n    }\n  }\n}\n```\n\n---\n\n## 🧪 cURL Command\n\n```bash\ncurl -X POST http://localhost:5000/api/v2/bookings/session/confirm \\\n  -H \"Authorization: Bearer YOUR_CUSTOMER_JWT_TOKEN\"\n```\n",
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmslniqbk0fx2fu1je50rap5e"
+            },
+            {
+              "v": "17",
+              "auth": {
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyNjQ0NDIsImV4cCI6MTc4NjM1MDg0Mn0.6LIEkejILL7ww2ZoJw_yHpnTqugQLyoJARb-YRZsuAo",
+                "authType": "bearer",
+                "authActive": true
+              },
+              "body": {
+                "body": "{\n  \"bookingNumber\": \"PF-APT-2608-7795\"\n}",
+                "contentType": "application/json"
+              },
+              "name": "Verify Payment",
+              "method": "POST",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer YOUR_CUSTOMER_JWT_TOKEN",
+                  "active": false,
+                  "description": ""
+                }
+              ],
+              "endpoint": "<<baseUrl>>/bookings/session/verify-payment",
+              "responses": {},
+              "testScript": "",
+              "description": null,
+              "preRequestScript": "",
+              "requestVariables": [],
+              "id": "cmsloe08u0g91fu1jby0b2gei"
+            }
+          ],
+          "auth": {
+            "authType": "inherit",
+            "authActive": true
+          },
+          "headers": [],
+          "variables": [],
+          "description": null,
+          "preRequestScript": "",
+          "testScript": ""
+        }
+      ],
+      "requests": [],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "description": null,
+      "preRequestScript": "",
+      "testScript": ""
+    },
+    {
+      "v": 12,
+      "id": "cmsm41vs80hzegb1jk7ue2v50",
+      "name": "Booking",
+      "folders": [],
+      "requests": [
+        {
+          "v": "17",
+          "auth": {
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyOTg2MTksImV4cCI6MTc4NjM4NTAxOX0.LkcIM2bfxkgGE5ENpm0bu_K9jtarfx2O08c5_3yQIGg",
+            "authType": "bearer",
+            "authActive": true
+          },
+          "body": {
+            "body": "{\n  \"reason\": \"Flight schedule changed\"\n}",
+            "contentType": "application/json"
+          },
+          "name": "Cancel Booking",
+          "method": "POST",
+          "params": [],
+          "headers": [],
+          "endpoint": "<<baseUrl>>/bookings/6a7856a537ad7c43b31bbe81/cancel",
+          "responses": {},
+          "testScript": "",
+          "description": null,
+          "preRequestScript": "",
+          "requestVariables": [],
+          "id": "cmsm42b9e0ieafu1jclrbttjm"
+        },
+        {
+          "v": "17",
+          "auth": {
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyOTg2MTksImV4cCI6MTc4NjM4NTAxOX0.LkcIM2bfxkgGE5ENpm0bu_K9jtarfx2O08c5_3yQIGg",
+            "authType": "bearer",
+            "authActive": true
+          },
+          "body": {
+            "body": "",
+            "contentType": "application/json"
+          },
+          "name": "Get Bookings",
+          "method": "GET",
+          "params": [],
+          "headers": [],
+          "endpoint": "<<baseUrl>>/bookings/my-bookings?status=upcoming&page=1&limit=10",
+          "responses": {},
+          "testScript": "",
+          "description": "# Customer Bookings & Trip Details API Documentation (V2)\n\nDocumentation for the **Flutter Mobile App** covering **Customer Booking History**, **Trip Details**, and **Booking Cancellation**.\n\n---\n\n## 📑 API Endpoints Summary\n\n| Endpoint | Method | Authentication | Description |\n| :--- | :---: | :--- | :--- |\n| `/api/v2/bookings/my-bookings` | `GET` | Customer JWT | Paginated list of customer bookings filtered by status (`upcoming`, `ongoing`, `completed`, `cancelled`, `all`). |\n| `/api/v2/bookings/:id` | `GET` | Customer JWT | Detailed trip view with vertical progress timeline stepper, full pricing, driver, vehicle, and refund notices. |\n| `/api/v2/bookings/:id/cancel` | `POST` | Customer JWT | Cancel booking & trigger 100% automated PayTabs Gateway refund. |\n\n---\n\n## 1️⃣ Customer Booking History List (`GET /api/v2/bookings/my-bookings`)\n\nReturns lightweight booking cards formatted for list rendering.\n\n### Query Parameters\n\n| Parameter | Type | Required | Default | Allowed Values / Description |\n| :--- | :--- | :---: | :---: | :--- |\n| `status` | `String` | No | `'all'` | `'upcoming'` (confirmed/driver_assigned)<br>`'ongoing'` (en-route/arrived/in-trip)<br>`'completed'`<br>`'cancelled'`<br>`'all'` |\n| `page` | `Number` | No | `1` | Page number for pagination. |\n| `limit` | `Number` | No | `10` | Number of items per page (max 50). |\n\n### 💻 cURL Example\n\n```bash\ncurl -X GET \"http://localhost:3000/api/v2/bookings/my-bookings?status=upcoming&page=1&limit=10\" \\\n  -H \"Authorization: Bearer YOUR_CUSTOMER_JWT\"\n```\n\n### 🟢 Response Example (`200 OK`)\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Customer bookings retrieved successfully\",\n  \"data\": {\n    \"bookings\": [\n      {\n        \"_id\": \"6a785b7918ccf6215aa7120f\",\n        \"bookingNumber\": \"PF-APT-2608-7795\",\n        \"serviceType\": \"airport_transfer\",\n        \"transferSubType\": \"airport_arrival\",\n        \"bookingStatus\": \"driver_assigned\",\n        \"route\": {\n          \"cityFromName\": \"Riyadh\",\n          \"cityToName\": \"Riyadh\",\n          \"airport\": {\n            \"_id\": \"65e2b1f8a9d1c23456789011\",\n            \"airportName\": \"King Khalid International Airport\",\n            \"airportNameAr\": \"مطار الملك خالد الدولي\"\n          },\n          \"terminal\": {\n            \"_id\": \"65e2b1f8a9d1c23456789022\",\n            \"terminalName\": \"Terminal 3\",\n            \"terminalNameAr\": \"الصالة 3\"\n          },\n          \"pickupLocation\": {\n            \"address\": \"Terminal 3, RUH Airport, Riyadh\",\n            \"lat\": 24.9576,\n            \"lng\": 46.6988\n          },\n          \"dropOffLocation\": {\n            \"address\": \"Ritz-Carlton Hotel, Riyadh\",\n            \"lat\": 24.6653,\n            \"lng\": 46.6269\n          },\n          \"flightNumber\": \"SV-1024\",\n          \"pickupUTC\": \"2026-08-10T14:00:00.000Z\",\n          \"pickupLocalTimeFormatted\": \"10 Aug 2026, 05:00 PM (AST)\",\n          \"durationHours\": null,\n          \"distanceKm\": 42.5\n        },\n        \"vehicle\": {\n          \"vehicleId\": \"65e2b1f8a9d1c234567890ab\",\n          \"name\": \"GMC Yukon XL\",\n          \"model\": \"2025\",\n          \"image\": \"https://cdn.premiumforce.sa/vehicles/gmc_yukon.png\"\n        },\n        \"driver\": {\n          \"_id\": \"67a1b2c3d4e5f67890123456\",\n          \"name\": \"Fahad Al-Otaibi\",\n          \"phone\": \"+966599887766\",\n          \"rating\": 4.9,\n          \"avatar\": \"https://cdn.premiumforce.sa/drivers/fahad.jpg\"\n        },\n        \"fleet\": {\n          \"_id\": \"68b2c3d4e5f6789012345678\",\n          \"licensePlate\": \"5432-RSA\"\n        },\n        \"pricing\": {\n          \"totalAmount\": 460,\n          \"currency\": \"SAR\",\n          \"isZeroCheckout\": false\n        },\n        \"createdAt\": \"2026-08-09T10:50:33.125Z\"\n      }\n    ],\n    \"meta\": {\n      \"page\": 1,\n      \"limit\": 10,\n      \"total\": 1,\n      \"totalPages\": 1\n    }\n  }\n}\n```\n\n---\n\n## 2️⃣ Single Booking Detailed View (`GET /api/v2/bookings/:id`)\n\nReturns complete deep booking details, pricing breakdown, populated driver/fleet, refund information, and vertical progress `timeline` array for Flutter steppers.\n\n### Path Parameters\n\n| Parameter | Type | Required | Description |\n| :--- | :--- | :---: | :--- |\n| `id` | `String` | **Yes** | 24-character hex MongoDB `ObjectId` of the booking. |\n\n### 💻 cURL Example\n\n```bash\ncurl -X GET \"http://localhost:3000/api/v2/bookings/6a785b7918ccf6215aa7120f\" \\\n  -H \"Authorization: Bearer YOUR_CUSTOMER_JWT\"\n```\n\n### 🟢 Response Example (`200 OK`)\n\n```json\n{\n  \"success\": true,\n  \"message\": \"Booking details retrieved successfully\",\n  \"data\": {\n    \"_id\": \"6a785b7918ccf6215aa7120f\",\n    \"bookingNumber\": \"PF-APT-2608-7795\",\n    \"serviceType\": \"airport_transfer\",\n    \"transferSubType\": \"airport_arrival\",\n    \"bookingStatus\": \"driver_assigned\",\n    \"route\": {\n      \"cityFrom\": {\n        \"_id\": \"65e2b1f8a9d1c23456789001\",\n        \"cityName\": \"Riyadh\",\n        \"cityNameAr\": \"الرياض\"\n      },\n      \"cityTo\": {\n        \"_id\": \"65e2b1f8a9d1c23456789002\",\n        \"cityName\": \"Riyadh\",\n        \"cityNameAr\": \"الرياض\"\n      },\n      \"airport\": {\n        \"_id\": \"65e2b1f8a9d1c23456789011\",\n        \"airportName\": \"King Khalid International Airport\",\n        \"airportNameAr\": \"مطار الملك خالد الدولي\"\n      },\n      \"terminal\": {\n        \"_id\": \"65e2b1f8a9d1c23456789022\",\n        \"terminalName\": \"Terminal 3\",\n        \"terminalNameAr\": \"الصالة 3\"\n      },\n      \"pickupLocation\": {\n        \"address\": \"Terminal 3, RUH Airport, Riyadh\",\n        \"lat\": 24.9576,\n        \"lng\": 46.6988\n      },\n      \"dropOffLocation\": {\n        \"address\": \"Ritz-Carlton Hotel, Riyadh\",\n        \"lat\": 24.6653,\n        \"lng\": 46.6269\n      },\n      \"flightNumber\": \"SV-1024\",\n      \"pickupUTC\": \"2026-08-10T14:00:00.000Z\",\n      \"pickupLocalTimeFormatted\": \"10 Aug 2026, 05:00 PM (AST)\",\n      \"distanceKm\": 42.5\n    },\n    \"vehicle\": {\n      \"vehicleId\": \"65e2b1f8a9d1c234567890ab\",\n      \"name\": \"GMC Yukon XL\",\n      \"model\": \"2025\",\n      \"maxPassengers\": 6,\n      \"image\": \"https://cdn.premiumforce.sa/vehicles/gmc_yukon.png\"\n    },\n    \"passengerDetails\": {\n      \"passengersCount\": 3,\n      \"passengerNames\": \"Tariq Al-Mansoor\",\n      \"passengerPhone\": \"+966501234567\"\n    },\n    \"rideNotes\": \"Child seat required\",\n    \"pricing\": {\n      \"currency\": \"SAR\",\n      \"baseFare\": 400,\n      \"discounts\": {\n        \"specialIdDiscount\": 0,\n        \"coupon\": {\n          \"code\": null,\n          \"amount\": 0\n        },\n        \"totalDiscount\": 0\n      },\n      \"subtotal\": 400,\n      \"vat\": {\n        \"percentage\": 15,\n        \"amount\": 60\n      },\n      \"totalAmount\": 460,\n      \"isZeroCheckout\": false\n    },\n    \"driver\": {\n      \"_id\": \"67a1b2c3d4e5f67890123456\",\n      \"name\": \"Fahad Al-Otaibi\",\n      \"phone\": \"+966599887766\",\n      \"rating\": 4.9,\n      \"avatar\": \"https://cdn.premiumforce.sa/drivers/fahad.jpg\"\n    },\n    \"fleet\": {\n      \"_id\": \"68b2c3d4e5f6789012345678\",\n      \"licensePlate\": \"5432-RSA\"\n    },\n    \"payment\": {\n      \"_id\": \"69a1b2c3d4e5f67890123456\",\n      \"gateway\": \"paytabs\",\n      \"status\": \"captured\",\n      \"transactionRef\": \"TST26081094321\",\n      \"amount\": 460,\n      \"currency\": \"SAR\"\n    },\n    \"refund\": null,\n    \"timeline\": [\n      {\n        \"key\": \"confirmed\",\n        \"label\": \"Booking Confirmed\",\n        \"labelAr\": \"تم تأكيد الحجز\",\n        \"isCompleted\": true,\n        \"isCurrent\": false,\n        \"isCancelled\": false,\n        \"timestamp\": \"2026-08-09T10:50:33.125Z\"\n      },\n      {\n        \"key\": \"driver_assigned\",\n        \"label\": \"Driver Assigned\",\n        \"labelAr\": \"تم تعيين السائق\",\n        \"isCompleted\": true,\n        \"isCurrent\": true,\n        \"isCancelled\": false,\n        \"timestamp\": \"2026-08-09T11:15:00.000Z\"\n      },\n      {\n        \"key\": \"driver_en_route\",\n        \"label\": \"Driver En-Route\",\n        \"labelAr\": \"السائق في الطريق\",\n        \"isCompleted\": false,\n        \"isCurrent\": false,\n        \"isCancelled\": false,\n        \"timestamp\": null\n      },\n      {\n        \"key\": \"driver_arrived\",\n        \"label\": \"Driver Arrived\",\n        \"labelAr\": \"وصل السائق\",\n        \"isCompleted\": false,\n        \"isCurrent\": false,\n        \"isCancelled\": false,\n        \"timestamp\": null\n      },\n      {\n        \"key\": \"trip_started\",\n        \"label\": \"Trip Started\",\n        \"labelAr\": \"بدأت الرحلة\",\n        \"isCompleted\": false,\n        \"isCurrent\": false,\n        \"isCancelled\": false,\n        \"timestamp\": null\n      },\n      {\n        \"key\": \"completed\",\n        \"label\": \"Trip Completed\",\n        \"labelAr\": \"اكتملت الرحلة\",\n        \"isCompleted\": false,\n        \"isCurrent\": false,\n        \"isCancelled\": false,\n        \"timestamp\": null\n      }\n    ],\n    \"createdAt\": \"2026-08-09T10:50:33.125Z\",\n    \"updatedAt\": \"2026-08-09T11:15:00.000Z\"\n  }\n}\n```\n\n\n",
+          "preRequestScript": "",
+          "requestVariables": [],
+          "id": "cmsm592af0if6fu1jl8la98vz"
+        },
+        {
+          "v": "17",
+          "auth": {
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNmY2MxZjE2YTMxOGY3YWU2NjY5ZjAiLCJwaG9uZU51bWJlciI6Ijg5MjE5OTIzODEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpYXQiOjE3ODYyOTg2MTksImV4cCI6MTc4NjM4NTAxOX0.LkcIM2bfxkgGE5ENpm0bu_K9jtarfx2O08c5_3yQIGg",
+            "authType": "bearer",
+            "authActive": true
+          },
+          "body": {
+            "body": null,
+            "contentType": null
+          },
+          "name": "Get Bookings by Id",
+          "method": "GET",
+          "params": [],
+          "headers": [],
+          "endpoint": "<<baseUrl>>/bookings/6a785b7918ccf6215aa7120f",
+          "responses": {},
+          "testScript": "",
+          "description": null,
+          "preRequestScript": "",
+          "requestVariables": [],
+          "id": "cmsm5ecmk0if7fu1jxa02i1br"
+        }
+      ],
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "headers": [],
+      "variables": [],
+      "description": null,
+      "preRequestScript": "",
+      "testScript": ""
+    }
+  ],
+  "requests": [],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "variables": [],
+  "description": null,
+  "preRequestScript": "",
+  "testScript": ""
+}

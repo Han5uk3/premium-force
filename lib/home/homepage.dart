@@ -23,6 +23,8 @@ import 'package:premium_force_main/common_widgets/infinite_scroll_banner.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
+import 'package:premium_force_main/models/v2/booking_service_type.dart';
+import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/home/fleet_list_page.dart';
 import 'package:premium_force_main/models/pricing/zone_model.dart';
@@ -595,19 +597,17 @@ class _HomepageState extends State<Homepage>
 
   // Removed local _fetchPastBookings since we use BookingProvider now
 
-  String _getBookingName(String? category, BuildContext context) {
+  /// Localised product name for a booking card.
+  String _getBookingName(BookingV2 booking, BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    if (category == null) return 'Booking';
-    switch (category.toLowerCase()) {
-      case 'chauffeur':
-        return loc.chauffeur;
-      case 'airport arrival':
-        return loc.airportArrival;
-      case 'airport departure':
-        return loc.airportDeparture;
-      default:
-        return 'Booking';
-    }
+
+    return switch (booking.resolvedServiceType) {
+      BookingServiceType.airportArrival => loc.airportArrival,
+      BookingServiceType.airportDeparture => loc.airportDeparture,
+      BookingServiceType.chauffeur => loc.chauffeur,
+      BookingServiceType.privateTransfer => loc.privateTransfer,
+      null => booking.isChauffeur ? loc.chauffeur : 'Booking',
+    };
   }
 
   @override
@@ -630,36 +630,32 @@ class _HomepageState extends State<Homepage>
               _buildBookService(context, loc),
               Consumer<BookingProvider>(
                 builder: (context, bookingProvider, child) {
-                  try {
-                    final trackingBooking = bookingProvider.bookings.firstWhere(
-                      (b) =>
-                          b.bookingStatus?.toLowerCase().trim() ==
-                          'starttracking',
-                    );
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: 24,
-                            right: 24,
-                            top: 12,
-                          ),
-                          child: Text(
-                            loc.trackYourDriver,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
+                  // A ride is trackable once the driver is en-route, has
+                  // arrived, or the trip is underway.
+                  final trackingBooking = bookingProvider.liveBooking;
+                  if (trackingBooking == null) return const SizedBox.shrink();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 24,
+                          right: 24,
+                          top: 12,
+                        ),
+                        child: Text(
+                          loc.trackYourDriver,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
                           ),
                         ),
-                        TrackingCard(booking: trackingBooking),
-                      ],
-                    );
-                  } catch (_) {
-                    return const SizedBox.shrink();
-                  }
+                      ),
+                      TrackingCard(booking: trackingBooking),
+                    ],
+                  );
                 },
               ),
               _buildPremiumFleet(context, loc),
@@ -751,7 +747,7 @@ class _HomepageState extends State<Homepage>
                   physics: const NeverScrollableScrollPhysics(),
                   itemBuilder: (context, index) {
                     final booking = bookingProvider.recentBookings[index];
-                    final displayDate = booking.parsedPickupDateTime;
+                    final displayDate = booking.pickupDateTime;
 
                     final dateStr = Bookingcard.formatDate(
                       context,
@@ -770,7 +766,7 @@ class _HomepageState extends State<Homepage>
                             context,
                             MaterialPageRoute(
                               builder: (context) =>
-                                  BookingDetailsPage(booking: booking),
+                                  BookingDetailsPage(bookingId: booking.id),
                             ),
                           );
                           if (result == true) {
@@ -778,23 +774,17 @@ class _HomepageState extends State<Homepage>
                           }
                         },
                         child: Bookingcard(
-                          status: booking.bookingStatus ?? 'Pending',
-                          type: _getBookingName(booking.category, context),
-                          pickup:
-                              booking.pickupAddress ?? booking.airport ?? 'N/A',
+                          status: booking.status.wireValue,
+                          type: _getBookingName(booking, context),
+                          pickup: booking.pickupAddress ?? 'N/A',
                           dropoff: booking.dropOffAddress ?? 'N/A',
                           date: dateStr,
                           time: timeStr,
-                          ride: booking.displayCategory,
-                          brand: booking.displayBrand,
-                          passengers:
-                              int.tryParse(booking.passengerCount ?? '1') ?? 1,
-                          chauffeurName: booking.displayDriverName,
-                          isChauffeur:
-                              (booking.category ?? '').toLowerCase().contains(
-                                'chauffeur',
-                              ) ||
-                              booking.estimatedHours != null,
+                          ride: booking.vehicleLabel,
+                          brand: booking.vehicle?.name ?? '',
+                          passengers: booking.passengersCount,
+                          chauffeurName: booking.driver?.name,
+                          isChauffeur: booking.isChauffeur,
                         ),
                       ),
                     );
@@ -1258,7 +1248,6 @@ class _HomepageState extends State<Homepage>
     }
     bool isEnglish = Localizations.localeOf(context).languageCode == 'en';
     int selectedCityIndex = 0; // default to Riyadh
-    bool _isFetchingPrices = false;
 
     showModalBottomSheet(
       context: context,
@@ -1444,134 +1433,37 @@ class _HomepageState extends State<Homepage>
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: PremiumButton(
-                        showLoader: _isFetchingPrices,
+                        showLoader: false,
                         borderRadius: 12,
                         text: loc.continueText,
-                        onTap: _isFetchingPrices
-                            ? () {}
-                            : () async {
-                                final activeCities = _getFilteredCities(
-                                  catcode,
-                                );
-                                if (activeCities.isEmpty) return;
+                        onTap: () async {
+                          final activeCities = _getFilteredCities(catcode);
+                          if (activeCities.isEmpty) return;
 
-                                final cityId =
-                                    (activeCities[selectedCityIndex]['_id'] ??
-                                            activeCities[selectedCityIndex]['id'])
-                                        ?.toString();
+                          final cityId =
+                              (activeCities[selectedCityIndex]['_id'] ??
+                                      activeCities[selectedCityIndex]['id'])
+                                  ?.toString();
 
-                                Map<String, List<Map<String, dynamic>>>?
-                                preloadedHourlyPricing;
-                                List<int>? preloadedHourOptions;
-
-                                if (catcode == 2 && cityId != null) {
-                                  setState(() {
-                                    _isFetchingPrices = true;
-                                  });
-                                  try {
-                                    final carsResponse = await ApiService()
-                                        .getCars(
-                                          token: UserLocalStorage.getToken(),
-                                        );
-                                    if (carsResponse['success'] == true) {
-                                      final List<dynamic> carsData =
-                                          carsResponse['cars'] ??
-                                          carsResponse['data'] ??
-                                          [];
-
-                                      final Map<
-                                        String,
-                                        List<Map<String, dynamic>>
-                                      >
-                                      pricingByVehicle = {};
-                                      final Set<int> allHours = {};
-
-                                      await Future.wait(
-                                        carsData.map((carObj) async {
-                                          final carMap =
-                                              carObj as Map<String, dynamic>;
-                                          final carId =
-                                              (carMap['_id'] ?? carMap['id'])
-                                                  ?.toString();
-                                          if (carId == null || carId.isEmpty) {
-                                            return;
-                                          }
-
-                                          final res = await ApiService()
-                                              .getHourlyPriceForVehicle(
-                                                vehicleId: carId,
-                                                token:
-                                                    UserLocalStorage.getToken(),
-                                              );
-                                          if (res['success'] == true &&
-                                              res['data'] != null) {
-                                            final pricingList =
-                                                (res['data']['pricing']
-                                                        as List?)
-                                                    ?.map(
-                                                      (p) =>
-                                                          Map<
-                                                            String,
-                                                            dynamic
-                                                          >.from(p as Map),
-                                                    )
-                                                    .where(
-                                                      (e) =>
-                                                          e['hour'] != null &&
-                                                          e['price'] != null,
-                                                    )
-                                                    .toList() ??
-                                                [];
-
-                                            if (pricingList.isNotEmpty) {
-                                              pricingByVehicle[carId] =
-                                                  pricingList;
-                                              for (var item in pricingList) {
-                                                allHours.add(
-                                                  int.tryParse(
-                                                        item['hour'].toString(),
-                                                      ) ??
-                                                      0,
-                                                );
-                                              }
-                                            }
-                                          }
-                                        }),
-                                      );
-
-                                      preloadedHourlyPricing = pricingByVehicle;
-                                      preloadedHourOptions = allHours.toList()
-                                        ..sort();
-                                    }
-                                  } catch (e) {
-                                    debugPrint("Error prefetching prices: $e");
-                                  }
-                                  if (context.mounted) {
-                                    setState(() {
-                                      _isFetchingPrices = false;
-                                    });
-                                  }
-                                }
-
-                                if (context.mounted) {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) => NewBooking(
-                                        catcode: catcode,
-                                        citycode: selectedCityIndex,
-                                        cityId: cityId,
-                                        preloadedCities: _apiCities,
-                                        preloadedAirports: _apiAirports,
-                                        preloadedTerminals: _apiTerminals,
-                                        preloadedHourlyPricing:
-                                            preloadedHourlyPricing,
-                                        preloadedHourOptions:
-                                            preloadedHourOptions,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
+                          // Chauffeur pricing is no longer prefetched:
+                          // v2 prices vehicles per session, so there is
+                          // nothing useful to fetch before the booking
+                          // draft exists.
+                          if (context.mounted) {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => NewBooking(
+                                  catcode: catcode,
+                                  citycode: selectedCityIndex,
+                                  cityId: cityId,
+                                  preloadedCities: _apiCities,
+                                  preloadedAirports: _apiAirports,
+                                  preloadedTerminals: _apiTerminals,
+                                ),
+                              ),
+                            );
+                          }
+                        },
                         fontsize: 12,
                       ),
                     ),

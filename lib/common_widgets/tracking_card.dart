@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:premium_force_main/models/booking_model.dart';
+import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -12,7 +12,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class TrackingCard extends StatefulWidget {
-  final BookingModel booking;
+  final BookingV2 booking;
 
   const TrackingCard({super.key, required this.booking});
 
@@ -28,15 +28,15 @@ class _TrackingCardState extends State<TrackingCard> {
   String _currentDistance = '';
   final FirebaseDatabase _database = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
-    databaseURL: 'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
+    databaseURL:
+        'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
   bool _isChauffeur = false;
 
   @override
   void initState() {
     super.initState();
-    _isChauffeur = (widget.booking.category ?? '').toLowerCase().contains('chauffeur') ||
-        widget.booking.estimatedHours != null;
+    _isChauffeur = widget.booking.isChauffeur;
     _listenToDriverLocation();
   }
 
@@ -48,88 +48,115 @@ class _TrackingCardState extends State<TrackingCard> {
 
   void _listenToDriverLocation() {
     final path = 'bookings/${widget.booking.id}/driver_location';
-    debugPrint('📡 [TrackingCard] Listening to driver location at Firebase path: $path');
+    debugPrint(
+      '📡 [TrackingCard] Listening to driver location at Firebase path: $path',
+    );
 
     _locationSubscription = _database
         .ref(path)
         .onValue
-        .listen((event) {
-          final data = event.snapshot.value;
-          debugPrint('📡 [TrackingCard] Received Firebase location update: $data (Type: ${data.runtimeType})');
+        .listen(
+          (event) {
+            final data = event.snapshot.value;
+            debugPrint(
+              '📡 [TrackingCard] Received Firebase location update: $data (Type: ${data.runtimeType})',
+            );
 
-          if (data == null) {
-            debugPrint('📡 [TrackingCard] Location update is null');
-            return;
-          }
+            if (data == null) {
+              debugPrint('📡 [TrackingCard] Location update is null');
+              return;
+            }
 
-          double? lat;
-          double? lng;
+            double? lat;
+            double? lng;
 
-          if (data is Map) {
-            final rawLat = data['lat'] ?? data['latitude'] ?? data['Latitude'];
-            final rawLng = data['lng'] ?? data['longitude'] ?? data['Longitude'] ?? data['long'] ?? data['Long'];
+            if (data is Map) {
+              final rawLat =
+                  data['lat'] ?? data['latitude'] ?? data['Latitude'];
+              final rawLng =
+                  data['lng'] ??
+                  data['longitude'] ??
+                  data['Longitude'] ??
+                  data['long'] ??
+                  data['Long'];
 
-            if (rawLat is num) lat = rawLat.toDouble();
-            if (rawLng is num) lng = rawLng.toDouble();
-          } else if (data is String) {
-            final trimmed = data.trim();
-            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-              try {
-                final Map<String, dynamic> parsed = Map<String, dynamic>.from(
-                  json.decode(trimmed) as Map
-                );
-                final rawLat = parsed['lat'] ?? parsed['latitude'] ?? parsed['Latitude'];
-                final rawLng = parsed['lng'] ?? parsed['longitude'] ?? parsed['Longitude'] ?? parsed['long'] ?? parsed['Long'];
+              if (rawLat is num) lat = rawLat.toDouble();
+              if (rawLng is num) lng = rawLng.toDouble();
+            } else if (data is String) {
+              final trimmed = data.trim();
+              if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                try {
+                  final Map<String, dynamic> parsed = Map<String, dynamic>.from(
+                    json.decode(trimmed) as Map,
+                  );
+                  final rawLat =
+                      parsed['lat'] ?? parsed['latitude'] ?? parsed['Latitude'];
+                  final rawLng =
+                      parsed['lng'] ??
+                      parsed['longitude'] ??
+                      parsed['Longitude'] ??
+                      parsed['long'] ??
+                      parsed['Long'];
 
-                if (rawLat is num) lat = rawLat.toDouble();
-                if (rawLng is num) lng = rawLng.toDouble();
-              } catch (e) {
-                debugPrint('⚠️ [TrackingCard] Error decoding JSON location string: $e');
+                  if (rawLat is num) lat = rawLat.toDouble();
+                  if (rawLng is num) lng = rawLng.toDouble();
+                } catch (e) {
+                  debugPrint(
+                    '⚠️ [TrackingCard] Error decoding JSON location string: $e',
+                  );
+                }
+              } else if (trimmed.contains(',')) {
+                final parts = trimmed.split(',');
+                if (parts.length >= 2) {
+                  lat = double.tryParse(parts[0].trim());
+                  lng = double.tryParse(parts[1].trim());
+                }
               }
-            } else if (trimmed.contains(',')) {
-              final parts = trimmed.split(',');
-              if (parts.length >= 2) {
-                lat = double.tryParse(parts[0].trim());
-                lng = double.tryParse(parts[1].trim());
+            }
+
+            if (lat != null && lng != null) {
+              final double nonNullLat = lat;
+              final double nonNullLng = lng;
+              debugPrint(
+                '📡 [TrackingCard] Parsed coordinates successfully: ($nonNullLat, $nonNullLng)',
+              );
+
+              if (mounted) {
+                setState(() {
+                  _driverLocation = LatLng(nonNullLat, nonNullLng);
+                });
               }
+              if (_lastFetchLocation == null ||
+                  Geolocator.distanceBetween(
+                        _lastFetchLocation!.latitude,
+                        _lastFetchLocation!.longitude,
+                        nonNullLat,
+                        nonNullLng,
+                      ) >
+                      100) {
+                _lastFetchLocation = _driverLocation;
+                _fetchDirections();
+              }
+            } else {
+              debugPrint(
+                '⚠️ [TrackingCard] Failed to parse coordinates from: $data',
+              );
             }
-          }
-
-          if (lat != null && lng != null) {
-            final double nonNullLat = lat;
-            final double nonNullLng = lng;
-            debugPrint('📡 [TrackingCard] Parsed coordinates successfully: ($nonNullLat, $nonNullLng)');
-
-            if (mounted) {
-              setState(() {
-                _driverLocation = LatLng(nonNullLat, nonNullLng);
-              });
-            }
-            if (_lastFetchLocation == null ||
-                Geolocator.distanceBetween(
-                      _lastFetchLocation!.latitude,
-                      _lastFetchLocation!.longitude,
-                      nonNullLat,
-                      nonNullLng,
-                    ) >
-                    100) {
-              _lastFetchLocation = _driverLocation;
-              _fetchDirections();
-            }
-          } else {
-            debugPrint('⚠️ [TrackingCard] Failed to parse coordinates from: $data');
-          }
-        }, onError: (error) {
-          debugPrint('❌ [TrackingCard] Firebase location stream error at path "$path": $error');
-        });
+          },
+          onError: (error) {
+            debugPrint(
+              '❌ [TrackingCard] Firebase location stream error at path "$path": $error',
+            );
+          },
+        );
   }
 
   Future<void> _fetchDirections() async {
     final booking = widget.booking;
     final pickupLat = booking.pickupLat ?? 0;
-    final pickupLng = booking.pickupLong ?? 0;
+    final pickupLng = booking.pickupLng ?? 0;
     final dropoffLat = booking.dropOffLat ?? 0;
-    final dropoffLng = booking.dropOffLong ?? 0;
+    final dropoffLng = booking.dropOffLng ?? 0;
     final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
 
     String origin, destination, waypoints = '';
@@ -230,7 +257,9 @@ class _TrackingCardState extends State<TrackingCard> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFE4A46B).withAlpha(20),
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFE4A46B).withAlpha(40)),
+                    border: Border.all(
+                      color: const Color(0xFFE4A46B).withAlpha(40),
+                    ),
                   ),
                   child: const Center(
                     child: Icon(
@@ -256,7 +285,9 @@ class _TrackingCardState extends State<TrackingCard> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        booking.carName ?? "Premium Ride",
+                        booking.vehicleLabel.isNotEmpty
+                            ? booking.vehicleLabel
+                            : "Premium Ride",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -267,21 +298,44 @@ class _TrackingCardState extends State<TrackingCard> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(Icons.timer_outlined, color: Colors.white70, size: 12),
+                            const Icon(
+                              Icons.timer_outlined,
+                              color: Colors.white70,
+                              size: 12,
+                            ),
                             const SizedBox(width: 4),
-                            Text(_currentEta, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                            Text(
+                              _currentEta,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
                             const SizedBox(width: 12),
-                            const Icon(Icons.location_on_outlined, color: Colors.white70, size: 12),
+                            const Icon(
+                              Icons.location_on_outlined,
+                              color: Colors.white70,
+                              size: 12,
+                            ),
                             const SizedBox(width: 4),
-                            Text(_currentDistance, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                            Text(
+                              _currentDistance,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
-                      ]
+                      ],
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withAlpha(40),
                     borderRadius: BorderRadius.circular(20),
@@ -332,7 +386,7 @@ class _TrackingCardState extends State<TrackingCard> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        booking.pickupAddress ?? booking.airport ?? "Pickup Point",
+                        booking.pickupAddress ?? "Pickup Point",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -344,9 +398,14 @@ class _TrackingCardState extends State<TrackingCard> {
                     ],
                   ),
                 ),
-                if (booking.dropOffAddress != null && booking.dropOffAddress!.isNotEmpty) ...[
+                if (booking.dropOffAddress != null &&
+                    booking.dropOffAddress!.isNotEmpty) ...[
                   const SizedBox(width: 12),
-                  const Icon(Icons.arrow_forward_rounded, color: Colors.white24, size: 16),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white24,
+                    size: 16,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

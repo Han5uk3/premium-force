@@ -376,5 +376,7 @@
   "applePay": "Apple Pay",
   "creditDebitCard": "بطاقة ائتمان / مدى",
   "selectDuration": "حدد المدة",
+  "retry": "إعادة المحاولة",
+  "refunded": "تم الاسترداد",
   "nHours": "{count, plural, =1{ساعة واحدة} =2{ساعتين} few{{count} ساعات} other{{count} ساعة}}"
 }

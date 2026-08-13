@@ -2276,6 +2276,18 @@ abstract class AppLocalizations {
   /// **'Select Duration'**
   String get selectDuration;
 
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @refunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get refunded;
+
   /// No description provided for @nHours.
   ///
   /// In en, this message translates to:

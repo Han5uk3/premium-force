@@ -55,6 +55,21 @@ class _LocationPickerPageState extends State<LocationPickerPage>
     super.dispose();
   }
 
+  /// Key for the Places **web service** calls below.
+  ///
+  /// Deliberately separate from the Maps SDK key: a key restricted to Android /
+  /// iOS applications authorises the embedded map but is rejected with
+  /// `403 PERMISSION_DENIED` on direct HTTPS calls like these, because there is
+  /// no app signature for Google to check. Restrict this one by API instead.
+  ///
+  /// Falls back to the maps key so behaviour is unchanged until a dedicated key
+  /// is configured.
+  String get _placesApiKey {
+    final placesKey = dotenv.env['GOOGLE_PLACES_API_KEY']?.trim() ?? '';
+    if (placesKey.isNotEmpty) return placesKey;
+    return dotenv.env['GOOGLE_MAPS_API_KEY']?.trim() ?? '';
+  }
+
   Future<void> _getAddressFromLatLng(LatLng position) async {
     try {
       // Force English for address results
@@ -93,7 +108,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
     setState(() => _isSearching = true);
 
     try {
-      final String apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+      final String apiKey = _placesApiKey;
       if (apiKey.isEmpty) {
         debugPrint('âš ï¸ Missing Google Maps API Key in .env');
         setState(() => _isSearching = false);
@@ -111,14 +126,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
           'includedRegionCodes': ['sa'],
           'locationBias': {
             'rectangle': {
-              'low': {
-                'latitude': 16.38,
-                'longitude': 34.54,
-              },
-              'high': {
-                'latitude': 32.15,
-                'longitude': 55.66,
-              },
+              'low': {'latitude': 16.38, 'longitude': 34.54},
+              'high': {'latitude': 32.15, 'longitude': 55.66},
             },
           },
         },
@@ -127,8 +136,19 @@ class _LocationPickerPageState extends State<LocationPickerPage>
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': apiKey,
           },
+          // Read 4xx bodies instead of throwing: Google explains *why* a key or
+          // project is rejected in the response, and that message is the only
+          // way to tell an unenabled API from a restricted key.
+          validateStatus: (status) => status != null && status < 500,
         ),
       );
+
+      if (response.statusCode != 200) {
+        debugPrint(
+          '🔎 Places autocomplete failed [${response.statusCode}]: '
+          '${response.data}',
+        );
+      }
 
       if (response.statusCode == 200) {
         final List suggestions = response.data['suggestions'] ?? [];
@@ -152,14 +172,25 @@ class _LocationPickerPageState extends State<LocationPickerPage>
           _isSearching = false;
         });
       } else {
-        debugPrint('âŒ Google Places (New) API Error: ${response.statusCode}');
         setState(() {
           _searchResults = [];
           _isSearching = false;
         });
       }
+    } on DioException catch (e) {
+      // Surface the server's explanation, not just the exception type: a bad
+      // key, an unenabled API and a restricted key all look identical without
+      // the response body.
+      debugPrint(
+        'Places autocomplete error: ${e.type.name} '
+        '${e.response?.statusCode ?? ''} ${e.response?.data ?? e.message}',
+      );
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
     } catch (e) {
-      debugPrint('âŒ Search failed: $e');
+      debugPrint('Places autocomplete failed: $e');
       setState(() {
         _searchResults = [];
         _isSearching = false;
@@ -169,7 +200,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
 
   Future<void> _selectSearchResult(Map<String, dynamic> result) async {
     final String placeId = result['place_id'];
-    final String apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+    final String apiKey = _placesApiKey;
 
     setState(() => _isLoading = true);
     _searchFocusNode.unfocus();
@@ -189,8 +220,15 @@ class _LocationPickerPageState extends State<LocationPickerPage>
             'X-Goog-FieldMask':
                 'id,location,formattedAddress,addressComponents',
           },
+          validateStatus: (status) => status != null && status < 500,
         ),
       );
+
+      if (response.statusCode != 200) {
+        debugPrint(
+          'Place details failed [${response.statusCode}]: ${response.data}',
+        );
+      }
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -211,8 +249,13 @@ class _LocationPickerPageState extends State<LocationPickerPage>
           CameraUpdate.newLatLngZoom(position, 16),
         );
       }
+    } on DioException catch (e) {
+      debugPrint(
+        'Place details error: ${e.type.name} '
+        '${e.response?.statusCode ?? ''} ${e.response?.data ?? e.message}',
+      );
     } catch (e) {
-      debugPrint('âŒ Failed to resolve place details: $e');
+      debugPrint('Place details failed: $e');
     }
 
     setState(() => _isLoading = false);

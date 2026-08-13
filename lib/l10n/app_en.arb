@@ -374,6 +374,8 @@
   "applePay": "Apple Pay",
   "creditDebitCard": "Credit/Debit Card",
   "selectDuration": "Select Duration",
+  "retry": "Retry",
+  "refunded": "Refunded",
   "nHours": "{count, plural, =1{1 Hour} other{{count} Hours}}",
   "@nHours": {
     "placeholders": {

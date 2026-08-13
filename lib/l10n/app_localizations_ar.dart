@@ -1144,6 +1144,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get selectDuration => 'حدد المدة';
 
   @override
+  String get retry => 'إعادة المحاولة';
+
+  @override
+  String get refunded => 'تم الاسترداد';
+
+  @override
   String nHours(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
