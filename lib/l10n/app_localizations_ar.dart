@@ -1150,6 +1150,37 @@ class AppLocalizationsAr extends AppLocalizations {
   String get refunded => 'تم الاسترداد';
 
   @override
+  String get refundProcessed => 'تمت معالجة الاسترداد';
+
+  @override
+  String get refundReference => 'رقم الاسترداد';
+
+  @override
+  String get refundBusinessDaysNote =>
+      'ستظهر الأموال في كشف حساب بطاقتك خلال 3 إلى 5 أيام عمل، حسب البنك المُصدر للبطاقة.';
+
+  @override
+  String get noAirportsAvailable => 'لا توجد مطارات متاحة';
+
+  @override
+  String get enterYourCompanyEmail => 'أدخل البريد الإلكتروني للشركة';
+
+  @override
+  String get language => 'اللغة';
+
+  @override
+  String get status => 'الحالة';
+
+  @override
+  String get verificationPending => 'قيد التحقق';
+
+  @override
+  String get discountApproved => 'تمت الموافقة على الخصم';
+
+  @override
+  String get discountRejected => 'تم رفض الخصم';
+
+  @override
   String nHours(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

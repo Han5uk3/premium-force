@@ -24,6 +24,38 @@ class PaytabsConfig {
       ? dotenv.get('PAYTABS_PROFILE_LIVE_ID', fallback: '129739').trim()
       : dotenv.get('PAYTABS_PROFILE_ID', fallback: '128366').trim();
 
+  // ===== Live credentials =====
+  // Named explicitly so callers that must have the live profile do not depend
+  // on how [_useLiveKey] happens to be set.
+
+  /// Live server key — `PAYTABS_SERVER_LIVE_KEY`.
+  static String get liveServerKey =>
+      dotenv.get('PAYTABS_SERVER_LIVE_KEY', fallback: '').trim();
+
+  /// Live client key — `PAYTABS_CLIENT_LIVE_KEY`.
+  static String get liveClientKey =>
+      dotenv.get('PAYTABS_CLIENT_LIVE_KEY', fallback: '').trim();
+
+  /// Live profile id — `PAYTABS_PROFILE_LIVE_ID`.
+  static String get liveProfileId =>
+      dotenv.get('PAYTABS_PROFILE_LIVE_ID', fallback: '129739').trim();
+
+  // ===== Sandbox (non-live) credentials =====
+  // Read straight from the test keys, ignoring [_useLiveKey], for exercising
+  // the gateway against the sandbox profile.
+
+  /// Sandbox server key — `PAYTABS_SERVER_KEY`.
+  static String get sandboxServerKey =>
+      dotenv.get('PAYTABS_SERVER_KEY', fallback: '').trim();
+
+  /// Sandbox client key — `PAYTABS_CLIENT_KEY`.
+  static String get sandboxClientKey =>
+      dotenv.get('PAYTABS_CLIENT_KEY', fallback: '').trim();
+
+  /// Sandbox profile id — `PAYTABS_PROFILE_ID`.
+  static String get sandboxProfileId =>
+      dotenv.get('PAYTABS_PROFILE_ID', fallback: '128366').trim();
+
   /// Your merchant email
   static String get merchantEmail => dotenv.get(
     'PAYTABS_MERCHANT_EMAIL',

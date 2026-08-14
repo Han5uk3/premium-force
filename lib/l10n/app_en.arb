@@ -376,6 +376,16 @@
   "selectDuration": "Select Duration",
   "retry": "Retry",
   "refunded": "Refunded",
+  "refundProcessed": "Refund Processed",
+  "refundReference": "Refund Ref",
+  "refundBusinessDaysNote": "Funds will appear on your card statement within 3 to 5 business days, depending on your issuing bank.",
+  "noAirportsAvailable": "No airports available",
+  "enterYourCompanyEmail": "Enter your company email",
+  "language": "Language",
+  "status": "Status",
+  "verificationPending": "Verification Pending",
+  "discountApproved": "Discount Approved",
+  "discountRejected": "Discount Rejected",
   "nHours": "{count, plural, =1{1 Hour} other{{count} Hours}}",
   "@nHours": {
     "placeholders": {

@@ -3,6 +3,7 @@ import 'package:premium_force_main/api/api_result.dart';
 import 'package:premium_force_main/api/booking_api_v2.dart';
 import 'package:premium_force_main/models/v2/available_vehicle.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
+import 'package:premium_force_main/models/v2/chauffeur_options.dart';
 import 'package:premium_force_main/models/v2/checkout_models.dart';
 import 'package:premium_force_main/models/v2/session_models.dart';
 
@@ -149,13 +150,15 @@ class BookingSessionProvider extends ChangeNotifier {
     );
   }
 
-  /// Start a chauffeur (hourly) draft for [hours] of hire.
+  /// Start a chauffeur draft for [hours] of hire, either hourly or as one of
+  /// the fixed packages.
   Future<bool> startChauffeurSession({
     required double pickupLat,
     required double pickupLng,
     required String pickupAddress,
     required int hours,
     required DateTime pickupDateTime,
+    ChauffeurType chauffeurType = ChauffeurType.hourly,
   }) {
     _serviceType = BookingServiceType.chauffeur;
     return _runSession(
@@ -166,6 +169,7 @@ class BookingSessionProvider extends ChangeNotifier {
         pickupAddress: pickupAddress,
         hours: hours,
         pickupDateTime: pickupDateTime,
+        chauffeurType: chauffeurType,
       ),
     );
   }
@@ -193,11 +197,20 @@ class BookingSessionProvider extends ChangeNotifier {
     return false;
   }
 
-  /// Attach [vehicleId] and optional [rideNotes] to the draft.
-  Future<bool> selectVehicle({required String vehicleId, String? rideNotes}) {
+  /// Attach [vehicleId], optional [rideNotes] and an optional recording at
+  /// [voiceNotePath] to the draft.
+  Future<bool> selectVehicle({
+    required String vehicleId,
+    String? rideNotes,
+    String? voiceNotePath,
+  }) {
     return _runSession(
       SessionBusy.savingVehicle,
-      () => _api.selectVehicle(vehicleId: vehicleId, rideNotes: rideNotes),
+      () => _api.selectVehicle(
+        vehicleId: vehicleId,
+        rideNotes: rideNotes,
+        voiceNotePath: voiceNotePath,
+      ),
     );
   }
 
@@ -262,13 +275,18 @@ class BookingSessionProvider extends ChangeNotifier {
     return confirmation;
   }
 
-  /// Settle the booking with the backend after the payment SDK returns.
+  /// Documented polling cadence for a payment still with the gateway.
+  static const Duration _verifyInterval = Duration(seconds: 3);
+
+  /// Roughly a minute of polling before the decision is handed back to the
+  /// user. 3-D Secure and bank clearance are well inside that.
+  static const int _verifyMaxAttempts = 20;
+
+  /// Read the payment status once.
   ///
   /// The server decides whether the charge captured; a successful SDK callback
   /// alone is not treated as proof.
-  Future<PaymentVerificationResult?> verifyPayment({
-    String? transactionReference,
-  }) async {
+  Future<PaymentVerificationResult?> verifyPayment() async {
     final bookingNumber = _confirmation?.bookingNumber;
     if (bookingNumber == null || bookingNumber.isEmpty) {
       _fail('Missing booking reference. Please contact support.');
@@ -277,10 +295,7 @@ class BookingSessionProvider extends ChangeNotifier {
 
     _setBusy(SessionBusy.verifyingPayment);
 
-    final result = await _api.verifyPayment(
-      bookingNumber: bookingNumber,
-      transactionReference: transactionReference,
-    );
+    final result = await _api.verifyPayment(bookingNumber: bookingNumber);
 
     if (!result.hasData) {
       _fail(result.message);
@@ -289,6 +304,36 @@ class BookingSessionProvider extends ChangeNotifier {
 
     _finish();
     return result.data;
+  }
+
+  /// Poll the read-only verify endpoint until the gateway settles.
+  ///
+  /// `initiated` and `pending` mean the payment is still with the gateway, so
+  /// it is re-read every [_verifyInterval] until it reports captured or failed.
+  ///
+  /// Returns the last result seen. A still-pending one means it had not settled
+  /// within [_verifyMaxAttempts] — the booking stays `pending_payment` and the
+  /// caller should say so rather than claim either outcome. `null` means a
+  /// request failed outright, with [errorMessage] explaining why; polling stops
+  /// there rather than hiding a real error behind a spinner for a minute.
+  Future<PaymentVerificationResult?> awaitPaymentSettled() async {
+    PaymentVerificationResult? last;
+
+    for (var attempt = 1; attempt <= _verifyMaxAttempts; attempt++) {
+      final result = await verifyPayment();
+      if (result == null) return null;
+
+      last = result;
+      debugPrint(
+        '🔁 Verify #$attempt │ payment=${result.paymentStatus.wireValue} '
+        'booking=${result.bookingStatus ?? "?"} → ${result.outcome.name}',
+      );
+
+      if (!result.isPending) return result;
+      if (attempt < _verifyMaxAttempts) await Future.delayed(_verifyInterval);
+    }
+
+    return last;
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────

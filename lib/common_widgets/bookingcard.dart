@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' show DateFormat;
+import 'package:intl/intl.dart' show Bidi, DateFormat;
 import 'package:premium_force_main/l10n/app_localizations.dart';
 
 class Bookingcard extends StatelessWidget {
@@ -45,6 +45,17 @@ class Bookingcard extends StatelessWidget {
     if (dateTime == null) return 'N/A';
     final locale = Localizations.localeOf(context).languageCode;
     return DateFormat('dd MMM yyyy', locale).format(dateTime);
+  }
+
+  /// Labels a price-summary row with its rate, e.g. "VAT (15%)".
+  ///
+  /// The bracketed rate is forced left-to-right. In an RTL layout the digits
+  /// otherwise inherit Arabic-number direction from the Arabic label in front
+  /// of them, which strands the '%' and mirrors the brackets, so "(15%)" comes
+  /// out as "(%15)".
+  static String formatPercentLabel(String label, double percentage) {
+    final rate = '(${percentage.toStringAsFixed(0)}%)';
+    return '$label ${Bidi.enforceLtrInText(rate)}';
   }
 
   @override

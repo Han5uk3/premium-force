@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/storage/helpers.dart';
 
@@ -13,6 +13,13 @@ class PremiumTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final double fontsize;
   final bool isPhoneNumber;
+
+  /// Render the value left-to-right without flipping the field's layout.
+  ///
+  /// Only meaningful alongside [isPhoneNumber], which otherwise forces the
+  /// whole field LTR and drags its icon and text to the left edge in an RTL
+  /// locale.
+  final bool ltrValueOnly;
   final FormFieldValidator<String>? validator;
   final bool enabled;
   final VoidCallback? onTap;
@@ -36,6 +43,7 @@ class PremiumTextField extends StatelessWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.isPhoneNumber = false,
+    this.ltrValueOnly = false,
     this.validator,
     this.fontsize = 14,
     this.enabled = true,
@@ -53,8 +61,12 @@ class PremiumTextField extends StatelessWidget {
 
   // Phone numbers (and their country code prefix) must always read
   // left-to-right, even inside an RTL (Arabic) locale.
+  //
+  // [ltrValueOnly] narrows that to the value: the field keeps the ambient
+  // direction, so it stays at the start edge with its icon like every other
+  // field, while the number itself is still rendered LTR.
   Widget _maybeForceLtr(Widget child) {
-    if (!isPhoneNumber) return child;
+    if (!isPhoneNumber || ltrValueOnly) return child;
     return Directionality(textDirection: TextDirection.ltr, child: child);
   }
 
@@ -129,6 +141,18 @@ class PremiumTextField extends StatelessWidget {
                               FilteringTextInputFormatter.digitsOnly,
                           ],
                           controller: controller,
+                          // The value reads LTR, but sits against the locale's
+                          // start edge. TextAlign.start would resolve against
+                          // the overridden LTR direction and pin it left, so
+                          // the ambient direction picks the edge instead.
+                          textDirection: ltrValueOnly
+                              ? TextDirection.ltr
+                              : null,
+                          textAlign: ltrValueOnly
+                              ? (Directionality.of(context) == TextDirection.rtl
+                                    ? TextAlign.right
+                                    : TextAlign.left)
+                              : TextAlign.start,
                           keyboardType: keyboardType,
                           focusNode: focusNode,
                           obscureText: obscureText,
@@ -192,4 +216,3 @@ class PremiumTextField extends StatelessWidget {
     );
   }
 }
-

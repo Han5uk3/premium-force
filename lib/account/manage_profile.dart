@@ -281,10 +281,15 @@ class _ManageProfilePageState extends State<ManageProfilePage>
         setState(() {
           _isPromoValid = true;
           _appliedPromoId = promo['code'] ?? code;
-          _promoSuccessText = promo['text'] ?? "Promo code applied successfully!";
+          _promoSuccessText =
+              promo['text'] ??
+              AppLocalizations.of(context)!.promoCodeAppliedSuccessfully;
         });
         if (mounted) {
-          _showCustomSnackBar(AppLocalizations.of(context)!.promoCodeAppliedSuccessfully, type: "S");
+          _showCustomSnackBar(
+            AppLocalizations.of(context)!.promoCodeAppliedSuccessfully,
+            type: "S",
+          );
         }
       } else {
         setState(() {
@@ -293,13 +298,17 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           _promoSuccessText = null;
         });
         if (mounted) {
-          _showCustomSnackBar(AppLocalizations.of(context)!.invalidPromoCode, type: "E");
+          _showCustomSnackBar(
+            AppLocalizations.of(context)!.invalidPromoCode,
+            type: "E",
+          );
         }
       }
     } else {
       if (mounted) {
         _showCustomSnackBar(
-          result['message'] ?? AppLocalizations.of(context)!.invalidOrInactivePromoCode,
+          result['message'] ??
+              AppLocalizations.of(context)!.invalidOrInactivePromoCode,
           type: "E",
         );
       }
@@ -315,7 +324,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       _promoSuccessText = null;
       _specialIdController.clear();
     });
-    _showCustomSnackBar(AppLocalizations.of(context)!.promoCodeRemoved, type: "W");
+    _showCustomSnackBar(
+      AppLocalizations.of(context)!.promoCodeRemoved,
+      type: "W",
+    );
   }
 
   Future<void> _handleUpdateProfile() async {
@@ -361,7 +373,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           token: token,
         );
       }
-      _showCustomSnackBar(AppLocalizations.of(context)!.profileUpdatedSuccessfully, type: "S");
+      _showCustomSnackBar(
+        AppLocalizations.of(context)!.profileUpdatedSuccessfully,
+        type: "S",
+      );
       // Fetch user again to sync with provider
       await Provider.of<AuthProvider>(context, listen: false).fetchUser();
 
@@ -369,7 +384,8 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       Navigator.pop(context);
     } else {
       _showCustomSnackBar(
-        result['message'] as String? ?? AppLocalizations.of(context)!.updateFailed,
+        result['message'] as String? ??
+            AppLocalizations.of(context)!.updateFailed,
         type: "E",
       );
     }
@@ -478,10 +494,11 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                     ),
                                   ),
                                 ),
-                                // Camera edit icon
-                                Positioned(
+                                // Camera edit icon, on the trailing side of the
+                                // avatar so it flips to the left in RTL.
+                                PositionedDirectional(
                                   bottom: 2,
-                                  right: 2,
+                                  end: 2,
                                   child: Container(
                                     width: 34,
                                     height: 34,
@@ -574,6 +591,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                         // Phone number (display only)
                         PremiumTextField(
                           isPhoneNumber: true,
+                          ltrValueOnly: true,
                           title: AppLocalizations.of(context)!.phoneNumber,
                           controller: _phoneController,
                           hintText: "",
@@ -592,10 +610,20 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                 ],
                               ).createShader(bounds);
                             },
-                            child: const Icon(
-                              Icons.phone_outlined,
-                              color: Colors.white,
-                              size: 20,
+                            // The handset glyph leans to one side, so mirror it
+                            // in RTL to sit with the flipped layout. Only the
+                            // icon flips; the gradient keeps its direction.
+                            child: Transform.scale(
+                              scaleX:
+                                  Directionality.of(context) ==
+                                      TextDirection.rtl
+                                  ? -1
+                                  : 1,
+                              child: const Icon(
+                                Icons.phone_outlined,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
@@ -709,7 +737,9 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                           PremiumTextField(
                             title: AppLocalizations.of(context)!.companyEmail,
                             controller: _companyEmailController,
-                            hintText: 'Enter your company email',
+                            hintText: AppLocalizations.of(
+                              context,
+                            )!.enterYourCompanyEmail,
                             fontsize: 13,
                             needTitle: true,
                             obscureText: false,
@@ -837,7 +867,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          _promoSuccessText ?? 'Promo code applied successfully!',
+                                          _promoSuccessText ??
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.promoCodeAppliedSuccessfully,
                                           style: TextStyle(
                                             color: Colors.green.shade300,
                                             fontSize: 12,
@@ -848,7 +881,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  const Divider(color: Colors.white24, height: 1),
+                                  const Divider(
+                                    color: Colors.white24,
+                                    height: 1,
+                                  ),
                                   const SizedBox(height: 8),
                                   _buildStatusRow(user?.isDiscountApproved),
                                 ],
@@ -884,28 +920,30 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   }
 
   Widget _buildStatusRow(String? status) {
-    String label = "Verification Pending";
+    final loc = AppLocalizations.of(context)!;
+
+    String label = loc.verificationPending;
     Color color = Colors.orange.shade400;
     IconData icon = Icons.hourglass_empty;
 
     // If the promo code has changed, it's pending until profile is saved and reviewed
     final currentCode = _specialIdController.text.trim();
     if (currentCode != _initialPromoCode) {
-      label = "Verification Pending";
+      label = loc.verificationPending;
     } else {
       switch (status?.toLowerCase()) {
         case 'approved':
-          label = "Discount Approved";
+          label = loc.discountApproved;
           color = Colors.green.shade400;
           icon = Icons.verified;
           break;
         case 'rejected':
-          label = "Discount Rejected";
+          label = loc.discountRejected;
           color = Colors.red.shade400;
           icon = Icons.cancel;
           break;
         default:
-          label = "Verification Pending";
+          label = loc.verificationPending;
           color = Colors.orange.shade400;
           icon = Icons.hourglass_empty;
       }
@@ -916,7 +954,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
         Icon(icon, color: color, size: 16),
         const SizedBox(width: 8),
         Text(
-          "Status: ",
+          '${loc.status}: ',
           style: TextStyle(
             color: Colors.white70,
             fontSize: 12,

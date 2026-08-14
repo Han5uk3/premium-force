@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumdropdown.dart';
@@ -27,8 +26,10 @@ import 'package:premium_force_main/models/pricing/zone_model.dart';
 import 'package:premium_force_main/api/booking_api_v2.dart';
 import 'package:premium_force_main/models/v2/available_vehicle.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
+import 'package:premium_force_main/models/v2/chauffeur_options.dart';
 import 'package:premium_force_main/models/v2/checkout_models.dart';
 import 'package:premium_force_main/models/v2/geo_models.dart';
+import 'package:premium_force_main/models/v2/session_models.dart';
 import 'package:premium_force_main/providers/booking_session_provider.dart';
 import 'package:premium_force_main/services/service_availability_service.dart';
 import 'package:premium_force_main/services/session_payment_service.dart';
@@ -124,13 +125,26 @@ class _NewBookingState extends State<NewBooking> {
 
   bool _isLoadingHourlyPrices = false;
 
-  /// Durations offered in the chauffeur picker.
+  /// What the chauffeur product offers, from `GET /chauffeur/options`.
   ///
-  /// Fixed client-side because session initiation needs `hours` *before* any
-  /// vehicle is known, and v2 has no endpoint that publishes the bookable
-  /// durations. The backend still validates the choice on init and rejects an
-  /// unsupported one, so this only decides what is offered.
-  static const List<int> _hourOptions = [4, 6, 8, 12];
+  /// `null` while that call is in flight, so the picker offers nothing until the
+  /// backend has said what is bookable. The backend still validates the choice
+  /// on session init, so this only decides what is offered.
+  ChauffeurOptions? _chauffeurOptions;
+
+  /// Which chauffeur product the user picked; `null` until they choose.
+  ///
+  /// Decides both what the duration pickers show and which duration field
+  /// session init sends.
+  ChauffeurType? _selectedChauffeurType;
+
+  /// Used only when the options call fails, so a network blip cannot leave the
+  /// chauffeur flow with an empty picker. Packages only: the hourly bounds are
+  /// not ours to guess.
+  static const ChauffeurOptions _fallbackChauffeurOptions = ChauffeurOptions(
+    hourly: HourlyChauffeurOption(available: false),
+    packages: [4, 6, 8, 12],
+  );
 
   // ---------------------------------------------------------------------------
   // v2 backend-driven session
@@ -337,11 +351,19 @@ class _NewBookingState extends State<NewBooking> {
           _showCustomSnackBar(loc.pickupLocationIsRequired, 'E');
           return false;
         }
+        // Hourly hire is only fully chosen once the second picker has an hour
+        // on it, so both halves are re-checked before the draft is created.
+        final chauffeurType = _selectedChauffeurType;
+        if (chauffeurType == null || _selectedEstimatedHours == 0) {
+          _showCustomSnackBar(loc.selectDuration, 'E');
+          return false;
+        }
         started = await _session.startChauffeurSession(
           pickupLat: _pickupLat!,
           pickupLng: _pickupLng!,
           pickupAddress: _pickupAddress!,
           hours: _selectedEstimatedHours,
+          chauffeurType: chauffeurType,
           pickupDateTime: pickupAt,
         );
 
@@ -481,6 +503,7 @@ class _NewBookingState extends State<NewBooking> {
     final saved = await _session.selectVehicle(
       vehicleId: vehicleId,
       rideNotes: specialRequestsController.text,
+      voiceNotePath: _specialRequestsVoiceNotePath,
     );
 
     if (!saved) {
@@ -488,7 +511,22 @@ class _NewBookingState extends State<NewBooking> {
       return false;
     }
 
+    _clampPassengerCount();
     return true;
+  }
+
+  /// Trim the passenger count to the chosen vehicle's capacity.
+  ///
+  /// A count picked for a roomier vehicle survives a change of vehicle, and
+  /// step 3 rejects anything above `selectedVehicle.maxPassengers`. Left alone
+  /// it also leaves the passenger dropdown blank, since the stale count is no
+  /// longer one of its options.
+  void _clampPassengerCount() {
+    final options = _getPassengerOptions();
+    if (options.isEmpty || options.contains(_numberOfPassengers)) return;
+
+    // Options run 1..capacity, so the last is the most the vehicle can take.
+    setState(() => _numberOfPassengers = options.last);
   }
 
   /// Step 3 → 4: save passengers, then pull the authoritative price breakdown.
@@ -538,6 +576,209 @@ class _NewBookingState extends State<NewBooking> {
       _totalDistance = _session.route?.distanceKm ?? _totalDistance;
     });
   }
+
+  // ── Review screen ────────────────────────────────────────────────────────
+  //
+  // The review step renders the draft as the backend holds it, not the local
+  // form state, so the customer confirms what will actually be booked.
+  //
+  // Three server sources, in order of preference, because the checkout summary
+  // is a *subset* of the session draft — it carries the locations and the
+  // vehicle, but not necessarily the pickup date/time or the booked duration:
+  //
+  //   1. `GET /session/checkout` → `summary`  (freshest, post-vehicle)
+  //   2. the step-1 session draft             (always has the full route)
+  //   3. the step-2 vehicle list              (class/make/image by id)
+  //
+  // Local form state is the last resort, reached only before checkout lands.
+
+  BookingSession? get _checkoutSummary => _session.checkout?.summary;
+  SessionRoute? get _checkoutRoute => _checkoutSummary?.route;
+  SessionRoute? get _draftRoute => _session.route;
+
+  /// First of [candidates] that has actual content.
+  static String? _firstNonEmpty(Iterable<String?> candidates) {
+    for (final value in candidates) {
+      if (value != null && value.trim().isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  /// The product being booked, as the backend classified it.
+  BookingServiceType get _reviewServiceType =>
+      _checkoutSummary?.resolvedServiceType ??
+      _session.session?.resolvedServiceType ??
+      _serviceType;
+
+  /// Hours of chauffeur hire, as recorded on the draft.
+  int get _reviewDurationHours =>
+      _checkoutRoute?.durationHours ??
+      _draftRoute?.durationHours ??
+      _selectedEstimatedHours;
+
+  /// The pickup instant the backend stored.
+  ///
+  /// `pickupDate`/`pickupTime` are the plain local strings it holds, so they are
+  /// recombined rather than read from `pickupDateTime`, which is UTC and would
+  /// render in the device's timezone instead of the pickup city's.
+  DateTime? get _reviewPickupInstant =>
+      _instantOf(_checkoutRoute) ?? _instantOf(_draftRoute) ?? _pickupInstant;
+
+  static DateTime? _instantOf(SessionRoute? route) {
+    final date = route?.pickupDate;
+    final time = route?.pickupTime;
+    if (date == null || time == null) return null;
+    return DateTime.tryParse('${date}T$time');
+  }
+
+  /// Pickup date and time as the card renders them.
+  ///
+  /// Falls back to the server's own `pickupLocalTimeFormatted`
+  /// (`"10 Aug 2026, 06:00 PM"`) when no date/time pair is available, splitting
+  /// it at the comma — already in the city's timezone, just not localised.
+  ({String date, String time}) _reviewPickupDisplay(BuildContext context) {
+    final instant = _reviewPickupInstant;
+    if (instant != null) {
+      return (
+        date: Bookingcard.formatDate(context, instant),
+        time: Bookingcard.formatTime(context, instant),
+      );
+    }
+
+    final formatted = _firstNonEmpty([
+      _checkoutRoute?.pickupLocalTimeFormatted,
+      _draftRoute?.pickupLocalTimeFormatted,
+    ]);
+    if (formatted == null) return (date: '', time: '');
+
+    final separator = formatted.lastIndexOf(',');
+    if (separator <= 0) return (date: formatted, time: '');
+    return (
+      date: formatted.substring(0, separator).trim(),
+      time: formatted.substring(separator + 1).trim(),
+    );
+  }
+
+  /// Localised product label, with the booked duration for chauffeur hire.
+  String _reviewServiceLabel(BuildContext context, AppLocalizations loc) {
+    final type = _reviewServiceType;
+    if (type.isChauffeur) {
+      return '${loc.chauffeur} - '
+          '${_getServiceDurationLabel(loc, _reviewDurationHours)}';
+    }
+    return _getServiceName(context, type.catCode);
+  }
+
+  /// One end of the route, with the terminal appended on the airport side.
+  ///
+  /// The terminal is named in two different places: nested under the location
+  /// in the checkout summary, and on `route.airport` in the session draft. The
+  /// airport end is also the one with no coordinates, which is what identifies
+  /// it when the payload omits `airportId`.
+  String? _routeEndLabel(
+    SessionRoute? route, {
+    required bool isPickup,
+    required bool isArabic,
+  }) {
+    if (route == null) return null;
+
+    final location = isPickup ? route.pickupLocation : route.dropOffLocation;
+    final address = location?.address;
+    if (address == null || address.trim().isEmpty) return null;
+
+    final isAirportSide =
+        location?.airportId != null ||
+        (route.airport != null && location?.hasCoordinates != true);
+
+    final terminal =
+        location?.displayTerminal(isArabic) ??
+        (isAirportSide ? route.airport?.displayTerminal(isArabic) : null);
+
+    if (terminal == null || terminal.trim().isEmpty) return address;
+    return '$address - $terminal';
+  }
+
+  String _reviewPickupLabel(BuildContext context, bool isArabic) {
+    return _firstNonEmpty([
+          _routeEndLabel(_checkoutRoute, isPickup: true, isArabic: isArabic),
+          _routeEndLabel(_draftRoute, isPickup: true, isArabic: isArabic),
+          // Arrivals are picked up at a terminal, which local state holds only
+          // as two separate selections.
+          if (_reviewServiceType == BookingServiceType.airportArrival)
+            _localAirportLabel(context),
+          _pickupAddress,
+        ]) ??
+        '';
+  }
+
+  String _reviewDropOffLabel(BuildContext context, bool isArabic) {
+    // Chauffeur hire has no drop-off at all.
+    if (_reviewServiceType.isChauffeur) return '';
+
+    return _firstNonEmpty([
+          _routeEndLabel(_checkoutRoute, isPickup: false, isArabic: isArabic),
+          _routeEndLabel(_draftRoute, isPickup: false, isArabic: isArabic),
+          if (_reviewServiceType == BookingServiceType.airportDeparture)
+            _localAirportLabel(context),
+          _dropAddress,
+        ]) ??
+        '';
+  }
+
+  /// `"Airport - Terminal"` from the local pickers, for the window before the
+  /// backend's own resolution is available.
+  String _localAirportLabel(BuildContext context) {
+    final airport = _getSelectedAirportName(context) ?? '';
+    final terminal = _getSelectedTerminalName(context) ?? '';
+    return terminal.isNotEmpty ? '$airport - $terminal' : airport;
+  }
+
+  /// The vehicle stub echoed back on the draft.
+  SelectedVehicle? get _reviewVehicle =>
+      _checkoutSummary?.selectedVehicle ?? _session.session?.selectedVehicle;
+
+  /// The same vehicle as step 2 listed it, matched by id.
+  ///
+  /// The session echoes only a thin stub — often just id, name and capacity —
+  /// so the class and make come from the list the backend returned for this
+  /// route rather than from the local pickers.
+  AvailableVehicle? get _reviewListedVehicle {
+    final id = _reviewVehicle?.vehicleId;
+    if (id == null || id.isEmpty) return null;
+
+    for (final vehicle in _session.vehicles?.vehicles ?? const []) {
+      if (vehicle.vehicleId == id) return vehicle;
+    }
+    return null;
+  }
+
+  String _reviewVehicleClass(bool isArabic) =>
+      _firstNonEmpty([
+        _reviewVehicle?.category?.displayName(isArabic),
+        _reviewListedVehicle?.category?.displayName(isArabic),
+        _selectedVehicleClass,
+      ]) ??
+      '';
+
+  String _reviewVehicleBrand(bool isArabic) =>
+      _firstNonEmpty([
+        _reviewVehicle?.brand?.displayName(isArabic),
+        _reviewListedVehicle?.brand?.displayName(isArabic),
+        _selectedVehicleBrand,
+      ]) ??
+      '';
+
+  int get _reviewPassengers =>
+      _checkoutSummary?.passengerDetails?.passengersCount ??
+      _session.session?.passengerDetails?.passengersCount ??
+      int.tryParse(_numberOfPassengers ?? '1') ??
+      1;
+
+  String? get _reviewVehicleImage => _firstNonEmpty([
+    _reviewVehicle?.image,
+    _reviewListedVehicle?.image,
+    _getSelectedCar()?.imagePath,
+  ]);
 
   // ── Coupons ──────────────────────────────────────────────────────────────
 
@@ -658,20 +899,33 @@ class _NewBookingState extends State<NewBooking> {
         return;
       }
 
-      // The SDK reporting success is not proof — the backend settles it.
-      final verification = await _session.verifyPayment(
-        transactionReference: paymentResult.transactionReference,
-      );
+      // The SDK reporting success is not proof — the backend settles it. While
+      // the gateway is still clearing (3-D Secure, bank authorisation) the
+      // read-only verify endpoint is polled rather than read once.
+      final verification = await _session.awaitPaymentSettled();
 
-      if (verification?.isConfirmed ?? false) {
-        _goToSuccess(loc);
-      } else {
-        _showCustomSnackBar(
-          verification?.message ??
-              _session.errorMessage ??
-              loc.somethingWentWrong,
-          'E',
-        );
+      switch (verification?.outcome) {
+        case PaymentVerificationOutcome.confirmed:
+          _goToSuccess(loc);
+
+        case PaymentVerificationOutcome.failed:
+          // The SDK said it went through but the backend disagrees, so the
+          // server's reason is what the user is shown.
+          _goToPaymentFailure(paymentResult, message: verification?.message);
+
+        case PaymentVerificationOutcome.pending:
+          // Still with the gateway after polling. The booking exists as
+          // `pending_payment`, so neither outcome can be claimed.
+          _showCustomSnackBar(
+            verification?.message ?? loc.paymentPendingStatus,
+            'E',
+          );
+
+        case null:
+          _showCustomSnackBar(
+            _session.errorMessage ?? loc.somethingWentWrong,
+            'E',
+          );
       }
     } catch (e) {
       debugPrint('❌ Booking error: $e');
@@ -744,14 +998,21 @@ class _NewBookingState extends State<NewBooking> {
     );
   }
 
-  void _goToPaymentFailure(PaymentResult result) {
+  /// Show the cancelled or declined screen for a payment that did not go
+  /// through.
+  ///
+  /// [message] overrides the SDK's own reason — used when the SDK reported
+  /// success but the backend's verification says the charge failed.
+  void _goToPaymentFailure(PaymentResult result, {String? message}) {
     if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => isUserCancellation(result)
             ? const PaymentCancelledPage()
-            : PaymentRejectedPage(errorMessage: result.responseMessage),
+            : PaymentRejectedPage(
+                errorMessage: message ?? result.responseMessage,
+              ),
       ),
     );
   }
@@ -866,14 +1127,14 @@ class _NewBookingState extends State<NewBooking> {
     _selectedCatCode = widget.catcode;
     _selectedCityCode = widget.citycode;
 
-    // If cityId is provided, accurately sync the index within the preloaded list
-    if (widget.cityId != null && _apiCities.isNotEmpty) {
-      final index = _apiCities.indexWhere((c) {
-        final id = (c['_id'] ?? c['id'])?.toString();
-        return id == widget.cityId;
-      });
-      if (index != -1) _selectedCityCode = index;
-    }
+    // Use preloaded data from widget if available.
+    //
+    // This has to happen before the cityId sync below, which reads _apiCities.
+    _apiCities = widget.preloadedCities ?? [];
+    _apiAirports = widget.preloadedAirports ?? [];
+    _apiTerminals = widget.preloadedTerminals ?? [];
+
+    _syncCityIndexFromId();
 
     // Set initial class based on catcode
     if (_selectedCatCode == 2) {
@@ -881,11 +1142,6 @@ class _NewBookingState extends State<NewBooking> {
     } else {
       _selectedVehicleClass = "Luxury Sedan";
     }
-
-    // Use preloaded data from widget if available
-    _apiCities = widget.preloadedCities ?? [];
-    _apiAirports = widget.preloadedAirports ?? [];
-    _apiTerminals = widget.preloadedTerminals ?? [];
 
     // Autofill passenger details using customer data
     final userDataMap = UserLocalStorage.getUserData();
@@ -906,6 +1162,30 @@ class _NewBookingState extends State<NewBooking> {
 
     _loadCarData();
     _loadVat();
+    // Only the chauffeur product has a duration picker, and the category cannot
+    // change once this screen is open.
+    if (_serviceType.isChauffeur) _loadChauffeurOptions();
+  }
+
+  /// Populate the chauffeur duration pickers from the backend.
+  Future<void> _loadChauffeurOptions() async {
+    final result = await _apiV2.getChauffeurOptions();
+    if (!mounted) return;
+
+    final options = result.data;
+    if (options == null || !options.hasBookableDurations) {
+      debugPrint('⏱️ Chauffeur │ No durations returned — using defaults');
+    }
+
+    setState(() {
+      _chauffeurOptions = (options != null && options.hasBookableDurations)
+          ? options
+          : _fallbackChauffeurOptions;
+      // Nothing can have been picked yet, but the pickers read both of these,
+      // so neither is left pointing at a duration that is no longer offered.
+      _selectedChauffeurType = null;
+      _selectedEstimatedHours = 0;
+    });
   }
 
   Future<void> _loadVat() async {
@@ -962,7 +1242,12 @@ class _NewBookingState extends State<NewBooking> {
       setState(() {
         if (citiesResponse['success'] == true) {
           final citiesData = citiesResponse['data'];
-          if (citiesData is List) _apiCities = rawDataToList(citiesData);
+          if (citiesData is List) {
+            _apiCities = rawDataToList(citiesData);
+            // Nothing was preloaded, so initState had no list to resolve
+            // widget.cityId against.
+            _syncCityIndexFromId();
+          }
         }
 
         if (airportsResult['success'] == true) {
@@ -993,6 +1278,26 @@ class _NewBookingState extends State<NewBooking> {
     } catch (e) {
       debugPrint('Error loading location data: $e');
     }
+  }
+
+  /// Point [_selectedCityCode] at [NewBooking.cityId] within [_apiCities].
+  ///
+  /// [NewBooking.citycode] indexes the *filtered* list the caller displayed
+  /// (airport services hide cities with no airport, private transfer hides
+  /// cities with no zone), while everything on this screen indexes the full
+  /// [_apiCities]. The two only line up when nothing was filtered out, so
+  /// without this the screen resolves a different city than the user picked and
+  /// reads its airports.
+  ///
+  /// Called again once cities load, for the case where none were preloaded.
+  void _syncCityIndexFromId() {
+    final cityId = widget.cityId;
+    if (cityId == null || _apiCities.isEmpty) return;
+
+    final index = _apiCities.indexWhere(
+      (c) => (c['_id'] ?? c['id'])?.toString() == cityId,
+    );
+    if (index != -1) _selectedCityCode = index;
   }
 
   /// Move the selection to the first zone-covered city when the current one
@@ -1201,11 +1506,17 @@ class _NewBookingState extends State<NewBooking> {
   void _handleBackAction() {
     if (_isBooking) return;
     if (showReviewAndConfirm) {
+      // Editing an earlier step drops any applied coupon server-side, so the
+      // entry field starts clean when the customer comes back to checkout. The
+      // applied coupon itself is read from the server's pricing, so it clears
+      // itself on the next checkout load.
+      _couponController.clear();
       setState(() {
         showReviewAndConfirm = false;
         showPassenger = true;
         showTripInfo = false;
         showPreferances = false;
+        _couponError = null;
       });
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
     } else if (showPassenger) {
@@ -1624,69 +1935,25 @@ class _NewBookingState extends State<NewBooking> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Builder(
             builder: (context) {
-              String getDisplayDate() {
-                DateTime? date;
-                if (_selectedCatCode == 0 ||
-                    _selectedCatCode == 1 ||
-                    _selectedCatCode == 3) {
-                  date = _selectedDate;
-                } else {
-                  date = _selectedPickupDate;
-                }
-                return Bookingcard.formatDate(context, date);
-              }
-
-              String getDisplayTime() {
-                TimeOfDay? timeOfDay =
-                    (_selectedCatCode == 0 ||
-                        _selectedCatCode == 1 ||
-                        _selectedCatCode == 3)
-                    ? _selectedTime
-                    : _selectedPickupTime;
-                if (timeOfDay == null) return "";
-                final now = DateTime.now();
-                final dt = DateTime(
-                  now.year,
-                  now.month,
-                  now.day,
-                  timeOfDay.hour,
-                  timeOfDay.minute,
-                );
-                return Bookingcard.formatTime(context, dt);
-              }
-
-              String getPickup() {
-                if (_selectedCatCode == 0) {
-                  final airport = _getSelectedAirportName(context) ?? "";
-                  final terminal = _getSelectedTerminalName(context) ?? "";
-                  return terminal.isNotEmpty ? "$airport - $terminal" : airport;
-                }
-                return _pickupAddress ?? "";
-              }
-
-              String getDropoff() {
-                if (_selectedCatCode == 1) {
-                  final airport = _getSelectedAirportName(context) ?? "";
-                  final terminal = _getSelectedTerminalName(context) ?? "";
-                  return terminal.isNotEmpty ? "$airport - $terminal" : airport;
-                }
-                return _dropAddress ?? "";
-              }
+              // Rendered from the checkout summary — the draft as the backend
+              // holds it — so the customer confirms what will actually be
+              // booked, not what the local form happens to still contain.
+              final isArabic =
+                  Localizations.localeOf(context).languageCode == 'ar';
+              final pickupAt = _reviewPickupDisplay(context);
 
               return Bookingcard(
                 isFromReviewAndConfirm: true,
                 status: "",
-                isChauffeur: _selectedCatCode == 2,
-                type: _selectedCatCode == 2
-                    ? "${loc.chauffeur} - ${_getServiceDurationLabel(loc, _selectedEstimatedHours)}"
-                    : _getServiceName(context, _selectedCatCode),
-                pickup: getPickup(),
-                dropoff: getDropoff(),
-                date: getDisplayDate(),
-                time: getDisplayTime(),
-                ride: _selectedVehicleClass ?? "",
-                brand: _selectedVehicleBrand ?? "",
-                passengers: int.tryParse(_numberOfPassengers ?? "1") ?? 1,
+                isChauffeur: _reviewServiceType.isChauffeur,
+                type: _reviewServiceLabel(context, loc),
+                pickup: _reviewPickupLabel(context, isArabic),
+                dropoff: _reviewDropOffLabel(context, isArabic),
+                date: pickupAt.date,
+                time: pickupAt.time,
+                ride: _reviewVehicleClass(isArabic),
+                brand: _reviewVehicleBrand(isArabic),
+                passengers: _reviewPassengers,
               );
             },
           ),
@@ -1696,8 +1963,8 @@ class _NewBookingState extends State<NewBooking> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Builder(
             builder: (context) {
-              final selectedCar = _getSelectedCar();
-              final carImageUrl = selectedCar?.imagePath;
+              // The image the backend attached to the vehicle it recorded.
+              final carImageUrl = _reviewVehicleImage;
 
               if (carImageUrl == null || carImageUrl.isEmpty)
                 return const SizedBox.shrink();
@@ -2076,7 +2343,10 @@ class _NewBookingState extends State<NewBooking> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        "${loc.discount} (${_discountPercentage.toStringAsFixed(0)}%)",
+                        Bookingcard.formatPercentLabel(
+                          loc.discount,
+                          _discountPercentage,
+                        ),
                         style: const TextStyle(
                           color: Colors.green,
                           fontSize: 14,
@@ -2120,7 +2390,7 @@ class _NewBookingState extends State<NewBooking> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      "${loc.vat} (${_vatPercentage.toStringAsFixed(0)}%)",
+                      Bookingcard.formatPercentLabel(loc.vat, _vatPercentage),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -2932,8 +3202,7 @@ class _NewBookingState extends State<NewBooking> {
   Widget buildArrivalSection(BuildContext context, AppLocalizations loc) {
     final terminals = _getAvailableTerminals(context);
     final airports = _getAvailableAirports(context);
-    final bool showTerminals =
-        airports.isNotEmpty && airports.first != "0 airports available";
+    final bool showTerminals = airports.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2993,8 +3262,7 @@ class _NewBookingState extends State<NewBooking> {
   Widget buildDepartureSection(BuildContext context, AppLocalizations loc) {
     final terminals = _getAvailableTerminals(context);
     final airports = _getAvailableAirports(context);
-    final bool showTerminals =
-        airports.isNotEmpty && airports.first != "0 airports available";
+    final bool showTerminals = airports.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3077,18 +3345,40 @@ class _NewBookingState extends State<NewBooking> {
     );
   }
 
+  /// The chauffeur duration pickers.
+  ///
+  /// The first chooses the product — hourly hire, when the backend has it
+  /// enabled, followed by each fixed package. A package carries its own
+  /// duration, so only hourly reveals the second picker.
   Widget buildHoursDataSelectors(BuildContext context, AppLocalizations loc) {
-    // Build dropdown items from available hour options
-    final items = [loc.selectDuration];
-    items.addAll(_hourOptions.map((h) => _getServiceDurationLabel(loc, h)));
+    // Null until the options call lands, so the placeholder is all that is
+    // offered while it is in flight.
+    final options = _chauffeurOptions;
+    final hourlyAvailable = options?.hourly.available ?? false;
 
-    final currentLabel = _selectedEstimatedHours == 0
-        ? loc.selectDuration
-        : _getServiceDurationLabel(loc, _selectedEstimatedHours);
+    // The labels are localised — and in Arabic not always numeric — so the hour
+    // behind the chosen label is looked up rather than parsed back out of it.
+    final packagesByLabel = {
+      for (final h in options?.packages ?? const <int>[])
+        _getServiceDurationLabel(loc, h): h,
+    };
 
-    final displayValue = items.contains(currentLabel)
-        ? currentLabel
-        : items.first;
+    final items = [
+      if (hourlyAvailable) loc.hourly,
+      ...packagesByLabel.keys,
+    ];
+
+    // A package shows its own duration; hourly stays on its label whatever hour
+    // the second picker is on. Null leaves the field on its placeholder, which
+    // is a hint rather than a row the user could pick.
+    final currentLabel = switch (_selectedChauffeurType) {
+      ChauffeurType.hourly => loc.hourly,
+      ChauffeurType.package => _getServiceDurationLabel(
+        loc,
+        _selectedEstimatedHours,
+      ),
+      null => null,
+    };
 
     return Column(
       children: [
@@ -3096,23 +3386,63 @@ class _NewBookingState extends State<NewBooking> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: PremiumDropDown(
             title: loc.serviceDuration,
-            value: displayValue,
+            hint: loc.selectDuration,
+            value: currentLabel,
             items: items,
             onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  if (val == loc.selectDuration) {
-                    _selectedEstimatedHours = 0;
-                  } else {
-                    final hourVal = int.tryParse(val.split(' ').first) ?? 0;
-                    _selectedEstimatedHours = hourVal;
-                  }
-                });
-              }
+              if (val == null) return;
+              setState(() {
+                final packageHours = packagesByLabel[val];
+                if (packageHours != null) {
+                  _selectedChauffeurType = ChauffeurType.package;
+                  _selectedEstimatedHours = packageHours;
+                } else if (hourlyAvailable && val == loc.hourly) {
+                  // Hours come from the second picker, which starts unset.
+                  _selectedChauffeurType = ChauffeurType.hourly;
+                  _selectedEstimatedHours = 0;
+                }
+              });
             },
           ),
         ),
+        if (options != null &&
+            _selectedChauffeurType == ChauffeurType.hourly) ...[
+          SizedBox(height: 16),
+          buildHourlyHoursSelector(context, loc, options.hourly),
+        ],
       ],
+    );
+  }
+
+  /// Hour picker for hourly hire, listing every hour the backend allows.
+  Widget buildHourlyHoursSelector(
+    BuildContext context,
+    AppLocalizations loc,
+    HourlyChauffeurOption hourly,
+  ) {
+    final hoursByLabel = {
+      for (final h in hourly.range) _getServiceDurationLabel(loc, h): h,
+    };
+
+    final items = hoursByLabel.keys.toList();
+
+    // Null until an hour is picked, which shows the placeholder as a hint.
+    final currentLabel = _selectedEstimatedHours == 0
+        ? null
+        : _getServiceDurationLabel(loc, _selectedEstimatedHours);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: PremiumDropDown(
+        title: loc.duration,
+        hint: loc.selectDuration,
+        value: currentLabel,
+        items: items,
+        onChanged: (val) {
+          if (val == null) return;
+          setState(() => _selectedEstimatedHours = hoursByLabel[val] ?? 0);
+        },
+      ),
     );
   }
 
@@ -3397,11 +3727,14 @@ class _NewBookingState extends State<NewBooking> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: PremiumDropDown(
         title: loc.airport,
+        // With no airports the field has nothing to select, so it renders the
+        // hint and stays inert.
+        hint: loc.noAirportsAvailable,
         value: airports.isNotEmpty
             ? (_selectedAirportCode < airports.length
                   ? airports[_selectedAirportCode]
                   : airports.first)
-            : "",
+            : null,
         onChanged: (val) {
           if (val != null) {
             setState(() {
@@ -3551,14 +3884,16 @@ class _NewBookingState extends State<NewBooking> {
                           isPickup
                               ? (_selectedPickupDate == null
                                     ? loc.selectDate
-                                    : DateFormat(
-                                        'dd MMM yyyy',
-                                      ).format(_selectedPickupDate!))
+                                    : Bookingcard.formatDate(
+                                        context,
+                                        _selectedPickupDate,
+                                      ))
                               : (_selectedDate == null
                                     ? loc.selectDate
-                                    : DateFormat(
-                                        'dd MMM yyyy',
-                                      ).format(_selectedDate!)),
+                                    : Bookingcard.formatDate(
+                                        context,
+                                        _selectedDate,
+                                      )),
                           style: TextStyle(color: Colors.white, fontSize: 14),
                         ),
                       ),
@@ -3974,7 +4309,10 @@ class _NewBookingState extends State<NewBooking> {
     return [];
   }
 
-  /// Get airports based on selected city (using cityID from _apiCities)
+  /// Get airports based on selected city (using cityID from _apiCities).
+  ///
+  /// Empty means the city has none; callers surface that rather than showing it
+  /// as a selectable airport.
   List<String> _getAvailableAirports(BuildContext context) {
     if (_apiCities.isNotEmpty && _apiAirports.isNotEmpty) {
       try {
@@ -4001,14 +4339,13 @@ class _NewBookingState extends State<NewBooking> {
               .toSet()
               .toList();
 
-          if (filtered.isNotEmpty) return filtered;
-          return ["0 airports available"];
+          return filtered;
         }
       } catch (e) {
         debugPrint('Error filtering airports: $e');
       }
     }
-    return ["0 airports available"];
+    return const [];
   }
 
   /// Get terminals based on selected airport
@@ -4016,8 +4353,7 @@ class _NewBookingState extends State<NewBooking> {
     if (_apiAirports.isNotEmpty && _apiTerminals.isNotEmpty) {
       try {
         final airportNames = _getAvailableAirports(context);
-        if (airportNames.isNotEmpty &&
-            airportNames.first != "0 airports available") {
+        if (airportNames.isNotEmpty) {
           // Find the selected airport object to get its ID
           final selectedAirportName =
               airportNames[_selectedAirportCode < airportNames.length
@@ -4040,8 +4376,11 @@ class _NewBookingState extends State<NewBooking> {
                     tAirportId = tAirportId['_id'] ?? tAirportId['id'];
                   }
                   final tAirportIdStr = tAirportId?.toString();
-                  // Check if the terminal is active
-                  final bool isActive = t['isActive'] == true;
+                  // Active unless explicitly set false — same rule the airport
+                  // filter uses, and the default TerminalV2 itself applies. A
+                  // stricter test would drop every terminal from a payload that
+                  // omits the flag, and session init requires a terminalId.
+                  final bool isActive = t['isActive'] != false;
                   return tAirportIdStr != null &&
                       tAirportIdStr == airportId &&
                       isActive;

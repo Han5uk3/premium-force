@@ -146,7 +146,7 @@ class _MainAppState extends State<MainApp> {
     final double bottomPadding = MediaQueryData.fromView(
       View.of(context),
     ).padding.bottom;
-    final bool isThickNavBar = bottomPadding > 24.0;
+    final bool isThickNavBar = bottomPadding >= 24.0;
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _authProvider),

@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pinput/pinput.dart';
+import 'package:smart_auth/smart_auth.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
@@ -25,16 +28,63 @@ class OTPVerificationPage extends StatefulWidget {
 }
 
 class _OTPVerificationPageState extends State<OTPVerificationPage> {
+  static const int _otpLength = 6;
+
+  /// Matches an [_otpLength]-digit run that isn't part of a longer number, so a
+  /// support line or order id in the SMS body can't be mistaken for the code.
+  static const String _smsCodeMatcher = '(?<!\\d)\\d{$_otpLength}(?!\\d)';
+
   final TextEditingController _otpController = TextEditingController();
   final FocusNode _otpFocusNode = FocusNode();
   bool _isVerifying = false;
 
+  /// Guards against stacking SMS User Consent listeners across resends.
+  bool _isListeningForSms = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenForSmsCode();
+  }
+
   @override
   void dispose() {
     AnimatedSnackBar.dismiss();
+    if (_isListeningForSms) {
+      SmartAuth.instance.removeUserConsentApiListener();
+    }
     _otpController.dispose();
     _otpFocusNode.dispose();
     super.dispose();
+  }
+
+  /// Android SMS autofill via the SMS User Consent API.
+  ///
+  /// Registers a one-shot listener; Android shows its own consent dialog when a
+  /// matching SMS arrives, and only on approval do we get the message body.
+  /// The listener is one-shot by design, so this is called again after a resend.
+  ///
+  /// iOS needs nothing here: the Pinput field advertises
+  /// [AutofillHints.oneTimeCode] inside an [AutofillGroup], which is what drives
+  /// the QuickType "From Messages" suggestion above the keyboard.
+  Future<void> _listenForSmsCode() async {
+    if (!Platform.isAndroid || _isListeningForSms) return;
+
+    _isListeningForSms = true;
+    final res = await SmartAuth.instance.getSmsWithUserConsentApi(
+      matcher: _smsCodeMatcher,
+    );
+    _isListeningForSms = false;
+
+    // The page may have been popped while we were waiting on the user, which
+    // would leave _otpController disposed.
+    if (!mounted) return;
+
+    final code = res.hasData ? res.requireData.code : null;
+    if (code == null || code.length != _otpLength) return;
+
+    // Triggers Pinput's onCompleted, which runs the verify action.
+    _otpController.setText(code);
   }
 
   void _showCustomSnackBar(String message, [String type = 'E']) {
@@ -50,6 +100,8 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
   /// Handle OTP verification and navigate based on result.
   Future<void> _handleVerify() async {
+    if (_isVerifying) return;
+
     if (_otpController.text.length != 6) {
       _showCustomSnackBar(AppLocalizations.of(context)!.pleaseEnterAValidOtp);
       return;
@@ -249,7 +301,10 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                       ),
                     ),
                     onCompleted: (pin) {
-                      debugPrint('OTP Completed: $pin');
+                      // All 6 digits entered: run the same action as the
+                      // Verify button.
+                      _otpFocusNode.unfocus();
+                      _handleVerify();
                     },
                   ),
                 ),
@@ -285,6 +340,9 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
                                 if (mounted) {
                                   if (success) {
+                                    // The previous listener was consumed by the
+                                    // first OTP, so re-arm it for this one.
+                                    _listenForSmsCode();
                                     _showCustomSnackBar(
                                       "${AppLocalizations.of(context)!.otpHasBeenResentTo}${widget.countryCode} ${widget.phoneNumber}",
                                       'S',

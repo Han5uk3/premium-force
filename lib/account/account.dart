@@ -3,6 +3,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/main.dart';
 import 'package:premium_force_main/account/manage_profile.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/authentication/login.dart';
@@ -57,6 +58,22 @@ class _AccountPageState extends State<AccountPage> {
                   icon: Icons.person,
                   isSvg: true,
                   svgPath: "assets/icons/person.svg",
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  final isCurrentlyEnglish =
+                      Localizations.localeOf(context).languageCode == 'en';
+                  MainApp.setLocale(
+                    context,
+                    Locale(isCurrentlyEnglish ? 'ar' : 'en'),
+                  );
+                },
+                child: ProfileTile(
+                  loc: loc,
+                  isLanguage: true,
+                  title: loc.language,
+                  icon: Icons.language,
                 ),
               ),
               // GestureDetector(
@@ -194,6 +211,7 @@ class _AccountPageState extends State<AccountPage> {
     bool isDelete = false,
     bool isLogout = false,
     bool isNotification = false,
+    bool isLanguage = false,
     bool isLast = false,
     String? svgPath,
   }) {
@@ -223,7 +241,27 @@ class _AccountPageState extends State<AccountPage> {
               child: Icon(icon, color: Colors.white),
             ),
       trailing: !(isDelete || isLogout)
-          ? isNotification
+          ? isLanguage
+                // Flag of the language currently in use, matching the switch in
+                // the home appbar. The tile itself handles the tap.
+                //
+                // The SizedBox pins the clip to a square: the flags are wider
+                // than they are tall, so letting ClipOval take its size from
+                // the artwork gives an ellipse. BoxFit.cover then fills that
+                // square by cropping the flag's sides rather than squashing it.
+                ? SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: ClipOval(
+                      child: SvgPicture.asset(
+                        Localizations.localeOf(context).languageCode == 'en'
+                            ? 'assets/flags/en.svg'
+                            : 'assets/flags/ar.svg',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  )
+                : isNotification
                 ? GestureDetector(
                     onTap: () {
                       setState(() {

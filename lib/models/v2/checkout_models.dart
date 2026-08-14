@@ -180,6 +180,28 @@ class PaytabsSessionConfig {
       serverKey.isNotEmpty &&
       clientKey.isNotEmpty &&
       amount > 0;
+
+  /// Whether the credentials are shaped like real PayTabs keys.
+  ///
+  /// The keys have a fixed hyphen-grouped form — three ten-character groups for
+  /// the server key, four six-character groups for the client key — and the
+  /// profile id is numeric. The backend has been seen returning truncated
+  /// placeholders (an 11-character server key, say) which pass [isUsable] but
+  /// cannot open the gateway, so the shape is checked before they are trusted.
+  bool get hasValidCredentials =>
+      int.tryParse(profileId) != null &&
+      _serverKeyPattern.hasMatch(serverKey) &&
+      _clientKeyPattern.hasMatch(clientKey);
+
+  static final RegExp _serverKeyPattern = RegExp(
+    r'^[A-Z0-9]{10}(-[A-Z0-9]{10}){2}$',
+    caseSensitive: false,
+  );
+
+  static final RegExp _clientKeyPattern = RegExp(
+    r'^[A-Z0-9]{6}(-[A-Z0-9]{6}){3}$',
+    caseSensitive: false,
+  );
 }
 
 /// Result of `POST /bookings/session/confirm`.
@@ -244,53 +266,159 @@ class ConfirmBookingResult {
   }
 }
 
+/// Gateway transaction state reported by `verify-payment`.
+enum PaymentStatusV2 {
+  /// Transaction opened; the customer has not completed payment yet.
+  initiated('initiated'),
+
+  /// Submitted, awaiting 3-D Secure or bank clearance — PayTabs `H`.
+  pending('pending'),
+
+  /// Authorised and charged — PayTabs `A`.
+  captured('captured'),
+
+  /// Declined, abandoned or cancelled — PayTabs `D`.
+  failed('failed'),
+
+  unknown('unknown');
+
+  const PaymentStatusV2(this.wireValue);
+
+  final String wireValue;
+
+  static PaymentStatusV2 fromWire(String? value) {
+    final normalised = value?.trim().toLowerCase().replaceAll('-', '_');
+    if (normalised == null || normalised.isEmpty) return unknown;
+
+    for (final status in values) {
+      if (status.wireValue == normalised) return status;
+    }
+
+    // Tolerate the gateway's own vocabulary leaking through.
+    return switch (normalised) {
+      'paid' || 'authorised' || 'authorized' || 'success' => captured,
+      'declined' || 'cancelled' || 'canceled' || 'error' => failed,
+      'hold' || 'processing' || 'in_progress' => pending,
+      _ => unknown,
+    };
+  }
+}
+
+/// What the app should do next, from the endpoint's UI guidance matrix.
+enum PaymentVerificationOutcome {
+  /// `captured` / `confirmed` — show the booking success screen.
+  confirmed,
+
+  /// `failed` / `payment_failed` — show the declined screen with a retry.
+  failed,
+
+  /// `initiated` or `pending` / `pending_payment` — keep polling.
+  pending,
+}
+
 /// Result of `POST /bookings/session/verify-payment`.
 ///
+/// The endpoint is read-only: it mutates nothing and queries PayTabs live when
+/// the stored status is not yet captured, which is what makes it safe to poll.
 /// The backend is the arbiter of whether the charge actually settled — the SDK
 /// callback alone is not treated as proof.
 class PaymentVerificationResult {
   const PaymentVerificationResult({
-    required this.isConfirmed,
+    required this.paymentStatus,
     this.bookingId,
     this.bookingNumber,
     this.bookingStatus,
-    this.paymentStatus,
     this.transactionRef,
+    this.paidAmount,
+    this.currency,
     this.message,
-  });
+    bool? confirmedFlag,
+  }) : _confirmedFlag = confirmedFlag;
 
-  final bool isConfirmed;
+  final PaymentStatusV2 paymentStatus;
+
+  /// Booking lifecycle state, e.g. `pending_payment`, `confirmed`,
+  /// `payment_failed`, or any of the post-confirmation driver states.
+  final String? bookingStatus;
+
   final String? bookingId;
   final String? bookingNumber;
-  final String? bookingStatus;
-  final String? paymentStatus;
   final String? transactionRef;
+  final double? paidAmount;
+  final String? currency;
   final String? message;
 
+  /// Explicit verdict, when the backend sends one; it wins over the statuses.
+  final bool? _confirmedFlag;
+
+  /// Booking states that mean the ride is live — anything at or past
+  /// confirmation settles the payment question.
+  static const Set<String> _settledBookingStatuses = {
+    'confirmed',
+    'driver_assigned',
+    'driver_en_route',
+    'driver_arrived',
+    'trip_started',
+    'completed',
+  };
+
   factory PaymentVerificationResult.fromJson(Map<String, dynamic> json) {
+    // The documented payload is flat; a nested `payment` block is still read in
+    // case the endpoint returns the older shape.
     final payment = pickMap(json, const ['payment']);
-    final bookingStatus = pickString(json, const [
-      'bookingStatus',
-      'status',
-    ])?.toLowerCase();
-    final paymentStatus = pickString(payment, const ['status'])?.toLowerCase();
 
     return PaymentVerificationResult(
-      isConfirmed:
-          pickBool(json, const ['isConfirmed', 'confirmed', 'verified']) ??
-          // Fall back to the settled states the backend documents.
-          (bookingStatus == 'confirmed' ||
-              paymentStatus == 'captured' ||
-              paymentStatus == 'paid'),
+      paymentStatus: PaymentStatusV2.fromWire(
+        pickString(json, const ['paymentStatus']) ??
+            pickString(payment, const ['status', 'paymentStatus']),
+      ),
+      bookingStatus: pickString(json, const [
+        'bookingStatus',
+        'status',
+      ])?.toLowerCase(),
       bookingId: pickId(json, const ['bookingId', '_id', 'id']),
       bookingNumber: pickString(json, const ['bookingNumber']),
-      bookingStatus: bookingStatus,
-      paymentStatus: paymentStatus,
       transactionRef: pickString(json, const [
         'transactionRef',
         'transactionReference',
       ]),
+      paidAmount: pickDouble(json, const ['paidAmount', 'amount']),
+      currency: pickString(json, const ['currency']),
       message: pickString(json, const ['message']),
+      confirmedFlag: pickBool(json, const [
+        'isConfirmed',
+        'confirmed',
+        'verified',
+      ]),
     );
   }
+
+  /// What to do next with this result.
+  ///
+  /// A capture settles it even if the booking row has not caught up yet — the
+  /// money is taken, so the booking will confirm. Anything still with the
+  /// gateway is [PaymentVerificationOutcome.pending] and should be polled.
+  PaymentVerificationOutcome get outcome {
+    if (_confirmedFlag == true) return PaymentVerificationOutcome.confirmed;
+
+    final booking = bookingStatus?.replaceAll('-', '_');
+
+    if (paymentStatus == PaymentStatusV2.captured ||
+        (booking != null && _settledBookingStatuses.contains(booking))) {
+      return PaymentVerificationOutcome.confirmed;
+    }
+
+    if (paymentStatus == PaymentStatusV2.failed ||
+        booking == 'payment_failed' ||
+        booking == 'cancelled') {
+      return PaymentVerificationOutcome.failed;
+    }
+
+    return PaymentVerificationOutcome.pending;
+  }
+
+  bool get isConfirmed => outcome == PaymentVerificationOutcome.confirmed;
+
+  /// Whether the gateway has not decided yet, so polling should continue.
+  bool get isPending => outcome == PaymentVerificationOutcome.pending;
 }

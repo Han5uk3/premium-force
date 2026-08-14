@@ -378,5 +378,15 @@
   "selectDuration": "حدد المدة",
   "retry": "إعادة المحاولة",
   "refunded": "تم الاسترداد",
+  "refundProcessed": "تمت معالجة الاسترداد",
+  "refundReference": "رقم الاسترداد",
+  "refundBusinessDaysNote": "ستظهر الأموال في كشف حساب بطاقتك خلال 3 إلى 5 أيام عمل، حسب البنك المُصدر للبطاقة.",
+  "noAirportsAvailable": "لا توجد مطارات متاحة",
+  "enterYourCompanyEmail": "أدخل البريد الإلكتروني للشركة",
+  "language": "اللغة",
+  "status": "الحالة",
+  "verificationPending": "قيد التحقق",
+  "discountApproved": "تمت الموافقة على الخصم",
+  "discountRejected": "تم رفض الخصم",
   "nHours": "{count, plural, =1{ساعة واحدة} =2{ساعتين} few{{count} ساعات} other{{count} ساعة}}"
 }

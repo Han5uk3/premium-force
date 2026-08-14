@@ -20,25 +20,34 @@ class BookingsPage extends StatefulWidget {
 class _BookingsPageState extends State<BookingsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  // removed unused _apiService
-
-  // removed local booking lists
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(
+      length: BookingTab.values.length,
+      vsync: this,
+    );
+    _tabController.addListener(_loadSelectedTab);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        Provider.of<BookingProvider>(context, listen: false).fetchBookings();
-      }
+      if (mounted) _loadSelectedTab();
     });
   }
 
-  // Removed local _fetchBookings. Using BookingProvider now.
+  /// Each tab is its own query, so it is fetched the first time it is shown.
+  ///
+  /// [BookingProvider.fetchTab] is a no-op for a tab that is already loaded,
+  /// which is what makes this safe to call on every tab notification.
+  void _loadSelectedTab() {
+    if (!mounted) return;
+    context.read<BookingProvider>().fetchTab(
+      BookingTab.values[_tabController.index],
+    );
+  }
 
   @override
   void dispose() {
+    _tabController.removeListener(_loadSelectedTab);
     _tabController.dispose();
     super.dispose();
   }
@@ -64,93 +73,40 @@ class _BookingsPageState extends State<BookingsPage>
           return Scaffold(
             backgroundColor: Colors.transparent,
             appBar: buidAppBar(context),
-            body: RefreshIndicator(
-              onRefresh: bookingProvider.fetchBookings,
-              color: const Color(0xFFE4A46B),
-              backgroundColor: Colors.black,
-              child: Column(
-                children: [
-                  TabBar(
+            body: Column(
+              children: [
+                TabBar(
+                  controller: _tabController,
+                  dividerColor: Colors.grey.shade800,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicatorPadding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                  ),
+                  indicator: const _GradientTabIndicator(
+                    gradient: _tabGradient,
+                    height: 3.0,
+                  ),
+                  unselectedLabelColor: Colors.white38,
+                  tabs: [
+                    for (final tab in BookingTab.values)
+                      _GradientTab(
+                        text: _tabLabel(loc, tab),
+                        controller: _tabController,
+                        index: tab.index,
+                        gradient: _tabGradient,
+                      ),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
                     controller: _tabController,
-                    dividerColor: Colors.grey.shade800,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    indicatorPadding: const EdgeInsets.symmetric(
-                      horizontal: 20.0,
-                    ),
-                    indicator: const _GradientTabIndicator(
-                      gradient: _tabGradient,
-                      height: 3.0,
-                    ),
-                    unselectedLabelColor: Colors.white38,
-                    tabs: [
-                      _GradientTab(
-                        text: loc.upcoming,
-                        controller: _tabController,
-                        index: 0,
-                        gradient: _tabGradient,
-                      ),
-                      _GradientTab(
-                        text: loc.ongoing,
-                        controller: _tabController,
-                        index: 1,
-                        gradient: _tabGradient,
-                      ),
-                      _GradientTab(
-                        text: loc.completed,
-                        controller: _tabController,
-                        index: 2,
-                        gradient: _tabGradient,
-                      ),
-                      _GradientTab(
-                        text: loc.cancelled,
-                        controller: _tabController,
-                        index: 3,
-                        gradient: _tabGradient,
-                      ),
+                    children: [
+                      for (final tab in BookingTab.values)
+                        _buildBookingsList(bookingProvider, tab, loc),
                     ],
                   ),
-                  Expanded(
-                    child: bookingProvider.isLoading
-                        ? const BookingShimmer()
-                        : bookingProvider.errorMessage != null
-                        ? Center(
-                            child: Text(
-                              bookingProvider.errorMessage!,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          )
-                        : TabBarView(
-                            controller: _tabController,
-                            children: [
-                              _buildBookingsList(
-                                bookingProvider,
-                                bookingProvider.upcomingBookings,
-                                loc.noUpcomingBookings,
-                                loc.onceYouBookItWillAppearHere,
-                              ),
-                              _buildBookingsList(
-                                bookingProvider,
-                                bookingProvider.ongoingBookings,
-                                loc.noOngoingBookings,
-                                loc.onceYouBookItWillAppearHere,
-                              ),
-                              _buildBookingsList(
-                                bookingProvider,
-                                bookingProvider.completedBookings,
-                                loc.noCompletedBookings,
-                                loc.onceYouBookItWillAppearHere,
-                              ),
-                              _buildBookingsList(
-                                bookingProvider,
-                                bookingProvider.canceledBookings,
-                                loc.noCancelledBookings,
-                                loc.onceYouBookItWillAppearHere,
-                              ),
-                            ],
-                          ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
@@ -160,76 +116,151 @@ class _BookingsPageState extends State<BookingsPage>
 
   Widget _buildBookingsList(
     BookingProvider bookingProvider,
-    List<BookingV2> bookings,
-    String emptyTitle,
-    String emptySubtitle,
+    BookingTab tab,
+    AppLocalizations loc,
   ) {
+    final bookings = bookingProvider.bookingsFor(tab);
+
+    if (bookings.isEmpty && bookingProvider.isTabLoading(tab)) {
+      return const BookingShimmer();
+    }
+
+    final error = bookingProvider.tabError(tab);
     if (bookings.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: bookingProvider.fetchBookings,
-        color: const Color(0xFFE4A46B),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: _buildEmptyState(emptyTitle, emptySubtitle),
-          ),
-        ),
+      return _buildRefreshable(
+        bookingProvider,
+        tab,
+        child: error != null
+            ? Center(
+                child: Text(
+                  error,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              )
+            : _buildEmptyState(
+                _emptyTitle(loc, tab),
+                loc.onceYouBookItWillAppearHere,
+              ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: bookingProvider.fetchBookings,
+      onRefresh: () => bookingProvider.fetchTab(tab, force: true),
       color: const Color(0xFFE4A46B),
-      child: ListView.builder(
-        padding: const EdgeInsets.only(
-          top: 16,
-          bottom: 100,
-          left: 16,
-          right: 16,
-        ),
-        itemCount: bookings.length,
-        itemBuilder: (context, index) {
-          final booking = bookings[index];
-          final displayDate = booking.pickupDateTime;
-          final dateStr = Bookingcard.formatDate(context, displayDate);
-          final timeStr = Bookingcard.formatTime(context, displayDate);
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: GestureDetector(
-              onTap: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        BookingDetailsPage(bookingId: booking.id),
-                  ),
-                );
-                if (result == true) {
-                  bookingProvider.fetchBookings();
-                }
-              },
-              child: Bookingcard(
-                isFromReviewAndConfirm: false,
-                status: booking.status.wireValue,
-                type: _getBookingCategoryName(booking, context),
-                pickup: booking.pickupAddress ?? 'N/A',
-                dropoff: booking.dropOffAddress ?? 'N/A',
-                date: dateStr,
-                time: timeStr,
-                ride: booking.vehicleLabel,
-                brand: booking.vehicle?.name ?? '',
-                passengers: booking.passengersCount,
-                isChauffeur: booking.isChauffeur,
-                chauffeurName: booking.driver?.name,
-              ),
-            ),
-          );
+      backgroundColor: Colors.black,
+      child: NotificationListener<ScrollNotification>(
+        // Ask for the next page slightly before the end so the list keeps
+        // flowing; loadMore ignores the call unless there is more to fetch.
+        onNotification: (notification) {
+          if (notification.metrics.extentAfter < 300) {
+            bookingProvider.loadMore(tab);
+          }
+          return false;
         },
+        child: ListView.builder(
+          padding: const EdgeInsets.only(
+            top: 16,
+            bottom: 100,
+            left: 16,
+            right: 16,
+          ),
+          itemCount: bookings.length + (bookingProvider.tabHasMore(tab) ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == bookings.length) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Center(
+                  child: SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFE4A46B),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            final booking = bookings[index];
+            final displayDate = booking.pickupDateTime;
+            final dateStr = Bookingcard.formatDate(context, displayDate);
+            final timeStr = Bookingcard.formatTime(context, displayDate);
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          BookingDetailsPage(bookingId: booking.id),
+                    ),
+                  );
+                  if (result == true) {
+                    // A cancellation moves the booking to another tab, so every
+                    // cached tab is dropped and this one reloaded.
+                    bookingProvider.invalidateTabs();
+                    bookingProvider.fetchTab(tab);
+                  }
+                },
+                child: Bookingcard(
+                  isFromReviewAndConfirm: false,
+                  status: booking.status.wireValue,
+                  type: _getBookingCategoryName(booking, context),
+                  pickup: booking.pickupAddress ?? 'N/A',
+                  dropoff: booking.dropOffAddress ?? 'N/A',
+                  date: dateStr,
+                  time: timeStr,
+                  ride: booking.vehicleLabel,
+                  brand: booking.vehicle?.name ?? '',
+                  passengers: booking.passengersCount,
+                  isChauffeur: booking.isChauffeur,
+                  chauffeurName: booking.driver?.name,
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
+
+  /// Empty and error states still need to be pullable to refresh.
+  Widget _buildRefreshable(
+    BookingProvider bookingProvider,
+    BookingTab tab, {
+    required Widget child,
+  }) {
+    return RefreshIndicator(
+      onRefresh: () => bookingProvider.fetchTab(tab, force: true),
+      color: const Color(0xFFE4A46B),
+      backgroundColor: Colors.black,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  String _tabLabel(AppLocalizations loc, BookingTab tab) => switch (tab) {
+    BookingTab.upcoming => loc.upcoming,
+    BookingTab.ongoing => loc.ongoing,
+    BookingTab.completed => loc.completed,
+    BookingTab.cancelled => loc.cancelled,
+  };
+
+  String _emptyTitle(AppLocalizations loc, BookingTab tab) => switch (tab) {
+    BookingTab.upcoming => loc.noUpcomingBookings,
+    BookingTab.ongoing => loc.noOngoingBookings,
+    BookingTab.completed => loc.noCompletedBookings,
+    BookingTab.cancelled => loc.noCancelledBookings,
+  };
 
   PreferredSizeWidget buidAppBar(BuildContext context) {
     final loc = AppLocalizations.of(context)!;

@@ -141,6 +141,20 @@ class BookingApiLogger extends Interceptor {
 
   String _render(dynamic data) {
     try {
+      // A multipart body is not JSON-encodable: show its fields, and note each
+      // attachment by name and size rather than dumping the bytes.
+      if (data is FormData) {
+        return _pretty.convert(
+          _redact({
+            for (final field in data.fields) field.key: field.value,
+            for (final file in data.files)
+              file.key:
+                  '<file ${file.value.filename ?? 'unnamed'}, '
+                  '${file.value.length} bytes>',
+          }),
+        );
+      }
+
       final decoded = data is String ? _tryDecode(data) : data;
       final redacted = _redact(decoded);
       final text = redacted is String ? redacted : _pretty.convert(redacted);

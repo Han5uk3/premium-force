@@ -1255,218 +1255,237 @@ class _HomepageState extends State<Homepage>
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return Container(
-              decoration: const BoxDecoration(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF3E230A), Color(0xFF141313)],
+            // The sheet has to swallow taps that land on it.
+            //
+            // Its background is transparent and a Container doesn't absorb
+            // pointer events, so a tap that misses a city tile — the loading
+            // placeholders, the gaps between tiles, the empty-state text —
+            // falls through to the dismissible barrier underneath and closes
+            // the sheet instead of doing nothing.
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: Container(
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFF3E230A), Color(0xFF141313)],
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).padding.bottom + 16,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: 24,
-                        right: 24,
-                        top: 24,
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            loc.chooseCity,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom + 16,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          left: 24,
+                          right: 24,
+                          top: 24,
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              loc.chooseCity,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.pop(context);
-                            },
-                            child: const Icon(Icons.close, color: Colors.white),
-                          ),
-                        ],
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.pop(context);
+                              },
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const Divider(color: Colors.grey, thickness: 1),
-                    const SizedBox(height: 8),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        return ValueListenableBuilder<bool>(
-                          valueListenable: _isLoadingLocations,
-                          builder: (context, isLoading, child) {
-                            return AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 600),
-                              switchInCurve: Curves.easeIn,
-                              switchOutCurve: Curves.easeOut,
-                              child: isLoading
-                                  ? _buildCityGridShimmer(
-                                      constraints.maxWidth,
-                                      count:
-                                          _getFilteredCities(catcode).length > 0
-                                          ? _getFilteredCities(catcode).length
-                                          : 6,
-                                    )
-                                  : Padding(
-                                      key: const ValueKey('city_grid_content'),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 24,
-                                      ),
-                                      child: Builder(
-                                        builder: (context) {
-                                          final activeCities =
-                                              _getFilteredCities(catcode);
+                      const Divider(color: Colors.grey, thickness: 1),
+                      const SizedBox(height: 8),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return ValueListenableBuilder<bool>(
+                            valueListenable: _isLoadingLocations,
+                            builder: (context, isLoading, child) {
+                              return AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 600),
+                                switchInCurve: Curves.easeIn,
+                                switchOutCurve: Curves.easeOut,
+                                child: isLoading
+                                    ? _buildCityGridShimmer(
+                                        constraints.maxWidth,
+                                        count:
+                                            _getFilteredCities(catcode).length >
+                                                0
+                                            ? _getFilteredCities(catcode).length
+                                            : 6,
+                                      )
+                                    : Padding(
+                                        key: const ValueKey(
+                                          'city_grid_content',
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 24,
+                                          vertical: 24,
+                                        ),
+                                        child: Builder(
+                                          builder: (context) {
+                                            final activeCities =
+                                                _getFilteredCities(catcode);
 
-                                          if (activeCities.isEmpty) {
-                                            return Center(
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 20,
+                                            if (activeCities.isEmpty) {
+                                              return Center(
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 20,
+                                                      ),
+                                                  child: Text(
+                                                    isEnglish
+                                                        ? "No active cities available"
+                                                        : "Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¯Ù† Ù†Ø´Ø·Ø© Ù…ØªØ§Ø­Ø©",
+                                                    style: const TextStyle(
+                                                      color: Colors.white70,
                                                     ),
-                                                child: Text(
-                                                  isEnglish
-                                                      ? "No active cities available"
-                                                      : "Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¯Ù† Ù†Ø´Ø·Ø© Ù…ØªØ§Ø­Ø©",
-                                                  style: const TextStyle(
-                                                    color: Colors.white70,
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }
-
-                                          return Wrap(
-                                            spacing: 12,
-                                            runSpacing: 12,
-                                            children: activeCities.asMap().entries.map((
-                                              entry,
-                                            ) {
-                                              final index = entry.key;
-                                              final city = entry.value;
-                                              final String cityName =
-                                                  city['cityName'] ?? 'Unknown';
-                                              final String cityNameAr =
-                                                  city['cityNameAr'] ??
-                                                  cityName;
-
-                                              // API image handling - the 'image' field is a Map containing 'url'
-                                              String? imageUrl;
-                                              if (city['image'] != null) {
-                                                if (city['image'] is String) {
-                                                  imageUrl = city['image'];
-                                                } else if (city['image']
-                                                        is Map &&
-                                                    city['image']['url'] !=
-                                                        null) {
-                                                  imageUrl =
-                                                      city['image']['url'];
-                                                }
-                                              }
-
-                                              // Modernize relative paths
-                                              if (imageUrl != null &&
-                                                  imageUrl.isNotEmpty &&
-                                                  !imageUrl.startsWith(
-                                                    'http',
-                                                  ) &&
-                                                  !imageUrl.startsWith(
-                                                    'assets/',
-                                                  )) {
-                                                const String host =
-                                                    'https://api.premiumforcegroup.com';
-                                                imageUrl =
-                                                    imageUrl.startsWith('/')
-                                                    ? '$host$imageUrl'
-                                                    : '$host/$imageUrl';
-                                              }
-
-                                              final String displayImage =
-                                                  imageUrl ??
-                                                  'assets/images/riyadh.png';
-
-                                              return SizedBox(
-                                                width:
-                                                    (constraints.maxWidth -
-                                                        48 - // Padding horizontal (24 * 2)
-                                                        24) / // Spacings (12 * 2)
-                                                    3, // 3 columns
-                                                child: _buildCityTile(
-                                                  isEnglish: isEnglish,
-                                                  isSelected:
-                                                      selectedCityIndex ==
-                                                      index,
-                                                  nameEn: cityName,
-                                                  nameAr: cityNameAr,
-                                                  image: displayImage,
-                                                  isApiImage: imageUrl != null,
-                                                  onTap: () => setState(
-                                                    () => selectedCityIndex =
-                                                        index,
                                                   ),
                                                 ),
                                               );
-                                            }).toList(),
-                                          );
-                                        },
+                                            }
+
+                                            return Wrap(
+                                              spacing: 12,
+                                              runSpacing: 12,
+                                              children: activeCities.asMap().entries.map((
+                                                entry,
+                                              ) {
+                                                final index = entry.key;
+                                                final city = entry.value;
+                                                final String cityName =
+                                                    city['cityName'] ??
+                                                    'Unknown';
+                                                final String cityNameAr =
+                                                    city['cityNameAr'] ??
+                                                    cityName;
+
+                                                // API image handling - the 'image' field is a Map containing 'url'
+                                                String? imageUrl;
+                                                if (city['image'] != null) {
+                                                  if (city['image'] is String) {
+                                                    imageUrl = city['image'];
+                                                  } else if (city['image']
+                                                          is Map &&
+                                                      city['image']['url'] !=
+                                                          null) {
+                                                    imageUrl =
+                                                        city['image']['url'];
+                                                  }
+                                                }
+
+                                                // Modernize relative paths
+                                                if (imageUrl != null &&
+                                                    imageUrl.isNotEmpty &&
+                                                    !imageUrl.startsWith(
+                                                      'http',
+                                                    ) &&
+                                                    !imageUrl.startsWith(
+                                                      'assets/',
+                                                    )) {
+                                                  const String host =
+                                                      'https://api.premiumforcegroup.com';
+                                                  imageUrl =
+                                                      imageUrl.startsWith('/')
+                                                      ? '$host$imageUrl'
+                                                      : '$host/$imageUrl';
+                                                }
+
+                                                final String displayImage =
+                                                    imageUrl ??
+                                                    'assets/images/riyadh.png';
+
+                                                return SizedBox(
+                                                  width:
+                                                      (constraints.maxWidth -
+                                                          48 - // Padding horizontal (24 * 2)
+                                                          24) / // Spacings (12 * 2)
+                                                      3, // 3 columns
+                                                  child: _buildCityTile(
+                                                    isEnglish: isEnglish,
+                                                    isSelected:
+                                                        selectedCityIndex ==
+                                                        index,
+                                                    nameEn: cityName,
+                                                    nameAr: cityNameAr,
+                                                    image: displayImage,
+                                                    isApiImage:
+                                                        imageUrl != null,
+                                                    onTap: () => setState(
+                                                      () => selectedCityIndex =
+                                                          index,
+                                                    ),
+                                                  ),
+                                                );
+                                              }).toList(),
+                                            );
+                                          },
+                                        ),
                                       ),
-                                    ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: PremiumButton(
-                        showLoader: false,
-                        borderRadius: 12,
-                        text: loc.continueText,
-                        onTap: () async {
-                          final activeCities = _getFilteredCities(catcode);
-                          if (activeCities.isEmpty) return;
-
-                          final cityId =
-                              (activeCities[selectedCityIndex]['_id'] ??
-                                      activeCities[selectedCityIndex]['id'])
-                                  ?.toString();
-
-                          // Chauffeur pricing is no longer prefetched:
-                          // v2 prices vehicles per session, so there is
-                          // nothing useful to fetch before the booking
-                          // draft exists.
-                          if (context.mounted) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => NewBooking(
-                                  catcode: catcode,
-                                  citycode: selectedCityIndex,
-                                  cityId: cityId,
-                                  preloadedCities: _apiCities,
-                                  preloadedAirports: _apiAirports,
-                                  preloadedTerminals: _apiTerminals,
-                                ),
-                              ),
-                            );
-                          }
+                              );
+                            },
+                          );
                         },
-                        fontsize: 12,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: PremiumButton(
+                          showLoader: false,
+                          borderRadius: 12,
+                          text: loc.continueText,
+                          onTap: () async {
+                            final activeCities = _getFilteredCities(catcode);
+                            if (activeCities.isEmpty) return;
+
+                            final cityId =
+                                (activeCities[selectedCityIndex]['_id'] ??
+                                        activeCities[selectedCityIndex]['id'])
+                                    ?.toString();
+
+                            // Chauffeur pricing is no longer prefetched:
+                            // v2 prices vehicles per session, so there is
+                            // nothing useful to fetch before the booking
+                            // draft exists.
+                            if (context.mounted) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => NewBooking(
+                                    catcode: catcode,
+                                    citycode: selectedCityIndex,
+                                    cityId: cityId,
+                                    preloadedCities: _apiCities,
+                                    preloadedAirports: _apiAirports,
+                                    preloadedTerminals: _apiTerminals,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          fontsize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1671,137 +1690,145 @@ class _HomepageState extends State<Homepage>
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF3E230A), Color(0xFF141313)],
+        // Swallow taps that land on the sheet. Its background is transparent
+        // and a Container doesn't absorb pointer events, so a tap that misses
+        // one of the service cards would otherwise fall through to the
+        // dismissible barrier underneath and close the sheet.
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {},
+          child: Container(
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF3E230A), Color(0xFF141313)],
+              ),
             ),
-          ),
 
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: 24,
-                  right: 24,
-                  top: 24,
-                  bottom: 8,
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      loc.serviceType,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 24,
+                    right: 24,
+                    top: 24,
+                    bottom: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        loc.serviceType,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
-                      child: const Icon(Icons.close, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
-
-              Padding(
-                padding: const EdgeInsets.only(left: 24, right: 24, top: 24),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
+                      const Spacer(),
+                      GestureDetector(
                         onTap: () {
                           Navigator.pop(context);
-                          showCitySelectionBottomSheet(context, loc, 0);
                         },
-                        child: PremiumContainer(
-                          height: 130,
-                          width: double.infinity,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  height: 44,
-                                  width: 44,
-                                  child: Transform.scale(
-                                    scaleX: isArabic ? -1 : 1,
-                                    child: SvgPicture.asset(
-                                      'assets/icons/arrival.svg',
-                                      fit: BoxFit.fill,
+                        child: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+
+                Padding(
+                  padding: const EdgeInsets.only(left: 24, right: 24, top: 24),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            showCitySelectionBottomSheet(context, loc, 0);
+                          },
+                          child: PremiumContainer(
+                            height: 130,
+                            width: double.infinity,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    height: 44,
+                                    width: 44,
+                                    child: Transform.scale(
+                                      scaleX: isArabic ? -1 : 1,
+                                      child: SvgPicture.asset(
+                                        'assets/icons/arrival.svg',
+                                        fit: BoxFit.fill,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                SizedBox(height: 12),
-                                Text(
-                                  loc.airportArrival,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white,
+                                  SizedBox(height: 12),
+                                  Text(
+                                    loc.airportArrival,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.pop(context);
-                          showCitySelectionBottomSheet(context, loc, 1);
-                        },
-                        child: PremiumContainer(
-                          height: 130,
-                          width: MediaQuery.of(context).size.width * 0.42,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  height: 44,
-                                  width: 44,
-                                  child: Transform.scale(
-                                    scaleX: isArabic ? -1 : 1,
-                                    child: SvgPicture.asset(
-                                      'assets/icons/departure.svg',
-                                      fit: BoxFit.fill,
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                            showCitySelectionBottomSheet(context, loc, 1);
+                          },
+                          child: PremiumContainer(
+                            height: 130,
+                            width: MediaQuery.of(context).size.width * 0.42,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    height: 44,
+                                    width: 44,
+                                    child: Transform.scale(
+                                      scaleX: isArabic ? -1 : 1,
+                                      child: SvgPicture.asset(
+                                        'assets/icons/departure.svg',
+                                        fit: BoxFit.fill,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                SizedBox(height: 12),
-                                Text(
-                                  loc.airportDeparture,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.white,
+                                  SizedBox(height: 12),
+                                  Text(
+                                    loc.airportDeparture,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 45),
-            ],
+                const SizedBox(height: 45),
+              ],
+            ),
           ),
         );
       },

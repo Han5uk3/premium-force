@@ -1,3 +1,4 @@
+import 'package:premium_force_main/models/v2/available_vehicle.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/utils/json_utils.dart';
 
@@ -20,6 +21,8 @@ class SessionLocation {
     this.lng,
     this.airportId,
     this.terminalId,
+    this.terminalName,
+    this.terminalNameAr,
   });
 
   final String? address;
@@ -28,17 +31,46 @@ class SessionLocation {
   final String? airportId;
   final String? terminalId;
 
+  /// Terminal name, when the checkout summary nests one under the location.
+  final String? terminalName;
+  final String? terminalNameAr;
+
   factory SessionLocation.fromJson(Map<String, dynamic> json) {
+    // The checkout summary nests the terminal here as `terminal: {name}`,
+    // where the session payload hangs it off `route.airport`.
+    final terminal = pickMap(json, const ['terminal']);
+
     return SessionLocation(
       address: pickString(json, const ['address', 'formattedAddress', 'name']),
       lat: pickDouble(json, const ['lat', 'latitude']),
       lng: pickDouble(json, const ['lng', 'long', 'longitude']),
       airportId: pickId(json, const ['airportId', 'airportID']),
-      terminalId: pickId(json, const ['terminalId', 'terminalID']),
+      terminalId:
+          pickId(json, const ['terminalId', 'terminalID']) ??
+          pickId(terminal, const ['id', '_id']),
+      terminalName: pickString(terminal, const ['name', 'terminalName']),
+      terminalNameAr: pickString(terminal, const ['nameAr', 'terminalNameAr']),
     );
   }
 
   bool get hasCoordinates => lat != null && lng != null;
+
+  /// The terminal nested on this location, localised, or `null` when the
+  /// payload names it elsewhere.
+  String? displayTerminal(bool isArabic) => isArabic
+      ? (terminalNameAr?.trim().isNotEmpty == true
+            ? terminalNameAr
+            : terminalName)
+      : terminalName;
+
+  /// Address for display, with the terminal appended when there is one.
+  String? displayAddress(bool isArabic) {
+    final terminal = displayTerminal(isArabic);
+
+    if (address == null || address!.trim().isEmpty) return terminal;
+    if (terminal == null || terminal.trim().isEmpty) return address;
+    return '$address - $terminal';
+  }
 }
 
 /// The airport block on an airport-transfer session, with its selected terminal
@@ -241,6 +273,8 @@ class SelectedVehicle {
     this.maxPassengers,
     this.maxLuggage,
     this.image,
+    this.category,
+    this.brand,
   });
 
   final String vehicleId;
@@ -250,7 +284,15 @@ class SelectedVehicle {
   final int? maxLuggage;
   final String? image;
 
+  /// Class and make, as the checkout summary echoes them back. The review
+  /// screen labels the vehicle from these rather than from the local pickers.
+  final VehicleTaxonomy? category;
+  final VehicleTaxonomy? brand;
+
   factory SelectedVehicle.fromJson(Map<String, dynamic> json) {
+    final category = pickMap(json, const ['category']);
+    final brand = pickMap(json, const ['brand']);
+
     return SelectedVehicle(
       vehicleId: pickId(json, const ['vehicleId', '_id', 'id']) ?? '',
       name: pickString(json, const ['name', 'carName', 'vehicleName']),
@@ -258,8 +300,14 @@ class SelectedVehicle {
       maxPassengers: pickInt(json, const ['maxPassengers', 'passengers']),
       maxLuggage: pickInt(json, const ['maxLuggage', 'luggage']),
       image: pickString(json, const ['image', 'imageUrl', 'carImage']),
+      category: category.isEmpty ? null : VehicleTaxonomy.fromJson(category),
+      brand: brand.isEmpty ? null : VehicleTaxonomy.fromJson(brand),
     );
   }
+
+  /// Label for the vehicle, e.g. `"S450 2024"`.
+  String get displayName =>
+      [name, model].where((p) => p?.trim().isNotEmpty == true).join(' ').trim();
 }
 
 /// Passenger details captured in step 3.
@@ -306,6 +354,7 @@ class BookingSession {
     this.selectedVehicle,
     this.passengerDetails,
     this.rideNotes,
+    this.voiceNote,
     this.updatedAt,
   });
 
@@ -320,6 +369,10 @@ class BookingSession {
   final SelectedVehicle? selectedVehicle;
   final PassengerDetails? passengerDetails;
   final String? rideNotes;
+
+  /// S3 URL of the uploaded recording, once one has been attached in step 2.
+  final String? voiceNote;
+
   final DateTime? updatedAt;
 
   factory BookingSession.fromJson(Map<String, dynamic> json) {
@@ -340,6 +393,11 @@ class BookingSession {
               pickMap(json, const ['passengerDetails']),
             ),
       rideNotes: pickString(json, const ['rideNotes', 'specialRequest']),
+      voiceNote: pickString(json, const [
+        'voiceNote',
+        'voiceNoteUrl',
+        'specialRequestAudio',
+      ]),
       updatedAt: pickDateTime(json, const ['updatedAt']),
     );
   }

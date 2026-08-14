@@ -69,7 +69,9 @@ enum BookingServiceType {
 
     return switch (serviceType?.toLowerCase().replaceAll('-', '_')) {
       'airport_transfer' => airportArrival,
-      'hourly' || 'chauffeur' => chauffeur,
+      // A chauffeur booking reports its `chauffeurType` as the service type, so
+      // both hourly hire and the fixed packages land here.
+      'hourly' || 'chauffeur' || 'package' => chauffeur,
       'private_transfer' => privateTransfer,
       _ => null,
     };

@@ -53,9 +53,6 @@ android/key.properties
 # Env files
 .env
 
-# Postman Collections
-assets/PremiumForce.postman_collection_04_04_2026_evenning
-
 # Apple Pay & Certificate Files
 certificates/
 premium force apple pay merchant/
@@ -65,3 +62,6 @@ premium force apple pay merchant/
 *.cer
 *.pem
 *.mobileprovision
+
+# Documentations
+/assets/api_documentations

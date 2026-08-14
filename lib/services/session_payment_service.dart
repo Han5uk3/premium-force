@@ -16,11 +16,13 @@ import 'package:premium_force_main/utils/paytabs_theme.dart';
 
 /// Launches the PayTabs SDK using gateway parameters issued by the backend.
 ///
-/// This is the v2 counterpart to [PaymentService]. The difference is where the
-/// numbers come from: the profile id, keys, cart id, **amount** and currency all
-/// arrive in the `POST /bookings/session/confirm` response, bound to a
-/// `PaymentTransaction` the server already created. The client cannot charge an
-/// amount the backend did not authorise, and never reads them from `.env`.
+/// This is the v2 counterpart to [PaymentService]. The profile id, keys, cart
+/// id, **amount** and currency all arrive in the `POST /bookings/session/confirm`
+/// response, bound to a `PaymentTransaction` the server already created, so the
+/// client cannot charge an amount the backend did not authorise.
+///
+/// The one concession to a misbehaving backend is [_credentials], which falls
+/// back to the app's live keys when the issued ones are malformed.
 ///
 /// The SDK result is *not* treated as proof of payment — callers must follow up
 /// with `verifyPayment` so the backend settles the booking against the gateway.
@@ -37,6 +39,40 @@ class SessionPaymentService {
       SessionPaymentService._internal();
   factory SessionPaymentService() => _instance;
   SessionPaymentService._internal();
+
+  /// The gateway credentials to open the SDK with.
+  ///
+  /// The backend's are used whenever they are well-formed. It has been seen
+  /// returning truncated placeholders that are non-empty but cannot open the
+  /// gateway, so anything failing [PaytabsSessionConfig.hasValidCredentials]
+  /// falls back to the app's live keys.
+  ///
+  /// All three move together: a profile id and keys belong to one PayTabs
+  /// profile and cannot be mixed across sources.
+  static ({String profileId, String serverKey, String clientKey}) _credentials(
+    PaytabsSessionConfig config,
+  ) {
+    if (config.hasValidCredentials) {
+      return (
+        profileId: config.profileId,
+        serverKey: config.serverKey,
+        clientKey: config.clientKey,
+      );
+    }
+
+    // Lengths only — the keys themselves stay out of the log.
+    debugPrint(
+      '⚠️  Session payment │ Backend credentials malformed '
+      '(profile "${config.profileId}", server ${config.serverKey.length} chars, '
+      'client ${config.clientKey.length} chars) — using app live keys',
+    );
+
+    return (
+      profileId: PaytabsConfig.liveProfileId,
+      serverKey: PaytabsConfig.liveServerKey,
+      clientKey: PaytabsConfig.liveClientKey,
+    );
+  }
 
   /// Present the card payment sheet for [config].
   Future<PaymentResult> startCardPayment({
@@ -100,6 +136,8 @@ class SessionPaymentService {
       'amount=${config.amount} ${config.currency} applePay=$useApplePay',
     );
 
+    final credentials = _credentials(config);
+
     try {
       // PayTabs rejects empty billing fields, so fall back to merchant defaults
       // rather than sending blanks the user never entered.
@@ -115,10 +153,11 @@ class SessionPaymentService {
       );
 
       final configuration = PaymentSdkConfigurationDetails(
-        // Credentials and amount come from the backend, not PaytabsConfig.
-        profileId: config.profileId,
-        serverKey: config.serverKey,
-        clientKey: config.clientKey,
+        // Cart and amount are always the backend's; the credentials are its
+        // too unless they arrived malformed — see [_credentials].
+        profileId: credentials.profileId,
+        serverKey: credentials.serverKey,
+        clientKey: credentials.clientKey,
         cartId: config.cartId,
         cartDescription: config.cartDescription,
         merchantName: 'Premium Force',

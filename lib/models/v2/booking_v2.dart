@@ -47,23 +47,39 @@ enum BookingStatusV2 {
     };
   }
 
-  /// Which tab of the bookings screen this belongs to. Mirrors the `status`
-  /// query parameter accepted by `/bookings/my-bookings`.
-  String get listBucket => switch (this) {
-    confirmed || driverAssigned => 'upcoming',
-    driverEnRoute || driverArrived || tripStarted => 'ongoing',
-    completed => 'completed',
-    cancelled => 'cancelled',
-    // A draft awaiting payment is not shown in any customer-facing tab.
-    pendingPayment || unknown => 'all',
-  };
-
   /// Whether the ride is underway, which is what gates live driver tracking.
   bool get isLive =>
       this == driverEnRoute || this == driverArrived || this == tripStarted;
 
+  /// Whether the customer may still cancel.
+  ///
+  /// Mirrors the endpoint's own guard: allowed up to and including
+  /// `driver_assigned`, and rejected with a 400 once the ride is under way
+  /// (`driver_en_route` onwards) or already finished.
   bool get isCancellable =>
-      this == confirmed || this == driverAssigned || this == driverEnRoute;
+      this == pendingPayment || this == confirmed || this == driverAssigned;
+}
+
+/// The tabs of the bookings screen.
+///
+/// Each is its own server-side query rather than a slice of one big response,
+/// so the bucketing rules live with the backend. [wireValue] is what
+/// `GET /bookings/my-bookings` expects for `status` — the English name, always
+/// lowercase, which is the only casing the endpoint validates against. The
+/// localised tab label is never sent.
+enum BookingTab {
+  upcoming('upcoming'),
+  ongoing('ongoing'),
+  completed('completed'),
+  cancelled('cancelled');
+
+  const BookingTab(this.wireValue);
+
+  final String wireValue;
+
+  /// Sent when no tab filter applies — the home screen's recent list, which
+  /// spans every status.
+  static const String allWireValue = 'all';
 }
 
 /// A step in the vertical progress stepper rendered on the details screen.
@@ -211,12 +227,54 @@ class RefundInfoV2 {
       currency: pickString(json, const ['currency']),
       reference: pickString(json, const [
         'reference',
+        'refundNumber',
         'refundReference',
         'transactionRef',
       ]),
       refundedAt: pickDateTime(json, const ['refundedAt', 'processedAt']),
     );
   }
+}
+
+/// Acknowledgement returned by `POST /bookings/:id/cancel`.
+///
+/// The endpoint replies with the outcome, not the booking — the cancelled
+/// booking itself has to be re-read — so this is deliberately a separate type
+/// rather than a sparsely-populated [BookingV2].
+class BookingCancellation {
+  const BookingCancellation({
+    required this.status,
+    this.bookingNumber,
+    this.refundStatus,
+    this.refundNumber,
+    this.refundAmount,
+  });
+
+  final BookingStatusV2 status;
+  final String? bookingNumber;
+
+  /// e.g. `completed`; absent on a zero-checkout ride, which never touches the
+  /// gateway.
+  final String? refundStatus;
+
+  final String? refundNumber;
+  final double? refundAmount;
+
+  factory BookingCancellation.fromJson(Map<String, dynamic> json) {
+    return BookingCancellation(
+      status: BookingStatusV2.fromWire(
+        pickString(json, const ['bookingStatus', 'status']),
+      ),
+      bookingNumber: pickString(json, const ['bookingNumber']),
+      refundStatus: pickString(json, const ['refundStatus'])?.toLowerCase(),
+      refundNumber: pickString(json, const ['refundNumber', 'refundReference']),
+      refundAmount: pickDouble(json, const ['refundAmount']),
+    );
+  }
+
+  /// Whether a gateway refund was actually raised, as opposed to a free ride
+  /// that simply cancelled.
+  bool get hasRefund => (refundAmount ?? 0) > 0 || refundNumber != null;
 }
 
 /// A confirmed booking.
@@ -371,17 +429,30 @@ class BookingListPage {
   final int totalPages;
 
   factory BookingListPage.fromJson(Map<String, dynamic> json) {
+    // Pagination arrives either nested under `meta`/`pagination` or flattened
+    // onto the payload. Reading the wrong one would silently pin every tab to
+    // a single page, so both are tried.
     final meta = pickMap(json, const ['meta', 'pagination']);
+    final source = meta.isNotEmpty ? meta : json;
+
+    final page = pickInt(source, const ['page', 'currentPage']) ?? 1;
+    final limit = pickInt(source, const ['limit', 'pageSize', 'perPage']) ?? 10;
+    final total =
+        pickInt(source, const ['total', 'totalCount', 'totalItems']) ?? 0;
+
     return BookingListPage(
       bookings: pickMapList(json, const [
         'bookings',
         'data',
         'items',
       ]).map(BookingV2.fromJson).toList(),
-      page: pickInt(meta, const ['page']) ?? 1,
-      limit: pickInt(meta, const ['limit']) ?? 10,
-      total: pickInt(meta, const ['total']) ?? 0,
-      totalPages: pickInt(meta, const ['totalPages']) ?? 1,
+      page: page,
+      limit: limit,
+      total: total,
+      // Derived when the API reports only a total, so paging still advances.
+      totalPages:
+          pickInt(source, const ['totalPages', 'pages']) ??
+          (total > 0 && limit > 0 ? (total + limit - 1) ~/ limit : 1),
     );
   }
 

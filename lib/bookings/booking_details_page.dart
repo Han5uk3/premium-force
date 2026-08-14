@@ -37,6 +37,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   bool _isCancelling = false;
   String? _errorMessage;
 
+  /// The cancel endpoint's acknowledgement, which names the refund before the
+  /// booking record itself reports one.
+  BookingCancellation? _cancellation;
+
   /// Set once the booking is cancelled, so popping refreshes the list behind.
   bool _didChange = false;
 
@@ -192,7 +196,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
             _buildTransactionDetails(booking, loc),
 
-            if (booking.refund != null) _buildRefundNotice(booking, loc),
+            // Shown from the booking's own refund record, or straight from the
+            // cancellation the customer just made.
+            if (booking.refund != null || (_cancellation?.hasRefund ?? false))
+              _buildRefundNotice(booking, loc),
 
             const SizedBox(height: 24),
 
@@ -532,7 +539,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 ],
                 const SizedBox(height: 8),
                 _buildSummaryRow(
-                  '${loc.vat} (${pricing.vat.percentage.toStringAsFixed(0)}%)',
+                  Bookingcard.formatPercentLabel(
+                    loc.vat,
+                    pricing.vat.percentage,
+                  ),
                   pricing.vat.amount,
                 ),
                 const SizedBox(height: 8),
@@ -592,8 +602,14 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   /// Refund notice, shown once a cancellation has triggered a gateway refund.
+  ///
+  /// Reads the booking's own refund record, falling back to the cancellation
+  /// acknowledgement so the customer is told about the refund immediately
+  /// rather than only after the record catches up.
   Widget _buildRefundNotice(BookingV2 booking, AppLocalizations loc) {
-    final refund = booking.refund!;
+    final refund = booking.refund;
+    final amount = refund?.amount ?? _cancellation?.refundAmount;
+    final reference = refund?.reference ?? _cancellation?.refundNumber;
 
     return Padding(
       padding: const EdgeInsets.only(left: 24, right: 24, top: 24),
@@ -618,14 +634,14 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    loc.refunded,
+                    loc.refundProcessed,
                     style: const TextStyle(
                       color: Colors.green,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (refund.amount != null) ...[
+                  if (amount != null) ...[
                     const SizedBox(height: 4),
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -634,7 +650,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                         const RiyalSymbol(color: Colors.white70, size: 12),
                         const SizedBox(width: 4),
                         Text(
-                          refund.amount!.toStringAsFixed(2),
+                          amount.toStringAsFixed(2),
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 12,
@@ -643,6 +659,21 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       ],
                     ),
                   ],
+                  if (reference != null && reference.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${loc.refundReference}: $reference',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    loc.refundBusinessDaysNote,
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
                 ],
               ),
             ),
@@ -942,14 +973,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       'S',
     );
 
-    // Prefer the echoed booking; fall back to a refetch when the API only
-    // acknowledged the cancellation.
-    final updated = result.data;
-    if (updated != null) {
-      setState(() => _booking = updated);
-    } else {
-      await _loadBooking();
-    }
+    // The endpoint acknowledges the cancellation and its refund rather than
+    // echoing the booking, so the page is re-read. The acknowledgement is kept
+    // meanwhile: it names the refund before the booking record catches up.
+    setState(() => _cancellation = result.data);
+    await _loadBooking();
   }
 
   /// Localised product name for the header.

@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
+import 'package:premium_force_main/services/driver_location_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
@@ -26,11 +24,6 @@ class DriverTrackingPage extends StatefulWidget {
 
 class _DriverTrackingPageState extends State<DriverTrackingPage> {
   final Completer<GoogleMapController> _controller = Completer();
-  final FirebaseDatabase _database = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL:
-        'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app',
-  );
   StreamSubscription? _locationSubscription;
   StreamSubscription? _sessionSubscription;
 
@@ -123,6 +116,19 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   }
 
   bool _detectChauffeur() => widget.booking.isChauffeur;
+
+  /// The assigned car and its plate, e.g. `"GMC Yukon XL 2025 · 5432-RSA"`.
+  ///
+  /// Both come from the booking payload — the vehicle the customer booked and
+  /// the fleet car actually dispatched — and either may be absent until a
+  /// vehicle is assigned.
+  String get _vehicleLine {
+    final plate = widget.booking.fleet?.licensePlate;
+    return [
+      widget.booking.vehicleLabel,
+      if (plate != null && plate.trim().isNotEmpty) plate,
+    ].where((part) => part.trim().isNotEmpty).join(' · ');
+  }
 
   // --- Permissions ---
 
@@ -292,7 +298,11 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     final ByteData? byteData = await image.toByteData(
       format: ui.ImageByteFormat.png,
     );
-    return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+    // Drawn at the exact pixel size wanted, so no further scaling.
+    return BitmapDescriptor.bytes(
+      byteData!.buffer.asUint8List(),
+      imagePixelRatio: 1,
+    );
   }
 
   void _addRoutePolyline(List<LatLng> points) {
@@ -344,121 +354,46 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   // --- RTDB Listeners ---
 
   void _listenToDriverLocation() {
-    final path = 'bookings/${widget.booking.id}/driver_location';
-    debugPrint('📡 Listening to driver location at Firebase path: $path');
+    _locationSubscription = DriverLocationService()
+        .watchLocation(widget.booking.id)
+        .listen((position) {
+          if (!mounted) return;
 
-    _locationSubscription = _database
-        .ref(path)
-        .onValue
-        .listen(
-          (event) {
-            final data = event.snapshot.value;
-            debugPrint(
-              '📡 Received Firebase location update: $data (Type: ${data.runtimeType})',
-            );
+          setState(() {
+            _driverLocation = position;
+            _updateDriverMarker();
+          });
+          _moveCameraToDriver();
 
-            if (data == null) {
-              debugPrint('📡 Location update is null');
-              return;
-            }
-
-            double? lat;
-            double? lng;
-
-            if (data is Map) {
-              final rawLat =
-                  data['lat'] ?? data['latitude'] ?? data['Latitude'];
-              final rawLng =
-                  data['lng'] ??
-                  data['longitude'] ??
-                  data['Longitude'] ??
-                  data['long'] ??
-                  data['Long'];
-
-              if (rawLat is num) lat = rawLat.toDouble();
-              if (rawLng is num) lng = rawLng.toDouble();
-            } else if (data is String) {
-              final trimmed = data.trim();
-              if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                try {
-                  final Map<String, dynamic> parsed = Map<String, dynamic>.from(
-                    json.decode(trimmed) as Map,
-                  );
-                  final rawLat =
-                      parsed['lat'] ?? parsed['latitude'] ?? parsed['Latitude'];
-                  final rawLng =
-                      parsed['lng'] ??
-                      parsed['longitude'] ??
-                      parsed['Longitude'] ??
-                      parsed['long'] ??
-                      parsed['Long'];
-
-                  if (rawLat is num) lat = rawLat.toDouble();
-                  if (rawLng is num) lng = rawLng.toDouble();
-                } catch (e) {
-                  debugPrint('⚠️ Error decoding JSON location string: $e');
-                }
-              } else if (trimmed.contains(',')) {
-                final parts = trimmed.split(',');
-                if (parts.length >= 2) {
-                  lat = double.tryParse(parts[0].trim());
-                  lng = double.tryParse(parts[1].trim());
-                }
-              }
-            }
-
-            if (lat != null && lng != null) {
-              final double nonNullLat = lat;
-              final double nonNullLng = lng;
-              debugPrint(
-                '📡 Parsed coordinates successfully: ($nonNullLat, $nonNullLng)',
-              );
-
-              if (mounted) {
-                setState(() {
-                  _driverLocation = LatLng(nonNullLat, nonNullLng);
-                  _updateDriverMarker();
-                });
-                _moveCameraToDriver();
-                if (_lastFetchLocation == null ||
-                    Geolocator.distanceBetween(
-                          _lastFetchLocation!.latitude,
-                          _lastFetchLocation!.longitude,
-                          nonNullLat,
-                          nonNullLng,
-                        ) >
-                        100) {
-                  _lastFetchLocation = _driverLocation;
-                  _fetchDirections();
-                }
-              }
-            } else {
-              debugPrint('⚠️ Failed to parse coordinates from: $data');
-            }
-          },
-          onError: (error) {
-            debugPrint(
-              '❌ Firebase location stream error at path "$path": $error',
-            );
-          },
-        );
+          // Re-route only after real movement, so a stationary driver does not
+          // burn Directions quota on every heartbeat.
+          if (_lastFetchLocation == null ||
+              Geolocator.distanceBetween(
+                    _lastFetchLocation!.latitude,
+                    _lastFetchLocation!.longitude,
+                    position.latitude,
+                    position.longitude,
+                  ) >
+                  100) {
+            _lastFetchLocation = position;
+            _fetchDirections();
+          }
+        });
   }
 
   void _listenToSessionForChauffeur() {
     if (!_isChauffeur) return;
-    _sessionSubscription = _database
-        .ref('bookings/${widget.booking.id}/tracking_session')
-        .onValue
-        .listen((event) {
-          final data = event.snapshot.value as Map<dynamic, dynamic>?;
-          if (data == null) return;
-          final isActive = data['isActive'] as bool? ?? true;
-          final startTimeStr = data['startTime'] as String?;
-          if (startTimeStr != null && _chauffeurStartTime == null) {
-            _chauffeurStartTime = DateTime.tryParse(startTimeStr);
+
+    _sessionSubscription = DriverLocationService()
+        .watchChauffeurSession(widget.booking.id)
+        .listen((session) {
+          if (!mounted) return;
+
+          if (session.startedAt != null && _chauffeurStartTime == null) {
+            _chauffeurStartTime = session.startedAt;
             _startChauffeurTimer();
           }
-          if (!isActive && !_tripEnded) {
+          if (!session.isActive && !_tripEnded) {
             setState(() => _tripEnded = true);
             _chauffeurTimer?.cancel();
           }
@@ -493,7 +428,11 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       final ByteData? byteData = await fi.image.toByteData(
         format: ui.ImageByteFormat.png,
       );
-      _driverIcon = BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+      // Already scaled to 140px above, so it is passed at 1:1.
+      _driverIcon = BitmapDescriptor.bytes(
+        byteData!.buffer.asUint8List(),
+        imagePixelRatio: 1,
+      );
       debugPrint('🚗 Driver pin custom asset loaded successfully!');
     } catch (e) {
       debugPrint('⚠️ Error loading driver pin: $e');
@@ -738,9 +677,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
               ),
               zoom: 14,
             ),
+            style: _mapStyle,
             onMapCreated: (c) {
               _controller.complete(c);
-              c.setMapStyle(_mapStyle);
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) {
                   setState(() {
@@ -753,7 +692,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
             markers: _markers,
             polylines: _polylines,
-            myLocationEnabled: false,
+            // Shows the customer's own position alongside the driver's, once
+            // they have granted permission.
+            myLocationEnabled: _locationPermissionGranted,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
@@ -820,14 +761,55 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.booking.driver?.name ?? "Driver",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                widget.booking.driver?.name ?? "Driver",
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            if (widget.booking.driver?.rating != null) ...[
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.star_rounded,
+                                color: Color(0xFFE4A46B),
+                                size: 14,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                widget.booking.driver!.rating!.toStringAsFixed(
+                                  1,
+                                ),
+                                style: const TextStyle(
+                                  color: Color(0xFFE4A46B),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
+                        // The car and its plate — what the customer actually
+                        // looks for when it pulls up.
+                        if (_vehicleLine.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            _vehicleLine,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

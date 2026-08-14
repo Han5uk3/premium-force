@@ -1163,6 +1163,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refunded => 'Refunded';
 
   @override
+  String get refundProcessed => 'Refund Processed';
+
+  @override
+  String get refundReference => 'Refund Ref';
+
+  @override
+  String get refundBusinessDaysNote =>
+      'Funds will appear on your card statement within 3 to 5 business days, depending on your issuing bank.';
+
+  @override
+  String get noAirportsAvailable => 'No airports available';
+
+  @override
+  String get enterYourCompanyEmail => 'Enter your company email';
+
+  @override
+  String get language => 'Language';
+
+  @override
+  String get status => 'Status';
+
+  @override
+  String get verificationPending => 'Verification Pending';
+
+  @override
+  String get discountApproved => 'Discount Approved';
+
+  @override
+  String get discountRejected => 'Discount Rejected';
+
+  @override
   String nHours(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -2288,6 +2288,66 @@ abstract class AppLocalizations {
   /// **'Refunded'**
   String get refunded;
 
+  /// No description provided for @refundProcessed.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund Processed'**
+  String get refundProcessed;
+
+  /// No description provided for @refundReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund Ref'**
+  String get refundReference;
+
+  /// No description provided for @refundBusinessDaysNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Funds will appear on your card statement within 3 to 5 business days, depending on your issuing bank.'**
+  String get refundBusinessDaysNote;
+
+  /// No description provided for @noAirportsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No airports available'**
+  String get noAirportsAvailable;
+
+  /// No description provided for @enterYourCompanyEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your company email'**
+  String get enterYourCompanyEmail;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get status;
+
+  /// No description provided for @verificationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification Pending'**
+  String get verificationPending;
+
+  /// No description provided for @discountApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount Approved'**
+  String get discountApproved;
+
+  /// No description provided for @discountRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount Rejected'**
+  String get discountRejected;
+
   /// No description provided for @nHours.
   ///
   /// In en, this message translates to:

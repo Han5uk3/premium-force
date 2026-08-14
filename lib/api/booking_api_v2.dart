@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/api_logger.dart';
@@ -5,6 +7,7 @@ import 'package:premium_force_main/api/api_result.dart';
 import 'package:premium_force_main/models/v2/available_vehicle.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
+import 'package:premium_force_main/models/v2/chauffeur_options.dart';
 import 'package:premium_force_main/models/v2/checkout_models.dart';
 import 'package:premium_force_main/models/v2/geo_models.dart';
 import 'package:premium_force_main/models/v2/session_models.dart';
@@ -36,6 +39,20 @@ class BookingApiV2 {
 
   /// Token refresh still lives on the v1 auth surface (no `v2` prefix).
   static const String _refreshUrl = 'https://api.premiumforcegroup.com/api/';
+
+  /// Largest voice note the vehicle-selection endpoint accepts.
+  static const int _maxVoiceNoteBytes = 5 * 1024 * 1024;
+
+  /// Audio types the endpoint allows, keyed by file extension.
+  static const Map<String, String> _voiceNoteMimeTypes = {
+    'mp3': 'audio/mpeg',
+    'm4a': 'audio/mp4',
+    'wav': 'audio/wav',
+    'aac': 'audio/aac',
+    'ogg': 'audio/ogg',
+    'webm': 'audio/webm',
+    'flac': 'audio/flac',
+  };
 
   // ---------------------------------------------------------------------------
 
@@ -80,6 +97,12 @@ class BookingApiV2 {
 
           try {
             e.requestOptions.headers['Authorization'] = 'Bearer $newToken';
+            // A multipart body is a one-shot stream, already consumed by the
+            // attempt that 401'd; the retry needs its own copy.
+            final data = e.requestOptions.data;
+            if (data is FormData) {
+              e.requestOptions.data = data.clone();
+            }
             final retried = await _dio.fetch(e.requestOptions);
             return handler.resolve(retried);
           } catch (_) {
@@ -223,6 +246,22 @@ class BookingApiV2 {
   }
 
   // ---------------------------------------------------------------------------
+  // Chauffeur — bookable durations
+  // ---------------------------------------------------------------------------
+
+  /// Durations the chauffeur product currently offers.
+  ///
+  /// Public endpoint — no session or token needed, so the duration picker can be
+  /// populated as soon as the screen opens. The backend re-validates the chosen
+  /// duration on session init.
+  Future<ApiResult<ChauffeurOptions>> getChauffeurOptions() {
+    return _request(
+      () => _dio.get('chauffeur/options'),
+      parse: (payload) => ChauffeurOptions.fromJson(asMap(payload)),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Step 1 — session initiation
   // ---------------------------------------------------------------------------
 
@@ -299,26 +338,28 @@ class BookingApiV2 {
     );
   }
 
-  /// Start a chauffeur (hourly) draft (step 1).
+  /// Start a chauffeur draft (step 1).
   ///
-  /// Hourly hire has no drop-off; [hours] is the booked duration.
+  /// Chauffeur hire has no drop-off; [hours] is the booked duration, sent under
+  /// the field [chauffeurType] dictates — `hours` for hourly hire, and
+  /// `durationHours` for one of the fixed packages.
   Future<ApiResult<BookingSession>> initChauffeurSession({
     required double pickupLat,
     required double pickupLng,
     required String pickupAddress,
     required int hours,
     required DateTime pickupDateTime,
-    String chauffeurType = 'hourly',
+    ChauffeurType chauffeurType = ChauffeurType.hourly,
   }) {
     return _sessionRequest(
       () => _dio.post(
         BookingServiceType.chauffeur.sessionInitPath,
         data: {
-          'chauffeurType': chauffeurType,
+          'chauffeurType': chauffeurType.wireValue,
           'pickupLat': pickupLat,
           'pickupLng': pickupLng,
           'pickupAddress': pickupAddress,
-          'hours': hours,
+          chauffeurType.durationField: hours,
           'pickupDate': formatPickupDate(pickupDateTime),
           'pickupTime': formatPickupTime(pickupDateTime),
         },
@@ -348,23 +389,66 @@ class BookingApiV2 {
     );
   }
 
-  /// Attach the chosen vehicle and ride notes to the draft (step 2).
+  /// Attach the chosen vehicle, ride notes and voice note to the draft (step 2).
   ///
-  /// The endpoint currently accepts notes as text only — the voice-note
-  /// attachment from the previous flow has no field here yet.
+  /// [voiceNotePath] is a local recording. When present the request is sent as
+  /// multipart so the file rides along under `voiceNote`; the backend puts it on
+  /// S3 and the returned draft carries the URL. Without a recording the request
+  /// stays plain JSON, which is what the endpoint expects for text-only.
+  ///
+  /// A missing file is skipped rather than failing the step — the notes and the
+  /// vehicle still matter more than the attachment.
   Future<ApiResult<BookingSession>> selectVehicle({
     required String vehicleId,
     String? rideNotes,
-  }) {
+    String? voiceNotePath,
+  }) async {
+    final notes = rideNotes?.trim();
+    final fields = <String, dynamic>{
+      'vehicleId': vehicleId,
+      if (notes != null && notes.isNotEmpty) 'rideNotes': notes,
+    };
+
+    Object body = fields;
+
+    if (voiceNotePath != null && voiceNotePath.trim().isNotEmpty) {
+      final file = File(voiceNotePath);
+
+      if (!await file.exists()) {
+        debugPrint('🎙️ v2 │ Voice note gone from $voiceNotePath — sending without it');
+      } else if (await file.length() > _maxVoiceNoteBytes) {
+        // Refused here rather than after uploading something the server will
+        // only reject.
+        debugPrint('🎙️ v2 │ Voice note over the 5 MB limit — not sent');
+        return ApiResult<BookingSession>.failure(
+          'Your voice note is too large. The maximum size is 5 MB.',
+        );
+      } else {
+        body = FormData.fromMap({
+          ...fields,
+          'voiceNote': await _voiceNoteFile(file),
+        });
+      }
+    }
+
     return _sessionRequest(
-      () => _dio.patch(
-        'bookings/session/vehicle',
-        data: {
-          'vehicleId': vehicleId,
-          if (rideNotes != null && rideNotes.trim().isNotEmpty)
-            'rideNotes': rideNotes.trim(),
-        },
-      ),
+      () => _dio.patch('bookings/session/vehicle', data: body),
+    );
+  }
+
+  /// Wrap a recording as a multipart part.
+  ///
+  /// The content type is set from the extension: the backend filters on audio
+  /// types, and an unlabelled part would go up as `application/octet-stream`.
+  static Future<MultipartFile> _voiceNoteFile(File file) {
+    final filename = file.path.split(RegExp(r'[\\/]')).last;
+    final extension = filename.split('.').last.toLowerCase();
+    final mimeType = _voiceNoteMimeTypes[extension];
+
+    return MultipartFile.fromFile(
+      file.path,
+      filename: filename,
+      contentType: mimeType == null ? null : DioMediaType.parse(mimeType),
     );
   }
 
@@ -433,22 +517,19 @@ class BookingApiV2 {
     );
   }
 
-  /// Ask the backend to settle the booking against the gateway.
+  /// Read the payment and booking status for [bookingNumber].
   ///
   /// Called after the PayTabs SDK returns; the server, not the SDK callback, is
-  /// what decides whether the booking is confirmed.
+  /// what decides whether the booking is confirmed. The endpoint is read-only —
+  /// it mutates nothing and queries PayTabs live when the stored status is not
+  /// yet captured — so it is safe to poll while a payment is clearing.
   Future<ApiResult<PaymentVerificationResult>> verifyPayment({
     required String bookingNumber,
-    String? transactionReference,
   }) {
     return _request(
       () => _dio.post(
         'bookings/session/verify-payment',
-        data: {
-          'bookingNumber': bookingNumber,
-          if (transactionReference != null && transactionReference.isNotEmpty)
-            'transactionReference': transactionReference,
-        },
+        data: {'bookingNumber': bookingNumber},
       ),
       parse: (payload) => PaymentVerificationResult.fromJson(asMap(payload)),
     );
@@ -458,18 +539,25 @@ class BookingApiV2 {
   // Bookings
   // ---------------------------------------------------------------------------
 
-  /// Paginated booking history.
+  /// Paginated booking history, filtered server-side.
   ///
-  /// [status] accepts `upcoming`, `ongoing`, `completed`, `cancelled`, or `all`.
+  /// [tab] is sent as `status` using its English [BookingTab.wireValue]
+  /// (`upcoming`, `ongoing`, …); omitting it asks for `all`, every status at
+  /// once. The endpoint rejects anything else, including the localised tab
+  /// label and other casings.
   Future<ApiResult<BookingListPage>> getMyBookings({
-    String status = 'all',
+    BookingTab? tab,
     int page = 1,
     int limit = 10,
   }) {
     return _request(
       () => _dio.get(
         'bookings/my-bookings',
-        queryParameters: {'status': status, 'page': page, 'limit': limit},
+        queryParameters: {
+          'status': tab?.wireValue ?? BookingTab.allWireValue,
+          'page': page,
+          'limit': limit,
+        },
       ),
       parse: (payload) => BookingListPage.fromJson(asMap(payload)),
     );
@@ -484,7 +572,15 @@ class BookingApiV2 {
   }
 
   /// Cancel a booking and trigger the automated gateway refund.
-  Future<ApiResult<BookingV2?>> cancelBooking({
+  ///
+  /// Only permitted while the booking is `pending_payment`, `confirmed` or
+  /// `driver_assigned`; once the ride is under way the endpoint rejects it with
+  /// a 400 whose message names the current state.
+  ///
+  /// A paid ride always raises a 100% refund; a zero-checkout ride cancels
+  /// without touching the gateway. The reply is an acknowledgement carrying the
+  /// refund outcome — not the booking, which has to be re-read.
+  Future<ApiResult<BookingCancellation>> cancelBooking({
     required String bookingId,
     String? reason,
   }) {
@@ -492,14 +588,11 @@ class BookingApiV2 {
       () => _dio.post(
         'bookings/$bookingId/cancel',
         data: {
-          if (reason != null && reason.trim().isNotEmpty) 'reason': reason,
+          if (reason != null && reason.trim().isNotEmpty)
+            'reason': reason.trim(),
         },
       ),
-      // The response may echo the updated booking or just an acknowledgement.
-      parse: (payload) {
-        final map = asMap(payload);
-        return map.isEmpty ? null : BookingV2.fromJson(map);
-      },
+      parse: (payload) => BookingCancellation.fromJson(asMap(payload)),
     );
   }
 
