@@ -75,6 +75,7 @@ class _FleetListCardState extends State<FleetListCard>
                 : CachedNetworkImage(
                     imageUrl: widget.image,
                     fit: BoxFit.cover,
+                    memCacheWidth: 720,
                     placeholder: (context, url) => Container(
                       color: Colors.grey[800],
                       child: Center(
@@ -137,6 +138,8 @@ class _FleetListCardState extends State<FleetListCard>
                                     ? CachedNetworkImage(
                                         imageUrl: widget.brandLogoUrl!,
                                         fit: BoxFit.fill,
+                                        // 44pt badge at 3x.
+                                        memCacheWidth: 150,
                                         placeholder: (context, url) => Center(
                                           child: PremiumLoader(
                                             size: 16,

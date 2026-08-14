@@ -1983,6 +1983,7 @@ class _NewBookingState extends State<NewBooking> {
                         child: CachedNetworkImage(
                           imageUrl: carImageUrl,
                           fit: BoxFit.cover,
+                          memCacheWidth: 1080,
                           errorWidget: (context, error, stackTrace) =>
                               const Icon(
                                 Icons.directions_car,
@@ -2934,6 +2935,8 @@ class _NewBookingState extends State<NewBooking> {
                                 child: CachedNetworkImage(
                                   imageUrl: iconUrl,
                                   fit: BoxFit.contain,
+                                  // Brand icon in a square grid cell.
+                                  memCacheWidth: 300,
                                   placeholder: (context, url) =>
                                       const PremiumLoader(
                                         size: 20,
@@ -3076,6 +3079,7 @@ class _NewBookingState extends State<NewBooking> {
                 child: CachedNetworkImage(
                   imageUrl: selectedCar.imagePath,
                   fit: BoxFit.cover,
+                  memCacheWidth: 1080,
                   placeholder: (context, url) {
                     return Shimmer.fromColors(
                       baseColor: Colors.white.withAlpha(5),

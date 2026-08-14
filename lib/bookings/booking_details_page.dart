@@ -279,6 +279,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 child: CachedNetworkImage(
                   imageUrl: booking.vehicle!.image!,
                   fit: BoxFit.cover,
+                  memCacheWidth: 1080,
                   placeholder: (context, url) => Shimmer.fromColors(
                     baseColor: Colors.white.withAlpha(5),
                     highlightColor: Colors.white.withAlpha(15),
@@ -793,6 +794,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   ? CachedNetworkImage(
                       imageUrl: driver.avatar!,
                       fit: BoxFit.cover,
+                      // 50pt avatar at 3x.
+                      memCacheWidth: 150,
                       placeholder: (context, url) => const Center(
                         child: SizedBox(
                           width: 20,

@@ -733,6 +733,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                               fit: BoxFit.cover,
                               width: 52,
                               height: 52,
+                              // 52pt avatar at 3x.
+                              memCacheWidth: 160,
                               errorWidget: (c, u, e) => Text(
                                 (widget.booking.driver?.name ?? "D")[0]
                                     .toUpperCase(),

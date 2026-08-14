@@ -1607,6 +1607,8 @@ class _HomepageState extends State<Homepage>
                     ? CachedNetworkImage(
                         imageUrl: image,
                         fit: BoxFit.cover,
+                        // City tile is 125pt tall in a grid — decode small.
+                        memCacheWidth: 600,
                         placeholder: (context, url) => Container(
                           color: Colors.black26,
                           child: const Center(

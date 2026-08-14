@@ -85,6 +85,8 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
                     fit: BoxFit.cover,
                     width: 240,
                     height: 160,
+                    // Decode at ~3x the 240pt display width, not full source res.
+                    memCacheWidth: 720,
                     placeholder: (context, url) => Container(
                       color: Colors.grey[800],
                       child: Center(
@@ -146,6 +148,9 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
                                       fit: BoxFit.cover,
                                       width: widget.width,
                                       height: widget.height,
+                                      // Blurred backdrop: detail is destroyed
+                                      // by the filter, so decode small.
+                                      memCacheWidth: 300,
                                     ),
                                   ),
                                 )
@@ -239,6 +244,8 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
                                   fit: BoxFit.cover,
                                   width: 240,
                                   height: 160,
+                                  // Blurred at sigma 20 — decode very small.
+                                  memCacheWidth: 240,
                                 ),
                               ),
                             )
@@ -269,6 +276,7 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
                             ? CachedNetworkImage(
                                 imageUrl: widget.brandLogoUrl!,
                                 fit: BoxFit.fill,
+                                memCacheWidth: 160,
                                 placeholder: (context, url) => Center(
                                   child: PremiumLoader(
                                     size: 12,

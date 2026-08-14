@@ -324,6 +324,9 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           fit: BoxFit.contain,
           width: double.infinity,
           height: double.infinity,
+          // Full-bleed banner: cap decode at ~1080px wide regardless of the
+          // source asset size, which is plenty for any phone screen.
+          memCacheWidth: 1080,
           placeholder: (context, url) =>
               Container(color: const Color(0xFF49280B).withAlpha(100)),
           errorWidget: (context, url, error) =>

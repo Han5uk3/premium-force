@@ -465,6 +465,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                                 width: 112,
                                                 height: 112,
                                                 fit: BoxFit.cover,
+                                                // Camera/gallery pick can be
+                                                // 800px wide; the avatar is
+                                                // 112pt. Decode downsampled.
+                                                cacheWidth: 336,
                                               ),
                                             )
                                           : (user?.profileImageUrl != null &&
@@ -477,6 +481,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                                 width: 112,
                                                 height: 112,
                                                 fit: BoxFit.cover,
+                                                memCacheWidth: 336,
                                                 placeholder: (context, url) =>
                                                     const Center(
                                                       child: PremiumLoader(

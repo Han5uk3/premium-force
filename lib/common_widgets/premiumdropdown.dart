@@ -213,6 +213,8 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
       child: CachedNetworkImage(
         imageUrl: imageUrl,
         fit: BoxFit.contain,
+        // 32pt thumbnail at 3x.
+        memCacheWidth: 100,
         placeholder: (context, url) => Container(color: Colors.grey.shade800),
         errorWidget: (context, url, error) =>
             const Icon(Icons.directions_car, size: 20, color: Colors.black),

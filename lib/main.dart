@@ -30,6 +30,12 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Flutter defaults the decoded-image cache to 100 MiB, which is larger than
+  // the whole heap budget on low-RAM Android devices. Cap it so heavy fleet /
+  // banner scrolling evicts instead of pushing the app into an OOM kill.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // 50 MiB
+  PaintingBinding.instance.imageCache.maximumSize = 200;
+
   // Initialize Google Maps Android platform view & renderer optimizations
   final GoogleMapsFlutterPlatform mapsImplementation =
       GoogleMapsFlutterPlatform.instance;
