@@ -1,6 +1,0 @@
-paytabs_test_profile_id = 128366
-test_sdk_server_key = S9J99DZMWD-JM9W2RLKMD-GL9JHHW6DB
-test_sdk_client_key = CVK22Q-GPRD6N-PVMRBK-9T7DPH
-
-test_coutry_code=SA
-test_currency=SAR

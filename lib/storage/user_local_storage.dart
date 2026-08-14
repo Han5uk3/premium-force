@@ -221,9 +221,9 @@ class UserLocalStorage {
     debugPrint('💾 App language saved: $languageCode');
   }
 
-  /// Retrieve the persisted language code, defaults to 'en'.
+  /// Retrieve the persisted language code, defaults to 'ar'.
   static String getLanguage() {
-    return _box.get(_languageKey, defaultValue: 'en') as String;
+    return _box.get(_languageKey, defaultValue: 'ar') as String;
   }
 
   // ---------------------------------------------------------------------------

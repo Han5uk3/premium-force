@@ -118,7 +118,7 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> {
-  Locale _locale = const Locale('en');
+  Locale _locale = const Locale('ar');
   late final AuthProvider _authProvider;
   late final UserProvider _userProvider;
 
