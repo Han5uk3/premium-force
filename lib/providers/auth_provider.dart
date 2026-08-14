@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -673,7 +672,9 @@ class AuthProvider extends ChangeNotifier {
         '   - RefreshToken: ${refreshToken != null ? refreshToken.substring(0, 15) + '...' : 'NONE'}',
       );
     } else {
-      debugPrint('⚠️ AuthProvider │ Failed to extract access token from result: $result');
+      debugPrint(
+        '⚠️ AuthProvider │ Failed to extract access token from result: $result',
+      );
     }
   }
 
@@ -719,7 +720,6 @@ class AuthProvider extends ChangeNotifier {
       }
 
       debugPrint('🔐 Google Sign-In │ Email: ${result.email}');
-      dev.log('🔐 Google Sign-In │ ID Token: ${result.idToken}');
 
       // Step 2: Backend login/check using Google token
       if (result.idToken != null) {
@@ -821,7 +821,6 @@ class AuthProvider extends ChangeNotifier {
       }
 
       debugPrint('🍎 Apple Sign-In │ User ID: ${result.userId}');
-      dev.log('🍎 Apple Sign-In │ ID Token: ${result.idToken}');
 
       // Step 2: Backend login/check using Apple token
       if (result.idToken != null) {

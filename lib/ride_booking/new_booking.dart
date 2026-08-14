@@ -194,8 +194,9 @@ class _NewBookingState extends State<NewBooking> {
 
   /// Airports for the dropdowns, preferring any nested in the cities payload.
   ///
-  /// Falls back to the standalone v2 endpoint, then to v1, because whether
-  /// `GET /cities` nests them is not yet settled.
+  /// Falls back to the standalone v2 endpoint, because whether `GET /cities`
+  /// nests them is not yet settled. An empty list is a valid answer — it means
+  /// no bookable airports, not a failed lookup.
   Future<Map<String, dynamic>> _fetchAirportsV2(
     List<CityV2> citiesFromV2,
   ) async {
@@ -217,28 +218,28 @@ class _NewBookingState extends State<NewBooking> {
 
     final result = await _apiV2.getAirports();
     final airports = result.data;
-    if (airports != null && airports.isNotEmpty) {
-      return {
-        'success': true,
-        'data': [
-          for (final airport in airports.where((a) => a.isActive))
-            {
-              '_id': airport.id,
-              'airportName': airport.name,
-              'airportNameAr': airport.nameAr,
-              'cityID': airport.cityId,
-              'lat': airport.lat,
-              'long': airport.lng,
-              'isActive': airport.isActive,
-            },
-        ],
-      };
+    if (airports == null) {
+      return {'success': false, 'message': result.message};
     }
 
-    return ApiService().getAirports();
+    return {
+      'success': true,
+      'data': [
+        for (final airport in airports.where((a) => a.isActive))
+          {
+            '_id': airport.id,
+            'airportName': airport.name,
+            'airportNameAr': airport.nameAr,
+            'cityID': airport.cityId,
+            'lat': airport.lat,
+            'long': airport.lng,
+            'isActive': airport.isActive,
+          },
+      ],
+    };
   }
 
-  /// Terminals for the dropdowns, with the same nested-then-fallback strategy.
+  /// Terminals for the dropdowns, with the same nested-then-v2 strategy.
   Future<Map<String, dynamic>> _fetchTerminalsV2(
     List<CityV2> citiesFromV2,
   ) async {
@@ -259,23 +260,23 @@ class _NewBookingState extends State<NewBooking> {
 
     final result = await _apiV2.getTerminals();
     final terminals = result.data;
-    if (terminals != null && terminals.isNotEmpty) {
-      return {
-        'success': true,
-        'data': [
-          for (final terminal in terminals.where((t) => t.isActive))
-            {
-              '_id': terminal.id,
-              'terminalName': terminal.name,
-              'terminalNameAr': terminal.nameAr,
-              'airportID': terminal.airportId,
-              'isActive': terminal.isActive,
-            },
-        ],
-      };
+    if (terminals == null) {
+      return {'success': false, 'message': result.message};
     }
 
-    return ApiService().getTerminals();
+    return {
+      'success': true,
+      'data': [
+        for (final terminal in terminals.where((t) => t.isActive))
+          {
+            '_id': terminal.id,
+            'terminalName': terminal.name,
+            'terminalNameAr': terminal.nameAr,
+            'airportID': terminal.airportId,
+            'isActive': terminal.isActive,
+          },
+      ],
+    };
   }
 
   /// The product being booked, derived from the legacy `catcode`.
@@ -3367,10 +3368,7 @@ class _NewBookingState extends State<NewBooking> {
         _getServiceDurationLabel(loc, h): h,
     };
 
-    final items = [
-      if (hourlyAvailable) loc.hourly,
-      ...packagesByLabel.keys,
-    ];
+    final items = [if (hourlyAvailable) loc.hourly, ...packagesByLabel.keys];
 
     // A package shows its own duration; hourly stays on its label whatever hour
     // the second picker is on. Null leaves the field on its placeholder, which

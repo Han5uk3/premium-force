@@ -22,13 +22,13 @@ import 'package:uuid/uuid.dart';
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Ensure Firebase is initialized (though usually it is)
   await Firebase.initializeApp();
-  
+
   // Initialize Hive for the background isolate
   await Hive.initFlutter();
   await NotificationStorage.init();
 
   debugPrint('🔔 FCM [background] │ ${message.messageId}');
-  
+
   if (message.notification != null) {
     final notification = AppNotification(
       id: message.messageId ?? const Uuid().v4(),
@@ -247,19 +247,7 @@ class NotificationService {
   Future<void> _fetchToken() async {
     try {
       _fcmToken = await _fcm.getToken();
-      // Print prominently so you can copy it from the console
-      // ignore: avoid_print
-      print('');
-      // ignore: avoid_print
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      // ignore: avoid_print
-      print('🔔  FCM TOKEN');
-      // ignore: avoid_print
-      print('$_fcmToken');
-      // ignore: avoid_print
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      // ignore: avoid_print
-      print('');
+      debugPrint('🔔 FCM │ Token fetched (${_fcmToken?.length ?? 0} chars)');
       // Persist immediately so the rest of the app can read it via Hive
       if (_fcmToken != null) {
         await UserLocalStorage.saveFcmToken(_fcmToken!);

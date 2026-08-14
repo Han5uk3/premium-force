@@ -11,6 +11,7 @@ class PremiumButton extends StatelessWidget {
     this.borderRadius,
     this.textColor,
     this.gradient,
+    this.enabled = true,
   });
 
   final String text;
@@ -21,18 +22,38 @@ class PremiumButton extends StatelessWidget {
   final bool showLoader;
   final List<Color>? gradient;
 
+  /// When false the button greys out and ignores taps — use it for "nothing to
+  /// submit yet" states.
+  ///
+  /// Distinct from [showLoader], which keeps the normal styling (so the black
+  /// loader stays legible on the gold) while also blocking taps.
+  final bool enabled;
+
+  /// Muted stand-in for the gold gradient while [enabled] is false.
+  static const _disabledGradient = [
+    Color(0xFF332B22),
+    Color(0xFF4E4335),
+    Color(0xFF332B22),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // A button mid-save is still "enabled" — it just isn't tappable yet.
+    final canTap = enabled && !showLoader;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors:
-              gradient ??
-              [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
+          colors: enabled
+              ? (gradient ??
+                    [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)])
+              : _disabledGradient,
         ),
         boxShadow: [
           BoxShadow(
@@ -48,7 +69,9 @@ class PremiumButton extends StatelessWidget {
         child: InkWell(
           splashColor: Colors.black.withAlpha(50),
           highlightColor: Colors.black.withAlpha(50),
-          onTap: onTap,
+          // Null here also suppresses the ink splash, so a disabled button
+          // gives no touch feedback at all.
+          onTap: canTap ? onTap : null,
           borderRadius: BorderRadius.circular(borderRadius ?? 12),
           child: Center(
             child: showLoader
@@ -56,7 +79,9 @@ class PremiumButton extends StatelessWidget {
                 : Text(
                     text,
                     style: TextStyle(
-                      color: textColor ?? Colors.black,
+                      color: enabled
+                          ? (textColor ?? Colors.black)
+                          : Colors.white38,
                       fontSize: fontsize,
                       fontWeight: FontWeight.w700,
                     ),

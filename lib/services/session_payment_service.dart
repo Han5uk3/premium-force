@@ -22,7 +22,9 @@ import 'package:premium_force_main/utils/paytabs_theme.dart';
 /// client cannot charge an amount the backend did not authorise.
 ///
 /// The one concession to a misbehaving backend is [_credentials], which falls
-/// back to the app's live keys when the issued ones are malformed.
+/// back to the app's live keys when the issued ones are malformed. In debug
+/// builds it instead forces the sandbox profile, so test cards never touch the
+/// live merchant account.
 ///
 /// The SDK result is *not* treated as proof of payment — callers must follow up
 /// with `verifyPayment` so the backend settles the booking against the gateway.
@@ -49,9 +51,37 @@ class SessionPaymentService {
   ///
   /// All three move together: a profile id and keys belong to one PayTabs
   /// profile and cannot be mixed across sources.
+  ///
+  /// Debug builds short-circuit to the sandbox profile — see below.
   static ({String profileId, String serverKey, String clientKey}) _credentials(
     PaytabsSessionConfig config,
   ) {
+    // Debug builds charge the sandbox profile, so the card sheet can be
+    // exercised with PayTabs test cards instead of real money. Release is
+    // untouched and still prefers the backend's credentials.
+    //
+    // Scope of this override: the backend issues the cart id and amount
+    // against its own (live) profile, so a payment made here exists only in
+    // sandbox and `verifyPayment` will not settle the booking. It validates
+    // the SDK sheet and the gateway handshake, not the end-to-end flow.
+    //
+    // Falls through when the sandbox keys are absent, rather than opening the
+    // gateway with empty credentials.
+    if (kDebugMode &&
+        PaytabsConfig.sandboxServerKey.isNotEmpty &&
+        PaytabsConfig.sandboxClientKey.isNotEmpty) {
+      debugPrint(
+        '🧪 Session payment │ DEBUG build — ignoring backend credentials, '
+        'using sandbox profile "${PaytabsConfig.sandboxProfileId}". '
+        'No real money moves.',
+      );
+      return (
+        profileId: PaytabsConfig.sandboxProfileId,
+        serverKey: PaytabsConfig.sandboxServerKey,
+        clientKey: PaytabsConfig.sandboxClientKey,
+      );
+    }
+
     if (config.hasValidCredentials) {
       return (
         profileId: config.profileId,

@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -41,6 +42,14 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   bool _isPromoValid = false;
   String? _appliedPromoId;
   String? _initialPromoCode;
+
+  // Snapshot of what the page loaded with. Used to skip the save entirely when
+  // nothing was edited, and to leave an unchanged special id out of the request.
+  String _initialName = '';
+  String _initialEmail = '';
+  String _initialLocation = '';
+  double? _initialLat;
+  double? _initialLong;
   String? _promoSuccessText;
   OverlayEntry? _overlayEntry;
 
@@ -49,6 +58,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
     super.initState();
 
     final user = Provider.of<AuthProvider>(context, listen: false).user;
+    log('ManageProfilePage: user = $user');
     if (user != null) {
       _nameController.text = user.username;
       _emailController.text = user.email;
@@ -63,6 +73,12 @@ class _ManageProfilePageState extends State<ManageProfilePage>
         _initialPromoCode = user.specialId;
         _isPromoValid = true;
       }
+
+      _initialName = _nameController.text.trim();
+      _initialEmail = _emailController.text.trim();
+      _initialLocation = _locationController.text.trim();
+      _initialLat = _latitude;
+      _initialLong = _longitude;
     }
 
     _animController = AnimationController(
@@ -330,20 +346,42 @@ class _ManageProfilePageState extends State<ManageProfilePage>
     );
   }
 
+  /// The special id to send, or null to leave the stored one untouched.
+  ///
+  /// The backend rejects a specialId it already holds ("User already has a
+  /// special ID"), and that 400 fails the entire update — so re-sending the
+  /// loaded value would block saving a name or photo change too. Only a
+  /// genuinely new code goes on the wire; [ApiService.updateUser] omits nulls.
+  String? get _changedSpecialId {
+    if (!_isCorporateEmployee || !_isPromoValid) return null;
+    final current = _specialIdController.text.trim();
+    if (current.isEmpty || current == _initialPromoCode) return null;
+    return current;
+  }
+
+  /// Whether any field differs from what the page loaded with.
+  bool get _hasUnsavedChanges =>
+      _profileImage != null ||
+      _nameController.text.trim() != _initialName ||
+      _emailController.text.trim() != _initialEmail ||
+      _locationController.text.trim() != _initialLocation ||
+      _latitude != _initialLat ||
+      _longitude != _initialLong ||
+      _changedSpecialId != null;
+
   Future<void> _handleUpdateProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     if (user == null) return;
 
+    // The Save button stays greyed out until something changes, so this only
+    // guards against a programmatic call.
+    if (!_hasUnsavedChanges) return;
+
     setState(() => _isLoading = true);
 
     final token = UserLocalStorage.getToken();
-
-    // Only include special ID if corporate employee is checked and promo is valid
-    final specialId = (_isCorporateEmployee && _isPromoValid)
-        ? _specialIdController.text.trim()
-        : null;
 
     final result = await ApiService().updateUser(
       id: user.uid,
@@ -353,21 +391,16 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       lat: _latitude,
       long: _longitude,
       profileImage: _profileImage,
-      specialId: specialId,
+      specialId: _changedSpecialId,
       token: token,
     );
 
     if (!mounted) return;
 
     if (result['success'] == true) {
-      // Only increment if it's a NEW promo code compared to what was there initially
-      final currentPromo = _specialIdController.text.trim();
-      final hasNewPromo =
-          _isPromoValid &&
-          currentPromo.isNotEmpty &&
-          currentPromo != _initialPromoCode;
-
-      if (hasNewPromo && _appliedPromoId != null) {
+      // Only increment for a genuinely new promo code — same condition that
+      // decided whether to send it at all.
+      if (_changedSpecialId != null && _appliedPromoId != null) {
         await ApiService().incrementSpecialContentCount(
           id: _appliedPromoId!,
           token: token,
@@ -409,347 +442,253 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           ],
         ),
       ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: _buildAppBar(),
-        body: Stack(
-          children: [
-            AbsorbPointer(
-              absorbing: _isLoading,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Form(
-                  key: _formKey,
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 32),
+      child: PopScope(
+        // Keep the user on the page while the save is in flight. This covers
+        // the system back gesture and the hardware back button; the app bar's
+        // own back button is disabled separately in [_buildAppBar].
+        canPop: !_isLoading,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: _buildAppBar(),
+          body: Stack(
+            children: [
+              AbsorbPointer(
+                absorbing: _isLoading,
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Form(
+                    key: _formKey,
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 32),
 
-                        // Profile Picture
-                        Center(
-                          child: GestureDetector(
-                            onTap: _pickImage,
-                            child: Stack(
-                              children: [
-                                // Gradient border
-                                Container(
-                                  width: 116,
-                                  height: 116,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Color(0xFF49280B),
-                                        Color(0xFFE4A46B),
-                                        Color(0xFF60350F),
-                                      ],
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Container(
-                                      width: 112,
-                                      height: 112,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: const Color(0xFF0D0A08),
-                                      ),
-                                      child: _profileImage != null
-                                          ? ClipOval(
-                                              child: Image.file(
-                                                _profileImage!,
-                                                width: 112,
-                                                height: 112,
-                                                fit: BoxFit.cover,
-                                                // Camera/gallery pick can be
-                                                // 800px wide; the avatar is
-                                                // 112pt. Decode downsampled.
-                                                cacheWidth: 336,
-                                              ),
-                                            )
-                                          : (user?.profileImageUrl != null &&
-                                                user!
-                                                    .profileImageUrl!
-                                                    .isNotEmpty)
-                                          ? ClipOval(
-                                              child: CachedNetworkImage(
-                                                imageUrl: user.profileImageUrl!,
-                                                width: 112,
-                                                height: 112,
-                                                fit: BoxFit.cover,
-                                                memCacheWidth: 336,
-                                                placeholder: (context, url) =>
-                                                    const Center(
-                                                      child: PremiumLoader(
-                                                        color: Color(
-                                                          0xFFE4A46B,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                errorWidget:
-                                                    (context, url, error) =>
-                                                        _buildPlaceholderIcon(),
-                                              ),
-                                            )
-                                          : _buildPlaceholderIcon(),
-                                    ),
-                                  ),
-                                ),
-                                // Camera edit icon, on the trailing side of the
-                                // avatar so it flips to the left in RTL.
-                                PositionedDirectional(
-                                  bottom: 2,
-                                  end: 2,
-                                  child: Container(
-                                    width: 34,
-                                    height: 34,
+                          // Profile Picture
+                          Center(
+                            child: GestureDetector(
+                              onTap: _pickImage,
+                              child: Stack(
+                                children: [
+                                  // Gradient border
+                                  Container(
+                                    width: 116,
+                                    height: 116,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       gradient: const LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                         colors: [
                                           Color(0xFF49280B),
                                           Color(0xFFE4A46B),
                                           Color(0xFF60350F),
                                         ],
                                       ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withAlpha(100),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
                                     ),
-                                    child: const Icon(
-                                      Icons.camera_alt_rounded,
-                                      color: Colors.black,
-                                      size: 18,
+                                    child: Center(
+                                      child: Container(
+                                        width: 112,
+                                        height: 112,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: const Color(0xFF0D0A08),
+                                        ),
+                                        child: _profileImage != null
+                                            ? ClipOval(
+                                                child: Image.file(
+                                                  _profileImage!,
+                                                  width: 112,
+                                                  height: 112,
+                                                  fit: BoxFit.cover,
+                                                  // Camera/gallery pick can be
+                                                  // 800px wide; the avatar is
+                                                  // 112pt. Decode downsampled.
+                                                  cacheWidth: 336,
+                                                ),
+                                              )
+                                            : (user?.profileImageUrl != null &&
+                                                  user!
+                                                      .profileImageUrl!
+                                                      .isNotEmpty)
+                                            ? ClipOval(
+                                                child: CachedNetworkImage(
+                                                  imageUrl:
+                                                      user.profileImageUrl!,
+                                                  width: 112,
+                                                  height: 112,
+                                                  fit: BoxFit.cover,
+                                                  memCacheWidth: 336,
+                                                  placeholder: (context, url) =>
+                                                      const Center(
+                                                        child: PremiumLoader(
+                                                          color: Color(
+                                                            0xFFE4A46B,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  errorWidget:
+                                                      (context, url, error) =>
+                                                          _buildPlaceholderIcon(),
+                                                ),
+                                              )
+                                            : _buildPlaceholderIcon(),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Center(
-                          child: Text(
-                            AppLocalizations.of(context)!.tapToAddPhotoOptional,
-                            style: TextStyle(
-                              color: Colors.white.withAlpha(100),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 28),
-
-                        // Name field
-                        PremiumTextField(
-                          title: AppLocalizations.of(context)!.fullName,
-                          controller: _nameController,
-                          hintText: AppLocalizations.of(
-                            context,
-                          )!.enterYourFullName,
-                          fontsize: 13,
-                          keyboardType: TextInputType.name,
-                          needTitle: true,
-                          obscureText: false,
-                          prefixIcon: ShaderMask(
-                            shaderCallback: (Rect bounds) {
-                              return const LinearGradient(
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
+                                  // Camera edit icon, on the trailing side of the
+                                  // avatar so it flips to the left in RTL.
+                                  PositionedDirectional(
+                                    bottom: 2,
+                                    end: 2,
+                                    child: Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF49280B),
+                                            Color(0xFFE4A46B),
+                                            Color(0xFF60350F),
+                                          ],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withAlpha(100),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.camera_alt_rounded,
+                                        color: Colors.black,
+                                        size: 18,
+                                      ),
+                                    ),
+                                  ),
                                 ],
-                              ).createShader(bounds);
-                            },
-                            child: const Icon(
-                              Icons.person_outline_rounded,
-                              color: Colors.white,
-                              size: 20,
+                              ),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return AppLocalizations.of(
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Text(
+                              AppLocalizations.of(
                                 context,
-                              )!.pleaseEnterYourName;
-                            }
-                            if (value.length < 2) {
-                              return AppLocalizations.of(
-                                context,
-                              )!.nameMustBeAtLeast2Characters;
-                            }
-                            return null;
-                          },
-                        ),
+                              )!.tapToAddPhotoOptional,
+                              style: TextStyle(
+                                color: Colors.white.withAlpha(100),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
 
-                        const SizedBox(height: 20),
+                          const SizedBox(height: 28),
 
-                        // Phone number (display only)
-                        PremiumTextField(
-                          isPhoneNumber: true,
-                          ltrValueOnly: true,
-                          title: AppLocalizations.of(context)!.phoneNumber,
-                          controller: _phoneController,
-                          hintText: "",
-                          fontsize: 13,
-                          needTitle: true,
-                          obscureText: false,
-                          enabled: false,
-                          readOnly: true,
-                          prefixIcon: ShaderMask(
-                            shaderCallback: (Rect bounds) {
-                              return const LinearGradient(
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
-                                ],
-                              ).createShader(bounds);
-                            },
-                            // The handset glyph leans to one side, so mirror it
-                            // in RTL to sit with the flipped layout. Only the
-                            // icon flips; the gradient keeps its direction.
-                            child: Transform.scale(
-                              scaleX:
-                                  Directionality.of(context) ==
-                                      TextDirection.rtl
-                                  ? -1
-                                  : 1,
+                          // Name field
+                          PremiumTextField(
+                            title: AppLocalizations.of(context)!.fullName,
+                            controller: _nameController,
+                            hintText: AppLocalizations.of(
+                              context,
+                            )!.enterYourFullName,
+                            fontsize: 13,
+                            keyboardType: TextInputType.name,
+                            needTitle: true,
+                            obscureText: false,
+                            prefixIcon: ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return const LinearGradient(
+                                  colors: [
+                                    Color(0xFF49280B),
+                                    Color(0xFFE4A46B),
+                                    Color(0xFF60350F),
+                                  ],
+                                ).createShader(bounds);
+                              },
                               child: const Icon(
-                                Icons.phone_outlined,
+                                Icons.person_outline_rounded,
                                 color: Colors.white,
                                 size: 20,
                               ),
                             ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Email field
-                        PremiumTextField(
-                          title: AppLocalizations.of(context)!.emailAddress,
-                          controller: _emailController,
-                          hintText: AppLocalizations.of(
-                            context,
-                          )!.enterYourEmailAddress,
-                          fontsize: 13,
-                          keyboardType: TextInputType.emailAddress,
-                          needTitle: true,
-                          obscureText: false,
-                          enabled: false,
-                          readOnly: true,
-                          prefixIcon: ShaderMask(
-                            shaderCallback: (Rect bounds) {
-                              return const LinearGradient(
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
-                                ],
-                              ).createShader(bounds);
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return AppLocalizations.of(
+                                  context,
+                                )!.pleaseEnterYourName;
+                              }
+                              if (value.length < 2) {
+                                return AppLocalizations.of(
+                                  context,
+                                )!.nameMustBeAtLeast2Characters;
+                              }
+                              return null;
                             },
-                            child: const Icon(
-                              Icons.email_outlined,
-                              color: Colors.white,
-                              size: 20,
-                            ),
                           ),
-                        ),
 
-                        const SizedBox(height: 20),
-
-                        // Location field (tap to open location picker)
-                        // _buildLocationField(),
-                        // const SizedBox(height: 20),
-
-                        // Corporate Employee Toggle
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.white.withAlpha(60),
-                              width: 1,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            color: const Color(0xFF0D0A08),
-                          ),
-                          child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _isCorporateEmployee =
-                                        !_isCorporateEmployee;
-                                  });
-                                },
-                                child: Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: _isCorporateEmployee
-                                          ? const Color(0xFFE4A46B)
-                                          : Colors.white.withAlpha(100),
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(4),
-                                    color: _isCorporateEmployee
-                                        ? const Color(0xFFE4A46B)
-                                        : Colors.transparent,
-                                  ),
-                                  child: _isCorporateEmployee
-                                      ? const Icon(
-                                          Icons.check,
-                                          size: 14,
-                                          color: Color(0xFF0D0A08),
-                                        )
-                                      : null,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  AppLocalizations.of(
-                                    context,
-                                  )!.iAmACorporateEmployee,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        if (_isCorporateEmployee) ...[
                           const SizedBox(height: 20),
-                          // Company Email field
+
+                          // Phone number (display only)
                           PremiumTextField(
-                            title: AppLocalizations.of(context)!.companyEmail,
-                            controller: _companyEmailController,
-                            hintText: AppLocalizations.of(
-                              context,
-                            )!.enterYourCompanyEmail,
+                            isPhoneNumber: true,
+                            ltrValueOnly: true,
+                            title: AppLocalizations.of(context)!.phoneNumber,
+                            controller: _phoneController,
+                            hintText: "",
                             fontsize: 13,
                             needTitle: true,
                             obscureText: false,
-                            readOnly: _isPromoValid,
-                            enabled: !_isPromoValid,
+                            enabled: false,
+                            readOnly: true,
+                            prefixIcon: ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return const LinearGradient(
+                                  colors: [
+                                    Color(0xFF49280B),
+                                    Color(0xFFE4A46B),
+                                    Color(0xFF60350F),
+                                  ],
+                                ).createShader(bounds);
+                              },
+                              // The handset glyph leans to one side, so mirror it
+                              // in RTL to sit with the flipped layout. Only the
+                              // icon flips; the gradient keeps its direction.
+                              child: Transform.scale(
+                                scaleX:
+                                    Directionality.of(context) ==
+                                        TextDirection.rtl
+                                    ? -1
+                                    : 1,
+                                child: const Icon(
+                                  Icons.phone_outlined,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Email field
+                          PremiumTextField(
+                            title: AppLocalizations.of(context)!.emailAddress,
+                            controller: _emailController,
+                            hintText: AppLocalizations.of(
+                              context,
+                            )!.enterYourEmailAddress,
+                            fontsize: 13,
+                            keyboardType: TextInputType.emailAddress,
+                            needTitle: true,
+                            obscureText: false,
+                            enabled: false,
+                            readOnly: true,
                             prefixIcon: ShaderMask(
                               shaderCallback: (Rect bounds) {
                                 return const LinearGradient(
@@ -767,158 +706,281 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          // Promo Code field
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: PremiumTextField(
-                                  title: AppLocalizations.of(
-                                    context,
-                                  )!.promoCode,
-                                  controller: _specialIdController,
-                                  hintText: AppLocalizations.of(
-                                    context,
-                                  )!.enterYourPromoCode,
-                                  fontsize: 13,
-                                  needTitle: true,
-                                  obscureText: false,
-                                  readOnly: _isPromoValid,
-                                  enabled: !_isPromoValid,
-                                  prefixIcon: ShaderMask(
-                                    shaderCallback: (Rect bounds) {
-                                      return const LinearGradient(
-                                        colors: [
-                                          Color(0xFF49280B),
-                                          Color(0xFFE4A46B),
-                                          Color(0xFF60350F),
-                                        ],
-                                      ).createShader(bounds);
-                                    },
-                                    child: const Icon(
-                                      Icons.badge_outlined,
+
+                          const SizedBox(height: 20),
+
+                          // Location field (tap to open location picker)
+                          // _buildLocationField(),
+                          // const SizedBox(height: 20),
+
+                          // Corporate Employee Toggle
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.white.withAlpha(60),
+                                width: 1,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              color: const Color(0xFF0D0A08),
+                            ),
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _isCorporateEmployee =
+                                          !_isCorporateEmployee;
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: _isCorporateEmployee
+                                            ? const Color(0xFFE4A46B)
+                                            : Colors.white.withAlpha(100),
+                                        width: 2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                      color: _isCorporateEmployee
+                                          ? const Color(0xFFE4A46B)
+                                          : Colors.transparent,
+                                    ),
+                                    child: _isCorporateEmployee
+                                        ? const Icon(
+                                            Icons.check,
+                                            size: 14,
+                                            color: Color(0xFF0D0A08),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.iAmACorporateEmployee,
+                                    style: const TextStyle(
                                       color: Colors.white,
-                                      size: 20,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                  validator: (value) {
-                                    if (_isCorporateEmployee &&
-                                        (value == null || value.isEmpty)) {
-                                      return AppLocalizations.of(
-                                        context,
-                                      )!.pleaseEnterYourPromoCode;
-                                    }
-                                    return null;
-                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          if (_isCorporateEmployee) ...[
+                            const SizedBox(height: 20),
+                            // Company Email field
+                            PremiumTextField(
+                              title: AppLocalizations.of(context)!.companyEmail,
+                              controller: _companyEmailController,
+                              hintText: AppLocalizations.of(
+                                context,
+                              )!.enterYourCompanyEmail,
+                              fontsize: 13,
+                              needTitle: true,
+                              obscureText: false,
+                              readOnly: _isPromoValid,
+                              enabled: !_isPromoValid,
+                              prefixIcon: ShaderMask(
+                                shaderCallback: (Rect bounds) {
+                                  return const LinearGradient(
+                                    colors: [
+                                      Color(0xFF49280B),
+                                      Color(0xFFE4A46B),
+                                      Color(0xFF60350F),
+                                    ],
+                                  ).createShader(bounds);
+                                },
+                                child: const Icon(
+                                  Icons.email_outlined,
+                                  color: Colors.white,
+                                  size: 20,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 1,
-                                child: Padding(
-                                  padding: EdgeInsets.only(bottom: 0),
-                                  child: SizedBox(
-                                    height: 59,
-                                    child: PremiumButton(
-                                      showLoader: _isCheckingPromo,
-                                      fontsize: 12,
-                                      text: _isPromoValid
-                                          ? AppLocalizations.of(context)!.remove
-                                          : AppLocalizations.of(context)!.apply,
-                                      gradient: _isPromoValid
-                                          ? [
-                                              Colors.red.shade800,
-                                              Colors.red.shade400,
-                                            ]
-                                          : null,
-                                      onTap: _isCheckingPromo
-                                          ? () {}
-                                          : _isPromoValid
-                                          ? _removePromoCode
-                                          : _verifyPromoCode,
+                            ),
+                            const SizedBox(height: 12),
+                            // Promo Code field
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: PremiumTextField(
+                                    title: AppLocalizations.of(
+                                      context,
+                                    )!.promoCode,
+                                    controller: _specialIdController,
+                                    hintText: AppLocalizations.of(
+                                      context,
+                                    )!.enterYourPromoCode,
+                                    fontsize: 13,
+                                    needTitle: true,
+                                    obscureText: false,
+                                    readOnly: _isPromoValid,
+                                    enabled: !_isPromoValid,
+                                    prefixIcon: ShaderMask(
+                                      shaderCallback: (Rect bounds) {
+                                        return const LinearGradient(
+                                          colors: [
+                                            Color(0xFF49280B),
+                                            Color(0xFFE4A46B),
+                                            Color(0xFF60350F),
+                                          ],
+                                        ).createShader(bounds);
+                                      },
+                                      child: const Icon(
+                                        Icons.badge_outlined,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    validator: (value) {
+                                      if (_isCorporateEmployee &&
+                                          (value == null || value.isEmpty)) {
+                                        return AppLocalizations.of(
+                                          context,
+                                        )!.pleaseEnterYourPromoCode;
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: EdgeInsets.only(bottom: 0),
+                                    child: SizedBox(
+                                      height: 59,
+                                      child: PremiumButton(
+                                        showLoader: _isCheckingPromo,
+                                        fontsize: 12,
+                                        text: _isPromoValid
+                                            ? AppLocalizations.of(
+                                                context,
+                                              )!.remove
+                                            : AppLocalizations.of(
+                                                context,
+                                              )!.apply,
+                                        gradient: _isPromoValid
+                                            ? [
+                                                Colors.red.shade800,
+                                                Colors.red.shade400,
+                                              ]
+                                            : null,
+                                        onTap: _isCheckingPromo
+                                            ? () {}
+                                            : _isPromoValid
+                                            ? _removePromoCode
+                                            : _verifyPromoCode,
+                                      ),
                                     ),
                                   ),
+                                ),
+                              ],
+                            ),
+                            if (_isPromoValid) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.green.withAlpha(30),
+                                  border: Border.all(
+                                    color: Colors.green.shade400,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green.shade400,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _promoSuccessText ??
+                                                AppLocalizations.of(
+                                                  context,
+                                                )!.promoCodeAppliedSuccessfully,
+                                            style: TextStyle(
+                                              color: Colors.green.shade300,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Divider(
+                                      color: Colors.white24,
+                                      height: 1,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildStatusRow(user?.isDiscountApproved),
+                                  ],
                                 ),
                               ),
                             ],
-                          ),
-                          if (_isPromoValid) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                color: Colors.green.withAlpha(30),
-                                border: Border.all(
-                                  color: Colors.green.shade400,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green.shade400,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _promoSuccessText ??
-                                              AppLocalizations.of(
-                                                context,
-                                              )!.promoCodeAppliedSuccessfully,
-                                          style: TextStyle(
-                                            color: Colors.green.shade300,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Divider(
-                                    color: Colors.white24,
-                                    height: 1,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildStatusRow(user?.isDiscountApproved),
-                                ],
-                              ),
-                            ),
                           ],
+
+                          const SizedBox(height: 36),
+
+                          // Save Changes button. The text controllers don't
+                          // rebuild the page on their own, so the button is
+                          // rebuilt against them directly — otherwise it would
+                          // stay greyed out until some other setState landed.
+                          // The remaining inputs to [_hasUnsavedChanges]
+                          // (photo, coordinates, promo flags) already go
+                          // through setState.
+                          ListenableBuilder(
+                            listenable: Listenable.merge([
+                              _nameController,
+                              _emailController,
+                              _locationController,
+                              _specialIdController,
+                            ]),
+                            builder: (context, _) => PremiumButton(
+                              showLoader: _isLoading,
+                              enabled: _hasUnsavedChanges,
+                              fontsize: 16,
+                              text: AppLocalizations.of(context)!.saveChanges,
+                              onTap: _handleUpdateProfile,
+                            ),
+                          ),
+
+                          const SizedBox(height: 40),
                         ],
-
-                        const SizedBox(height: 36),
-
-                        // Save Changes button
-                        PremiumButton(
-                          showLoader: _isLoading,
-                          fontsize: 16,
-                          text: AppLocalizations.of(context)!.saveChanges,
-                          onTap: _isLoading ? () {} : _handleUpdateProfile,
-                        ),
-
-                        const SizedBox(height: 40),
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // Loading overlay
-            if (_isLoading) const PremiumLoaderOverlay(),
-          ],
+              // No full-screen loader here on purpose: the save indicator is the
+              // black loader inside the Save Changes button. A scrim overlay
+              // would cover that button and show a competing second spinner.
+            ],
+          ),
         ),
       ),
     );
@@ -1015,12 +1077,13 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           ),
           backgroundColor: Colors.transparent,
           leading: IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_ios,
               size: 16,
-              color: Colors.white,
+              // Dimmed while saving so the disabled state reads as deliberate.
+              color: _isLoading ? Colors.white38 : Colors.white,
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: _isLoading ? null : () => Navigator.pop(context),
           ),
         ),
       ),
