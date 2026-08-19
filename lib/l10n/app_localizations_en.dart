@@ -1203,4 +1203,34 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get viewInvoice => 'View Invoice';
+
+  @override
+  String get preparingInvoice => 'Preparing your invoice...';
+
+  @override
+  String get invoiceNotAvailableYet =>
+      'The invoice will be available once your payment is confirmed.';
+
+  @override
+  String get noPdfViewerFound =>
+      'No PDF viewer was found on this device. The invoice has been saved to your files.';
+
+  @override
+  String get couldNotOpenInvoice =>
+      'Could not open the invoice. Please try again.';
+
+  @override
+  String get pleaseSelectRating => 'Please select a rating first.';
+
+  @override
+  String get markAllAsRead => 'Mark all as read';
+
+  @override
+  String get allNotificationsMarkedRead => 'All notifications marked as read';
+
+  @override
+  String get notificationsCleared => 'All notifications cleared';
 }

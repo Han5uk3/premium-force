@@ -5,6 +5,7 @@ import 'package:shimmer/shimmer.dart' show Shimmer;
 
 import 'package:premium_force_main/api/booking_api_v2.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
+import 'package:premium_force_main/bookings/rate_booking_sheet.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
@@ -13,6 +14,8 @@ import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
+import 'package:premium_force_main/models/v2/review_v2.dart';
+import 'package:premium_force_main/services/invoice_service.dart';
 
 /// Detail view for a confirmed booking, backed by `GET /bookings/:id`.
 ///
@@ -31,15 +34,21 @@ class BookingDetailsPage extends StatefulWidget {
 
 class _BookingDetailsPageState extends State<BookingDetailsPage> {
   final BookingApiV2 _api = BookingApiV2();
+  final InvoiceService _invoices = InvoiceService();
 
   BookingV2? _booking;
   bool _isLoading = true;
   bool _isCancelling = false;
+  bool _isOpeningInvoice = false;
   String? _errorMessage;
 
   /// The cancel endpoint's acknowledgement, which names the refund before the
   /// booking record itself reports one.
   BookingCancellation? _cancellation;
+
+  /// The review this session submitted, kept so the page can show the rating
+  /// straight away — the booking payload does not echo it back.
+  ReviewV2? _review;
 
   /// Set once the booking is cancelled, so popping refreshes the list behind.
   bool _didChange = false;
@@ -223,6 +232,38 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   },
                 ),
               ),
+
+            // Shown from `invoiceUrl`, which the API attaches only once the
+            // booking is paid for — so its presence is the whole condition.
+            if (booking.hasInvoice) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: PremiumButton(
+                  fontsize: 12,
+                  text: loc.viewInvoice,
+                  showLoader: _isOpeningInvoice,
+                  gradient: const [Color(0xFF3A3A3A), Color(0xFF1C1C1C)],
+                  textColor: Colors.white,
+                  onTap: _isOpeningInvoice ? () {} : _openInvoice,
+                ),
+              ),
+            ],
+
+            if (booking.isCompleted && booking.driver != null) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _review == null
+                    ? PremiumButton(
+                        fontsize: 12,
+                        text: loc.rateYourDriver,
+                        showLoader: false,
+                        onTap: _rateBooking,
+                      )
+                    : _buildSubmittedReview(loc, _review!),
+              ),
+            ],
 
             if (booking.status.isCancellable) ...[
               const SizedBox(height: 12),
@@ -981,6 +1022,92 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     // meanwhile: it names the refund before the booking record catches up.
     setState(() => _cancellation = result.data);
     await _loadBooking();
+  }
+
+  /// Fetch the booking's VAT invoice and hand it to the device's PDF viewer.
+  ///
+  /// The endpoint is authenticated, so the PDF is downloaded with the customer's
+  /// token and opened from local storage rather than being handed to a browser.
+  Future<void> _openInvoice() async {
+    final booking = _booking;
+    if (booking == null) return;
+
+    final loc = AppLocalizations.of(context)!;
+    setState(() => _isOpeningInvoice = true);
+    AnimatedSnackBar.show(context, loc.preparingInvoice, 'I');
+
+    final outcome = await _invoices.open(booking);
+    if (!mounted) return;
+
+    setState(() => _isOpeningInvoice = false);
+    if (outcome.success) return;
+
+    // `message` is either one of the service's sentinels or a server string
+    // worth showing verbatim (e.g. "Invoice not available for unpaid booking").
+    final message = outcome.isUnavailable
+        ? loc.invoiceNotAvailableYet
+        : outcome.isMissingViewer
+        ? loc.noPdfViewerFound
+        : outcome.isGenericFailure
+        ? loc.couldNotOpenInvoice
+        : (outcome.message ?? loc.couldNotOpenInvoice);
+
+    AnimatedSnackBar.show(context, message, outcome.isMissingViewer ? 'I' : 'E');
+  }
+
+  /// Rate the completed ride via `POST /reviews`.
+  Future<void> _rateBooking() async {
+    final booking = _booking;
+    if (booking == null) return;
+
+    final review = await RateBookingSheet.show(context, booking: booking);
+    if (review == null || !mounted) return;
+
+    setState(() => _review = review);
+    AnimatedSnackBar.show(
+      context,
+      AppLocalizations.of(context)!.reviewSubmittedSuccessfully,
+      'S',
+    );
+  }
+
+  /// The rating just submitted, shown in place of the rate button.
+  Widget _buildSubmittedReview(AppLocalizations loc, ReviewV2 review) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade800),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            loc.yourReview,
+            style: TextStyle(color: Colors.white.withAlpha(153), fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(5, (index) {
+              final isFilled = index < review.rate;
+              return Icon(
+                isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
+                color: isFilled ? const Color(0xFFE4A46B) : Colors.white24,
+                size: 18,
+              );
+            }),
+          ),
+          if (review.reviewText?.trim().isNotEmpty ?? false) ...[
+            const SizedBox(height: 8),
+            Text(
+              review.reviewText!,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   /// Localised product name for the header.

@@ -1192,4 +1192,33 @@ class AppLocalizationsAr extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get viewInvoice => 'عرض الفاتورة';
+
+  @override
+  String get preparingInvoice => 'جارٍ تحضير الفاتورة...';
+
+  @override
+  String get invoiceNotAvailableYet => 'ستتوفر الفاتورة بعد تأكيد الدفع.';
+
+  @override
+  String get noPdfViewerFound =>
+      'لا يوجد تطبيق لعرض ملفات PDF على هذا الجهاز. تم حفظ الفاتورة في ملفاتك.';
+
+  @override
+  String get couldNotOpenInvoice =>
+      'تعذر فتح الفاتورة. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get pleaseSelectRating => 'يرجى اختيار التقييم أولاً.';
+
+  @override
+  String get markAllAsRead => 'تعيين الكل كمقروء';
+
+  @override
+  String get allNotificationsMarkedRead => 'تم تعيين جميع الإشعارات كمقروءة';
+
+  @override
+  String get notificationsCleared => 'تم مسح جميع الإشعارات';
 }

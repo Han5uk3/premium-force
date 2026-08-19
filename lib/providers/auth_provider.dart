@@ -7,6 +7,7 @@ import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/services/apple_sign_in_service.dart';
 import 'package:premium_force_main/services/google_sign_in_service.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+import 'package:premium_force_main/main.dart' show notificationProvider;
 import 'package:premium_force_main/storage/user_local_storage.dart';
 
 enum AuthStatus {
@@ -85,6 +86,20 @@ class AuthProvider extends ChangeNotifier {
     _cancelResendTimer();
     super.dispose();
   }
+
+  /// The language the app is currently running in, as the API's `locale`.
+  ///
+  /// Read from Hive rather than from a widget's `BuildContext`: the provider is
+  /// used outside the tree (silent refresh on launch), and Hive is what the
+  /// language switch persists to anyway.
+  String get _currentLocale => UserLocalStorage.getLanguage();
+
+  /// The device's push token, when one has been issued.
+  ///
+  /// Sent alongside the locale on every auth call so a fresh install is
+  /// reachable by push from its first request, without waiting for the separate
+  /// token-sync round trip.
+  String? get _currentFcmToken => UserLocalStorage.getFcmToken();
 
   // ---------------------------------------------------------------------------
   // Fetch user from backend
@@ -205,6 +220,8 @@ class AuthProvider extends ChangeNotifier {
               await UserLocalStorage.saveSocialIdToken(googleResult.idToken!);
               final authResponse = await _api.googleAuth(
                 idToken: googleResult.idToken!,
+                locale: _currentLocale,
+                fcmToken: _currentFcmToken,
               );
               if (authResponse['success'] == true) {
                 await _saveAuthTokens(authResponse);
@@ -380,6 +397,8 @@ class AuthProvider extends ChangeNotifier {
         countryCode: countryCode,
         phoneNumber: phoneNumber,
         otp: otp,
+        locale: _currentLocale,
+        fcmToken: _currentFcmToken,
       );
       debugPrint('🔑 verifyOtp response: ' + result.toString());
 
@@ -525,6 +544,8 @@ class AuthProvider extends ChangeNotifier {
         profileImage: profileImage,
         specialId: specialId,
         token: token,
+        locale: _currentLocale,
+        fcmToken: _currentFcmToken,
       );
 
       if (result['success'] == true) {
@@ -723,7 +744,11 @@ class AuthProvider extends ChangeNotifier {
 
       // Step 2: Backend login/check using Google token
       if (result.idToken != null) {
-        final authResponse = await _api.googleAuth(idToken: result.idToken!);
+        final authResponse = await _api.googleAuth(
+          idToken: result.idToken!,
+          locale: _currentLocale,
+          fcmToken: _currentFcmToken,
+        );
         debugPrint('🔐 Google Sign-In │ Auth response: $authResponse');
 
         if (authResponse['success'] == true) {
@@ -824,7 +849,11 @@ class AuthProvider extends ChangeNotifier {
 
       // Step 2: Backend login/check using Apple token
       if (result.idToken != null) {
-        final authResponse = await _api.appleAuth(idToken: result.idToken!);
+        final authResponse = await _api.appleAuth(
+          idToken: result.idToken!,
+          locale: _currentLocale,
+          fcmToken: _currentFcmToken,
+        );
         debugPrint('🍎 Apple Sign-In │ Auth response: $authResponse');
 
         if (authResponse['success'] == true) {
@@ -905,6 +934,10 @@ class AuthProvider extends ChangeNotifier {
 
       // Clear local storage
       await UserLocalStorage.clearUser();
+
+      // The notification centre is per-account; drop what this session holds so
+      // the next sign-in starts from an empty inbox and badge.
+      notificationProvider.reset();
 
       _cancelResendTimer();
       _user = null;

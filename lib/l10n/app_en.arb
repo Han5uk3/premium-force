@@ -393,5 +393,14 @@
         "type": "int"
       }
     }
-  }
+  },
+  "viewInvoice": "View Invoice",
+  "preparingInvoice": "Preparing your invoice...",
+  "invoiceNotAvailableYet": "The invoice will be available once your payment is confirmed.",
+  "noPdfViewerFound": "No PDF viewer was found on this device. The invoice has been saved to your files.",
+  "couldNotOpenInvoice": "Could not open the invoice. Please try again.",
+  "pleaseSelectRating": "Please select a rating first.",
+  "markAllAsRead": "Mark all as read",
+  "allNotificationsMarkedRead": "All notifications marked as read",
+  "notificationsCleared": "All notifications cleared"
 }

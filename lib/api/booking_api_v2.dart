@@ -1,9 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:premium_force_main/api/api_logger.dart';
 import 'package:premium_force_main/api/api_result.dart';
+import 'package:premium_force_main/api/v2_client.dart';
 import 'package:premium_force_main/models/v2/available_vehicle.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
@@ -11,7 +12,6 @@ import 'package:premium_force_main/models/v2/chauffeur_options.dart';
 import 'package:premium_force_main/models/v2/checkout_models.dart';
 import 'package:premium_force_main/models/v2/geo_models.dart';
 import 'package:premium_force_main/models/v2/session_models.dart';
-import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/utils/json_utils.dart';
 
 /// Client for the v2 booking API.
@@ -30,15 +30,10 @@ import 'package:premium_force_main/utils/json_utils.dart';
 /// final session = await api.initPrivateTransferSession(...);
 /// if (!session.success) showError(session.message);
 /// ```
-class BookingApiV2 {
+class BookingApiV2 extends V2ApiClient {
   // ---------------------------------------------------------------------------
   // Configuration
   // ---------------------------------------------------------------------------
-
-  static const String _baseUrl = 'https://api.premiumforcegroup.com/api/v2/';
-
-  /// Token refresh still lives on the v1 auth surface (no `v2` prefix).
-  static const String _refreshUrl = 'https://api.premiumforcegroup.com/api/';
 
   /// Largest voice note the vehicle-selection endpoint accepts.
   static const int _maxVoiceNoteBytes = 5 * 1024 * 1024;
@@ -59,109 +54,7 @@ class BookingApiV2 {
   static final BookingApiV2 _instance = BookingApiV2._internal();
   factory BookingApiV2() => _instance;
 
-  late final Dio _dio;
-
-  BookingApiV2._internal() {
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: _baseUrl,
-        connectTimeout: const Duration(seconds: 20),
-        receiveTimeout: const Duration(seconds: 20),
-        headers: {'Accept': 'application/json'},
-        // Session endpoints use 404 to mean "not serviceable", which is a
-        // normal outcome carrying a displayable message rather than a crash.
-        validateStatus: (status) => status != null && status < 500,
-      ),
-    );
-
-    // Debug-only: payloads carry customer PII and, on confirm, live gateway
-    // credentials. See BookingApiLogger for what it masks.
-    if (kDebugMode) {
-      _dio.interceptors.add(BookingApiLogger());
-    }
-
-    _dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          final token = UserLocalStorage.getToken();
-          if (token != null && options.headers['Authorization'] == null) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-          return handler.next(options);
-        },
-        onError: (DioException e, handler) async {
-          if (e.response?.statusCode != 401) return handler.next(e);
-
-          final newToken = await _refreshAccessToken();
-          if (newToken == null) return handler.next(e);
-
-          try {
-            e.requestOptions.headers['Authorization'] = 'Bearer $newToken';
-            // A multipart body is a one-shot stream, already consumed by the
-            // attempt that 401'd; the retry needs its own copy.
-            final data = e.requestOptions.data;
-            if (data is FormData) {
-              e.requestOptions.data = data.clone();
-            }
-            final retried = await _dio.fetch(e.requestOptions);
-            return handler.resolve(retried);
-          } catch (_) {
-            return handler.next(e);
-          }
-        },
-      ),
-    );
-  }
-
-  /// Exchange the stored refresh token for a new access token.
-  ///
-  /// Uses a bare [Dio] so the retry cannot re-enter this interceptor.
-  Future<String?> _refreshAccessToken() async {
-    final refreshToken = UserLocalStorage.getRefreshToken();
-    if (refreshToken == null || refreshToken.isEmpty) return null;
-
-    try {
-      final refreshDio = Dio(
-        BaseOptions(
-          baseUrl: _refreshUrl,
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      if (kDebugMode) refreshDio.interceptors.add(BookingApiLogger());
-
-      final response = await refreshDio.post(
-        'otp/refresh-token',
-        data: {'refreshToken': refreshToken},
-      );
-
-      final body = asMap(response.data);
-      final tokens = pickMap(body, const ['tokens']).isNotEmpty
-          ? pickMap(body, const ['tokens'])
-          : pickMap(pickMap(body, const ['data']), const ['tokens']);
-
-      final access =
-          pickString(tokens, const ['accessToken', 'token']) ??
-          pickString(body, const ['accessToken', 'token']);
-      final refresh =
-          pickString(tokens, const ['refreshToken', 'refresh_token']) ??
-          pickString(body, const ['refreshToken', 'refresh_token']);
-
-      if (access == null) return null;
-
-      await UserLocalStorage.saveTokens(
-        accessToken: access,
-        refreshToken: refresh ?? refreshToken,
-      );
-      debugPrint('🔄 v2 │ Access token refreshed');
-      return access;
-    } catch (error) {
-      debugPrint('🔄 v2 │ Token refresh failed: $error');
-      return null;
-    }
-  }
+  BookingApiV2._internal();
 
   // ---------------------------------------------------------------------------
   // Common — cities & geo resolution
@@ -169,9 +62,9 @@ class BookingApiV2 {
 
   /// All bookable cities.
   Future<ApiResult<List<CityV2>>> getCities() {
-    return _request(
-      () => _dio.get('cities'),
-      parse: (payload) => _listOf(payload, const [
+    return request(
+      () => dio.get('cities'),
+      parse: (payload) => V2ApiClient.listOf(payload, const [
         'cities',
         'data',
         'items',
@@ -183,12 +76,12 @@ class BookingApiV2 {
   ///
   /// Only needed when `GET /cities` does not nest them.
   Future<ApiResult<List<AirportV2>>> getAirports({String? cityId}) {
-    return _request(
-      () => _dio.get(
+    return request(
+      () => dio.get(
         'airports',
         queryParameters: {if (cityId != null) 'cityId': cityId},
       ),
-      parse: (payload) => _listOf(payload, const [
+      parse: (payload) => V2ApiClient.listOf(payload, const [
         'airports',
         'data',
         'items',
@@ -198,12 +91,12 @@ class BookingApiV2 {
 
   /// Terminals, optionally scoped to an airport.
   Future<ApiResult<List<TerminalV2>>> getTerminals({String? airportId}) {
-    return _request(
-      () => _dio.get(
+    return request(
+      () => dio.get(
         'terminals',
         queryParameters: {if (airportId != null) 'airportId': airportId},
       ),
-      parse: (payload) => _listOf(payload, const [
+      parse: (payload) => V2ApiClient.listOf(payload, const [
         'terminals',
         'data',
         'items',
@@ -220,8 +113,8 @@ class BookingApiV2 {
     required double lat,
     required double lng,
   }) {
-    return _request(
-      () => _dio.post('geo/resolve-city', data: {'lat': lat, 'lng': lng}),
+    return request(
+      () => dio.post('geo/resolve-city', data: {'lat': lat, 'lng': lng}),
       parse: (payload) => ResolvedCity.fromJson(asMap(payload)),
       // A 404 here means "no serviced city covers this point" — a valid answer,
       // not a transport failure.
@@ -237,8 +130,8 @@ class BookingApiV2 {
     required double lat,
     required double lng,
   }) {
-    return _request(
-      () => _dio.post('resolve-zone', data: {'lat': lat, 'lng': lng}),
+    return request(
+      () => dio.post('resolve-zone', data: {'lat': lat, 'lng': lng}),
       parse: (payload) => ResolvedZone.fromJson(asMap(payload)),
       onNotFound: (message) =>
           ResolvedZone(isServiceable: false, message: message),
@@ -255,8 +148,8 @@ class BookingApiV2 {
   /// populated as soon as the screen opens. The backend re-validates the chosen
   /// duration on session init.
   Future<ApiResult<ChauffeurOptions>> getChauffeurOptions() {
-    return _request(
-      () => _dio.get('chauffeur/options'),
+    return request(
+      () => dio.get('chauffeur/options'),
       parse: (payload) => ChauffeurOptions.fromJson(asMap(payload)),
     );
   }
@@ -290,7 +183,7 @@ class BookingApiV2 {
     final prefix = isArrival ? 'dropOff' : 'pickup';
 
     return _sessionRequest(
-      () => _dio.post(
+      () => dio.post(
         serviceType.sessionInitPath,
         data: {
           'transferSubType': serviceType.transferSubType,
@@ -322,7 +215,7 @@ class BookingApiV2 {
     required DateTime pickupDateTime,
   }) {
     return _sessionRequest(
-      () => _dio.post(
+      () => dio.post(
         BookingServiceType.privateTransfer.sessionInitPath,
         data: {
           'pickupLat': pickupLat,
@@ -352,7 +245,7 @@ class BookingApiV2 {
     ChauffeurType chauffeurType = ChauffeurType.hourly,
   }) {
     return _sessionRequest(
-      () => _dio.post(
+      () => dio.post(
         BookingServiceType.chauffeur.sessionInitPath,
         data: {
           'chauffeurType': chauffeurType.wireValue,
@@ -376,8 +269,8 @@ class BookingApiV2 {
     String? categoryId,
     String? brandId,
   }) {
-    return _request(
-      () => _dio.get(
+    return request(
+      () => dio.get(
         'bookings/session/vehicles',
         queryParameters: {
           if (categoryId != null && categoryId.isNotEmpty)
@@ -432,7 +325,7 @@ class BookingApiV2 {
     }
 
     return _sessionRequest(
-      () => _dio.patch('bookings/session/vehicle', data: body),
+      () => dio.patch('bookings/session/vehicle', data: body),
     );
   }
 
@@ -463,7 +356,7 @@ class BookingApiV2 {
     required String passengerPhone,
   }) {
     return _sessionRequest(
-      () => _dio.patch(
+      () => dio.patch(
         'bookings/session/passenger',
         data: {
           'passengersCount': passengersCount,
@@ -480,16 +373,16 @@ class BookingApiV2 {
 
   /// The authoritative price breakdown for the draft.
   Future<ApiResult<CheckoutDetails>> getCheckout() {
-    return _request(
-      () => _dio.get('bookings/session/checkout'),
+    return request(
+      () => dio.get('bookings/session/checkout'),
       parse: (payload) => CheckoutDetails.fromJson(asMap(payload)),
     );
   }
 
   /// Apply a coupon and get the recalculated checkout back.
   Future<ApiResult<CheckoutDetails>> applyCoupon(String couponCode) {
-    return _request(
-      () => _dio.post(
+    return request(
+      () => dio.post(
         'bookings/session/coupon',
         data: {'couponCode': couponCode.trim()},
       ),
@@ -499,8 +392,8 @@ class BookingApiV2 {
 
   /// Remove the applied coupon and get the recalculated checkout back.
   Future<ApiResult<CheckoutDetails>> removeCoupon() {
-    return _request(
-      () => _dio.delete('bookings/session/coupon'),
+    return request(
+      () => dio.delete('bookings/session/coupon'),
       parse: (payload) => CheckoutDetails.fromJson(asMap(payload)),
     );
   }
@@ -511,8 +404,8 @@ class BookingApiV2 {
   /// outright (zero total) or `pending_payment` alongside a payment transaction,
   /// in which case the response carries the PayTabs SDK parameters to use.
   Future<ApiResult<ConfirmBookingResult>> confirmBooking() {
-    return _request(
-      () => _dio.post('bookings/session/confirm'),
+    return request(
+      () => dio.post('bookings/session/confirm'),
       parse: (payload) => ConfirmBookingResult.fromJson(asMap(payload)),
     );
   }
@@ -526,8 +419,8 @@ class BookingApiV2 {
   Future<ApiResult<PaymentVerificationResult>> verifyPayment({
     required String bookingNumber,
   }) {
-    return _request(
-      () => _dio.post(
+    return request(
+      () => dio.post(
         'bookings/session/verify-payment',
         data: {'bookingNumber': bookingNumber},
       ),
@@ -550,8 +443,8 @@ class BookingApiV2 {
     int page = 1,
     int limit = 10,
   }) {
-    return _request(
-      () => _dio.get(
+    return request(
+      () => dio.get(
         'bookings/my-bookings',
         queryParameters: {
           'status': tab?.wireValue ?? BookingTab.allWireValue,
@@ -565,8 +458,8 @@ class BookingApiV2 {
 
   /// Full booking detail, including the progress timeline.
   Future<ApiResult<BookingV2>> getBookingById(String bookingId) {
-    return _request(
-      () => _dio.get('bookings/$bookingId'),
+    return request(
+      () => dio.get('bookings/$bookingId'),
       parse: (payload) => BookingV2.fromJson(asMap(payload)),
     );
   }
@@ -584,8 +477,8 @@ class BookingApiV2 {
     required String bookingId,
     String? reason,
   }) {
-    return _request(
-      () => _dio.post(
+    return request(
+      () => dio.post(
         'bookings/$bookingId/cancel',
         data: {
           if (reason != null && reason.trim().isNotEmpty)
@@ -594,6 +487,83 @@ class BookingApiV2 {
       ),
       parse: (payload) => BookingCancellation.fromJson(asMap(payload)),
     );
+  }
+
+  /// Download the ZATCA-compliant VAT invoice PDF for a booking.
+  ///
+  /// The endpoint streams `application/pdf` rather than the usual JSON envelope,
+  /// so the response is read as bytes and the outcome is judged from the status
+  /// code and content type. A rejection still arrives as JSON — an unpaid
+  /// booking, or one belonging to somebody else — and its message is unwrapped
+  /// so the caller can show it verbatim.
+  ///
+  /// [invoicePath] is the booking's own `invoiceUrl` when it carries one; it is
+  /// an absolute API path, which Dio resolves against the host rather than the
+  /// `/api/v2/` base.
+  Future<ApiResult<Uint8List>> downloadInvoice({
+    required String bookingId,
+    String? invoicePath,
+  }) async {
+    final path = (invoicePath?.trim().isNotEmpty ?? false)
+        ? invoicePath!.trim()
+        : 'bookings/$bookingId/invoice';
+
+    try {
+      final response = await dio.get<List<int>>(
+        path,
+        options: Options(
+          responseType: ResponseType.bytes,
+          // The PDF is generated on demand, which takes longer than a read.
+          receiveTimeout: const Duration(seconds: 45),
+          headers: {'Accept': 'application/pdf'},
+        ),
+      );
+
+      final status = response.statusCode ?? 0;
+      final bytes = response.data;
+
+      if (status >= 400 || bytes == null || bytes.isEmpty) {
+        return ApiResult<Uint8List>.failure(
+          _invoiceErrorMessage(bytes) ?? V2ApiClient.statusMessage(status),
+          statusCode: status,
+        );
+      }
+
+      // A JSON body here means the server rejected the request while still
+      // answering 200 — the envelope's `success: false` case.
+      final contentType = response.headers.value('content-type') ?? '';
+      if (!contentType.toLowerCase().contains('pdf')) {
+        return ApiResult<Uint8List>.failure(
+          _invoiceErrorMessage(bytes) ?? 'Invoice is not available yet.',
+          statusCode: status,
+        );
+      }
+
+      debugPrint('🧾 v2 │ invoice downloaded (${bytes.length} bytes)');
+      return ApiResult<Uint8List>.ok(Uint8List.fromList(bytes));
+    } on DioException catch (error) {
+      return ApiResult<Uint8List>.failure(
+        V2ApiClient.dioMessage(error),
+        statusCode: error.response?.statusCode,
+      );
+    } catch (error) {
+      debugPrint('💥 v2 │ invoice download failed: $error');
+      return ApiResult<Uint8List>.failure(
+        'Could not open the invoice. Please try again.',
+      );
+    }
+  }
+
+  /// Read the `message` out of an error body that arrived where a PDF was
+  /// expected.
+  static String? _invoiceErrorMessage(List<int>? bytes) {
+    if (bytes == null || bytes.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(utf8.decode(bytes));
+      return pickString(asMap(decoded), const ['message', 'error']);
+    } catch (_) {
+      return null;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -625,100 +595,9 @@ class BookingApiV2 {
   Future<ApiResult<BookingSession>> _sessionRequest(
     Future<Response<dynamic>> Function() send,
   ) {
-    return _request(
+    return request(
       send,
       parse: (payload) => BookingSession.fromJson(asMap(payload)),
     );
-  }
-
-  /// Run [send], unwrap the `{success, message, data}` envelope, and hand the
-  /// inner payload to [parse].
-  ///
-  /// [onNotFound] converts a 404 into a successful result — used by the geo
-  /// lookups, where "nothing matched" is an answer rather than an error.
-  Future<ApiResult<T>> _request<T>(
-    Future<Response<dynamic>> Function() send, {
-    required T Function(dynamic payload) parse,
-    T Function(String? message)? onNotFound,
-  }) async {
-    try {
-      final response = await send();
-      final body = asMap(response.data);
-      final status = response.statusCode ?? 0;
-      final message = pickString(body, const ['message', 'error']);
-      // `success` may be absent on bare payloads; fall back to the status code.
-      final succeeded =
-          pickBool(body, const ['success']) ?? (status >= 200 && status < 300);
-
-      if (!succeeded || status >= 400) {
-        if (status == 404 && onNotFound != null) {
-          debugPrint('🧭 v2 │ not serviceable → ${message ?? "(no message)"}');
-          return ApiResult<T>.ok(onNotFound(message), message: message);
-        }
-        // A 2xx carrying `success: false` is easy to miss in the raw log, so
-        // the interpreted outcome is recorded separately.
-        debugPrint(
-          '🚫 v2 │ rejected [$status] → ${message ?? _statusMessage(status)}',
-        );
-        return ApiResult<T>.failure(
-          message ?? _statusMessage(status),
-          statusCode: status,
-        );
-      }
-
-      // Endpoints nest their payload under `data`; a few return it at the root.
-      final payload = body.containsKey('data') ? body['data'] : body;
-      final parsed = parse(payload);
-      debugPrint('✅ v2 │ parsed $T${message == null ? '' : ' → $message'}');
-      return ApiResult<T>.ok(parsed, message: message);
-    } on DioException catch (error) {
-      return ApiResult<T>.failure(
-        _dioMessage(error),
-        statusCode: error.response?.statusCode,
-      );
-    } catch (error, stackTrace) {
-      // Almost always a shape mismatch between the response and the model.
-      // Named explicitly because the v2 payloads are still being finalised, and
-      // a parse failure must not crash the booking flow.
-      debugPrint('💥 v2 │ failed to parse $T: $error');
-      debugPrint('$stackTrace');
-      return ApiResult<T>.failure('Something went wrong. Please try again.');
-    }
-  }
-
-  static List<Map<String, dynamic>> _listOf(
-    dynamic payload,
-    List<String> keys,
-  ) {
-    if (payload is List) return asMapList(payload);
-    return pickMapList(asMap(payload), keys);
-  }
-
-  static String _statusMessage(int statusCode) => switch (statusCode) {
-    400 => 'Please check the details and try again.',
-    401 => 'Your session has expired. Please sign in again.',
-    403 => 'You are not allowed to perform this action.',
-    404 => 'This service is not available for the selected details.',
-    409 => 'This booking has already been processed.',
-    422 => 'Please check the details and try again.',
-    _ => 'Server error ($statusCode). Please try again.',
-  };
-
-  static String _dioMessage(DioException error) {
-    final data = error.response?.data;
-    final serverMessage = data is Map
-        ? pickString(asMap(data), const ['message', 'error'])
-        : null;
-    if (serverMessage != null) return serverMessage;
-
-    return switch (error.type) {
-      DioExceptionType.connectionTimeout ||
-      DioExceptionType.sendTimeout ||
-      DioExceptionType.receiveTimeout => 'Request timed out. Please try again.',
-      DioExceptionType.connectionError =>
-        'No internet connection. Please check your network.',
-      DioExceptionType.cancel => 'Request was cancelled.',
-      _ => _statusMessage(error.response?.statusCode ?? 0),
-    };
   }
 }

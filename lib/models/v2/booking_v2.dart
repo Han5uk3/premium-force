@@ -295,6 +295,7 @@ class BookingV2 {
     this.payment,
     this.refund,
     this.timeline = const [],
+    this.invoiceUrl,
     this.createdAt,
     this.updatedAt,
   });
@@ -320,6 +321,14 @@ class BookingV2 {
 
   /// Empty on list payloads; populated on detail.
   final List<BookingTimelineStep> timeline;
+
+  /// Path to the ZATCA-compliant VAT invoice PDF, relative to the API root
+  /// (`/api/v2/bookings/:id/invoice`).
+  ///
+  /// The backend attaches it only once the booking is paid for or confirmed and
+  /// leaves it null while payment is pending or has failed, so its presence is
+  /// what decides whether an invoice can be opened.
+  final String? invoiceUrl;
 
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -361,6 +370,7 @@ class BookingV2 {
       timeline: pickMapList(json, const [
         'timeline',
       ]).map(BookingTimelineStep.fromJson).toList(),
+      invoiceUrl: pickString(json, const ['invoiceUrl']),
       createdAt: pickDateTime(json, const ['createdAt']),
       updatedAt: pickDateTime(json, const ['updatedAt']),
     );
@@ -405,6 +415,12 @@ class BookingV2 {
 
   /// Whether a refund has been issued or is in flight.
   bool get hasRefund => refund != null;
+
+  /// Whether a VAT invoice can be opened for this booking.
+  bool get hasInvoice => (invoiceUrl?.trim().isNotEmpty ?? false);
+
+  /// Whether the ride is finished, which is what gates rating the driver.
+  bool get isCompleted => status == BookingStatusV2.completed;
 
   /// Total charged, in the checkout currency.
   double get totalAmount => pricing?.totalAmount ?? 0;

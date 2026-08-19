@@ -77,7 +77,7 @@ Map<String, dynamic> asMap(dynamic value) {
 List<Map<String, dynamic>> asMapList(dynamic value) {
   if (value is! List) return const [];
   return value
-      .where((entry) => entry is Map)
+      .whereType<Map>()
       .map(asMap)
       .where((entry) => entry.isNotEmpty)
       .toList();

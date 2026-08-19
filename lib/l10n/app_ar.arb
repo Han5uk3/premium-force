@@ -388,5 +388,14 @@
   "verificationPending": "قيد التحقق",
   "discountApproved": "تمت الموافقة على الخصم",
   "discountRejected": "تم رفض الخصم",
-  "nHours": "{count, plural, =1{ساعة واحدة} =2{ساعتين} few{{count} ساعات} other{{count} ساعة}}"
+  "nHours": "{count, plural, =1{ساعة واحدة} =2{ساعتين} few{{count} ساعات} other{{count} ساعة}}",
+  "viewInvoice": "عرض الفاتورة",
+  "preparingInvoice": "جارٍ تحضير الفاتورة...",
+  "invoiceNotAvailableYet": "ستتوفر الفاتورة بعد تأكيد الدفع.",
+  "noPdfViewerFound": "لا يوجد تطبيق لعرض ملفات PDF على هذا الجهاز. تم حفظ الفاتورة في ملفاتك.",
+  "couldNotOpenInvoice": "تعذر فتح الفاتورة. يرجى المحاولة مرة أخرى.",
+  "pleaseSelectRating": "يرجى اختيار التقييم أولاً.",
+  "markAllAsRead": "تعيين الكل كمقروء",
+  "allNotificationsMarkedRead": "تم تعيين جميع الإشعارات كمقروءة",
+  "notificationsCleared": "تم مسح جميع الإشعارات"
 }

@@ -231,6 +231,20 @@ class ApiService {
     }
   }
 
+  /// The preferred-language and push-token fields the auth endpoints accept.
+  ///
+  /// Registration, OTP verification and both social logins all take the same
+  /// optional pair, and all of them treat a missing value as "leave unchanged" —
+  /// so blank entries are dropped rather than sent empty.
+  static Map<String, String> _localePayload(String? locale, String? fcmToken) {
+    final language = locale?.trim();
+    final token = fcmToken?.trim();
+    return {
+      if (language != null && language.isNotEmpty) 'locale': language,
+      if (token != null && token.isNotEmpty) 'fcmToken': token,
+    };
+  }
+
   /// Attach a Bearer token for authenticated requests.
   Options _authOptions(String token) =>
       Options(headers: {'Authorization': 'Bearer $token'});
@@ -265,11 +279,16 @@ class ApiService {
   /// On success the backend returns:
   /// - `accessToken` / `refreshToken`
   /// - `user` (if the user already exists in DB)
+  ///
+  /// [locale] and [fcmToken] ride along so the backend can start addressing this
+  /// user in their language, and on this device, from the moment they log in.
   Future<Map<String, dynamic>> verifyOtp({
     required String countryCode,
     required String phoneNumber,
     required String otp,
     String purpose = 'login',
+    String? locale,
+    String? fcmToken,
   }) async {
     try {
       final response = await _dio.post(
@@ -279,6 +298,7 @@ class ApiService {
           'phoneNumber': phoneNumber,
           'otp': otp,
           'purpose': purpose,
+          ..._localePayload(locale, fcmToken),
         },
       );
       return _success(response);
@@ -310,9 +330,13 @@ class ApiService {
   ///
   /// Sends the Google [idToken] along with platform type to the backend.
   /// The endpoint lives at `/auth/google` (outside the `/api` prefix).
-  Future<Map<String, dynamic>> googleAuth({required String idToken}) async {
+  Future<Map<String, dynamic>> googleAuth({
+    required String idToken,
+    String? locale,
+    String? fcmToken,
+  }) async {
     try {
-      final data = {'idToken': idToken};
+      final data = {'idToken': idToken, ..._localePayload(locale, fcmToken)};
 
       dev.log('🔐 Google Auth │ Sending data: $data');
 
@@ -331,9 +355,13 @@ class ApiService {
   ///
   /// Sends the Apple [idToken] along with platform type to the backend.
   /// The endpoint lives at `/auth/apple` (outside the `/api` prefix).
-  Future<Map<String, dynamic>> appleAuth({required String idToken}) async {
+  Future<Map<String, dynamic>> appleAuth({
+    required String idToken,
+    String? locale,
+    String? fcmToken,
+  }) async {
     try {
-      final data = {'idToken': idToken};
+      final data = {'idToken': idToken, ..._localePayload(locale, fcmToken)};
 
       dev.log('🍎 Apple Auth │ Sending data: $data');
 
@@ -367,6 +395,8 @@ class ApiService {
     String role = 'customer',
     File? profileImage,
     String? token,
+    String? locale,
+    String? fcmToken,
   }) async {
     try {
       final formData = FormData.fromMap({
@@ -375,6 +405,7 @@ class ApiService {
         'countryCode': countryCode,
         'phoneNumber': phoneNumber,
         'role': role,
+        ..._localePayload(locale, fcmToken),
         if (location != null) 'location': location,
         if (lat != null) 'lat': lat.toString(),
         if (long != null) 'long': long.toString(),
@@ -410,6 +441,8 @@ class ApiService {
             role: role,
             profileImage: profileImage,
             token: newToken,
+            locale: locale,
+            fcmToken: fcmToken,
           );
         }
       }

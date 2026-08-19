@@ -8,12 +8,13 @@ import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/providers/user_provider.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/providers/payment_provider.dart';
+import 'package:premium_force_main/providers/notification_provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:premium_force_main/firebase_options.dart';
+import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
-import 'package:premium_force_main/storage/notification_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -26,6 +27,12 @@ import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platf
 /// Global navigator key – allows navigating from outside a widget tree
 /// (e.g. when the user taps a push notification).
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+/// The notification centre's state.
+///
+/// Created outside the widget tree so a push arriving before (or without) any
+/// screen being mounted can still refresh the feed and the unread badge.
+final NotificationProvider notificationProvider = NotificationProvider();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -83,13 +90,18 @@ void main() async {
     }
   }
   await UserLocalStorage.init();
-  await NotificationStorage.init();
 
   // Initialise push notifications
   await NotificationService.instance.init();
 
   // Optional: react to notification taps globally
   NotificationService.instance.onNotificationTap = _handleNotificationTap;
+
+  // A push only announces that something happened; the notification centre is
+  // server-backed, so the app answers by re-reading the feed.
+  NotificationService.instance.onMessageReceived = (_) {
+    notificationProvider.refresh(silent: true);
+  };
 
   runApp(const MainApp());
 }
@@ -145,6 +157,30 @@ class _MainAppState extends State<MainApp> {
     });
     // Persist the selected language to Hive
     UserLocalStorage.saveLanguage(locale.languageCode);
+    _syncLocaleWithBackend(locale.languageCode);
+  }
+
+  /// Mirror the chosen language onto the customer's account.
+  ///
+  /// Pushes and emails are rendered server-side, so the backend has to know
+  /// which language to use. The call is fire-and-forget: the UI has already
+  /// switched and Hive holds the choice, so a failure here only means the server
+  /// keeps using the previous language until the next successful sync.
+  void _syncLocaleWithBackend(String languageCode) {
+    if (!UserLocalStorage.isLoggedIn) return;
+
+    UserApiV2()
+        .updateSettings(
+          locale: languageCode,
+          fcmToken: UserLocalStorage.getFcmToken(),
+        )
+        .then((result) {
+          if (result.success) {
+            debugPrint('🌐 Locale │ synced with backend: $languageCode');
+          } else {
+            debugPrint('🌐 Locale │ sync failed: ${result.message}');
+          }
+        });
   }
 
   @override
@@ -159,6 +195,7 @@ class _MainAppState extends State<MainApp> {
         ChangeNotifierProvider.value(value: _userProvider),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
+        ChangeNotifierProvider.value(value: notificationProvider),
       ],
       child: SafeArea(
         top: false,

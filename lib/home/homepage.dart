@@ -5,8 +5,7 @@ import 'package:premium_force_main/common_widgets/booking_shimmer.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/notifications/notification_screen.dart';
-import 'package:premium_force_main/storage/notification_storage.dart';
-import 'package:premium_force_main/models/notification_model.dart';
+import 'package:premium_force_main/providers/notification_provider.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:premium_force_main/common_widgets/borderedcontainer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
@@ -67,6 +66,9 @@ class _HomepageState extends State<Homepage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         Provider.of<BookingProvider>(context, listen: false).fetchBookings();
+        // Populates the unread badge in the app bar; the notification centre
+        // re-reads the feed itself when opened.
+        Provider.of<NotificationProvider>(context, listen: false).refresh();
       }
     });
   }
@@ -1144,12 +1146,11 @@ class _HomepageState extends State<Homepage>
                   ),
                 ),
                 const SizedBox(width: 16),
-                ValueListenableBuilder<List<AppNotification>>(
-                  valueListenable: NotificationStorage.notificationsView,
-                  builder: (context, notifications, child) {
-                    final unreadCount = notifications
-                        .where((n) => !n.isRead)
-                        .length;
+                // The badge tracks the server-side unread count, which is
+                // what the notification centre reconciles read state against.
+                Consumer<NotificationProvider>(
+                  builder: (context, notificationProvider, child) {
+                    final unreadCount = notificationProvider.unreadCount;
                     return Stack(
                       children: [
                         IconButton(

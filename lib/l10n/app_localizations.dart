@@ -2353,6 +2353,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 Hour} other{{count} Hours}}'**
   String nHours(int count);
+
+  /// No description provided for @viewInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'View Invoice'**
+  String get viewInvoice;
+
+  /// No description provided for @preparingInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your invoice...'**
+  String get preparingInvoice;
+
+  /// No description provided for @invoiceNotAvailableYet.
+  ///
+  /// In en, this message translates to:
+  /// **'The invoice will be available once your payment is confirmed.'**
+  String get invoiceNotAvailableYet;
+
+  /// No description provided for @noPdfViewerFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No PDF viewer was found on this device. The invoice has been saved to your files.'**
+  String get noPdfViewerFound;
+
+  /// No description provided for @couldNotOpenInvoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the invoice. Please try again.'**
+  String get couldNotOpenInvoice;
+
+  /// No description provided for @pleaseSelectRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a rating first.'**
+  String get pleaseSelectRating;
+
+  /// No description provided for @markAllAsRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as read'**
+  String get markAllAsRead;
+
+  /// No description provided for @allNotificationsMarkedRead.
+  ///
+  /// In en, this message translates to:
+  /// **'All notifications marked as read'**
+  String get allNotificationsMarkedRead;
+
+  /// No description provided for @notificationsCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'All notifications cleared'**
+  String get notificationsCleared;
 }
 
 class _AppLocalizationsDelegate

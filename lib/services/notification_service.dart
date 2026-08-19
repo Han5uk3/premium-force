@@ -5,12 +5,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:premium_force_main/storage/user_local_storage.dart';
-import 'package:premium_force_main/storage/notification_storage.dart';
-import 'package:premium_force_main/models/notification_model.dart';
 import 'package:premium_force_main/api/apis.dart';
-import 'package:uuid/uuid.dart';
+import 'package:premium_force_main/api/user_api_v2.dart';
+import 'package:premium_force_main/storage/user_local_storage.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Top-level background handler (must be a top-level / static function)
@@ -18,27 +15,16 @@ import 'package:uuid/uuid.dart';
 
 /// Called by FCM when a data-only message arrives while the app is terminated
 /// or in the background.  Keep this as lightweight as possible – no UI work.
+///
+/// The message is not stored locally: the backend already recorded it in the
+/// notification centre, which the app re-reads on next launch. This handler
+/// exists so Firebase can wake the isolate and display the system notification.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Ensure Firebase is initialized (though usually it is)
   await Firebase.initializeApp();
 
-  // Initialize Hive for the background isolate
-  await Hive.initFlutter();
-  await NotificationStorage.init();
-
   debugPrint('🔔 FCM [background] │ ${message.messageId}');
-
-  if (message.notification != null) {
-    final notification = AppNotification(
-      id: message.messageId ?? const Uuid().v4(),
-      title: message.notification!.title ?? 'No Title',
-      body: message.notification!.body ?? '',
-      timestamp: DateTime.now(),
-      data: message.data,
-    );
-    await NotificationStorage.saveNotification(notification);
-  }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -79,6 +65,12 @@ class NotificationService {
 
   // ── Callback invoked when a new FCM token is issued / refreshed
   void Function(String token)? onTokenRefresh;
+
+  /// Invoked when a push arrives while the app is in the foreground.
+  ///
+  /// The notification centre is server-backed, so the app answers by refreshing
+  /// the feed rather than by keeping its own copy of the message.
+  void Function(RemoteMessage message)? onMessageReceived;
 
   // ---------------------------------------------------------------------------
   // Initialise
@@ -204,15 +196,9 @@ class NotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
-    // Save notification to local storage
-    final appNotification = AppNotification(
-      id: message.messageId ?? const Uuid().v4(),
-      title: notification.title ?? 'No Title',
-      body: notification.body ?? '',
-      timestamp: DateTime.now(),
-      data: message.data,
-    );
-    await NotificationStorage.saveNotification(appNotification);
+    // The server already holds this notification; tell the app to re-read its
+    // feed so both the list and the unread badge pick it up.
+    onMessageReceived?.call(message);
 
     await _localPlugin.show(
       // Use hashCode so successive notifications don't overwrite each other
@@ -315,6 +301,13 @@ class NotificationService {
         } else {
           debugPrint('⚠️ FCM │ Token sync failed: ${response['message']}');
         }
+
+        // The v2 settings endpoint stores the token alongside the customer's
+        // locale, which is the language the server renders pushes and emails in.
+        await UserApiV2().updateSettings(
+          locale: UserLocalStorage.getLanguage(),
+          fcmToken: fcmToken,
+        );
       } catch (e) {
         debugPrint('❌ FCM │ Token sync error: $e');
       }
