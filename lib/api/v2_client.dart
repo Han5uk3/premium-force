@@ -191,10 +191,7 @@ abstract class V2ApiClient {
   }
 
   /// Read a list that may arrive bare or nested under one of [keys].
-  static List<Map<String, dynamic>> listOf(
-    dynamic payload,
-    List<String> keys,
-  ) {
+  static List<Map<String, dynamic>> listOf(dynamic payload, List<String> keys) {
     if (payload is List) return asMapList(payload);
     return pickMapList(asMap(payload), keys);
   }

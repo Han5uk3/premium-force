@@ -109,7 +109,19 @@ class BookingApiLogger extends Interceptor {
       '$marker $label #$id │ $status ${_path(response.requestOptions)}'
       '${elapsed == null ? '' : ' (${elapsed}ms)'}',
     );
-    _body('   $label #$id │ response', response.data);
+
+    // A binary body (the invoice PDF) is not worth rendering: pretty-printing it
+    // would turn a few hundred kilobytes into a multi-megabyte string, so only
+    // its size is logged.
+    if (response.requestOptions.responseType == ResponseType.bytes) {
+      final data = response.data;
+      final size = data is List ? data.length : null;
+      _line(
+        '   $label #$id │ response: <binary${size == null ? '' : ', $size bytes'}>',
+      );
+    } else {
+      _body('   $label #$id │ response', response.data);
+    }
 
     handler.next(response);
   }

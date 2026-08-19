@@ -308,7 +308,9 @@ class BookingApiV2 extends V2ApiClient {
       final file = File(voiceNotePath);
 
       if (!await file.exists()) {
-        debugPrint('🎙️ v2 │ Voice note gone from $voiceNotePath — sending without it');
+        debugPrint(
+          '🎙️ v2 │ Voice note gone from $voiceNotePath — sending without it',
+        );
       } else if (await file.length() > _maxVoiceNoteBytes) {
         // Refused here rather than after uploading something the server will
         // only reject.

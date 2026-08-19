@@ -168,8 +168,7 @@ class NotificationProvider extends ChangeNotifier {
     if (index == -1) return false;
 
     final removed = _notifications[index];
-    _notifications = List<NotificationV2>.from(_notifications)
-      ..removeAt(index);
+    _notifications = List<NotificationV2>.from(_notifications)..removeAt(index);
     if (!removed.isRead) {
       _unreadCount = (_unreadCount - 1).clamp(0, 1 << 30);
     }

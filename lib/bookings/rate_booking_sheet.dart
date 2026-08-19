@@ -190,7 +190,9 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
         final isFilled = star <= _rating;
 
         return IconButton(
-          onPressed: _isSubmitting ? null : () => setState(() => _rating = star),
+          onPressed: _isSubmitting
+              ? null
+              : () => setState(() => _rating = star),
           icon: Icon(
             isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
             color: isFilled ? const Color(0xFFE4A46B) : Colors.white24,

@@ -1052,7 +1052,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         ? loc.couldNotOpenInvoice
         : (outcome.message ?? loc.couldNotOpenInvoice);
 
-    AnimatedSnackBar.show(context, message, outcome.isMissingViewer ? 'I' : 'E');
+    AnimatedSnackBar.show(
+      context,
+      message,
+      outcome.isMissingViewer ? 'I' : 'E',
+    );
   }
 
   /// Rate the completed ride via `POST /reviews`.
