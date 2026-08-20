@@ -47,9 +47,18 @@ enum BookingStatusV2 {
     };
   }
 
-  /// Whether the ride is underway, which is what gates live driver tracking.
+  /// Whether the ride is underway.
   bool get isLive =>
       this == driverEnRoute || this == driverArrived || this == tripStarted;
+
+  /// Whether the driver's live position is being published for this booking,
+  /// and so whether tracking is worth offering at all.
+  ///
+  /// The driver app starts sharing when it sets the ride to `trip_started` and
+  /// stops when the ride ends, so anything earlier would open a map with no car
+  /// on it. Every route into the tracking screen is gated on this — the home
+  /// card, and the button on the booking's details.
+  bool get isTrackable => this == tripStarted;
 
   /// Whether the customer may still cancel.
   ///

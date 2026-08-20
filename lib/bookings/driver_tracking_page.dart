@@ -5,18 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
+import 'package:premium_force_main/services/driver_location_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-/// Map of a booking's route — pickup, drop-off and the road between them.
-///
-/// The driver's own position is not shown: it used to arrive over Firebase
-/// Realtime Database, and that feed has been removed. What is left is the
-/// planned journey and the driver's details, so the page still answers "who is
-/// coming, in what, and how far is the trip" — just not "where are they now".
+/// Displays a live map of the driver's location for a given booking.
 class DriverTrackingPage extends StatefulWidget {
   final BookingV2 booking;
 
@@ -28,22 +24,31 @@ class DriverTrackingPage extends StatefulWidget {
 
 class _DriverTrackingPageState extends State<DriverTrackingPage> {
   final Completer<GoogleMapController> _controller = Completer();
+  StreamSubscription? _locationSubscription;
+  StreamSubscription? _sessionSubscription;
 
+  LatLng? _driverLocation;
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
+  BitmapDescriptor? _driverIcon;
 
+  // Chauffeur timer
   bool _isChauffeur = false;
+  DateTime? _chauffeurStartTime;
+  Timer? _chauffeurTimer;
+  Duration _elapsed = Duration.zero;
+  bool _tripEnded = false;
 
   // Location permissions
   bool _locationPermissionGranted = false;
 
-  /// How long the journey takes and how far it is, once the Directions call
-  /// answers. Null until then, and for chauffeur hire, which has no drop-off to
-  /// route to.
-  String? _currentEta;
-  String? _currentDistance;
+  // Distance & ETA
+  LatLng? _lastFetchLocation;
+  String _currentEta = 'Calculating...';
+  String _currentDistance = 'Calculating...';
 
   bool _mapLayoutReady = false;
+  bool _hasFittedDriverInitialLocation = false;
   int _fetchDirectionsSeq = 0;
 
   static const String _mapStyle = '''
@@ -91,12 +96,23 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   void initState() {
     super.initState();
     _isChauffeur = _detectChauffeur();
+    _loadDriverIcon();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _checkLocationPermission();
         _initStaticMarkersAndPolylines();
+        _listenToDriverLocation();
+        _listenToSessionForChauffeur();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    _sessionSubscription?.cancel();
+    _chauffeurTimer?.cancel();
+    super.dispose();
   }
 
   bool _detectChauffeur() => widget.booking.isChauffeur;
@@ -205,7 +221,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         );
       }
     }
-    _fetchDirections();
+    _updateDriverMarker();
+    // Only fetch directions if driver location is already available.
+    // Otherwise, the Firebase listener will trigger _fetchDirections()
+    // once the driver location arrives, avoiding a race condition where
+    // a stale (no-driver) response could overwrite the correct route.
+    if (_driverLocation != null) {
+      _fetchDirections();
+    }
   }
 
   Future<void> _addMarkerWithCustomIcon({
@@ -328,6 +351,141 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     _polylines = newPolylines;
   }
 
+  // --- RTDB Listeners ---
+
+  void _listenToDriverLocation() {
+    _locationSubscription = DriverLocationService()
+        .watchLocation(widget.booking.id)
+        .listen((position) {
+          if (!mounted) return;
+
+          setState(() {
+            _driverLocation = position;
+            _updateDriverMarker();
+          });
+          _moveCameraToDriver();
+
+          // Re-route only after real movement, so a stationary driver does not
+          // burn Directions quota on every heartbeat.
+          if (_lastFetchLocation == null ||
+              Geolocator.distanceBetween(
+                    _lastFetchLocation!.latitude,
+                    _lastFetchLocation!.longitude,
+                    position.latitude,
+                    position.longitude,
+                  ) >
+                  100) {
+            _lastFetchLocation = position;
+            _fetchDirections();
+          }
+        });
+  }
+
+  void _listenToSessionForChauffeur() {
+    if (!_isChauffeur) return;
+
+    _sessionSubscription = DriverLocationService()
+        .watchChauffeurSession(widget.booking.id)
+        .listen((session) {
+          if (!mounted) return;
+
+          if (session.startedAt != null && _chauffeurStartTime == null) {
+            _chauffeurStartTime = session.startedAt;
+            _startChauffeurTimer();
+          }
+          if (!session.isActive && !_tripEnded) {
+            setState(() => _tripEnded = true);
+            _chauffeurTimer?.cancel();
+          }
+        });
+  }
+
+  void _startChauffeurTimer() {
+    _chauffeurTimer?.cancel();
+    _chauffeurTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_chauffeurStartTime != null && !_tripEnded) {
+        setState(() {
+          _elapsed = DateTime.now().difference(_chauffeurStartTime!);
+        });
+      }
+    });
+  }
+
+  Future<void> _loadDriverIcon() async {
+    if (_driverIcon != null) return;
+    try {
+      debugPrint(
+        '🚗 Loading driver pin custom asset: assets/images/car_image_generated.png',
+      );
+      final ByteData data = await rootBundle.load(
+        'assets/images/car_image_generated.png',
+      );
+      final ui.Codec codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: 140, // Increased size for better visibility on the map
+      );
+      final ui.FrameInfo fi = await codec.getNextFrame();
+      final ByteData? byteData = await fi.image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      // Already scaled to 140px above, so it is passed at 1:1.
+      _driverIcon = BitmapDescriptor.bytes(
+        byteData!.buffer.asUint8List(),
+        imagePixelRatio: 1,
+      );
+      debugPrint('🚗 Driver pin custom asset loaded successfully!');
+    } catch (e) {
+      debugPrint('⚠️ Error loading driver pin: $e');
+      _driverIcon = BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueOrange,
+      );
+    }
+    if (mounted && _driverLocation != null) {
+      setState(() {
+        _updateDriverMarker();
+      });
+    }
+  }
+
+  void _updateDriverMarker() {
+    if (_driverLocation == null) return;
+    if (!mounted) return;
+
+    final markerTitle = AppLocalizations.of(context)!.driverMarkerTitle;
+
+    final newMarkers = Set<Marker>.from(_markers);
+    newMarkers.removeWhere((m) => m.markerId.value == 'driver');
+    newMarkers.add(
+      Marker(
+        markerId: const MarkerId('driver'),
+        position: _driverLocation!,
+        icon:
+            _driverIcon ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        anchor: const Offset(0.5, 0.5),
+        infoWindow: InfoWindow(title: markerTitle),
+      ),
+    );
+    _markers = newMarkers;
+  }
+
+  Future<void> _moveCameraToDriver() async {
+    if (!_mapLayoutReady || _driverLocation == null) return;
+
+    if (!_hasFittedDriverInitialLocation) {
+      _hasFittedDriverInitialLocation = true;
+      _zoomToFitAllPins();
+      return;
+    }
+
+    final controller = await _controller.future;
+    try {
+      await controller.animateCamera(CameraUpdate.newLatLng(_driverLocation!));
+    } catch (e) {
+      debugPrint('⚠️ Error moving camera to driver: $e');
+    }
+  }
+
   Future<void> _zoomToFitAllPins() async {
     if (!mounted || !_mapLayoutReady || _markers.isEmpty) return;
     final controller = await _controller.future;
@@ -365,11 +523,6 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
   // --- Directions API ---
 
-  /// Draw the booked journey — pickup to drop-off — and read its length off the
-  /// response.
-  ///
-  /// Chauffeur hire has no drop-off, so there is no journey to route and the
-  /// distance and duration rows stay hidden.
   Future<void> _fetchDirections() async {
     final seq = ++_fetchDirectionsSeq;
     final booking = widget.booking;
@@ -377,10 +530,22 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     final pickupLng = booking.pickupLng ?? 0;
     final dropoffLat = booking.dropOffLat ?? 0;
     final dropoffLng = booking.dropOffLng ?? 0;
-    if (dropoffLat == 0 || dropoffLng == 0) return;
+    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
 
-    final origin = '$pickupLat,$pickupLng';
-    final destination = '$dropoffLat,$dropoffLng';
+    String origin, destination, waypoints = '';
+    if (_driverLocation == null) {
+      if (!hasDropoff) return;
+      origin = '$pickupLat,$pickupLng';
+      destination = '$dropoffLat,$dropoffLng';
+    } else {
+      origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
+      if (_isChauffeur || !hasDropoff) {
+        destination = '$pickupLat,$pickupLng';
+      } else {
+        destination = '$dropoffLat,$dropoffLng';
+        waypoints = '&waypoints=$pickupLat,$pickupLng';
+      }
+    }
 
     final apiKey =
         dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
@@ -388,7 +553,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
     try {
       final url =
-          'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination&key=$apiKey';
+          'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
       final response = await Dio().get(
         url,
         options: Options(
@@ -402,9 +567,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         if (routes.isNotEmpty) {
           final legs = routes.first['legs'] as List;
           int dist = 0, dur = 0;
-          for (final leg in legs) {
-            dist += (leg['distance']['value'] as num).toInt();
-            dur += (leg['duration']['value'] as num).toInt();
+          if (_driverLocation == null || legs.length < 2) {
+            for (final leg in legs) {
+              dist += (leg['distance']['value'] as num).toInt();
+              dur += (leg['duration']['value'] as num).toInt();
+            }
+          } else {
+            dist = (legs[0]['distance']['value'] as num).toInt();
+            dur = (legs[0]['duration']['value'] as num).toInt();
           }
 
           final List<LatLng> polyPoints = [];
@@ -452,6 +622,13 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       poly.add(LatLng(lat / 100000.0, lng / 100000.0));
     }
     return poly;
+  }
+
+  String _formatElapsed(Duration d) {
+    final hours = d.inHours;
+    final mins = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final secs = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return hours > 0 ? '$hours:$mins:$secs' : '$mins:$secs';
   }
 
   Future<void> _makePhoneCall(String? phoneNumber) async {
@@ -635,61 +812,59 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                             ),
                           ),
                         ],
-                        // The booked journey, once the route has been read.
-                        // Absent for chauffeur hire, which has no drop-off.
-                        if (_currentEta != null ||
-                            _currentDistance != null) ...[
-                          const SizedBox(height: 4),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (_currentEta != null)
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.timer_outlined,
-                                      color: Colors.white.withAlpha(150),
-                                      size: 14,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        '$_currentEta (approx)',
-                                        style: TextStyle(
-                                          color: Colors.white.withAlpha(150),
-                                          fontSize: 12,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
+                        const SizedBox(height: 4),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.timer_outlined,
+                                  color: Colors.white.withAlpha(150),
+                                  size: 14,
                                 ),
-                              if (_currentDistance != null) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.location_on_outlined,
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _isChauffeur
+                                        ? (_tripEnded
+                                              ? loc.tripEnded
+                                              : (_chauffeurStartTime == null
+                                                    ? "00:00:00"
+                                                    : _formatElapsed(_elapsed)))
+                                        : "$_currentEta (approx)",
+                                    style: TextStyle(
                                       color: Colors.white.withAlpha(150),
-                                      size: 14,
+                                      fontSize: 12,
                                     ),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        _currentDistance!,
-                                        style: TextStyle(
-                                          color: Colors.white.withAlpha(150),
-                                          fontSize: 12,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
-                            ],
-                          ),
-                        ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  color: Colors.white.withAlpha(150),
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _currentDistance,
+                                    style: TextStyle(
+                                      color: Colors.white.withAlpha(150),
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

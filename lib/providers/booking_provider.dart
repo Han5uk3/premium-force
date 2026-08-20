@@ -67,10 +67,14 @@ class BookingProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  /// The booking currently being driven, if any — drives the home tracking card.
-  BookingV2? get liveBooking {
+  /// The booking whose driver can be watched right now, if any — drives the
+  /// home tracking card.
+  ///
+  /// Null until the driver starts the ride: before that there is no position
+  /// being published, so the card would offer a map with nothing on it.
+  BookingV2? get trackableBooking {
     for (final booking in _bookings) {
-      if (booking.status.isLive) return booking;
+      if (booking.status.isTrackable) return booking;
     }
     return null;
   }

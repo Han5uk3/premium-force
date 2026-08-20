@@ -212,7 +212,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
             const SizedBox(height: 24),
 
-            if (booking.status.isLive)
+            // Hidden until the driver starts the ride, which is when the
+            // driver app begins publishing its position.
+            if (booking.status.isTrackable)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: PremiumButton(

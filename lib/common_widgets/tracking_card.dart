@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
+import 'package:premium_force_main/services/driver_location_service.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -15,31 +19,70 @@ class TrackingCard extends StatefulWidget {
 }
 
 class _TrackingCardState extends State<TrackingCard> {
-  /// The booked journey's duration and distance, once the route has been read.
-  /// Empty for chauffeur hire, which has no drop-off to route to.
+  StreamSubscription? _locationSubscription;
+  LatLng? _driverLocation;
+  LatLng? _lastFetchLocation;
   String _currentEta = '';
   String _currentDistance = '';
+  bool _isChauffeur = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchDirections();
+    _isChauffeur = widget.booking.isChauffeur;
+    _listenToDriverLocation();
   }
 
-  /// Read how long the booked journey takes and how far it is.
-  ///
-  /// Pickup to drop-off: the driver's own position is no longer published, so
-  /// this is the trip itself rather than a live ETA.
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToDriverLocation() {
+    _locationSubscription = DriverLocationService()
+        .watchLocation(widget.booking.id)
+        .listen((position) {
+          if (mounted) setState(() => _driverLocation = position);
+
+          // Re-route only after real movement, so a stationary driver does not
+          // burn Directions quota on every heartbeat.
+          if (_lastFetchLocation == null ||
+              Geolocator.distanceBetween(
+                    _lastFetchLocation!.latitude,
+                    _lastFetchLocation!.longitude,
+                    position.latitude,
+                    position.longitude,
+                  ) >
+                  100) {
+            _lastFetchLocation = position;
+            _fetchDirections();
+          }
+        });
+  }
+
   Future<void> _fetchDirections() async {
     final booking = widget.booking;
     final pickupLat = booking.pickupLat ?? 0;
     final pickupLng = booking.pickupLng ?? 0;
     final dropoffLat = booking.dropOffLat ?? 0;
     final dropoffLng = booking.dropOffLng ?? 0;
-    if (dropoffLat == 0 || dropoffLng == 0) return;
+    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
 
-    final origin = '$pickupLat,$pickupLng';
-    final destination = '$dropoffLat,$dropoffLng';
+    String origin, destination, waypoints = '';
+    if (_driverLocation == null) {
+      if (!hasDropoff) return;
+      origin = '$pickupLat,$pickupLng';
+      destination = '$dropoffLat,$dropoffLng';
+    } else {
+      origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
+      if (_isChauffeur || !hasDropoff) {
+        destination = '$pickupLat,$pickupLng';
+      } else {
+        destination = '$dropoffLat,$dropoffLng';
+        waypoints = '&waypoints=$pickupLat,$pickupLng';
+      }
+    }
 
     final apiKey =
         dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
@@ -47,7 +90,7 @@ class _TrackingCardState extends State<TrackingCard> {
 
     try {
       final url =
-          'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination&key=$apiKey';
+          'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
       final response = await Dio().get(
         url,
         options: Options(
@@ -61,9 +104,14 @@ class _TrackingCardState extends State<TrackingCard> {
         if (routes.isNotEmpty) {
           final legs = routes.first['legs'] as List;
           int dist = 0, dur = 0;
-          for (final leg in legs) {
-            dist += (leg['distance']['value'] as num).toInt();
-            dur += (leg['duration']['value'] as num).toInt();
+          if (_driverLocation == null || legs.length < 2) {
+            for (final leg in legs) {
+              dist += (leg['distance']['value'] as num).toInt();
+              dur += (leg['duration']['value'] as num).toInt();
+            }
+          } else {
+            dist = (legs[0]['distance']['value'] as num).toInt();
+            dur = (legs[0]['duration']['value'] as num).toInt();
           }
 
           if (mounted) {

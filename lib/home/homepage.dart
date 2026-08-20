@@ -632,9 +632,10 @@ class _HomepageState extends State<Homepage>
               _buildBookService(context, loc),
               Consumer<BookingProvider>(
                 builder: (context, bookingProvider, child) {
-                  // A ride is trackable once the driver is en-route, has
-                  // arrived, or the trip is underway.
-                  final trackingBooking = bookingProvider.liveBooking;
+                  // Only once the driver has started the ride: before that
+                  // nothing is publishing a position, so the card and the
+                  // screen behind it stay hidden.
+                  final trackingBooking = bookingProvider.trackableBooking;
                   if (trackingBooking == null) return const SizedBox.shrink();
 
                   return Column(
