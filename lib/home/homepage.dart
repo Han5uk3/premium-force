@@ -23,6 +23,7 @@ import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
+import 'package:premium_force_main/models/v2/geo_models.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/home/fleet_list_page.dart';
 import 'package:premium_force_main/models/pricing/zone_model.dart';
@@ -1458,9 +1459,10 @@ class _HomepageState extends State<Homepage>
                             final activeCities = _getFilteredCities(catcode);
                             if (activeCities.isEmpty) return;
 
+                            final selectedCity =
+                                activeCities[selectedCityIndex];
                             final cityId =
-                                (activeCities[selectedCityIndex]['_id'] ??
-                                        activeCities[selectedCityIndex]['id'])
+                                (selectedCity['_id'] ?? selectedCity['id'])
                                     ?.toString();
 
                             // Chauffeur pricing is no longer prefetched:
@@ -1477,6 +1479,11 @@ class _HomepageState extends State<Homepage>
                                     preloadedCities: _apiCities,
                                     preloadedAirports: _apiAirports,
                                     preloadedTerminals: _apiTerminals,
+                                    // Lets the booking screen open on the first
+                                    // bookable pickup time straight away.
+                                    bookingBufferHours: bookingBufferHoursOf(
+                                      selectedCity,
+                                    ),
                                   ),
                                 ),
                               );

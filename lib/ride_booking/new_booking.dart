@@ -41,6 +41,16 @@ class NewBooking extends StatefulWidget {
   final List<Map<String, dynamic>>? preloadedAirports;
   final List<Map<String, dynamic>>? preloadedTerminals;
 
+  /// The chosen city's booking buffer, in hours, as the city picker already
+  /// knew it.
+  ///
+  /// The screen opens on the first bookable pickup time, which cannot be worked
+  /// out without this; taking it from the caller means the pickers are correct
+  /// on the first frame instead of after `GET /cities` comes back. Null when
+  /// the caller had no city data of its own, in which case the buffer is read
+  /// from the cities this screen loads.
+  final int? bookingBufferHours;
+
   const NewBooking({
     super.key,
     required this.catcode,
@@ -49,6 +59,7 @@ class NewBooking extends StatefulWidget {
     this.preloadedCities,
     this.preloadedAirports,
     this.preloadedTerminals,
+    this.bookingBufferHours,
   });
 
   final String? cityId;
@@ -283,16 +294,121 @@ class _NewBookingState extends State<NewBooking> {
   BookingServiceType get _serviceType =>
       BookingServiceType.fromCatCode(_selectedCatCode);
 
-  /// The pickup instant the user chose.
+  /// Whether this product captures pickup in the secondary date/time pair.
   ///
-  /// Airport departure and chauffeur capture pickup in their own date/time
-  /// fields; arrival and private transfer use the primary pair.
+  /// Only the chauffeur section renders that pair; every other product — both
+  /// airport directions and private transfer — puts pickup in the primary one.
+  bool get _usesPickupFields => _selectedCatCode == 2;
+
+  /// The pickup instant the user chose.
   DateTime? get _pickupInstant {
-    final usesPickupFields = _selectedCatCode == 1 || _selectedCatCode == 2;
-    final date = usesPickupFields ? _selectedPickupDate : _selectedDate;
-    final time = usesPickupFields ? _selectedPickupTime : _selectedTime;
+    final date = _usesPickupFields ? _selectedPickupDate : _selectedDate;
+    final time = _usesPickupFields ? _selectedPickupTime : _selectedTime;
     if (date == null || time == null) return null;
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  /// How far ahead the selected city requires bookings to be made.
+  ///
+  /// The resolved city wins, since [_loadCarData] may have corrected which city
+  /// is selected; [NewBooking.bookingBufferHours] carries the value the city
+  /// picker already had, so the pickers are bounded before any city has loaded.
+  /// Zero only when neither knows of a buffer.
+  int get _bookingBufferHours {
+    final city =
+        (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length)
+        ? _apiCities[_selectedCityCode]
+        : null;
+
+    if (city != null) {
+      final resolved = bookingBufferHoursOf(city);
+      if (resolved != null) return resolved;
+      // Say the selection has moved to a city the caller never picked — it
+      // carries its own buffer or none at all, and the caller's value is not
+      // evidence either way.
+      final cityId = (city['_id'] ?? city['id'])?.toString();
+      if (cityId != widget.cityId) return 0;
+    }
+
+    return widget.bookingBufferHours ?? 0;
+  }
+
+  /// The earliest pickup the customer may choose: now plus the city buffer.
+  ///
+  /// Seconds are dropped so it can be compared against a [TimeOfDay]-derived
+  /// selection without the leftover seconds rejecting the very minute the
+  /// pickers offer.
+  DateTime get _earliestPickupInstant {
+    final raw = DateTime.now().add(Duration(hours: _bookingBufferHours));
+    return DateTime(raw.year, raw.month, raw.day, raw.hour, raw.minute);
+  }
+
+  /// Midnight on the first bookable day — the date picker's lower bound.
+  DateTime get _earliestPickupDate {
+    final earliest = _earliestPickupInstant;
+    return DateTime(earliest.year, earliest.month, earliest.day);
+  }
+
+  /// What the pickers are prefilled with: [_earliestPickupInstant] rounded up
+  /// to the next quarter hour.
+  ///
+  /// Rounding buys the customer a few minutes to finish the form before the
+  /// buffer overtakes the default, and reads as a pickup time rather than as
+  /// the exact minute the screen happened to open.
+  DateTime get _defaultPickupInstant {
+    final earliest = _earliestPickupInstant;
+    final overshoot = earliest.minute % 15;
+    return overshoot == 0
+        ? earliest
+        : earliest.add(Duration(minutes: 15 - overshoot));
+  }
+
+  /// Point the pickup pickers at the first bookable slot.
+  ///
+  /// Runs when the screen opens and again once the cities land, since the
+  /// buffer belongs to the city and is unknown until then. A selection is only
+  /// moved when the buffer has put it out of reach, and only ever forwards —
+  /// a time the customer picked for themselves is otherwise left alone.
+  ///
+  /// Callers own the [setState]; this only writes the fields.
+  void _prefillPickupToEarliest() {
+    final current = _pickupInstant;
+    if (current != null && !current.isBefore(_earliestPickupInstant)) return;
+
+    final target = _defaultPickupInstant;
+    final date = DateTime(target.year, target.month, target.day);
+    final time = TimeOfDay.fromDateTime(target);
+    if (_usesPickupFields) {
+      _selectedPickupDate = date;
+      _selectedPickupTime = time;
+    } else {
+      _selectedDate = date;
+      _selectedTime = time;
+    }
+  }
+
+  /// Keep [value] at or above [minimum], which [CupertinoDatePicker] asserts
+  /// about its `initialDateTime`.
+  static DateTime _clampToMinimum(DateTime value, DateTime? minimum) =>
+      (minimum != null && value.isBefore(minimum)) ? minimum : value;
+
+  /// Why a pickup earlier than [_earliestPickupInstant] is refused.
+  ///
+  /// Written inline rather than in the arb files because it interpolates the
+  /// city's buffer, which none of the existing keys carry.
+  String _bufferAdvanceMessage(BuildContext context, AppLocalizations loc) {
+    final hours = _bookingBufferHours;
+    if (hours <= 0) return loc.cannotSelectPastTimeForToday;
+
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    if (!isArabic) {
+      return 'Bookings must be made at least $hours '
+          'hour${hours == 1 ? '' : 's'} in advance.';
+    }
+    if (hours == 1) return 'يجب أن يتم الحجز قبل ساعة واحدة على الأقل';
+    if (hours == 2) return 'يجب أن يتم الحجز قبل ساعتين على الأقل';
+    if (hours <= 10) return 'يجب أن يتم الحجز قبل $hours ساعات على الأقل';
+    return 'يجب أن يتم الحجز قبل $hours ساعة على الأقل';
   }
 
   /// Step 1 → 2: create the server draft, then load the vehicles it prices.
@@ -1137,6 +1253,10 @@ class _NewBookingState extends State<NewBooking> {
 
     _syncCityIndexFromId();
 
+    // Open on the first bookable slot. The buffer is only final once the
+    // cities have loaded, so _loadCarData runs this again.
+    _prefillPickupToEarliest();
+
     // Set initial class based on catcode
     if (_selectedCatCode == 2) {
       _selectedVehicleClass = "Luxury Sedan";
@@ -1275,6 +1395,10 @@ class _NewBookingState extends State<NewBooking> {
         // Private transfer only lists cities covered by an active zone, so a
         // preselected city outside that set has to be corrected.
         if (_selectedCatCode == 3) _resetCityIfUnzoned();
+
+        // The city — and with it the buffer — is only settled here, so the
+        // prefill is redone against the buffer that actually applies.
+        _prefillPickupToEarliest();
       });
     } catch (e) {
       debugPrint('Error loading location data: $e');
@@ -1657,84 +1781,24 @@ class _NewBookingState extends State<NewBooking> {
 
                                 if (_tripInfoFormKey.currentState?.validate() ??
                                     false) {
-                                  // Check booking buffer hours for all categories
-                                  int bufferHours = 0;
-                                  if (_apiCities.isNotEmpty &&
-                                      _selectedCityCode < _apiCities.length) {
-                                    final city = _apiCities[_selectedCityCode];
-                                    bufferHours =
-                                        int.tryParse(
-                                          city['bookingBufferHours']
-                                                  ?.toString() ??
-                                              '0',
-                                        ) ??
-                                        0;
-                                  }
-
-                                  if (bufferHours > 0) {
-                                    DateTime? actualPickupDateTime;
-                                    if (_selectedCatCode == 1 ||
-                                        _selectedCatCode == 2) {
-                                      if (_selectedPickupDate != null &&
-                                          _selectedPickupTime != null) {
-                                        actualPickupDateTime = DateTime(
-                                          _selectedPickupDate!.year,
-                                          _selectedPickupDate!.month,
-                                          _selectedPickupDate!.day,
-                                          _selectedPickupTime!.hour,
-                                          _selectedPickupTime!.minute,
-                                        );
-                                      }
-                                    } else {
-                                      if (_selectedDate != null &&
-                                          _selectedTime != null) {
-                                        actualPickupDateTime = DateTime(
-                                          _selectedDate!.year,
-                                          _selectedDate!.month,
-                                          _selectedDate!.day,
-                                          _selectedTime!.hour,
-                                          _selectedTime!.minute,
-                                        );
-                                      }
-                                    }
-
-                                    if (actualPickupDateTime != null) {
-                                      if (actualPickupDateTime.isBefore(
-                                        DateTime.now().add(
-                                          Duration(hours: bufferHours),
-                                        ),
+                                  // Re-check the city's booking buffer: the
+                                  // pickers cannot offer anything earlier, but
+                                  // time passes while the form is filled in.
+                                  final actualPickupDateTime = _pickupInstant;
+                                  if (_bookingBufferHours > 0 &&
+                                      actualPickupDateTime != null &&
+                                      actualPickupDateTime.isBefore(
+                                        _earliestPickupInstant,
                                       )) {
-                                        final isArabic =
-                                            Localizations.localeOf(
-                                              context,
-                                            ).languageCode ==
-                                            'ar';
-
-                                        String errorMsgEn =
-                                            'Bookings must be made at least $bufferHours hour${bufferHours == 1 ? '' : 's'} in advance.';
-                                        String errorMsgAr = '';
-                                        if (bufferHours == 1) {
-                                          errorMsgAr =
-                                              'يجب أن يتم الحجز قبل ساعة واحدة على الأقل';
-                                        } else if (bufferHours == 2) {
-                                          errorMsgAr =
-                                              'يجب أن يتم الحجز قبل ساعتين على الأقل';
-                                        } else if (bufferHours >= 3 &&
-                                            bufferHours <= 10) {
-                                          errorMsgAr =
-                                              'يجب أن يتم الحجز قبل $bufferHours ساعات على الأقل';
-                                        } else {
-                                          errorMsgAr =
-                                              'يجب أن يتم الحجز قبل $bufferHours ساعة على الأقل';
-                                        }
-
-                                        _showCustomSnackBar(
-                                          isArabic ? errorMsgAr : errorMsgEn,
-                                          'E',
-                                        );
-                                        return;
-                                      }
-                                    }
+                                    _showCustomSnackBar(
+                                      _bufferAdvanceMessage(context, loc),
+                                      'E',
+                                    );
+                                    // Move the pickers onto the first slot that
+                                    // is still bookable, so the customer can
+                                    // see what changed and continue.
+                                    setState(_prefillPickupToEarliest);
+                                    return;
                                   }
 
                                   if (_selectedCatCode == 1 &&
@@ -3801,14 +3865,21 @@ class _NewBookingState extends State<NewBooking> {
                     child: GestureDetector(
                       onTap: () async {
                         FocusScope.of(context).requestFocus(FocusNode());
+                        // Nothing before the buffer is bookable, so the picker
+                        // does not open on it and cannot reach it.
+                        final earliest = _earliestPickupInstant;
+                        final firstDate = _earliestPickupDate;
+                        final currentDate = isPickup
+                            ? _selectedPickupDate
+                            : _selectedDate;
                         DateTime? picked = await showDatePicker(
                           context: context,
                           initialDate:
-                              (isPickup
-                                  ? _selectedPickupDate
-                                  : _selectedDate) ??
-                              DateTime.now(),
-                          firstDate: DateTime.now(),
+                              (currentDate == null ||
+                                  currentDate.isBefore(firstDate))
+                              ? firstDate
+                              : currentDate,
+                          firstDate: firstDate,
                           lastDate: DateTime(2100),
                           confirmText: loc.done,
                           builder: (context, child) {
@@ -3827,51 +3898,43 @@ class _NewBookingState extends State<NewBooking> {
                         );
                         if (picked != null) {
                           FocusScope.of(context).requestFocus(FocusNode());
+                          final keptTime = isPickup
+                              ? _selectedPickupTime
+                              : _selectedTime;
+                          // Moving back onto the first bookable day can leave
+                          // the kept time below the buffer; it is pushed up to
+                          // the earliest instead of being cleared.
+                          final combined = keptTime == null
+                              ? null
+                              : DateTime(
+                                  picked.year,
+                                  picked.month,
+                                  picked.day,
+                                  keptTime.hour,
+                                  keptTime.minute,
+                                );
+                          final needsBump =
+                              combined == null || combined.isBefore(earliest);
+                          final resolvedTime = needsBump
+                              ? TimeOfDay.fromDateTime(_defaultPickupInstant)
+                              : keptTime;
+
                           setState(() {
                             if (isPickup) {
                               _selectedPickupDate = picked;
+                              _selectedPickupTime = resolvedTime;
                             } else {
                               _selectedDate = picked;
-                            }
-                            if (isPickup) {
-                              if (_selectedPickupTime != null) {
-                                final now = DateTime.now();
-                                if (picked.year == now.year &&
-                                    picked.month == now.month &&
-                                    picked.day == now.day) {
-                                  if (_selectedPickupTime!.hour < now.hour ||
-                                      (_selectedPickupTime!.hour == now.hour &&
-                                          _selectedPickupTime!.minute <
-                                              now.minute)) {
-                                    _selectedPickupTime = null;
-                                    AnimatedSnackBar.show(
-                                      context,
-                                      loc.previouslySelectedTimeClearedAsItIsInThePast,
-                                      'I',
-                                    );
-                                  }
-                                }
-                              }
-                            } else {
-                              if (_selectedTime != null) {
-                                final now = DateTime.now();
-                                if (picked.year == now.year &&
-                                    picked.month == now.month &&
-                                    picked.day == now.day) {
-                                  if (_selectedTime!.hour < now.hour ||
-                                      (_selectedTime!.hour == now.hour &&
-                                          _selectedTime!.minute < now.minute)) {
-                                    _selectedTime = null;
-                                    AnimatedSnackBar.show(
-                                      context,
-                                      loc.previouslySelectedTimeClearedAsItIsInThePast,
-                                      'I',
-                                    );
-                                  }
-                                }
-                              }
+                              _selectedTime = resolvedTime;
                             }
                           });
+                          if (needsBump && keptTime != null) {
+                            AnimatedSnackBar.show(
+                              context,
+                              _bufferAdvanceMessage(context, loc),
+                              'I',
+                            );
+                          }
                           state.didChange(true);
                         }
                       },
@@ -3932,6 +3995,19 @@ class _NewBookingState extends State<NewBooking> {
                           Overlay.of(context).insert(overlayEntry);
                           return;
                         }
+                        // The buffer moves with the clock, so the bound is read
+                        // when the dialog opens rather than when it was built.
+                        final earliest = _earliestPickupInstant;
+                        final pickedDate =
+                            (isPickup ? _selectedPickupDate : _selectedDate) ??
+                            _earliestPickupDate;
+                        // Only bounds the wheel on the first bookable day —
+                        // any later day is open from midnight.
+                        final DateTime? minimumTime =
+                            DateUtils.isSameDay(pickedDate, earliest)
+                            ? earliest
+                            : null;
+
                         await showDialog(
                           context: context,
                           builder: (BuildContext dialogContext) {
@@ -3939,7 +4015,7 @@ class _NewBookingState extends State<NewBooking> {
                                 (isPickup
                                     ? _selectedPickupTime
                                     : _selectedTime) ??
-                                TimeOfDay.now();
+                                TimeOfDay.fromDateTime(_defaultPickupInstant);
                             String? errorMessage;
                             return StatefulBuilder(
                               builder: (context, setDialogState) {
@@ -3999,13 +4075,20 @@ class _NewBookingState extends State<NewBooking> {
                                                 mode: CupertinoDatePickerMode
                                                     .time,
                                                 use24hFormat: false,
-                                                initialDateTime: DateTime(
-                                                  DateTime.now().year,
-                                                  DateTime.now().month,
-                                                  DateTime.now().day,
-                                                  tempTime.hour,
-                                                  tempTime.minute,
+                                                // Anchored on the chosen day so
+                                                // minimumDate bounds the same
+                                                // date the wheel is showing.
+                                                initialDateTime: _clampToMinimum(
+                                                  DateTime(
+                                                    pickedDate.year,
+                                                    pickedDate.month,
+                                                    pickedDate.day,
+                                                    tempTime.hour,
+                                                    tempTime.minute,
+                                                  ),
+                                                  minimumTime,
                                                 ),
+                                                minimumDate: minimumTime,
                                                 onDateTimeChanged:
                                                     (DateTime newDateTime) {
                                                       setDialogState(() {
@@ -4025,32 +4108,30 @@ class _NewBookingState extends State<NewBooking> {
                                     actions: [
                                       TextButton(
                                         onPressed: () {
-                                          bool isToday = false;
-                                          final now = DateTime.now();
-                                          DateTime? dateToCheck = isPickup
-                                              ? _selectedPickupDate
-                                              : _selectedDate;
-                                          if (dateToCheck != null) {
-                                            if (dateToCheck.year == now.year &&
-                                                dateToCheck.month ==
-                                                    now.month &&
-                                                dateToCheck.day == now.day) {
-                                              isToday = true;
-                                            }
-                                          } else {
-                                            isToday = true;
-                                          }
-                                          if (isToday) {
-                                            if (tempTime.hour < now.hour ||
-                                                (tempTime.hour == now.hour &&
-                                                    tempTime.minute <
-                                                        now.minute)) {
-                                              setDialogState(() {
-                                                errorMessage = loc
-                                                    .cannotSelectPastTimeForToday;
-                                              });
-                                              return;
-                                            }
+                                          // The wheel can be dragged below the
+                                          // minimum before it springs back, so
+                                          // the bound is enforced again here.
+                                          final chosen = DateTime(
+                                            pickedDate.year,
+                                            pickedDate.month,
+                                            pickedDate.day,
+                                            tempTime.hour,
+                                            tempTime.minute,
+                                          );
+                                          // Against the bound the wheel was
+                                          // built with, so the button never
+                                          // refuses a time the wheel allows;
+                                          // the continue step re-checks against
+                                          // the clock as it stands then.
+                                          if (chosen.isBefore(earliest)) {
+                                            setDialogState(() {
+                                              errorMessage =
+                                                  _bufferAdvanceMessage(
+                                                    context,
+                                                    loc,
+                                                  );
+                                            });
+                                            return;
                                           }
                                           setState(() {
                                             if (isPickup) {

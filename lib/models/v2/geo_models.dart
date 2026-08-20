@@ -7,6 +7,22 @@ import 'package:premium_force_main/utils/json_utils.dart';
 /// if it resolves to an active city, and (for private transfer) to an active
 /// transfer zone. The client no longer does point-in-polygon matching locally.
 
+/// The key aliases `bookingBufferHours` has arrived under.
+const List<String> kBookingBufferHourKeys = [
+  'bookingBufferHours',
+  'booking_buffer_hours',
+  'bufferHours',
+];
+
+/// The booking buffer carried by a raw city map, whichever key it used.
+///
+/// The booking screens still pass cities around as untyped maps taken straight
+/// from the API, so they cannot read [CityV2.bookingBufferHours]; this keeps
+/// them from each having to know the aliases. Null means the city said nothing
+/// about a buffer — which is not the same as saying there is none.
+int? bookingBufferHoursOf(Map<String, dynamic> city) =>
+    pickInt(city, kBookingBufferHourKeys);
+
 /// A bookable city.
 ///
 /// `GET /cities` may or may not nest its airports/terminals; [airports] is
@@ -44,11 +60,7 @@ class CityV2 {
       id: pickId(json, const ['_id', 'id', 'cityId', 'cityID']) ?? '',
       name: pickString(json, const ['cityName', 'name', 'city']) ?? '',
       nameAr: pickString(json, const ['cityNameAr', 'nameAr', 'name_ar']),
-      bookingBufferHours: pickInt(json, const [
-        'bookingBufferHours',
-        'booking_buffer_hours',
-        'bufferHours',
-      ]),
+      bookingBufferHours: bookingBufferHoursOf(json),
       isActive: pickBool(json, const ['isActive', 'active']) ?? true,
       lat: pickDouble(json, const ['lat', 'latitude']),
       lng: pickDouble(json, const ['lng', 'long', 'longitude']),
