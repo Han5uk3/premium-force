@@ -27,6 +27,7 @@ class UserModel {
   final String role;
   final bool isActive;
   final String? isDiscountApproved;
+  final String? companyEmail;
   final DateTime createdAt;
 
   const UserModel({
@@ -43,6 +44,7 @@ class UserModel {
     this.role = 'customer',
     this.isActive = true,
     this.isDiscountApproved,
+    this.companyEmail,
     required this.createdAt,
   });
 
@@ -117,6 +119,7 @@ class UserModel {
                 ? json['createdAt'] as DateTime
                 : DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now())
           : DateTime.now(),
+      companyEmail: (json['companyEmail'] ?? json['companyMail'])?.toString()
     );
   }
 
@@ -136,6 +139,7 @@ class UserModel {
       'role': role,
       'isActive': isActive,
       'isDiscountApproved': isDiscountApproved,
+      'companyEmail': companyEmail,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -158,6 +162,7 @@ class UserModel {
     String? role,
     bool? isActive,
     String? isDiscountApproved,
+    String? companyEmail,
     DateTime? createdAt,
   }) {
     return UserModel(
@@ -173,6 +178,7 @@ class UserModel {
       specialId: specialId ?? this.specialId,
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
+      companyEmail: companyEmail ?? this.companyEmail,
       isDiscountApproved: isDiscountApproved ?? this.isDiscountApproved,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -198,6 +204,7 @@ class UserModel {
         other.specialId == specialId &&
         other.role == role &&
         other.isActive == isActive &&
+        other.companyEmail == companyEmail &&
         other.createdAt == createdAt;
   }
 
@@ -216,6 +223,7 @@ class UserModel {
       specialId,
       role,
       isActive,
+      companyEmail,
       createdAt,
     );
   }
@@ -230,6 +238,7 @@ class UserModel {
         'countryCode: $countryCode, phoneNumber: $phoneNumber, '
         'location: $location, lat: $lat, long: $long, '
         'profileImageUrl: $profileImageUrl, specialId: $specialId, '
-        'role: $role, isActive: $isActive, createdAt: $createdAt)';
+        'role: $role, isActive: $isActive, createdAt: $createdAt, '
+        'companyEmail: $companyEmail)';
   }
 }

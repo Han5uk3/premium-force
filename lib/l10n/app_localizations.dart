@@ -287,7 +287,7 @@ abstract class AppLocalizations {
   /// No description provided for @chauffeurService.
   ///
   /// In en, this message translates to:
-  /// **'Chauffeur Service'**
+  /// **'Hourly Chauffeur'**
   String get chauffeurService;
 
   /// No description provided for @serviceDuration.
@@ -713,7 +713,7 @@ abstract class AppLocalizations {
   /// No description provided for @iAmACorporateEmployee.
   ///
   /// In en, this message translates to:
-  /// **'Are you a corporate employee?'**
+  /// **'Proceed if you are affiliated with a Premium Force partner company'**
   String get iAmACorporateEmployee;
 
   /// No description provided for @createAccount.
@@ -2407,6 +2407,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All notifications cleared'**
   String get notificationsCleared;
+
+  /// No description provided for @cancellationNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancellation Note'**
+  String get cancellationNote;
+
+  /// No description provided for @cancellationReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason for cancellation'**
+  String get cancellationReason;
+
+  /// No description provided for @cancellationReasonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us why you are cancelling'**
+  String get cancellationReasonHint;
 }
 
 class _AppLocalizationsDelegate

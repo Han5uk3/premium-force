@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:premium_force_main/api/apis.dart';
+import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/common_widgets/borderedcontainer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
@@ -59,27 +61,11 @@ class _ManageProfilePageState extends State<ManageProfilePage>
 
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     log('ManageProfilePage: user = $user');
-    if (user != null) {
-      _nameController.text = user.username;
-      _emailController.text = user.email;
-      _phoneController.text = '${user.countryCode} ${user.phoneNumber}';
-      _locationController.text = user.location ?? '';
-      _specialIdController.text = user.specialId ?? '';
-      _latitude = user.lat;
-      _longitude = user.long;
-      _isCorporateEmployee =
-          user.specialId != null && user.specialId!.isNotEmpty;
-      if (_isCorporateEmployee) {
-        _initialPromoCode = user.specialId;
-        _isPromoValid = true;
-      }
+    if (user != null) _applyUser(user);
 
-      _initialName = _nameController.text.trim();
-      _initialEmail = _emailController.text.trim();
-      _initialLocation = _locationController.text.trim();
-      _initialLat = _latitude;
-      _initialLong = _longitude;
-    }
+    // The cached user fills the form immediately; the server's copy replaces it
+    // as soon as it arrives.
+    _refreshProfile();
 
     _animController = AnimationController(
       vsync: this,
@@ -90,6 +76,55 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       curve: Curves.easeOutQuart,
     );
     _animController.forward();
+  }
+
+  /// Fill the form from [user] and re-take the snapshot the save compares
+  /// against, so a field that only changed because the server said so is not
+  /// counted as an edit.
+  void _applyUser(UserModel user) {
+    _nameController.text = user.username;
+    _emailController.text = user.email;
+    _phoneController.text = '${user.countryCode} ${user.phoneNumber}';
+    _locationController.text = user.location ?? '';
+    _specialIdController.text = user.specialId ?? '';
+    _latitude = user.lat;
+    _longitude = user.long;
+    _isCorporateEmployee = user.specialId != null && user.specialId!.isNotEmpty;
+    if (_isCorporateEmployee) {
+      _companyEmailController.text = user.companyEmail ?? '';
+      _initialPromoCode = user.specialId;
+      _isPromoValid = true;
+    }
+
+    _initialName = _nameController.text.trim();
+    _initialEmail = _emailController.text.trim();
+    _initialLocation = _locationController.text.trim();
+    _initialLat = _latitude;
+    _initialLong = _longitude;
+  }
+
+  /// Re-read the profile from `GET /api/v2/user/me` when the page opens.
+  ///
+  /// The cached user the page was built from can be stale — it is whatever the
+  /// last fetch or save left in Hive — so the server is asked for the current
+  /// record and the rest of the app is put on it too.
+  ///
+  /// A failure is left silent: the form is already usable from the cache, and
+  /// an error banner over a page the customer opened to edit would be noise.
+  /// The reason is on the log either way.
+  ///
+  /// Anything already typed wins: the response is only applied while the form
+  /// still matches what it loaded with, so a slow reply cannot overwrite an
+  /// edit in progress.
+  Future<void> _refreshProfile() async {
+    final result = await UserApiV2().getProfile();
+    final user = result.data;
+    if (!mounted || user == null) return;
+
+    await context.read<AuthProvider>().updateUser(user);
+    if (!mounted || _hasUnsavedChanges) return;
+
+    setState(() => _applyUser(user));
   }
 
   @override

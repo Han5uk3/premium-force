@@ -20,13 +20,13 @@ import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/common_widgets/infinite_scroll_banner.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
+import 'package:premium_force_main/utils/date_display.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/models/v2/geo_models.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/home/fleet_list_page.dart';
-import 'package:premium_force_main/models/pricing/zone_model.dart';
 import 'package:premium_force_main/common_widgets/tracking_card.dart';
 
 class Homepage extends StatefulWidget {
@@ -44,7 +44,6 @@ class _HomepageState extends State<Homepage>
   List<Map<String, dynamic>> _apiTerminals = [];
   final ValueNotifier<bool> _isLoadingLocations = ValueNotifier(false);
   bool _isLoadingCars = false;
-  List<ZoneModel> _allZones = [];
 
   @override
   bool get wantKeepAlive => true;
@@ -160,10 +159,9 @@ class _HomepageState extends State<Homepage>
             api.getCities(),
             api.getAirports(),
             api.getTerminals(),
-            api.getZones(token: UserLocalStorage.getToken()),
           ]).catchError((e) {
             debugPrint('â Œ Error fetching location data: $e');
-            return <Map<String, dynamic>>[{}, {}, {}, {}];
+            return <Map<String, dynamic>>[{}, {}, {}];
           });
 
       if (mounted) {
@@ -236,21 +234,6 @@ class _HomepageState extends State<Homepage>
                     active.toString() == 'true';
               })
               .toList();
-
-          // Process Zones
-          final zonesData = extractListData(results[3], [
-            'zones',
-            'data',
-            'result',
-          ]);
-          _allZones = zonesData.map((z) => ZoneModel.fromJson(z)).toList();
-
-          if (kDebugMode) {
-            debugPrint('✅ 🌐 API │ Zones Loaded: ${_allZones.length}');
-            for (var z in _allZones) {
-              debugPrint('🌐 API │ Zone: ${z.nameEn} (CityID: ${z.cityId})');
-            }
-          }
         });
 
         if (kDebugMode) {
@@ -750,16 +733,9 @@ class _HomepageState extends State<Homepage>
                   physics: const NeverScrollableScrollPhysics(),
                   itemBuilder: (context, index) {
                     final booking = bookingProvider.recentBookings[index];
-                    final displayDate = booking.pickupDateTime;
-
-                    final dateStr = Bookingcard.formatDate(
-                      context,
-                      displayDate,
-                    );
-                    final timeStr = Bookingcard.formatTime(
-                      context,
-                      displayDate,
-                    );
+                    final pickup = formatPickupDisplay(context, [
+                      booking.route,
+                    ]);
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -781,13 +757,14 @@ class _HomepageState extends State<Homepage>
                           type: _getBookingName(booking, context),
                           pickup: booking.pickupAddress ?? 'N/A',
                           dropoff: booking.dropOffAddress ?? 'N/A',
-                          date: dateStr,
-                          time: timeStr,
+                          date: pickup.date,
+                          time: pickup.time,
                           ride: booking.vehicleLabel,
                           brand: booking.vehicle?.name ?? '',
                           passengers: booking.passengersCount,
                           chauffeurName: booking.driver?.name,
                           isChauffeur: booking.isChauffeur,
+                          cancellationNote: booking.cancellationNote,
                         ),
                       ),
                     );
@@ -1529,25 +1506,6 @@ class _HomepageState extends State<Homepage>
 
           return aCityIdStr == cityId && isAirportActive;
         });
-      }
-
-      // Check 2: For private transfer (CatCode 3), filter by zone availability
-      if (catcode == 3) {
-        final cityId = (c['_id'] ?? c['id'])?.toString().trim();
-        if (cityId == null || cityId.isEmpty) return false;
-
-        final hasZone = _allZones.any((z) {
-          final zoneCityId = z.cityId.trim();
-          final bool isZoneActive = z.isActive;
-          return zoneCityId == cityId && isZoneActive;
-        });
-
-        if (kDebugMode) {
-          debugPrint(
-            '🌐 Filter │ City: ${c['cityName']} (ID: $cityId) -> HasZone: $hasZone',
-          );
-        }
-        return hasZone;
       }
 
       return true;

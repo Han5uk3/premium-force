@@ -22,7 +22,6 @@ import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:premium_force_main/ride_booking/payment_rejected_page.dart';
 import 'package:premium_force_main/ride_booking/payment_cancelled_page.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:premium_force_main/models/pricing/zone_model.dart';
 import 'package:premium_force_main/api/booking_api_v2.dart';
 import 'package:premium_force_main/models/v2/available_vehicle.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
@@ -33,6 +32,9 @@ import 'package:premium_force_main/models/v2/session_models.dart';
 import 'package:premium_force_main/providers/booking_session_provider.dart';
 import 'package:premium_force_main/services/service_availability_service.dart';
 import 'package:premium_force_main/services/session_payment_service.dart';
+import 'package:premium_force_main/providers/booking_provider.dart';
+import 'package:premium_force_main/utils/date_display.dart';
+import 'package:provider/provider.dart';
 
 class NewBooking extends StatefulWidget {
   final int catcode;
@@ -85,7 +87,6 @@ class _NewBookingState extends State<NewBooking> {
   List<Map<String, dynamic>> _apiTerminals = [];
   Map<String, String> _brandIcons = {}; // Added this
   bool _isCheckingRoute = false;
-  List<ZoneModel> _allZones = []; // New field: List of all fetched API zones
 
   bool _isFilteringCars = false;
 
@@ -733,48 +734,19 @@ class _NewBookingState extends State<NewBooking> {
       _draftRoute?.durationHours ??
       _selectedEstimatedHours;
 
-  /// The pickup instant the backend stored.
-  ///
-  /// `pickupDate`/`pickupTime` are the plain local strings it holds, so they are
-  /// recombined rather than read from `pickupDateTime`, which is UTC and would
-  /// render in the device's timezone instead of the pickup city's.
-  DateTime? get _reviewPickupInstant =>
-      _instantOf(_checkoutRoute) ?? _instantOf(_draftRoute) ?? _pickupInstant;
-
-  static DateTime? _instantOf(SessionRoute? route) {
-    final date = route?.pickupDate;
-    final time = route?.pickupTime;
-    if (date == null || time == null) return null;
-    return DateTime.tryParse('${date}T$time');
-  }
-
   /// Pickup date and time as the card renders them.
   ///
-  /// Falls back to the server's own `pickupLocalTimeFormatted`
-  /// (`"10 Aug 2026, 06:00 PM"`) when no date/time pair is available, splitting
-  /// it at the comma — already in the city's timezone, just not localised.
-  ({String date, String time}) _reviewPickupDisplay(BuildContext context) {
-    final instant = _reviewPickupInstant;
-    if (instant != null) {
-      return (
-        date: Bookingcard.formatDate(context, instant),
-        time: Bookingcard.formatTime(context, instant),
+  /// Both routes are offered because the checkout summary and the session
+  /// draft each name the pickup, and whichever has come back is the one to
+  /// read; `_pickupInstant` covers the moment before either has. The rules for
+  /// choosing between the stored strings and the UTC instant live in
+  /// [formatPickupDisplay].
+  ({String date, String time}) _reviewPickupDisplay(BuildContext context) =>
+      formatPickupDisplay(
+        context,
+        [_checkoutRoute, _draftRoute],
+        fallbackInstant: _pickupInstant,
       );
-    }
-
-    final formatted = _firstNonEmpty([
-      _checkoutRoute?.pickupLocalTimeFormatted,
-      _draftRoute?.pickupLocalTimeFormatted,
-    ]);
-    if (formatted == null) return (date: '', time: '');
-
-    final separator = formatted.lastIndexOf(',');
-    if (separator <= 0) return (date: formatted, time: '');
-    return (
-      date: formatted.substring(0, separator).trim(),
-      time: formatted.substring(separator + 1).trim(),
-    );
-  }
 
   /// Localised product label, with the booked duration for chauffeur hire.
   String _reviewServiceLabel(BuildContext context, AppLocalizations loc) {
@@ -966,12 +938,18 @@ class _NewBookingState extends State<NewBooking> {
     if (_isBooking) return;
     setState(() => _isBooking = true);
 
+    // Read before the awaits so the lists can still be refreshed once this
+    // screen has been replaced by the success page.
+    final bookings = context.read<BookingProvider>();
+    var bookingCreated = false;
+
     try {
       final confirmation = await _session.confirm();
       if (confirmation == null) {
         _showCustomSnackBar(_session.errorMessage ?? loc.bookingFailed, 'E');
         return;
       }
+      bookingCreated = true;
 
       // A fully-discounted booking is already confirmed; no gateway involved.
       if (!confirmation.paymentRequired) {
@@ -1049,6 +1027,13 @@ class _NewBookingState extends State<NewBooking> {
       _showCustomSnackBar(loc.somethingWentWrong, 'E');
     } finally {
       if (mounted) setState(() => _isBooking = false);
+
+      // A booking row exists from the moment confirm succeeded, whatever the
+      // payment did afterwards, and by here its status has settled. Nothing
+      // else re-reads the cached lists — each tab is fetched only the first
+      // time it is shown — so without this the customer lands on a bookings
+      // screen missing the ride they just made.
+      if (bookingCreated) bookings.refreshBookings();
     }
   }
 
@@ -1348,17 +1333,15 @@ class _NewBookingState extends State<NewBooking> {
             _apiTerminals.isEmpty
                 ? _fetchTerminalsV2(citiesFromV2)
                 : Future.value({'success': true, 'data': _apiTerminals}),
-            ApiService().getZones(token: UserLocalStorage.getToken()),
           ]).catchError((e) {
             debugPrint('Error loading location data: $e');
-            return <Map<String, dynamic>>[{}, {}, {}];
+            return <Map<String, dynamic>>[{}, {}];
           });
 
       if (!mounted) return;
 
       final airportsResult = results[0];
       final terminalsResult = results[1];
-      final zonesResult = results[2];
 
       setState(() {
         if (citiesResponse['success'] == true) {
@@ -1385,17 +1368,6 @@ class _NewBookingState extends State<NewBooking> {
           }
         }
 
-        if (zonesResult['success'] == true) {
-          final zonesData = zonesResult['data'] ?? zonesResult['zones'];
-          if (zonesData is List) {
-            _allZones = zonesData.map((z) => ZoneModel.fromJson(z)).toList();
-          }
-        }
-
-        // Private transfer only lists cities covered by an active zone, so a
-        // preselected city outside that set has to be corrected.
-        if (_selectedCatCode == 3) _resetCityIfUnzoned();
-
         // The city — and with it the buffer — is only settled here, so the
         // prefill is redone against the buffer that actually applies.
         _prefillPickupToEarliest();
@@ -1408,11 +1380,10 @@ class _NewBookingState extends State<NewBooking> {
   /// Point [_selectedCityCode] at [NewBooking.cityId] within [_apiCities].
   ///
   /// [NewBooking.citycode] indexes the *filtered* list the caller displayed
-  /// (airport services hide cities with no airport, private transfer hides
-  /// cities with no zone), while everything on this screen indexes the full
-  /// [_apiCities]. The two only line up when nothing was filtered out, so
-  /// without this the screen resolves a different city than the user picked and
-  /// reads its airports.
+  /// (airport services hide cities with no airport), while everything on this
+  /// screen indexes the full [_apiCities]. The two only line up when nothing
+  /// was filtered out, so without this the screen resolves a different city
+  /// than the user picked and reads its airports.
   ///
   /// Called again once cities load, for the case where none were preloaded.
   void _syncCityIndexFromId() {
@@ -1422,35 +1393,6 @@ class _NewBookingState extends State<NewBooking> {
     final index = _apiCities.indexWhere(
       (c) => (c['_id'] ?? c['id'])?.toString() == cityId,
     );
-    if (index != -1) _selectedCityCode = index;
-  }
-
-  /// Move the selection to the first zone-covered city when the current one
-  /// would be hidden from the picker.
-  void _resetCityIfUnzoned() {
-    final currentCityId =
-        (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length)
-        ? (_apiCities[_selectedCityCode]['_id'] ??
-                  _apiCities[_selectedCityCode]['id'] ??
-                  '')
-              .toString()
-        : '';
-
-    final isVisible = _allZones.any(
-      (z) => z.cityId == currentCityId && z.isActive,
-    );
-    if (isVisible) return;
-
-    final visibleNames = _getAvailableCityNames(context);
-    if (visibleNames.isEmpty) return;
-
-    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-    final index = _apiCities.indexWhere((c) {
-      final name =
-          (isArabic ? (c['cityNameAr'] ?? c['cityName']) : c['cityName'])
-              .toString();
-      return name == visibleNames.first;
-    });
     if (index != -1) _selectedCityCode = index;
   }
 
@@ -4339,57 +4281,6 @@ class _NewBookingState extends State<NewBooking> {
         ),
       ),
     );
-  }
-
-  /// Get simplified list of city names for dropdowns
-  List<String> _getAvailableCityNames(BuildContext context) {
-    if (_apiCities.isNotEmpty) {
-      final isArabic = Localizations.localeOf(context).languageCode == 'ar';
-
-      return _apiCities
-          .where((c) {
-            // Check 1: City must be active
-            final bool cityActive = c['isActive'] == true;
-            if (!cityActive) return false;
-
-            // Check 2: If airport service, city must have at least one active airport
-            if (_selectedCatCode == 0 || _selectedCatCode == 1) {
-              final cityId = (c['_id'] ?? c['id'])?.toString();
-              final hasActiveAirport = _apiAirports.any((a) {
-                var aCityId = a['cityID'] ?? a['cityId'] ?? a['city_id'];
-                if (aCityId is Map) aCityId = aCityId['_id'] ?? aCityId['id'];
-                final aCityIdStr = aCityId?.toString();
-
-                // Explicitly check for false; if missing, we could assume true or false.
-                // Usually, if not specified, it's active unless deactivated.
-                final bool airportActive = a['isActive'] != false;
-                return aCityIdStr == cityId && airportActive;
-              });
-              if (!hasActiveAirport) return false;
-            }
-
-            // Check 3: For private transfer, ONLY show cities that HAVE zone pricing
-            // (as requested: show only cities where private transfer is available)
-            // Only apply this filter after zones have loaded to avoid blank dropdown
-            if (_selectedCatCode == 3 && _allZones.isNotEmpty) {
-              final cityId = (c['_id'] ?? c['id'])?.toString();
-              final hasActiveZone = _allZones.any(
-                (z) => z.cityId == cityId && z.isActive,
-              );
-              if (!hasActiveZone) return false;
-            }
-
-            return true;
-          })
-          .map(
-            (c) =>
-                (isArabic ? (c['cityNameAr'] ?? c['cityName']) : c['cityName'])
-                    .toString(),
-          )
-          .toSet()
-          .toList();
-    }
-    return [];
   }
 
   /// Get airports based on selected city (using cityID from _apiCities).

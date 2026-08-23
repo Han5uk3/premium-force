@@ -31,7 +31,7 @@
   "useAirportServicesWarning": "For airport-related bookings, please use the Airport Services section.",
   "goToBooking": "Go to booking",
   "backToHome": "Back to home",
-  "chauffeurService": "Chauffeur Service",
+  "chauffeurService": "Hourly Chauffeur",
   "serviceDuration": "Service Duration",
   "baseChauffeurChargeHourly": "Base Chauffeur Charge (Hourly)",
   "baseChauffeurCharge8Hours": "Base Chauffeur Charge (8 Hours)",
@@ -108,7 +108,7 @@
   "enterSpecialIdIFAvailable": "Enter Special ID if available",
   "enterYourSpecialId": "Enter your special ID",
   "pleaseEnterYourSpecialId": "Please enter your special ID",
-  "iAmACorporateEmployee": "Are you a corporate employee?",
+  "iAmACorporateEmployee": "Proceed if you are affiliated with a Premium Force partner company",
   "createAccount": "Create Account",
   "signIn": "Sign In",
   "mobileNumber": "Mobile Number",
@@ -402,5 +402,8 @@
   "pleaseSelectRating": "Please select a rating first.",
   "markAllAsRead": "Mark all as read",
   "allNotificationsMarkedRead": "All notifications marked as read",
-  "notificationsCleared": "All notifications cleared"
+  "notificationsCleared": "All notifications cleared",
+  "cancellationNote": "Cancellation Note",
+  "cancellationReason": "Reason for cancellation",
+  "cancellationReasonHint": "Tell us why you are cancelling"
 }

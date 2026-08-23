@@ -1,5 +1,6 @@
 import 'package:premium_force_main/api/api_result.dart';
 import 'package:premium_force_main/api/v2_client.dart';
+import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/utils/json_utils.dart';
 
 /// The account settings the app keeps in step with the backend.
@@ -25,7 +26,7 @@ class UserSettingsV2 {
   }
 }
 
-/// Client for customer account settings (`/api/v2/user/settings`).
+/// Client for the customer's own account (`/api/v2/user/…`).
 ///
 /// The backend renders push notifications and emails server-side, so it needs to
 /// know the language the customer reads. Every in-app language switch is mirrored
@@ -41,6 +42,29 @@ class UserApiV2 extends V2ApiClient {
   factory UserApiV2() => _instance;
 
   UserApiV2._internal();
+
+  /// Read the signed-in customer's profile.
+  ///
+  /// Calls `GET /api/v2/user/me`, which identifies the customer from the
+  /// bearer token rather than from an id in the path — so it needs no user id
+  /// and always answers for whoever the stored token belongs to. The token is
+  /// attached by [V2ApiClient]'s interceptor, which also refreshes and retries
+  /// on a 401.
+  ///
+  /// Returns the shared [UserModel] rather than a v2-specific type: this is
+  /// the same customer record the rest of the app already holds, and the model
+  /// tolerates both shapes the backend returns it in.
+  Future<ApiResult<UserModel>> getProfile() {
+    return request(
+      () => dio.get('user/me'),
+      parse: (payload) {
+        final body = asMap(payload);
+        // The document arrives either bare or wrapped, depending on the route.
+        final nested = pickMap(body, const ['user', 'customer', 'profile']);
+        return UserModel.fromJson(nested.isEmpty ? body : nested);
+      },
+    );
+  }
 
   /// Update the customer's preferred language and/or device push token.
   ///

@@ -11,11 +11,13 @@ import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/common_widgets/riyal_symbol.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
+import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/models/v2/review_v2.dart';
 import 'package:premium_force_main/services/invoice_service.dart';
+import 'package:premium_force_main/utils/date_display.dart';
 
 /// Detail view for a confirmed booking, backed by `GET /bookings/:id`.
 ///
@@ -133,9 +135,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     AppLocalizations loc,
     BookingV2 booking,
   ) {
-    final displayDate = booking.pickupDateTime;
-    final dateStr = Bookingcard.formatDate(context, displayDate);
-    final timeStr = Bookingcard.formatTime(context, displayDate);
+    final pickup = formatPickupDisplay(context, [booking.route]);
 
     return RefreshIndicator(
       onRefresh: _loadBooking,
@@ -171,8 +171,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 type: _getBookingCategoryName(booking, context),
                 pickup: booking.pickupAddress ?? 'N/A',
                 dropoff: booking.dropOffAddress ?? 'N/A',
-                date: dateStr,
-                time: timeStr,
+                date: pickup.date,
+                time: pickup.time,
                 ride: booking.vehicleLabel,
                 brand: booking.vehicle?.name ?? '',
                 passengers: booking.passengersCount,
@@ -180,6 +180,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               ),
             ),
             const SizedBox(height: 12),
+
+            if (booking.hasCancellationNote)
+              _buildCancellationNotice(booking, loc),
 
             if (booking.vehicle?.image != null) _buildVehicleImage(booking),
 
@@ -245,8 +248,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   fontsize: 12,
                   text: loc.viewInvoice,
                   showLoader: _isOpeningInvoice,
-                  gradient: const [Color(0xFF3A3A3A), Color(0xFF1C1C1C)],
-                  textColor: Colors.white,
+                  textColor: Colors.black,
                   onTap: _isOpeningInvoice ? () {} : _openInvoice,
                 ),
               ),
@@ -645,6 +647,57 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
+  /// The note recorded against a cancelled booking.
+  ///
+  /// Shown from the booking's own record — the cancel endpoint acknowledges
+  /// the refund but not the note, so this only appears once the booking has
+  /// been re-read.
+  Widget _buildCancellationNotice(BookingV2 booking, AppLocalizations loc) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.withAlpha(20),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade700, width: 0.5),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.cancel_outlined, color: Colors.red, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    loc.cancellationNote,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    booking.cancellationNote!.trim(),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Refund notice, shown once a cancellation has triggered a gateway refund.
   ///
   /// Reads the booking's own refund record, falling back to the cancellation
@@ -925,14 +978,30 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
+  /// Confirmation before cancelling, styled like the app's exit dialog: the
+  /// dismissive action is a plain grey text button and the one that acts is a
+  /// [PremiumButton], so the two never read as equal weight.
+  ///
+  /// The reason is required. "Yes, Cancel" stays disabled until something has
+  /// been typed, which is why the button is rebuilt from the controller rather
+  /// than built once with the dialog.
   void _showCancelDialog(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final reasonController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1105),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xff1a1a1a),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xff1a1a1a)),
+        ),
+        // The reason field raises the keyboard, which on a short screen
+        // leaves the dialog taller than the space left to it.
+        scrollable: true,
         title: Text(
-          AppLocalizations.of(context)!.cancelBooking,
+          loc.cancelBooking,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -943,62 +1012,68 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              AppLocalizations.of(context)!.cancelBookingConfirm,
+              loc.cancelBookingConfirm,
               style: const TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 16),
-            GestureDetector(
-              onTap: () {
-                AnimatedSnackBar.show(
-                  context,
-                  AppLocalizations.of(context)!.policyLinkComingSoon,
-                  'I',
-                );
-              },
-              child: Text(
-                AppLocalizations.of(context)!.viewCancellationPolicy,
-                style: const TextStyle(
-                  color: Color(0xFFE4A46B),
-                  decoration: TextDecoration.underline,
-                  fontSize: 11,
-                ),
-              ),
+            PremiumTextField(
+              title: loc.cancellationReason,
+              titleFontWeight: FontWeight.w500,
+              fontsize: 13,
+              controller: reasonController,
+              hintText: loc.cancellationReasonHint,
+              maxLines: 3,
+              blackbg: true,
+              needBorder: true,
+              keyboardType: TextInputType.multiline,
             ),
           ],
         ),
         actions: [
           TextButton(
-            child: Text(
-              AppLocalizations.of(context)!.no,
-              style: const TextStyle(color: Colors.white54),
-            ),
             onPressed: () => Navigator.pop(context),
+            child: Text(loc.no, style: const TextStyle(color: Colors.grey)),
           ),
-          TextButton(
-            child: Text(
-              AppLocalizations.of(context)!.yesCancel,
-              style: const TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
+          SizedBox(
+            height: 45,
+            // Wider than the exit dialog's button: "Yes, Cancel" is a longer
+            // label than "Exit" and would otherwise be clipped.
+            width: 110,
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: reasonController,
+              builder: (context, value, child) {
+                final reason = value.text.trim();
+                return PremiumButton(
+                  text: loc.yesCancel,
+                  enabled: reason.isNotEmpty,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _cancelBooking(reason);
+                  },
+                  fontsize: 14,
+                  showLoader: false,
+                  borderRadius: 8.0,
+                );
+              },
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              _cancelBooking();
-            },
           ),
         ],
       ),
-    );
+      // The controller outlives the builder, so it is disposed once the dialog
+      // is gone rather than inside it.
+    ).whenComplete(reasonController.dispose);
   }
 
   /// Cancel via `POST /bookings/:id/cancel`, which also triggers the automated
   /// gateway refund. The refreshed booking is re-read so the refund notice and
   /// new status appear without leaving the page.
-  Future<void> _cancelBooking() async {
+  Future<void> _cancelBooking(String reason) async {
     setState(() => _isCancelling = true);
 
-    final result = await _api.cancelBooking(bookingId: widget.bookingId);
+    final result = await _api.cancelBooking(
+      bookingId: widget.bookingId,
+      reason: reason,
+    );
     if (!mounted) return;
 
     setState(() => _isCancelling = false);

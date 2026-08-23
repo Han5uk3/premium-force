@@ -8,6 +8,7 @@ import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/booking_shimmer.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
+import 'package:premium_force_main/utils/date_display.dart';
 import 'package:provider/provider.dart';
 
 class BookingsPage extends StatefulWidget {
@@ -184,9 +185,7 @@ class _BookingsPageState extends State<BookingsPage>
             }
 
             final booking = bookings[index];
-            final displayDate = booking.pickupDateTime;
-            final dateStr = Bookingcard.formatDate(context, displayDate);
-            final timeStr = Bookingcard.formatTime(context, displayDate);
+            final pickup = formatPickupDisplay(context, [booking.route]);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
@@ -212,13 +211,14 @@ class _BookingsPageState extends State<BookingsPage>
                   type: _getBookingCategoryName(booking, context),
                   pickup: booking.pickupAddress ?? 'N/A',
                   dropoff: booking.dropOffAddress ?? 'N/A',
-                  date: dateStr,
-                  time: timeStr,
+                  date: pickup.date,
+                  time: pickup.time,
                   ride: booking.vehicleLabel,
                   brand: booking.vehicle?.name ?? '',
                   passengers: booking.passengersCount,
                   isChauffeur: booking.isChauffeur,
                   chauffeurName: booking.driver?.name,
+                  cancellationNote: booking.cancellationNote,
                 ),
               ),
             );

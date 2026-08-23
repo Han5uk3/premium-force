@@ -303,6 +303,7 @@ class BookingV2 {
     this.fleet,
     this.payment,
     this.refund,
+    this.cancellationNote,
     this.timeline = const [],
     this.invoiceUrl,
     this.createdAt,
@@ -327,6 +328,14 @@ class BookingV2 {
   final FleetV2? fleet;
   final PaymentInfoV2? payment;
   final RefundInfoV2? refund;
+
+  /// Why the booking was cancelled, as it was recorded against the booking.
+  ///
+  /// Present only on cancelled bookings, and only once somebody has written
+  /// one. The backend has spelled this key more than one way and nests it
+  /// under `cancellation` on some responses, so every placement seen so far is
+  /// read.
+  final String? cancellationNote;
 
   /// Empty on list payloads; populated on detail.
   final List<BookingTimelineStep> timeline;
@@ -376,6 +385,7 @@ class BookingV2 {
       fleet: fleetJson.isEmpty ? null : FleetV2.fromJson(fleetJson),
       payment: paymentJson.isEmpty ? null : PaymentInfoV2.fromJson(paymentJson),
       refund: refundJson.isEmpty ? null : RefundInfoV2.fromJson(refundJson),
+      cancellationNote: _cancellationNoteOf(json),
       timeline: pickMapList(json, const [
         'timeline',
       ]).map(BookingTimelineStep.fromJson).toList(),
@@ -422,6 +432,11 @@ class BookingV2 {
 
   int get passengersCount => passengerDetails?.passengersCount ?? 1;
 
+  /// Whether a cancellation note was recorded, which is what decides if the
+  /// card and the details screen show one.
+  bool get hasCancellationNote =>
+      cancellationNote?.trim().isNotEmpty ?? false;
+
   /// Whether a refund has been issued or is in flight.
   bool get hasRefund => refund != null;
 
@@ -435,6 +450,40 @@ class BookingV2 {
   double get totalAmount => pricing?.totalAmount ?? 0;
 
   String get currency => pricing?.currency ?? 'SAR';
+}
+
+/// Read the cancellation note off a booking payload.
+///
+/// The note has arrived under more than one name, and on some responses it is
+/// nested inside a `cancellation` object rather than sitting on the booking
+/// itself, so every placement is tried before giving up. A blank string counts
+/// as no note — `pickString` already treats it as absent — which keeps an
+/// empty note from rendering an empty banner.
+String? _cancellationNoteOf(Map<String, dynamic> json) {
+  final nested = pickMap(json, const [
+    'cancellation',
+    'cancellationDetails',
+    'cancelDetails',
+  ]);
+
+  return pickString(json, const [
+        'cancellationNote',
+        'cancelledNote',
+        'cancelNote',
+        'cancellationReason',
+        'cancelledReason',
+        'cancelReason',
+        'cancellationRemarks',
+      ]) ??
+      pickString(nested, const [
+        'note',
+        'notes',
+        'reason',
+        'remarks',
+        'message',
+        'cancellationNote',
+        'cancellationReason',
+      ]);
 }
 
 /// Pagination envelope for `GET /bookings/my-bookings`.

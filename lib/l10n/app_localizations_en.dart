@@ -103,7 +103,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backToHome => 'Back to home';
 
   @override
-  String get chauffeurService => 'Chauffeur Service';
+  String get chauffeurService => 'Hourly Chauffeur';
 
   @override
   String get serviceDuration => 'Service Duration';
@@ -321,7 +321,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pleaseEnterYourSpecialId => 'Please enter your special ID';
 
   @override
-  String get iAmACorporateEmployee => 'Are you a corporate employee?';
+  String get iAmACorporateEmployee =>
+      'Proceed if you are affiliated with a Premium Force partner company';
 
   @override
   String get createAccount => 'Create Account';
@@ -1233,4 +1234,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationsCleared => 'All notifications cleared';
+
+  @override
+  String get cancellationNote => 'Cancellation Note';
+
+  @override
+  String get cancellationReason => 'Reason for cancellation';
+
+  @override
+  String get cancellationReasonHint => 'Tell us why you are cancelling';
 }

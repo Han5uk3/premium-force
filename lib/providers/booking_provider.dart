@@ -170,6 +170,26 @@ class BookingProvider extends ChangeNotifier {
     }
   }
 
+  /// Re-read every list this provider holds: the home screen's recent
+  /// bookings, and each tab that has already been fetched.
+  ///
+  /// Called when a booking is created. [fetchTab] is deliberately a no-op for
+  /// a tab it has already loaded — that is what makes it safe to call on every
+  /// tab change — so a newly-made booking would otherwise stay invisible until
+  /// the customer pulled to refresh. Refreshing in place rather than through
+  /// [invalidateTabs] keeps the rows that are already on screen: nothing is
+  /// cleared, each list is simply replaced when its page arrives.
+  ///
+  /// Tabs never opened are skipped; they fetch on their own the first time
+  /// they are shown.
+  Future<void> refreshBookings() async {
+    await Future.wait([
+      fetchBookings(),
+      for (final entry in _tabs.entries)
+        if (entry.value.isLoaded) fetchTab(entry.key, force: true),
+    ]);
+  }
+
   /// Drop every tab's cache so each refetches when next shown.
   ///
   /// Used after a change that can move a booking between tabs — a cancellation

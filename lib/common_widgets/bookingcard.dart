@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' show Bidi, DateFormat;
+import 'package:intl/intl.dart' show Bidi;
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/utils/date_display.dart';
 
 class Bookingcard extends StatelessWidget {
   final String status;
@@ -16,12 +17,17 @@ class Bookingcard extends StatelessWidget {
   final bool isChauffeur;
   final String? chauffeurName;
 
+  /// The note the operator left when the booking was cancelled, shown on the
+  /// card so a cancelled ride explains itself without being opened.
+  final String? cancellationNote;
+
   const Bookingcard({
     super.key,
     this.passengers = 1,
     this.isFromReviewAndConfirm = false,
     this.isChauffeur = false,
     this.chauffeurName,
+    this.cancellationNote,
     required this.status,
     required this.type,
     required this.pickup,
@@ -32,20 +38,13 @@ class Bookingcard extends StatelessWidget {
     required this.brand,
   });
 
-  static String formatTime(BuildContext context, DateTime? dateTime) {
-    if (dateTime == null) return 'N/A';
-    final locale = Localizations.localeOf(context).languageCode;
-    final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final period = DateFormat('a', locale).format(dateTime);
-    return '$hour:$minute $period';
-  }
+  /// Kept as the card's own entry points into [formatDisplayTime] and
+  /// [formatDisplayDate], which convert a UTC instant into device time.
+  static String formatTime(BuildContext context, DateTime? dateTime) =>
+      formatDisplayTime(context, dateTime);
 
-  static String formatDate(BuildContext context, DateTime? dateTime) {
-    if (dateTime == null) return 'N/A';
-    final locale = Localizations.localeOf(context).languageCode;
-    return DateFormat('dd MMM yyyy', locale).format(dateTime);
-  }
+  static String formatDate(BuildContext context, DateTime? dateTime) =>
+      formatDisplayDate(context, dateTime);
 
   /// Labels a price-summary row with its rate, e.g. "VAT (15%)".
   ///
@@ -259,6 +258,8 @@ class Bookingcard extends StatelessWidget {
                 ],
               ),
             ),
+            if (_hasCancellationNote) _buildCancellationNote(loc),
+
             Column(
               children: [
                 Divider(color: Colors.grey.shade700, height: 5),
@@ -292,6 +293,55 @@ class Bookingcard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Whether there is a note to show, which is only ever the case on a
+  /// cancelled booking.
+  bool get _hasCancellationNote =>
+      cancellationNote?.trim().isNotEmpty ?? false;
+
+  /// The cancellation note the API attached to a cancelled booking.
+  Widget _buildCancellationNote(AppLocalizations loc) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.red.withValues(alpha: 0.12),
+        border: Border.all(color: Colors.red.shade900),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: Colors.red.shade300, size: 14),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loc.cancellationNote,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red.shade300,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  cancellationNote!.trim(),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

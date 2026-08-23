@@ -50,7 +50,7 @@ class RouteAvailability {
 ///   serviced city via `POST /geo/resolve-city`.
 /// * **Zone** — private transfer additionally requires the point to fall inside
 ///   an active transfer zone configured in the admin panel, via
-///   `POST /resolve-zone`.
+///   `POST /geo/resolve-zone`.
 ///
 /// Running these at pick time means an unsupported address is rejected while the
 /// user is still on the map, instead of failing later on session init. The

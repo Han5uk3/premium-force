@@ -35,6 +35,15 @@ class BookingApiV2 extends V2ApiClient {
   // Configuration
   // ---------------------------------------------------------------------------
 
+  /// Root the invoice PDF is fetched from.
+  ///
+  /// The invoice is served off the v1 surface, not from under `/api/v2/`, so
+  /// the request is addressed by absolute URL instead of through this client's
+  /// own [baseUrl] — Dio takes a path that already carries a scheme as-is. The
+  /// client's auth interceptor still runs, so the bearer token rides along.
+  static const String invoiceBaseUrl =
+      'https://api.premiumforcegroup.com/api/v2/';
+
   /// Largest voice note the vehicle-selection endpoint accepts.
   static const int _maxVoiceNoteBytes = 5 * 1024 * 1024;
 
@@ -131,7 +140,7 @@ class BookingApiV2 extends V2ApiClient {
     required double lng,
   }) {
     return request(
-      () => dio.post('resolve-zone', data: {'lat': lat, 'lng': lng}),
+      () => dio.post('geo/resolve-zone', data: {'lat': lat, 'lng': lng}),
       parse: (payload) => ResolvedZone.fromJson(asMap(payload)),
       onNotFound: (message) =>
           ResolvedZone(isServiceable: false, message: message),
@@ -499,20 +508,18 @@ class BookingApiV2 extends V2ApiClient {
   /// booking, or one belonging to somebody else — and its message is unwrapped
   /// so the caller can show it verbatim.
   ///
-  /// [invoicePath] is the booking's own `invoiceUrl` when it carries one; it is
-  /// an absolute API path, which Dio resolves against the host rather than the
-  /// `/api/v2/` base.
+  /// [invoicePath] is the booking's own `invoiceUrl` when it carries one. It
+  /// is a server-built path that still names the v2 root, so it is re-hung off
+  /// [invoiceBaseUrl] rather than followed as sent — see [_invoiceUrl].
   Future<ApiResult<Uint8List>> downloadInvoice({
     required String bookingId,
     String? invoicePath,
   }) async {
-    final path = (invoicePath?.trim().isNotEmpty ?? false)
-        ? invoicePath!.trim()
-        : 'bookings/$bookingId/invoice';
+    final url = _invoiceUrl(bookingId: bookingId, invoicePath: invoicePath);
 
     try {
       final response = await dio.get<List<int>>(
-        path,
+        url,
         options: Options(
           responseType: ResponseType.bytes,
           // The PDF is generated on demand, which takes longer than a read.
@@ -554,6 +561,29 @@ class BookingApiV2 extends V2ApiClient {
         'Could not open the invoice. Please try again.',
       );
     }
+  }
+
+  /// Build the absolute URL the invoice is fetched from.
+  ///
+  /// Only the trailing `bookings/:id/invoice` segments of [invoicePath] are
+  /// kept: whichever API root the server prefixed is stripped — a full URL, a
+  /// leading `/api/`, or a `/api/v2/` — and what remains is hung off
+  /// [invoiceBaseUrl]. Following the path as sent would put the request back on
+  /// the v2 root, which is not where the PDF is served.
+  static String _invoiceUrl({required String bookingId, String? invoicePath}) {
+    final fallback = '${invoiceBaseUrl}bookings/$bookingId/invoice';
+
+    final raw = invoicePath?.trim() ?? '';
+    if (raw.isEmpty) return fallback;
+
+    // Drop the scheme and host when the API hands over a full URL.
+    final parsed = Uri.tryParse(raw);
+    var path = (parsed != null && parsed.hasScheme) ? parsed.path : raw;
+
+    path = path.replaceFirst(RegExp(r'^/?api/(v\d+/)?'), '');
+    path = path.replaceFirst(RegExp(r'^/+'), '');
+
+    return path.isEmpty ? fallback : '$invoiceBaseUrl$path';
   }
 
   /// Read the `message` out of an error body that arrived where a PDF was

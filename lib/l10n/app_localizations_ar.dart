@@ -103,7 +103,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get backToHome => 'العودة إلى الصفحة الرئيسية';
 
   @override
-  String get chauffeurService => 'خدمة السائق';
+  String get chauffeurService => 'سائق خاص بالساعة';
 
   @override
   String get serviceDuration => 'مدة الخدمة';
@@ -320,7 +320,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pleaseEnterYourSpecialId => 'يرجى إدخال رقمك المميز';
 
   @override
-  String get iAmACorporateEmployee => 'هل أنت موظف شركة؟';
+  String get iAmACorporateEmployee =>
+      'اضغط هنا إذا كنت موظفاً لدى جهة شريكة ل بريميوم فورس';
 
   @override
   String get createAccount => 'إنشاء حساب';
@@ -1221,4 +1222,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get notificationsCleared => 'تم مسح جميع الإشعارات';
+
+  @override
+  String get cancellationNote => 'ملاحظة الإلغاء';
+
+  @override
+  String get cancellationReason => 'سبب الإلغاء';
+
+  @override
+  String get cancellationReasonHint => 'أخبرنا بسبب الإلغاء';
 }

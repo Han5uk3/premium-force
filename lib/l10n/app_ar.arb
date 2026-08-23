@@ -32,7 +32,7 @@
   "airportServices": "خدمات المطار",
   "privateTransfer": "نقل خاص",
   "useAirportServicesWarning": "للحجوزات المتعلقة بالمطار، يرجى استخدام قسم خدمات المطار.",
-  "chauffeurService": "خدمة السائق",
+  "chauffeurService":"سائق خاص بالساعة",
   "luxury": "فاخر",
   "city": "مدينة",
   "airport": "المطار",
@@ -106,7 +106,7 @@
   "enterSpecialIdIFAvailable": "أدخل الرقم المميز إذا كان متوفرًا",
   "enterYourSpecialId": "أدخل رقمك المميز",
   "pleaseEnterYourSpecialId": "يرجى إدخال رقمك المميز",
-  "iAmACorporateEmployee": "هل أنت موظف شركة؟",
+  "iAmACorporateEmployee": "اضغط هنا إذا كنت موظفاً لدى جهة شريكة ل بريميوم فورس",
   "createAccount": "إنشاء حساب",
   "signIn": "تسجيل الدخول",
   "mobileNumber": "رقم الجوال",
@@ -397,5 +397,8 @@
   "pleaseSelectRating": "يرجى اختيار التقييم أولاً.",
   "markAllAsRead": "تعيين الكل كمقروء",
   "allNotificationsMarkedRead": "تم تعيين جميع الإشعارات كمقروءة",
-  "notificationsCleared": "تم مسح جميع الإشعارات"
+  "notificationsCleared": "تم مسح جميع الإشعارات",
+  "cancellationNote": "ملاحظة الإلغاء",
+  "cancellationReason": "سبب الإلغاء",
+  "cancellationReasonHint": "أخبرنا بسبب الإلغاء"
 }

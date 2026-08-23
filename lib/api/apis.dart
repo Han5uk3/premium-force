@@ -452,6 +452,9 @@ class ApiService {
 
   /// Fetch a single user by [id] (MongoDB ObjectId).
   ///
+  /// Calls `GET /api/users/:id`. Prefer [UserApiV2.getProfile] for the
+  /// signed-in customer; this reads a profile by id.
+  ///
   /// Returns a [UserModel] on success, or `null` if not found.
   Future<UserModel?> getUserById({required String id, String? token}) async {
     try {
@@ -459,19 +462,47 @@ class ApiService {
         'users/$id',
         options: token != null ? _authOptions(token) : null,
       );
-      final data = _success(response);
-      if (data['success'] == true) {
-        final userData = data['user'] ?? data['data'] ?? data;
-        if (userData is Map<String, dynamic> &&
-            userData.containsKey('username')) {
-          return UserModel.fromJson(userData);
-        }
-      }
-      return null;
+      return _profileFrom(_success(response), 'GET users/$id');
     } catch (e) {
-      debugPrint('getUserById error: $e');
+      debugPrint('❌ Profile │ GET users/$id failed: $e');
       return null;
     }
+  }
+
+  /// Read a [UserModel] out of a profile response envelope.
+  ///
+  /// The endpoint nests the user document under one of several keys, so the
+  /// envelope is unwrapped here rather than at the call site.
+  ///
+  /// The request and response themselves are on the wire log already, via the
+  /// [BookingApiLogger] attached to [_dio]. What is logged here is the outcome:
+  /// every failure path returns the same `null`, and without a line naming
+  /// which one it was, a rejected request and an unexpected payload shape are
+  /// indistinguishable to the caller. [label] names the call so those lines
+  /// stay attributable.
+  UserModel? _profileFrom(Map<String, dynamic> data, String label) {
+    if (data['success'] != true) {
+      debugPrint(
+        '⚠️ Profile │ $label rejected: '
+        '${data['message'] ?? data['error'] ?? 'no message'}',
+      );
+      return null;
+    }
+
+    final userData = data['user'] ?? data['data'] ?? data;
+    if (userData is Map<String, dynamic> && userData.containsKey('username')) {
+      debugPrint('👤 Profile │ $label loaded');
+      return UserModel.fromJson(userData);
+    }
+
+    // The envelope said success but the body is not the user document the
+    // model expects, so the keys that did arrive are named rather than leaving
+    // a bare null behind.
+    debugPrint(
+      '⚠️ Profile │ $label returned no user — '
+      '${userData is Map ? 'keys: ${userData.keys.toList()}' : 'body: ${userData.runtimeType}'}',
+    );
+    return null;
   }
 
   /// Update an existing user profile.
@@ -693,26 +724,6 @@ class ApiService {
     try {
       final response = await _dio.get(
         'banners',
-        options: token != null ? _authOptions(token) : null,
-      );
-      return _success(response);
-    } catch (e) {
-      return _handleError(e);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Zones
-  // ---------------------------------------------------------------------------
-
-  /// Fetch all zones from the backend.
-  ///
-  /// Calls `GET /api/zone/zones`
-  Future<Map<String, dynamic>> getZones({String? token}) async {
-    try {
-      final response = await _dio.get(
-        'zone/zones',
-
         options: token != null ? _authOptions(token) : null,
       );
       return _success(response);
