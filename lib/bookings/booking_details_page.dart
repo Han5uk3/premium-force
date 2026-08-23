@@ -214,8 +214,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             const SizedBox(height: 20),
             _buildRideNotes(booking, loc),
 
-            // TODO: Payment summary section will be updated to show extra charges
-            // _buildPaymentSummary(context, loc, booking),
+            _buildPaymentSummary(context, loc, booking),
+
+            _buildTransactionDetails(booking, loc),
+
             // Shown from the booking's own refund record, or straight from the
             // cancellation the customer just made.
             if (booking.refund != null || (_cancellation?.hasRefund ?? false))
@@ -552,6 +554,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     BookingV2 booking,
   ) {
     final pricing = booking.pricing;
+    final extraCharges = booking.extraCharges;
     if (pricing == null) return const SizedBox.shrink();
 
     final coupon = pricing.discounts.coupon;
@@ -616,12 +619,56 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   ),
                   pricing.vat.amount,
                 ),
+                // Extra charges section (if any)
+                if (extraCharges != null && !extraCharges.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)!.extraCharges,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        textDirection: TextDirection.ltr,
+                        children: [
+                          const RiyalSymbol(color: Colors.white, size: 13),
+                          const SizedBox(width: 4),
+                          Text(
+                            extraCharges.amount.toStringAsFixed(2),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (extraCharges.notes?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '• ${extraCharges.notes}',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
                 const SizedBox(height: 8),
                 const Divider(color: Colors.white24),
                 const SizedBox(height: 16),
                 _buildSummaryRow(
                   loc.total,
-                  pricing.totalAmount,
+                  pricing.totalAmount + (extraCharges?.amount ?? 0),
                   isBold: true,
                   color: const Color(0xFFE4A46B),
                 ),
@@ -939,13 +986,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  AppLocalizations.of(context)!.driverAssigned,
-                  style: TextStyle(
-                    color: Colors.white.withAlpha(153),
-                    fontSize: 12,
-                  ),
-                ),
+               
                 Text(
                   driver.name ?? '',
                   style: const TextStyle(

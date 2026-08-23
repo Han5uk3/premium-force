@@ -182,6 +182,12 @@ abstract class AppLocalizations {
   /// **'Booking Timeline'**
   String get bookingTimeline;
 
+  /// No description provided for @extraCharges.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra Charges'**
+  String get extraCharges;
+
   /// No description provided for @bookingCategory.
   ///
   /// In en, this message translates to:

@@ -51,6 +51,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bookingTimeline => 'جدول الحجز';
 
   @override
+  String get extraCharges => 'الرسوم الإضافية';
+
+  @override
   String get bookingCategory => 'فئة الحجز';
 
   @override

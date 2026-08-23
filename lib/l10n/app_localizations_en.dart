@@ -51,6 +51,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookingTimeline => 'Booking Timeline';
 
   @override
+  String get extraCharges => 'Extra Charges';
+
+  @override
   String get bookingCategory => 'Booking Category';
 
   @override
