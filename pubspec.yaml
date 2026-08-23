@@ -2,7 +2,7 @@ name: premium_force_main
 description: "A new Flutter project."
 publish_to: "none"
 
-version: 1.4.1+36
+version: 1.4.2+40
 
 environment:
   sdk: ^3.10.1
