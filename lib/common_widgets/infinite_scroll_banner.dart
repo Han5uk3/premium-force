@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/models/banner_model.dart';
@@ -66,10 +65,6 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
       final token = UserLocalStorage.getToken();
       final response = await api.getBanners(token: token);
 
-      if (kDebugMode) {
-        debugPrint('ðŸŒ API â”‚ Banners Response: $response');
-      }
-
       if (!mounted) return;
 
       if (response['success'] == true) {
@@ -106,7 +101,6 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
         _startAutoScroll();
       }
     } catch (e) {
-      debugPrint('Error fetching banners: $e');
       if (mounted) {
         setState(() {
           _banners = [];
@@ -317,7 +311,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
         height: double.infinity,
         child: CachedNetworkImage(
           key: ValueKey(Localizations.localeOf(context).languageCode),
-          imageUrl: (Localizations.localeOf(context).languageCode == 'ar' &&
+          imageUrl:
+              (Localizations.localeOf(context).languageCode == 'ar' &&
                   banner.imageUrlAr.isNotEmpty)
               ? banner.imageUrlAr
               : banner.imageUrl,
@@ -334,10 +329,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           imageBuilder: (context, imageProvider) {
             return Container(
               decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: imageProvider,
-                  fit: BoxFit.cover,
-                ),
+                image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
               ),
             );
           },

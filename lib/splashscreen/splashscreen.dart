@@ -38,10 +38,8 @@ class _SplashScreenState extends State<SplashScreen> {
         authProvider.user != null) {
       // User is logged in and data was fetched → check if active
       if (authProvider.user!.isActive) {
-        debugPrint('💾 User already logged in & active — skipping login');
         Navigator.pushReplacement(context, SmoothNavigation.route(Home()));
       } else {
-        debugPrint('⛔ User is blocked — redirecting to BlockedPage');
         Navigator.pushReplacement(
           context,
           SmoothNavigation.route(const BlockedPage()),

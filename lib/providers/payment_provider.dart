@@ -19,10 +19,8 @@ class PaymentProvider extends ChangeNotifier {
       _setProcessing(true);
       _clearError();
       await _paymentService.initPayment();
-      debugPrint('✅ Payment provider initialized');
     } catch (e) {
       _setError('Failed to initialize payment: $e');
-      debugPrint('❌ Payment initialization error: $e');
     } finally {
       _setProcessing(false);
     }
@@ -37,18 +35,13 @@ class PaymentProvider extends ChangeNotifier {
       _lastPaymentResult = await _paymentService.startPayment(request: request);
 
       if (_lastPaymentResult?.success ?? false) {
-        debugPrint(
-          '✅ Payment successful: ${_lastPaymentResult?.transactionReference}',
-        );
         return true;
       } else {
         _setError(_lastPaymentResult?.responseMessage ?? 'Payment failed');
-        debugPrint('❌ Payment failed: ${_lastPaymentResult?.responseMessage}');
         return false;
       }
     } catch (e) {
       _setError('Payment error: $e');
-      debugPrint('❌ Payment error: $e');
       return false;
     } finally {
       _setProcessing(false);
@@ -73,11 +66,9 @@ class PaymentProvider extends ChangeNotifier {
         transactionReference: transactionReference,
       );
 
-      debugPrint('✅ Query status successful: $result');
       return result;
     } catch (e) {
       _setError('Query status error: $e');
-      debugPrint('❌ Query status error: $e');
       return null;
     } finally {
       _setProcessing(false);
@@ -99,7 +90,6 @@ class PaymentProvider extends ChangeNotifier {
       );
 
       if (_lastPaymentResult?.success ?? false) {
-        debugPrint('✅ Recurring payment successful');
         return true;
       } else {
         _setError(
@@ -109,7 +99,6 @@ class PaymentProvider extends ChangeNotifier {
       }
     } catch (e) {
       _setError('Recurring payment error: $e');
-      debugPrint('❌ Recurring payment error: $e');
       return false;
     } finally {
       _setProcessing(false);

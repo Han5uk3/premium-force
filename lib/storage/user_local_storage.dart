@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 /// Local storage service using Hive for persisting minimal user credentials.
@@ -53,7 +52,6 @@ class UserLocalStorage {
   static Future<void> init() async {
     await Hive.initFlutter();
     _box = await Hive.openBox(_boxName);
-    debugPrint('💾 UserLocalStorage initialized');
   }
 
   // ---------------------------------------------------------------------------
@@ -69,9 +67,6 @@ class UserLocalStorage {
     await _box.put(_userIdKey, userId);
     await _box.put(_phoneNumberKey, phoneNumber);
     await _box.put(_countryCodeKey, countryCode);
-    debugPrint(
-      '💾 User credentials saved: id=$userId, countryCode=$countryCode, phone=$phoneNumber',
-    );
   }
 
   /// Retrieve the stored userId, or `null` if not logged in.
@@ -99,7 +94,6 @@ class UserLocalStorage {
     await _box.delete(_userDataKey);
     await _box.delete(_loginProviderKey);
     await _box.delete(_socialIdTokenKey);
-    debugPrint('💾 User data cleared');
   }
 
   // ---------------------------------------------------------------------------
@@ -113,7 +107,6 @@ class UserLocalStorage {
   static Future<void> saveUserData(Map<String, dynamic> userData) async {
     final jsonString = jsonEncode(userData);
     await _box.put(_userDataKey, jsonString);
-    debugPrint('💾 Full user data saved locally');
   }
 
   /// Retrieve the stored user data as a JSON map, or `null` if not stored.
@@ -123,7 +116,6 @@ class UserLocalStorage {
     try {
       return jsonDecode(raw) as Map<String, dynamic>;
     } catch (e) {
-      debugPrint('⚠️ Failed to decode stored user data: $e');
       return null;
     }
   }
@@ -164,7 +156,6 @@ class UserLocalStorage {
   }) async {
     await _box.put(_tokenKey, accessToken);
     await _box.put(_refreshTokenKey, refreshToken);
-    debugPrint('💾 Tokens saved');
   }
 
   // ---------------------------------------------------------------------------
@@ -184,7 +175,6 @@ class UserLocalStorage {
   /// Persist the FCM registration token.
   static Future<void> saveFcmToken(String token) async {
     await _box.put(_fcmTokenKey, token);
-    debugPrint('💾 FCM token saved');
   }
 
   /// Retrieve the stored FCM token, or `null` if never saved.
@@ -218,7 +208,6 @@ class UserLocalStorage {
   /// Persist the selected application language.
   static Future<void> saveLanguage(String languageCode) async {
     await _box.put(_languageKey, languageCode);
-    debugPrint('💾 App language saved: $languageCode');
   }
 
   /// Retrieve the persisted language code, defaults to 'ar'.
@@ -255,10 +244,11 @@ class UserLocalStorage {
   // ---------------------------------------------------------------------------
 
   /// Persist the fleet list as a JSON string.
-  static Future<void> saveFleetCars(List<Map<String, dynamic>> fleetCars) async {
+  static Future<void> saveFleetCars(
+    List<Map<String, dynamic>> fleetCars,
+  ) async {
     final jsonString = jsonEncode(fleetCars);
     await _box.put(_fleetCarsKey, jsonString);
-    debugPrint('💾 Fleet cars data cached locally');
   }
 
   /// Retrieve the cached fleet list from Hive.
@@ -269,7 +259,6 @@ class UserLocalStorage {
       final List<dynamic> decoded = jsonDecode(raw);
       return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
     } catch (e) {
-      debugPrint('⚠️ Failed to decode stored fleet data: $e');
       return null;
     }
   }

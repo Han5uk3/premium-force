@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// Service that wraps the `sign_in_with_apple` plugin.
@@ -29,16 +28,6 @@ class AppleSignInService {
         ],
       );
 
-      debugPrint('🍎 Apple Sign-In │ Success');
-      debugPrint('🍎 Apple Sign-In │ User ID: ${credential.userIdentifier}');
-      debugPrint('🍎 Apple Sign-In │ Email: ${credential.email}');
-      debugPrint(
-        '🍎 Apple Sign-In │ Name: ${credential.givenName} ${credential.familyName}',
-      );
-      debugPrint(
-        '🍎 Apple Sign-In │ ID Token present: ${credential.identityToken != null}',
-      );
-
       // Extract email (fallback to empty string if user hides email)
       final email = credential.email ?? '';
       final namePrefix = credential.givenName ?? '';
@@ -56,11 +45,9 @@ class AppleSignInService {
         state: credential.state,
       );
     } catch (e) {
-      debugPrint('🍎 Apple Sign-In │ Error: $e');
       // Check if user cancelled
       if (e.toString().contains('cancelled') ||
           e.toString().contains('SignInWithAppleAuthorizationException')) {
-        debugPrint('🍎 Apple Sign-In │ User cancelled');
         return null;
       }
       rethrow;

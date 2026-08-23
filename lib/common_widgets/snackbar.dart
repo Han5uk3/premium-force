@@ -211,7 +211,7 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
     } else if (widget.type == "S") {
       return Colors.green;
     } else {
-      return Colors.yellow;
+      return Colors.white;
     }
   }
 }

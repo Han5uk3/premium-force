@@ -529,11 +529,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                           mode: LaunchMode
                                                               .externalApplication,
                                                         );
-                                                      } catch (e) {
-                                                        debugPrint(
-                                                          'Could not launch terms URL: $e',
-                                                        );
-                                                      }
+                                                      } catch (e) {}
                                                     },
                                                   style: TextStyle(
                                                     color: Colors.white,
@@ -569,11 +565,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                           mode: LaunchMode
                                                               .externalApplication,
                                                         );
-                                                      } catch (e) {
-                                                        debugPrint(
-                                                          'Could not launch privacy URL: $e',
-                                                        );
-                                                      }
+                                                      } catch (e) {}
                                                     },
                                                   style: TextStyle(
                                                     color: Colors.white,

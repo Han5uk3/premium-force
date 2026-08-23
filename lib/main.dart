@@ -61,12 +61,7 @@ void main() async {
       await mapsImplementation.initializeWithRenderer(
         AndroidMapRenderer.latest,
       );
-      debugPrint(
-        '🗺️ Google Maps Android renderer initialized with LATEST version successfully!',
-      );
-    } catch (e) {
-      debugPrint('⚠️ Google Maps Android renderer initialization error: $e');
-    }
+    } catch (e) {}
   }
 
   // Lock to portrait mode only
@@ -93,7 +88,6 @@ void main() async {
     );
   } catch (e) {
     if (e.toString().contains('duplicate-app')) {
-      debugPrint('⚠️ Firebase already initialized, skipping...');
     } else {
       rethrow;
     }
@@ -125,8 +119,6 @@ void main() async {
 /// Invoked when the user taps a notification (foreground banner, tray, or
 /// when the app is launched from a terminated-state notification).
 void _handleNotificationTap(RemoteMessage message) {
-  debugPrint('🔔 Notification tapped │ data: ${message.data}');
-
   // Navigate to the notifications screen
   navigatorKey.currentState?.push(
     MaterialPageRoute(builder: (context) => const NotificationScreen()),
@@ -185,18 +177,10 @@ class _MainAppState extends State<MainApp> {
   void _syncLocaleWithBackend(String languageCode) {
     if (!UserLocalStorage.isLoggedIn) return;
 
-    UserApiV2()
-        .updateSettings(
-          locale: languageCode,
-          fcmToken: UserLocalStorage.getFcmToken(),
-        )
-        .then((result) {
-          if (result.success) {
-            debugPrint('🌐 Locale │ synced with backend: $languageCode');
-          } else {
-            debugPrint('🌐 Locale │ sync failed: ${result.message}');
-          }
-        });
+    UserApiV2().updateSettings(
+      locale: languageCode,
+      fcmToken: UserLocalStorage.getFcmToken(),
+    );
   }
 
   @override

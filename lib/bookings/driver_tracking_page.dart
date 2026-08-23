@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/services/driver_location_service.dart';
@@ -313,7 +314,6 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     } catch (e) {
       // A missing asset is a build problem, not a runtime one — fall back to
       // something visible rather than dropping the marker altogether.
-      debugPrint('⚠️ Error loading location pin: $e');
       _pinIcon = BitmapDescriptor.defaultMarker;
     }
 
@@ -468,9 +468,6 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Future<void> _loadDriverIcon() async {
     if (_driverIcon != null) return;
     try {
-      debugPrint(
-        '🚗 Loading driver pin custom asset: assets/images/car_image_generated.png',
-      );
       final ByteData data = await rootBundle.load(
         'assets/images/car_image_generated.png',
       );
@@ -487,9 +484,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         byteData!.buffer.asUint8List(),
         imagePixelRatio: 1,
       );
-      debugPrint('🚗 Driver pin custom asset loaded successfully!');
     } catch (e) {
-      debugPrint('⚠️ Error loading driver pin: $e');
       _driverIcon = BitmapDescriptor.defaultMarkerWithHue(
         BitmapDescriptor.hueOrange,
       );
@@ -542,9 +537,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     final controller = await _controller.future;
     try {
       await controller.animateCamera(CameraUpdate.newLatLng(_driverLocation!));
-    } catch (e) {
-      debugPrint('⚠️ Error moving camera to driver: $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> _zoomToFitAllPins() async {
@@ -577,9 +570,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
           ),
         );
       }
-    } catch (e) {
-      debugPrint('⚠️ Error fitting camera bounds: $e');
-    }
+    } catch (e) {}
   }
 
   // --- Directions API ---
@@ -708,10 +699,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       await launchUrl(launchUri);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot make phone calls on this device.'),
-          ),
+        AnimatedSnackBar.show(
+          context,
+          AppLocalizations.of(context)!.cannotMakePhoneCalls,
+          'E',
         );
       }
     }

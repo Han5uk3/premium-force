@@ -37,7 +37,6 @@ class _FleetListPageState extends State<FleetListPage> {
     try {
       final api = ApiService();
       final response = await api.getCars().catchError((e) {
-        debugPrint('❌ Error fetching cars list: $e');
         return <String, dynamic>{};
       });
 
@@ -76,7 +75,6 @@ class _FleetListPageState extends State<FleetListPage> {
         await _fetchDetailedCars(carIds);
       }
     } catch (e) {
-      debugPrint('❌ Error in _fetchAllCars: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

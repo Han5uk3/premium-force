@@ -324,10 +324,6 @@ class BookingSessionProvider extends ChangeNotifier {
       if (result == null) return null;
 
       last = result;
-      debugPrint(
-        '🔁 Verify #$attempt │ payment=${result.paymentStatus.wireValue} '
-        'booking=${result.bookingStatus ?? "?"} → ${result.outcome.name}',
-      );
 
       if (!result.isPending) return result;
       if (attempt < _verifyMaxAttempts) await Future.delayed(_verifyInterval);
@@ -415,7 +411,6 @@ class BookingSessionProvider extends ChangeNotifier {
   void _fail(String? message) {
     _busy = SessionBusy.idle;
     _errorMessage = message ?? 'Something went wrong. Please try again.';
-    debugPrint('🧾 Session │ $_errorMessage');
     notifyListeners();
   }
 }

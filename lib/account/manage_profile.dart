@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -53,14 +52,12 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   double? _initialLat;
   double? _initialLong;
   String? _promoSuccessText;
-  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
     super.initState();
 
     final user = Provider.of<AuthProvider>(context, listen: false).user;
-    log('ManageProfilePage: user = $user');
     if (user != null) _applyUser(user);
 
     // The cached user fills the form immediately; the server's copy replaces it
@@ -129,7 +126,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
 
   @override
   void dispose() {
-    _overlayEntry?.remove();
+    AnimatedSnackBar.dismiss();
     _nameController.dispose();
     _emailController.dispose();
     _locationController.dispose();
@@ -141,31 +138,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   }
 
   void _showCustomSnackBar(String message, {String type = "E"}) {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: AnimatedSnackBar(
-            message: message,
-            type: type,
-            onDismissed: () {
-              if (mounted) {
-                _overlayEntry?.remove();
-                _overlayEntry = null;
-              }
-            },
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
+    AnimatedSnackBar.show(context, message, type);
   }
 
   Future<void> _pickImage() async {

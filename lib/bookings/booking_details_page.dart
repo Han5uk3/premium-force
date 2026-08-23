@@ -21,6 +21,110 @@ import 'package:premium_force_main/services/invoice_service.dart';
 import 'package:premium_force_main/utils/booking_status_display.dart';
 import 'package:premium_force_main/utils/date_display.dart';
 
+class _CancelBookingDialog extends StatefulWidget {
+  const _CancelBookingDialog({
+    required this.title,
+    required this.confirmationText,
+    required this.reasonTitle,
+    required this.reasonHint,
+    required this.cancelText,
+    required this.confirmText,
+    required this.onConfirm,
+  });
+
+  final String title;
+  final String confirmationText;
+  final String reasonTitle;
+  final String reasonHint;
+  final String cancelText;
+  final String confirmText;
+  final Future<void> Function(String reason) onConfirm;
+
+  @override
+  State<_CancelBookingDialog> createState() => _CancelBookingDialogState();
+}
+
+class _CancelBookingDialogState extends State<_CancelBookingDialog> {
+  final _reasonController = TextEditingController();
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xff1a1a1a),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xff1a1a1a)),
+      ),
+      scrollable: true,
+      title: Text(
+        widget.title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.confirmationText,
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 16),
+          PremiumTextField(
+            title: widget.reasonTitle,
+            titleFontWeight: FontWeight.w500,
+            fontsize: 13,
+            controller: _reasonController,
+            hintText: widget.reasonHint,
+            maxLines: 3,
+            blackbg: true,
+            needBorder: true,
+            keyboardType: TextInputType.multiline,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            widget.cancelText,
+            style: const TextStyle(color: Colors.grey),
+          ),
+        ),
+        SizedBox(
+          height: 45,
+          width: 110,
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _reasonController,
+            builder: (context, value, child) {
+              final reason = value.text.trim();
+              return PremiumButton(
+                text: widget.confirmText,
+                enabled: reason.isNotEmpty,
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onConfirm(reason);
+                },
+                fontsize: 14,
+                showLoader: false,
+                borderRadius: 8.0,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Detail view for a confirmed booking, backed by `GET /bookings/:id`.
 ///
 /// The page is addressed by id and fetches its own data, so the summary shown
@@ -1053,81 +1157,19 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   /// than built once with the dialog.
   void _showCancelDialog(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final reasonController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xff1a1a1a),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xff1a1a1a)),
-        ),
-        // The reason field raises the keyboard, which on a short screen
-        // leaves the dialog taller than the space left to it.
-        scrollable: true,
-        title: Text(
-          loc.cancelBooking,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              loc.cancelBookingConfirm,
-              style: const TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            PremiumTextField(
-              title: loc.cancellationReason,
-              titleFontWeight: FontWeight.w500,
-              fontsize: 13,
-              controller: reasonController,
-              hintText: loc.cancellationReasonHint,
-              maxLines: 3,
-              blackbg: true,
-              needBorder: true,
-              keyboardType: TextInputType.multiline,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(loc.no, style: const TextStyle(color: Colors.grey)),
-          ),
-          SizedBox(
-            height: 45,
-            // Wider than the exit dialog's button: "Yes, Cancel" is a longer
-            // label than "Exit" and would otherwise be clipped.
-            width: 110,
-            child: ValueListenableBuilder<TextEditingValue>(
-              valueListenable: reasonController,
-              builder: (context, value, child) {
-                final reason = value.text.trim();
-                return PremiumButton(
-                  text: loc.yesCancel,
-                  enabled: reason.isNotEmpty,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _cancelBooking(reason);
-                  },
-                  fontsize: 14,
-                  showLoader: false,
-                  borderRadius: 8.0,
-                );
-              },
-            ),
-          ),
-        ],
+      builder: (context) => _CancelBookingDialog(
+        title: loc.cancelBooking,
+        confirmationText: loc.cancelBookingConfirm,
+        reasonTitle: loc.cancellationReason,
+        reasonHint: loc.cancellationReasonHint,
+        cancelText: loc.no,
+        confirmText: loc.yesCancel,
+        onConfirm: _cancelBooking,
       ),
-      // The controller outlives the builder, so it is disposed once the dialog
-      // is gone rather than inside it.
-    ).whenComplete(reasonController.dispose);
+    );
   }
 
   /// Cancel via `POST /bookings/:id/cancel`, which also triggers the automated

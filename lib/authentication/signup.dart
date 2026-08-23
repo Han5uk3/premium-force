@@ -401,10 +401,6 @@ class _SignUpPageState extends State<SignUpPage>
         );
       }
 
-      debugPrint(
-        '✅ Signup │ Navigating to Home with user: ${auth.user?.username}',
-      );
-
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => Home()),

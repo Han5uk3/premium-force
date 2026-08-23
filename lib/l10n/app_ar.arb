@@ -404,5 +404,8 @@
   "cancellationReason": "سبب الإلغاء",
   "cancellationReasonHint": "أخبرنا بسبب الإلغاء",
   "onTheWay": "في الطريق",
-  "arrived": "وصل"
+  "arrived": "وصل",
+  "failedToDeleteAccount": "تعذر حذف الحساب. يرجى المحاولة مرة أخرى.",
+  "cannotMakePhoneCalls": "لا يمكن إجراء مكالمات هاتفية على هذا الجهاز.",
+  "couldNotPlayAudio": "تعذر تشغيل الملاحظة الصوتية."
 }

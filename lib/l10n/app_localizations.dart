@@ -2449,6 +2449,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Arrived'**
   String get arrived;
+
+  /// No description provided for @failedToDeleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete account. Please try again.'**
+  String get failedToDeleteAccount;
+
+  /// No description provided for @cannotMakePhoneCalls.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot make phone calls on this device.'**
+  String get cannotMakePhoneCalls;
+
+  /// No description provided for @couldNotPlayAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not play the voice note.'**
+  String get couldNotPlayAudio;
 }
 
 class _AppLocalizationsDelegate

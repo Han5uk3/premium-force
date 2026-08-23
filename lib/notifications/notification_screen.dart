@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/notification_v2.dart';
 import 'package:premium_force_main/providers/notification_provider.dart';
@@ -238,13 +239,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFF292929),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AnimatedSnackBar.show(context, message, 'S');
   }
 
   void _showClearConfirmation(

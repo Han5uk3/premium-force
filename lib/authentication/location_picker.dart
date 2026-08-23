@@ -91,9 +91,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
           _selectedCity = place.locality ?? '';
         });
       }
-    } catch (e) {
-      debugPrint('Error getting address: $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> _searchLocation(String query) async {
@@ -110,7 +108,6 @@ class _LocationPickerPageState extends State<LocationPickerPage>
     try {
       final String apiKey = _placesApiKey;
       if (apiKey.isEmpty) {
-        debugPrint('âš ï¸ Missing Google Maps API Key in .env');
         setState(() => _isSearching = false);
         return;
       }
@@ -143,13 +140,6 @@ class _LocationPickerPageState extends State<LocationPickerPage>
         ),
       );
 
-      if (response.statusCode != 200) {
-        debugPrint(
-          '🔎 Places autocomplete failed [${response.statusCode}]: '
-          '${response.data}',
-        );
-      }
-
       if (response.statusCode == 200) {
         final List suggestions = response.data['suggestions'] ?? [];
         final List<Map<String, dynamic>> results = [];
@@ -177,20 +167,15 @@ class _LocationPickerPageState extends State<LocationPickerPage>
           _isSearching = false;
         });
       }
-    } on DioException catch (e) {
+    } on DioException {
       // Surface the server's explanation, not just the exception type: a bad
       // key, an unenabled API and a restricted key all look identical without
       // the response body.
-      debugPrint(
-        'Places autocomplete error: ${e.type.name} '
-        '${e.response?.statusCode ?? ''} ${e.response?.data ?? e.message}',
-      );
       setState(() {
         _searchResults = [];
         _isSearching = false;
       });
     } catch (e) {
-      debugPrint('Places autocomplete failed: $e');
       setState(() {
         _searchResults = [];
         _isSearching = false;
@@ -224,12 +209,6 @@ class _LocationPickerPageState extends State<LocationPickerPage>
         ),
       );
 
-      if (response.statusCode != 200) {
-        debugPrint(
-          'Place details failed [${response.statusCode}]: ${response.data}',
-        );
-      }
-
       if (response.statusCode == 200) {
         final data = response.data;
         final double lat = data['location']['latitude'];
@@ -249,14 +228,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
           CameraUpdate.newLatLngZoom(position, 16),
         );
       }
-    } on DioException catch (e) {
-      debugPrint(
-        'Place details error: ${e.type.name} '
-        '${e.response?.statusCode ?? ''} ${e.response?.data ?? e.message}',
-      );
-    } catch (e) {
-      debugPrint('Place details failed: $e');
-    }
+    } on DioException {
+    } catch (_) {}
 
     setState(() => _isLoading = false);
   }
@@ -329,7 +302,6 @@ class _LocationPickerPageState extends State<LocationPickerPage>
       final controller = await _mapController.future;
       controller.animateCamera(CameraUpdate.newLatLngZoom(currentLatLng, 16));
     } catch (e) {
-      debugPrint('Error getting current location: $e');
       if (mounted) {
         AnimatedSnackBar.show(
           context,

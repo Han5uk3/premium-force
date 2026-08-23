@@ -47,7 +47,6 @@ class InvoiceService {
         uti: 'com.adobe.pdf',
       );
 
-      debugPrint('🧾 Invoice │ open → ${opened.type.name} (${opened.message})');
       if (opened.type == ResultType.done) {
         return InvoiceOutcome.success(file.path);
       }
@@ -56,7 +55,6 @@ class InvoiceService {
       // download itself succeeded, so the file path is still reported back.
       return InvoiceOutcome.failure('noViewer', filePath: file.path);
     } catch (error) {
-      debugPrint('🧾 Invoice │ could not save the PDF: $error');
       return const InvoiceOutcome.failure('failed');
     }
   }

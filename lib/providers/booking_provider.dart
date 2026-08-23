@@ -125,7 +125,6 @@ class BookingProvider extends ChangeNotifier {
       }
     } catch (e) {
       state.error = 'An unexpected error occurred: $e';
-      debugPrint('❌ BookingProvider │ ${tab.wireValue} failed: $e');
     } finally {
       state.isLoading = false;
       notifyListeners();
@@ -164,7 +163,6 @@ class BookingProvider extends ChangeNotifier {
       // On failure the page counter stays put, so scrolling on retries it
       // without disturbing the rows already shown.
     } catch (e) {
-      debugPrint('❌ BookingProvider │ ${tab.wireValue} page $nextPage: $e');
     } finally {
       state.isLoadingMore = false;
       notifyListeners();
@@ -246,7 +244,6 @@ class BookingProvider extends ChangeNotifier {
       }
     } catch (e) {
       _errorMessage = 'An unexpected error occurred: $e';
-      debugPrint('❌ BookingProvider │ Error: $e');
     } finally {
       _isLoading = false;
       notifyListeners();

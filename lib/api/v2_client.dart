@@ -127,10 +127,8 @@ abstract class V2ApiClient {
         accessToken: access,
         refreshToken: refresh ?? refreshToken,
       );
-      debugPrint('🔄 v2 │ Access token refreshed');
       return access;
     } catch (error) {
-      debugPrint('🔄 v2 │ Token refresh failed: $error');
       return null;
     }
   }
@@ -156,14 +154,10 @@ abstract class V2ApiClient {
 
       if (!succeeded || status >= 400) {
         if (status == 404 && onNotFound != null) {
-          debugPrint('🧭 v2 │ not serviceable → ${message ?? "(no message)"}');
           return ApiResult<T>.ok(onNotFound(message), message: message);
         }
         // A 2xx carrying `success: false` is easy to miss in the raw log, so
         // the interpreted outcome is recorded separately.
-        debugPrint(
-          '🚫 v2 │ rejected [$status] → ${message ?? statusMessage(status)}',
-        );
         return ApiResult<T>.failure(
           message ?? statusMessage(status),
           statusCode: status,
@@ -173,19 +167,16 @@ abstract class V2ApiClient {
       // Endpoints nest their payload under `data`; a few return it at the root.
       final payload = body.containsKey('data') ? body['data'] : body;
       final parsed = parse(payload);
-      debugPrint('✅ v2 │ parsed $T${message == null ? '' : ' → $message'}');
       return ApiResult<T>.ok(parsed, message: message);
     } on DioException catch (error) {
       return ApiResult<T>.failure(
         dioMessage(error),
         statusCode: error.response?.statusCode,
       );
-    } catch (error, stackTrace) {
+    } catch (error) {
       // Almost always a shape mismatch between the response and the model.
       // Named explicitly because the v2 payloads are still being finalised, and
       // a parse failure must not crash the booking flow.
-      debugPrint('💥 v2 │ failed to parse $T: $error');
-      debugPrint('$stackTrace');
       return ApiResult<T>.failure('Something went wrong. Please try again.');
     }
   }

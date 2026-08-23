@@ -317,13 +317,9 @@ class BookingApiV2 extends V2ApiClient {
       final file = File(voiceNotePath);
 
       if (!await file.exists()) {
-        debugPrint(
-          '🎙️ v2 │ Voice note gone from $voiceNotePath — sending without it',
-        );
       } else if (await file.length() > _maxVoiceNoteBytes) {
         // Refused here rather than after uploading something the server will
         // only reject.
-        debugPrint('🎙️ v2 │ Voice note over the 5 MB limit — not sent');
         return ApiResult<BookingSession>.failure(
           'Your voice note is too large. The maximum size is 5 MB.',
         );
@@ -548,7 +544,6 @@ class BookingApiV2 extends V2ApiClient {
         );
       }
 
-      debugPrint('🧾 v2 │ invoice downloaded (${bytes.length} bytes)');
       return ApiResult<Uint8List>.ok(Uint8List.fromList(bytes));
     } on DioException catch (error) {
       return ApiResult<Uint8List>.failure(
@@ -556,7 +551,6 @@ class BookingApiV2 extends V2ApiClient {
         statusCode: error.response?.statusCode,
       );
     } catch (error) {
-      debugPrint('💥 v2 │ invoice download failed: $error');
       return ApiResult<Uint8List>.failure(
         'Could not open the invoice. Please try again.',
       );

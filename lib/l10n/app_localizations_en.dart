@@ -1255,4 +1255,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get arrived => 'Arrived';
+
+  @override
+  String get failedToDeleteAccount =>
+      'Failed to delete account. Please try again.';
+
+  @override
+  String get cannotMakePhoneCalls => 'Cannot make phone calls on this device.';
+
+  @override
+  String get couldNotPlayAudio => 'Could not play the voice note.';
 }

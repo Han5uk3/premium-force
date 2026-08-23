@@ -16,7 +16,6 @@ import 'package:premium_force_main/ride_booking/new_booking.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/common_widgets/infinite_scroll_banner.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
@@ -186,7 +185,6 @@ class _HomepageState extends State<Homepage>
             api.getAirports(),
             api.getTerminals(),
           ]).catchError((e) {
-            debugPrint('â Œ Error fetching location data: $e');
             return <Map<String, dynamic>>[{}, {}, {}];
           });
 
@@ -198,11 +196,6 @@ class _HomepageState extends State<Homepage>
             List<String> possibleKeys,
           ) {
             if (response['success'] != true) {
-              if (kDebugMode) {
-                debugPrint(
-                  'ðŸŒ API â”‚ Response not successful: ${response['message'] ?? 'Unknown error'}',
-                );
-              }
               return [];
             }
 
@@ -210,26 +203,14 @@ class _HomepageState extends State<Homepage>
             for (String key in possibleKeys) {
               if (response.containsKey(key)) {
                 dynamic data = response[key];
-                if (kDebugMode) {
-                  debugPrint('ðŸŒ API â”‚ Found data in key "$key": $data');
-                }
                 return rawDataToList(data);
               }
             }
 
             // If none of the known keys work, search for any array in the response
-            if (kDebugMode) {
-              debugPrint(
-                'ðŸŒ API â”‚ No known keys found. Available keys: ${response.keys.toList()}',
-              );
-              debugPrint('ðŸŒ API â”‚ Full response: $response');
-            }
 
             for (MapEntry<String, dynamic> entry in response.entries) {
               if (entry.value is List) {
-                if (kDebugMode) {
-                  debugPrint('ðŸŒ API â”‚ Found array in key "${entry.key}"');
-                }
                 return rawDataToList(entry.value);
               }
             }
@@ -261,18 +242,8 @@ class _HomepageState extends State<Homepage>
               })
               .toList();
         });
-
-        if (kDebugMode) {
-          debugPrint(
-            'âœ… ðŸŒ API â”‚ Location Data Loaded - Cities: ${_apiCities.length}, Airports: ${_apiAirports.length}, Terminals: ${_apiTerminals.length}',
-          );
-          if (_apiCities.isNotEmpty) {
-            debugPrint('ðŸŒ API â”‚ Sample city: ${_apiCities.first}');
-          }
-        }
       }
     } catch (e) {
-      debugPrint('âŒ General error in _fetchLocationData: $e');
     } finally {
       if (mounted) {
         _isLoadingLocations.value = false;
@@ -283,16 +254,10 @@ class _HomepageState extends State<Homepage>
 
   List<Map<String, dynamic>> rawDataToList(dynamic rawData) {
     if (rawData == null) {
-      if (kDebugMode)
-        debugPrint('ðŸŒ API â”‚ rawDataToList received null data');
       return [];
     }
 
     if (rawData is List) {
-      if (kDebugMode)
-        debugPrint(
-          'ðŸŒ API â”‚ rawDataToList processing list with ${rawData.length} items',
-        );
       return rawData
           .map((item) {
             if (item is Map) return Map<String, dynamic>.from(item);
@@ -302,10 +267,6 @@ class _HomepageState extends State<Homepage>
           .toList();
     }
 
-    if (kDebugMode)
-      debugPrint(
-        'ðŸŒ API â”‚ rawDataToList received non-list data: ${rawData.runtimeType}',
-      );
     return [];
   }
 
@@ -314,7 +275,6 @@ class _HomepageState extends State<Homepage>
     try {
       final api = ApiService();
       final response = await api.getCars().catchError((e) {
-        debugPrint('âŒ Error fetching cars list: $e');
         return <String, dynamic>{};
       });
 
@@ -338,19 +298,10 @@ class _HomepageState extends State<Homepage>
               if (entry.value is List) {
                 carList = rawDataToList(entry.value);
                 if (carList.isNotEmpty) {
-                  if (kDebugMode) {
-                    debugPrint('ðŸŒ API â”‚ Found cars in key "${entry.key}"');
-                  }
                   break;
                 }
               }
             }
-          }
-
-          if (kDebugMode) {
-            debugPrint(
-              'âœ… ðŸŒ API â”‚ Cars list loaded: ${carList.length} cars total',
-            );
           }
 
           // Take up to 20 cars from the list (for reasonable detail fetch time)
@@ -362,22 +313,11 @@ class _HomepageState extends State<Homepage>
               .where((id) => id.isNotEmpty)
               .toList();
 
-          if (kDebugMode) {
-            debugPrint('ðŸŒ API â”‚ Selected car IDs for fleet: $carIds');
-          }
-
           // Fetch full details for all selected cars
           await _fetchFleetCarsDetails(carIds);
-        } else {
-          if (kDebugMode) {
-            debugPrint(
-              'ðŸŒ API â”‚ Cars response not successful: ${response['message'] ?? 'Unknown error'}',
-            );
-          }
         }
       }
     } catch (e) {
-      debugPrint('âŒ General error in _fetchFleetCars: $e');
     } finally {
       if (mounted) setState(() => _isLoadingCars = false);
     }
@@ -476,20 +416,9 @@ class _HomepageState extends State<Homepage>
         await UserLocalStorage.saveFleetCars(detailedCars);
       }
 
-      if (kDebugMode) {
-        debugPrint(
-          'âœ… ðŸŒ API â”‚ Fleet Cars Details Loaded: ${_fleetCars.length} cars',
-        );
-        if (_fleetCars.isNotEmpty) {
-          debugPrint('ðŸŒ API â”‚ Sample car: ${_fleetCars.first}');
-        }
-      }
-
       // Fetch brand logos for each car
       _fetchBrandLogos();
-    } catch (e) {
-      debugPrint('âŒ General error in _fetchFleetCarsDetails: $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> _fetchBrandLogos() async {
@@ -504,28 +433,12 @@ class _HomepageState extends State<Homepage>
         // Skip if no brandId or if logo URL already exists (extracted from car details)
         if (brandId.isEmpty ||
             (existingLogo != null && existingLogo.isNotEmpty)) {
-          if (kDebugMode) {
-            debugPrint(
-              'ðŸŒ API â”‚ Skipping car at index $i - brandId empty or logo already exists',
-            );
-          }
           continue;
         }
 
-        if (kDebugMode) {
-          debugPrint(
-            'ðŸŒ API â”‚ Fetching brand logo for ${car['brand']} (ID: $brandId)',
-          );
-        }
-
         final brandResponse = await api.getBrandById(brandId).catchError((e) {
-          debugPrint('âŒ Error fetching brand details for $brandId: $e');
           return <String, dynamic>{};
         });
-
-        if (kDebugMode) {
-          debugPrint('ðŸŒ API â”‚ Brand response: $brandResponse');
-        }
 
         if (brandResponse['success'] == true) {
           // Extract brand data - the response structure has data.brandInfo.icon.url
@@ -540,10 +453,6 @@ class _HomepageState extends State<Homepage>
           }
 
           if (brandData != null) {
-            if (kDebugMode) {
-              debugPrint('ðŸŒ API â”‚ Brand data extracted: $brandData');
-            }
-
             // Try to extract logo URL from brandInfo.icon.url (correct structure)
             String? logoUrl;
 
@@ -573,37 +482,11 @@ class _HomepageState extends State<Homepage>
                   _fleetCars[i]['brandLogoUrl'] = logoUrl;
                 });
               }
-
-              if (kDebugMode) {
-                debugPrint(
-                  'âœ… ðŸŒ API â”‚ Brand logo fetched for ${car['brand']}: $logoUrl',
-                );
-              }
-            } else {
-              if (kDebugMode) {
-                debugPrint(
-                  'ðŸŒ API â”‚ No logo URL found in brand data for ${car['brand']}',
-                );
-              }
             }
-          } else {
-            if (kDebugMode) {
-              debugPrint(
-                'ðŸŒ API â”‚ Could not extract brand data from response: $brandResponse',
-              );
-            }
-          }
-        } else {
-          if (kDebugMode) {
-            debugPrint(
-              'ðŸŒ API â”‚ Brand fetch not successful for $brandId: ${brandResponse['message'] ?? 'Unknown error'}',
-            );
           }
         }
       }
-    } catch (e) {
-      debugPrint('âŒ General error in _fetchBrandLogos: $e');
-    }
+    } catch (e) {}
   }
 
   // Removed local _fetchPastBookings since we use BookingProvider now

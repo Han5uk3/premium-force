@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:flutter_paytabs_bridge/BaseBillingShippingInfo.dart';
 import 'package:flutter_paytabs_bridge/IOSThemeConfiguration.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkConfigurationDetails.dart';
@@ -31,10 +30,7 @@ class PaymentService {
   /// Initialize Paytabs payment
   /// Call this during app startup to set up the payment SDK
   Future<void> initPayment() async {
-    try {
-      debugPrint('✅ Payment SDK ready to use');
-    } catch (e) {
-      debugPrint('❌ Payment SDK initialization failed: $e');
+    try {} catch (e) {
       rethrow;
     }
   }
@@ -44,25 +40,7 @@ class PaymentService {
   Future<PaymentResult> startPayment({required PaymentRequest request}) async {
     final Completer<PaymentResult> completer = Completer<PaymentResult>();
 
-    debugPrint(
-      '🚀 PaymentService.startPayment called for Order: ${request.orderId}',
-    );
     try {
-      debugPrint('🔄 Processing payment...');
-      debugPrint('Amount: ${request.amount} ${request.currency}');
-      debugPrint('Order ID: ${request.orderId}');
-      debugPrint('Profile ID: ${PaytabsConfig.profileId}');
-      debugPrint(
-        'Server Key prefix: ${PaymentService.serverKey.substring(0, 10)}...',
-      );
-      debugPrint(
-        'Client Key prefix: ${PaymentService.clientKey.substring(0, 10)}...',
-      );
-      debugPrint('isDigitalProduct: false');
-      debugPrint(
-        'Billing: ${request.customerName}, ${request.customerEmail}, ${request.merchantCountryCode}',
-      );
-
       // 1. Configure Billing & Shipping Details
       var billingDetails = BillingDetails(
         request.customerName,
@@ -172,13 +150,10 @@ class PaymentService {
 
       // 3. Initiate Payment (Do not await method launch so we can return the future)
       FlutterPaytabsBridge.startCardPayment(configuration, (event) {
-        debugPrint('🎯 PayTabs Callback Received: $event');
-
         if (completer.isCompleted) return;
 
         if (event["status"] == "success") {
           var transactionDetails = event["data"];
-          debugPrint('Transaction Details: $transactionDetails');
 
           if (transactionDetails["isSuccess"]) {
             completer.complete(
@@ -218,7 +193,6 @@ class PaymentService {
             );
           }
         } else if (event["status"] == "error") {
-          debugPrint('PayTabs Error: ${event["message"]}');
           completer.complete(
             PaymentResult(
               success: false,
@@ -231,7 +205,6 @@ class PaymentService {
             ),
           );
         } else if (event["status"] == "event") {
-          debugPrint('PayTabs Internal Event: ${event["message"]}');
           if (!completer.isCompleted) {
             final msg = event["message"]?.toString().toLowerCase();
             completer.complete(
@@ -255,8 +228,6 @@ class PaymentService {
               .toLowerCase();
           final msg = (event["message"] ?? '').toString().toLowerCase();
 
-          debugPrint('PayTabs Other Status: $status - $msg');
-
           completer.complete(
             PaymentResult(
               success: false,
@@ -272,7 +243,6 @@ class PaymentService {
           );
         }
       }).catchError((error) {
-        debugPrint('❌ Card Payment bridge error: $error');
         if (!completer.isCompleted) {
           completer.complete(
             PaymentResult(
@@ -290,7 +260,6 @@ class PaymentService {
 
       return completer.future;
     } catch (e) {
-      debugPrint('❌ Payment transaction failed: $e');
       return PaymentResult(
         success: false,
         transactionReference: '',
@@ -319,8 +288,6 @@ class PaymentService {
     required String transactionReference,
   }) async {
     try {
-      debugPrint('🔍 Querying transaction status...');
-
       // Mock implementation for now as querying often requires backend-to-backend
       return QueryTransactionResult(
         success: true,
@@ -330,7 +297,6 @@ class PaymentService {
         transactionReference: transactionReference,
       );
     } catch (e) {
-      debugPrint('❌ Query transaction failed: $e');
       rethrow;
     }
   }
@@ -362,8 +328,6 @@ class PaymentService {
     }
 
     final Completer<PaymentResult> completer = Completer<PaymentResult>();
-
-    debugPrint('🍎 Starting Apple Pay for Order: ${request.orderId}');
 
     try {
       var billingDetails = BillingDetails(
@@ -403,8 +367,6 @@ class PaymentService {
 
       // Do not await method launch so we can return the future
       FlutterPaytabsBridge.startApplePayPayment(configuration, (event) {
-        debugPrint('🍎 Apple Pay Callback: $event');
-
         if (completer.isCompleted) return;
 
         if (event["status"] == "success") {
@@ -475,7 +437,6 @@ class PaymentService {
           );
         }
       }).catchError((error) {
-        debugPrint('❌ Apple Pay bridge error: $error');
         if (!completer.isCompleted) {
           completer.complete(
             PaymentResult(
@@ -493,7 +454,6 @@ class PaymentService {
 
       return completer.future;
     } catch (e) {
-      debugPrint('❌ Apple Pay failed: $e');
       return PaymentResult(
         success: false,
         transactionReference: '',

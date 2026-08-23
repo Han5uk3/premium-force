@@ -742,11 +742,10 @@ class _NewBookingState extends State<NewBooking> {
   /// choosing between the stored strings and the UTC instant live in
   /// [formatPickupDisplay].
   ({String date, String time}) _reviewPickupDisplay(BuildContext context) =>
-      formatPickupDisplay(
-        context,
-        [_checkoutRoute, _draftRoute],
-        fallbackInstant: _pickupInstant,
-      );
+      formatPickupDisplay(context, [
+        _checkoutRoute,
+        _draftRoute,
+      ], fallbackInstant: _pickupInstant);
 
   /// Localised product label, with the booked duration for chauffeur hire.
   String _reviewServiceLabel(BuildContext context, AppLocalizations loc) {
@@ -983,12 +982,6 @@ class _NewBookingState extends State<NewBooking> {
               customerPhone: customerPhone,
             );
 
-      debugPrint(
-        '💳 Session payment │ success=${paymentResult.success} '
-        'ref=${paymentResult.transactionReference} '
-        'msg=${paymentResult.responseMessage}',
-      );
-
       if (!paymentResult.success) {
         _goToPaymentFailure(paymentResult);
         return;
@@ -1023,7 +1016,6 @@ class _NewBookingState extends State<NewBooking> {
           );
       }
     } catch (e) {
-      debugPrint('❌ Booking error: $e');
       _showCustomSnackBar(loc.somethingWentWrong, 'E');
     } finally {
       if (mounted) setState(() => _isBooking = false);
@@ -1279,9 +1271,6 @@ class _NewBookingState extends State<NewBooking> {
     if (!mounted) return;
 
     final options = result.data;
-    if (options == null || !options.hasBookableDurations) {
-      debugPrint('⏱️ Chauffeur │ No durations returned — using defaults');
-    }
 
     setState(() {
       _chauffeurOptions = (options != null && options.hasBookableDurations)
@@ -1304,9 +1293,7 @@ class _NewBookingState extends State<NewBooking> {
           });
         }
       }
-    } catch (e) {
-      debugPrint('❌ VAT Fetch Error: $e');
-    }
+    } catch (e) {}
   }
 
   /// Load car data (categories, brands, cars) from the backend API.
@@ -1334,7 +1321,6 @@ class _NewBookingState extends State<NewBooking> {
                 ? _fetchTerminalsV2(citiesFromV2)
                 : Future.value({'success': true, 'data': _apiTerminals}),
           ]).catchError((e) {
-            debugPrint('Error loading location data: $e');
             return <Map<String, dynamic>>[{}, {}];
           });
 
@@ -1372,9 +1358,7 @@ class _NewBookingState extends State<NewBooking> {
         // prefill is redone against the buffer that actually applies.
         _prefillPickupToEarliest();
       });
-    } catch (e) {
-      debugPrint('Error loading location data: $e');
-    }
+    } catch (e) {}
   }
 
   /// Point [_selectedCityCode] at [NewBooking.cityId] within [_apiCities].
@@ -3574,16 +3558,6 @@ class _NewBookingState extends State<NewBooking> {
                     final String newAddress = (result['address'] ?? '')
                         .toString();
 
-                    if (_selectedCatCode == 3) {
-                      debugPrint(
-                        '📍 PREM-FORCE │ Private Transfer Location Selection:',
-                      );
-                      debugPrint('   → Latitude: $newLat');
-                      debugPrint('   → Longitude: $newLng');
-                      debugPrint('   → Full Address: $newAddress');
-                      debugPrint('   → City Name: ${result['city'] ?? ''}');
-                    }
-
                     if (_selectedCatCode == 3 &&
                         _isNearAirport(newLat, newLng, newAddress)) {
                       _showCustomSnackBar(loc.useAirportServicesWarning, 'E');
@@ -3913,27 +3887,11 @@ class _NewBookingState extends State<NewBooking> {
                         if (isPickup
                             ? _selectedPickupDate == null
                             : _selectedDate == null) {
-                          OverlayEntry? overlayEntry;
-                          overlayEntry = OverlayEntry(
-                            builder: (context) => Positioned(
-                              bottom:
-                                  MediaQuery.of(context).viewInsets.bottom + 20,
-                              left: 20,
-                              right: 20,
-
-                              child: Material(
-                                color: Colors.transparent,
-                                child: AnimatedSnackBar(
-                                  type: "E",
-                                  message: loc.pleaseSelectADateFirst,
-                                  onDismissed: () {
-                                    overlayEntry?.remove();
-                                  },
-                                ),
-                              ),
-                            ),
+                          AnimatedSnackBar.show(
+                            context,
+                            loc.pleaseSelectADateFirst,
+                            'E',
                           );
-                          Overlay.of(context).insert(overlayEntry);
                           return;
                         }
                         // The buffer moves with the clock, so the bound is read
@@ -4019,16 +3977,17 @@ class _NewBookingState extends State<NewBooking> {
                                                 // Anchored on the chosen day so
                                                 // minimumDate bounds the same
                                                 // date the wheel is showing.
-                                                initialDateTime: _clampToMinimum(
-                                                  DateTime(
-                                                    pickedDate.year,
-                                                    pickedDate.month,
-                                                    pickedDate.day,
-                                                    tempTime.hour,
-                                                    tempTime.minute,
-                                                  ),
-                                                  minimumTime,
-                                                ),
+                                                initialDateTime:
+                                                    _clampToMinimum(
+                                                      DateTime(
+                                                        pickedDate.year,
+                                                        pickedDate.month,
+                                                        pickedDate.day,
+                                                        tempTime.hour,
+                                                        tempTime.minute,
+                                                      ),
+                                                      minimumTime,
+                                                    ),
                                                 minimumDate: minimumTime,
                                                 onDateTimeChanged:
                                                     (DateTime newDateTime) {
@@ -4314,9 +4273,7 @@ class _NewBookingState extends State<NewBooking> {
 
           return filtered;
         }
-      } catch (e) {
-        debugPrint('Error filtering airports: $e');
-      }
+      } catch (e) {}
     }
     return const [];
   }
@@ -4365,9 +4322,7 @@ class _NewBookingState extends State<NewBooking> {
             if (filtered.isNotEmpty) return filtered;
           }
         }
-      } catch (e) {
-        debugPrint('Error filtering terminals: $e');
-      }
+      } catch (e) {}
     }
     return ["no terminals"];
   }

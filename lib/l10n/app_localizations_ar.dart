@@ -1243,4 +1243,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get arrived => 'وصل';
+
+  @override
+  String get failedToDeleteAccount =>
+      'تعذر حذف الحساب. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get cannotMakePhoneCalls =>
+      'لا يمكن إجراء مكالمات هاتفية على هذا الجهاز.';
+
+  @override
+  String get couldNotPlayAudio => 'تعذر تشغيل الملاحظة الصوتية.';
 }

@@ -123,9 +123,6 @@ class AuthProvider extends ChangeNotifier {
       // Persist to local storage to keep cache fresh
       await UserLocalStorage.saveUserData(result.toJson());
       notifyListeners();
-      debugPrint('✅ Fetched user from backend: ${result.username}');
-    } else {
-      debugPrint('⚠️ Failed to fetch user by id: $id');
     }
 
     return result;
@@ -168,17 +165,11 @@ class AuthProvider extends ChangeNotifier {
 
       if (hasUserId && (hasToken || isSocialLogin)) {
         // --- PREEMPTIVE TOKEN REFRESH ON APP LAUNCH ---
-        debugPrint(
-          '🔄 AuthProvider │ App launch detected. Attempting to refresh tokens...',
-        );
         bool refreshed = false;
         bool sessionExpired = false;
         final storedRefreshToken = UserLocalStorage.getRefreshToken();
 
         if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
-          debugPrint(
-            '🔄 AuthProvider │ Attempting backend token refresh on launch...',
-          );
           try {
             final result = await _api.refreshAccessToken(
               refreshToken: storedRefreshToken,
@@ -186,9 +177,6 @@ class AuthProvider extends ChangeNotifier {
             if (result['success'] == true) {
               await _saveAuthTokens(result);
               refreshed = true;
-              debugPrint(
-                '✅ AuthProvider │ Backend token refreshed successfully on launch.',
-              );
             } else {
               final msg = (result['message'] as String? ?? '').toLowerCase();
               final statusCode = result['statusCode'] as int?;
@@ -197,23 +185,13 @@ class AuthProvider extends ChangeNotifier {
                   msg.contains('expired') ||
                   msg.contains('invalid')) {
                 sessionExpired = true;
-                debugPrint(
-                  '⚠️ AuthProvider │ Backend refresh token expired/invalid on launch: $msg',
-                );
               }
             }
-          } catch (e) {
-            debugPrint(
-              '⚠️ AuthProvider │ Backend token refresh on launch failed: $e',
-            );
-          }
+          } catch (e) {}
         }
 
         // If backend refresh was not successful or not possible, and provider is google, try silent sign-in
         if (!refreshed && loginProvider == 'google') {
-          debugPrint(
-            '🔄 AuthProvider │ Backend refresh failed/unavailable. Trying silent Google sign-in...',
-          );
           try {
             final googleResult = await GoogleSignInService.instance
                 .signInSilently();
@@ -228,9 +206,6 @@ class AuthProvider extends ChangeNotifier {
                 await _saveAuthTokens(authResponse);
                 refreshed = true;
                 sessionExpired = false;
-                debugPrint(
-                  '✅ AuthProvider │ Google token refreshed silently on launch.',
-                );
               } else {
                 final msg = (authResponse['message'] as String? ?? '')
                     .toLowerCase();
@@ -244,23 +219,14 @@ class AuthProvider extends ChangeNotifier {
               }
             } else {
               sessionExpired = true;
-              debugPrint(
-                '⚠️ AuthProvider │ Silent Google sign-in returned null on launch.',
-              );
             }
           } catch (e) {
-            debugPrint(
-              '⚠️ AuthProvider │ Silent Google sign-in on launch failed: $e',
-            );
             sessionExpired = true;
           }
         }
 
         // If the session is definitively expired, log them out right away
         if (sessionExpired && !refreshed) {
-          debugPrint(
-            '🚨 AuthProvider │ Session definitively expired on launch. Logging out.',
-          );
           await UserLocalStorage.clearUser();
           _status = AuthStatus.unauthenticated;
           notifyListeners();
@@ -283,9 +249,7 @@ class AuthProvider extends ChangeNotifier {
                   notifyListeners();
                 }
               })
-              .catchError((e) {
-                debugPrint('checkAuth background fetch failed: $e');
-              });
+              .catchError((e) {});
         } else {
           // If missing in local storage, get user details from backend using getbyid (via fetchUser)
           final fetchedUser = await fetchUser(userId: storedUserId);
@@ -311,7 +275,6 @@ class AuthProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint('Check Auth error: $e');
       _status = AuthStatus.unauthenticated;
       notifyListeners();
     }
@@ -358,7 +321,6 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      debugPrint('Request OTP error: $e');
       _isOtpLoading = false;
       _errorMessage = 'Failed to send OTP. Please try again.';
       _status = AuthStatus.failure;
@@ -401,7 +363,6 @@ class AuthProvider extends ChangeNotifier {
         locale: _currentLocale,
         fcmToken: _currentFcmToken,
       );
-      debugPrint('🔑 verifyOtp response: ' + result.toString());
 
       _isOtpLoading = false;
       _cancelResendTimer();
@@ -437,7 +398,6 @@ class AuthProvider extends ChangeNotifier {
         _status = AuthStatus.authenticated;
         _phoneNumber = phoneNumber;
         _resendCountdown = 0;
-        debugPrint('✅ Existing user logged in: ${_user?.username ?? ''}');
 
         // Sync FCM token with backend after successful login
         unawaited(NotificationService.instance.syncTokenWithBackend());
@@ -456,9 +416,6 @@ class AuthProvider extends ChangeNotifier {
           _status = AuthStatus.otpVerified;
           _phoneNumber = phoneNumber;
           _resendCountdown = 0;
-          debugPrint(
-            '🆕 New user (backend: "$message") — redirecting to signup',
-          );
           notifyListeners();
         } else {
           _errorMessage =
@@ -468,7 +425,6 @@ class AuthProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
-      debugPrint('Verify OTP error: $e');
       _isOtpLoading = false;
       _errorMessage = 'Verification failed. Please try again.';
       _status = AuthStatus.failure;
@@ -581,14 +537,7 @@ class AuthProvider extends ChangeNotifier {
           try {
             final freshToken = UserLocalStorage.getToken();
             fullUser = await _api.getUserById(id: uid, token: freshToken);
-            if (fullUser != null) {
-              debugPrint(
-                '✅ Signup │ Full user fetched from backend: ${fullUser.username}',
-              );
-            }
-          } catch (e) {
-            debugPrint('⚠️ Signup │ getUserById after creation failed: $e');
-          }
+          } catch (e) {}
 
           if (fullUser != null) {
             _user = fullUser;
@@ -601,9 +550,6 @@ class AuthProvider extends ChangeNotifier {
               'countryCode': countryCode,
             });
             await UserLocalStorage.saveUserData(userData);
-            debugPrint(
-              '⚠️ Signup │ Using fallback user from createUser response',
-            );
           }
         }
 
@@ -613,7 +559,6 @@ class AuthProvider extends ChangeNotifier {
         unawaited(NotificationService.instance.syncTokenWithBackend());
 
         notifyListeners();
-        debugPrint('✅ Signup │ User authenticated: ${_user?.username}');
         return {'success': true};
       } else {
         _status = AuthStatus.failure;
@@ -622,7 +567,6 @@ class AuthProvider extends ChangeNotifier {
         return {'success': false, 'message': _errorMessage};
       }
     } catch (e) {
-      debugPrint('Submit SignUp error: $e');
       _status = AuthStatus.failure;
       _errorMessage = e.toString();
       notifyListeners();
@@ -650,7 +594,6 @@ class AuthProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      debugPrint('Token refresh error: $e');
       return false;
     }
   }
@@ -688,15 +631,6 @@ class AuthProvider extends ChangeNotifier {
       } else {
         await UserLocalStorage.saveToken(accessToken);
       }
-      debugPrint(
-        '💾 AuthProvider │ Tokens saved to Hive.\n'
-        '   - AccessToken: ${accessToken.substring(0, 15)}...\n'
-        '   - RefreshToken: ${refreshToken != null ? refreshToken.substring(0, 15) + '...' : 'NONE'}',
-      );
-    } else {
-      debugPrint(
-        '⚠️ AuthProvider │ Failed to extract access token from result: $result',
-      );
     }
   }
 
@@ -741,8 +675,6 @@ class AuthProvider extends ChangeNotifier {
         await UserLocalStorage.saveSocialIdToken(result.idToken!);
       }
 
-      debugPrint('🔐 Google Sign-In │ Email: ${result.email}');
-
       // Step 2: Backend login/check using Google token
       if (result.idToken != null) {
         final authResponse = await _api.googleAuth(
@@ -750,7 +682,6 @@ class AuthProvider extends ChangeNotifier {
           locale: _currentLocale,
           fcmToken: _currentFcmToken,
         );
-        debugPrint('🔐 Google Sign-In │ Auth response: $authResponse');
 
         if (authResponse['success'] == true) {
           final authData = authResponse['data'];
@@ -776,9 +707,6 @@ class AuthProvider extends ChangeNotifier {
               await UserLocalStorage.saveUserData(userData);
 
               _status = AuthStatus.authenticated;
-              debugPrint(
-                '✅ Google Sign-In │ Existing user authenticated: ${_user?.username}',
-              );
 
               // Sync FCM token after successful Google login
               unawaited(NotificationService.instance.syncTokenWithBackend());
@@ -789,20 +717,17 @@ class AuthProvider extends ChangeNotifier {
           } else {
             // New user: Go to signup
             _status = AuthStatus.otpVerified;
-            debugPrint('🆕 Google Sign-In │ New user. Going to signup.');
           }
         } else {
           _status = AuthStatus.failure;
           _errorMessage =
               authResponse['message'] ?? 'Backend authentication failed';
-          debugPrint('❌ Google Sign-In │ Backend Auth Failed: $_errorMessage');
         }
       } else {
         _status = AuthStatus.failure;
         _errorMessage = 'Google ID Token is missing';
       }
     } catch (e) {
-      debugPrint('Google Sign-In error: $e');
       _status = AuthStatus.failure;
       _errorMessage = 'Google sign-in failed. Please try again.';
     }
@@ -846,8 +771,6 @@ class AuthProvider extends ChangeNotifier {
         await UserLocalStorage.saveSocialIdToken(result.idToken!);
       }
 
-      debugPrint('🍎 Apple Sign-In │ User ID: ${result.userId}');
-
       // Step 2: Backend login/check using Apple token
       if (result.idToken != null) {
         final authResponse = await _api.appleAuth(
@@ -855,7 +778,6 @@ class AuthProvider extends ChangeNotifier {
           locale: _currentLocale,
           fcmToken: _currentFcmToken,
         );
-        debugPrint('🍎 Apple Sign-In │ Auth response: $authResponse');
 
         if (authResponse['success'] == true) {
           final authData = authResponse['data'];
@@ -881,9 +803,6 @@ class AuthProvider extends ChangeNotifier {
               await UserLocalStorage.saveUserData(userData);
 
               _status = AuthStatus.authenticated;
-              debugPrint(
-                '✅ Apple Sign-In │ Existing user authenticated: ${_user?.username}',
-              );
 
               // Sync FCM token after successful Apple login
               unawaited(NotificationService.instance.syncTokenWithBackend());
@@ -894,20 +813,17 @@ class AuthProvider extends ChangeNotifier {
           } else {
             // New user: Go to signup
             _status = AuthStatus.otpVerified;
-            debugPrint('🆕 Apple Sign-In │ New user. Going to signup.');
           }
         } else {
           _status = AuthStatus.failure;
           _errorMessage =
               authResponse['message'] ?? 'Backend authentication failed';
-          debugPrint('❌ Apple Sign-In │ Backend Auth Failed: $_errorMessage');
         }
       } else {
         _status = AuthStatus.failure;
         _errorMessage = 'Apple ID Token is missing';
       }
     } catch (e) {
-      debugPrint('Apple Sign-In error: $e');
       _status = AuthStatus.failure;
       _errorMessage = 'Apple sign-in failed. Please try again.';
     }
@@ -952,7 +868,6 @@ class AuthProvider extends ChangeNotifier {
       _status = AuthStatus.unauthenticated;
       notifyListeners();
     } catch (e) {
-      debugPrint('Logout error: $e');
       _status = AuthStatus.failure;
       _errorMessage = e.toString();
       notifyListeners();
@@ -976,14 +891,12 @@ class AuthProvider extends ChangeNotifier {
       if (id != null) {
         // Delete user on the backend
         await _api.deleteUser(userid: id, token: token);
-        debugPrint('✅ Account deleted from backend: $id');
       }
 
       // Cleanup local state (this is what the user meant: delete first, then cleanup)
       await logout();
       return true;
     } catch (e) {
-      debugPrint('❌ Delete Account error: $e');
       _status = AuthStatus.failure;
       _errorMessage = e.toString();
       notifyListeners();

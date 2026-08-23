@@ -409,5 +409,8 @@
   "cancellationReason": "Reason for cancellation",
   "cancellationReasonHint": "Tell us why you are cancelling",
   "onTheWay": "On the Way",
-  "arrived": "Arrived"
+  "arrived": "Arrived",
+  "failedToDeleteAccount": "Failed to delete account. Please try again.",
+  "cannotMakePhoneCalls": "Cannot make phone calls on this device.",
+  "couldNotPlayAudio": "Could not play the voice note."
 }

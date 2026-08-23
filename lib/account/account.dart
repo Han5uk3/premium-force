@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
+import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/main.dart';
@@ -99,9 +100,7 @@ class _AccountPageState extends State<AccountPage> {
                   );
                   try {
                     await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } catch (e) {
-                    debugPrint('Could not launch terms URL: $e');
-                  }
+                  } catch (e) {}
                 },
                 child: ProfileTile(
                   loc: loc,
@@ -118,9 +117,7 @@ class _AccountPageState extends State<AccountPage> {
                   );
                   try {
                     await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } catch (e) {
-                    debugPrint('Could not launch privacy URL: $e');
-                  }
+                  } catch (e) {}
                 },
                 child: ProfileTile(
                   loc: loc,
@@ -596,13 +593,11 @@ class _AccountPageState extends State<AccountPage> {
                                   );
                                 } else {
                                   setLoaderState(() => isDeleting = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        authProvider.errorMessage ??
-                                            "Failed to delete account",
-                                      ),
-                                    ),
+                                  AnimatedSnackBar.show(
+                                    context,
+                                    authProvider.errorMessage ??
+                                        loc.failedToDeleteAccount,
+                                    'E',
                                   );
                                 }
                               }
@@ -689,9 +684,7 @@ class _AccountPageState extends State<AccountPage> {
                     );
                     try {
                       await launchUrl(emailLaunchUri);
-                    } catch (e) {
-                      debugPrint('Could not launch email: \$e');
-                    }
+                    } catch (e) {}
                     if (context.mounted) Navigator.pop(sheetContext);
                   },
                 ),
@@ -710,9 +703,7 @@ class _AccountPageState extends State<AccountPage> {
                     );
                     try {
                       await launchUrl(phoneLaunchUri);
-                    } catch (e) {
-                      debugPrint('Could not launch phone: \$e');
-                    }
+                    } catch (e) {}
                     if (context.mounted) Navigator.pop(sheetContext);
                   },
                 ),

@@ -94,8 +94,10 @@ class DriverLocationService {
       'https://premium-force-default-rtdb.asia-southeast1.firebasedatabase.app';
 
   /// Resolved lazily: Firebase has to be initialised before this is touched.
-  FirebaseDatabase get _database =>
-      FirebaseDatabase.instanceFor(app: Firebase.app(), databaseURL: _databaseUrl);
+  FirebaseDatabase get _database => FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL: _databaseUrl,
+  );
 
   /// Positions for [bookingId], skipping anything unreadable.
   ///
@@ -103,14 +105,11 @@ class DriverLocationService {
   /// transient database fault does not permanently kill tracking on the screen.
   Stream<LatLng> watchLocation(String bookingId) {
     final path = 'bookings/$bookingId/driver_location';
-    debugPrint('📡 Driver location │ listening at $path');
 
     return _database
         .ref(path)
         .onValue
-        .handleError((Object error) {
-          debugPrint('❌ Driver location │ stream error at $path: $error');
-        })
+        .handleError((Object error) {})
         .map((event) => parsePosition(event.snapshot.value))
         .where((position) => position != null)
         .cast<LatLng>();
@@ -124,9 +123,7 @@ class DriverLocationService {
     return _database
         .ref(path)
         .onValue
-        .handleError((Object error) {
-          debugPrint('❌ Driver location │ session error at $path: $error');
-        })
+        .handleError((Object error) {})
         .map((event) {
           final data = event.snapshot.value;
           if (data is! Map) return null;
@@ -160,9 +157,7 @@ class DriverLocationService {
         try {
           final decoded = json.decode(trimmed);
           if (decoded is Map) return _fromMap(decoded);
-        } catch (error) {
-          debugPrint('⚠️ Driver location │ bad JSON payload: $error');
-        }
+        } catch (error) {}
         return null;
       }
 
@@ -176,7 +171,6 @@ class DriverLocationService {
       }
     }
 
-    debugPrint('⚠️ Driver location │ unreadable payload: $data');
     return null;
   }
 

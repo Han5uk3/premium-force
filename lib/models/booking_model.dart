@@ -1175,7 +1175,6 @@ String? _safeUrl(dynamic val) {
   if (val == null) return null;
 
   // Debug print to see what exactly is coming into the parser
-  // print('🔍 Debug URL Parser: val type: ${val.runtimeType}, val: $val');
 
   if (val is Map) {
     final url = val['url'] ?? val['path'] ?? val['image'] ?? val['file'];

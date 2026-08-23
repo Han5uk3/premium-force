@@ -122,15 +122,11 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     if (authProvider.status == AuthStatus.authenticated) {
       // â”€â”€ Existing user â†’ check if active â”€â”€
       if (authProvider.user?.isActive ?? true) {
-        debugPrint('âœ… Existing user & active â€” navigating to Home');
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => Home()),
           (route) => false,
         );
       } else {
-        debugPrint(
-          'â›” Existing user but blocked â€” navigating to BlockedPage',
-        );
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const BlockedPage()),
           (route) => false,
@@ -138,7 +134,6 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       }
     } else if (authProvider.status == AuthStatus.otpVerified) {
       // â”€â”€ New user â†’ go to SignUp â”€â”€
-      debugPrint('ðŸ†• New user â€” navigating to SignUp');
       Navigator.of(context).push(
         SmoothNavigation.route(
           SignUpPage(

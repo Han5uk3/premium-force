@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 /// Service that wraps the `google_sign_in` plugin.
@@ -49,15 +48,11 @@ class GoogleSignInService {
       final GoogleSignInAccount? account = await _googleSignIn.signIn();
       if (account == null) {
         // User cancelled the sign-in
-        debugPrint('🔐 Google Sign-In │ User cancelled');
         return null;
       }
 
       final GoogleSignInAuthentication auth = await account.authentication;
       final String? idToken = auth.idToken;
-
-      debugPrint('🔐 Google Sign-In │ Success: ${account.email}');
-      debugPrint('🔐 Google Sign-In │ ID Token present: ${idToken != null}');
 
       return GoogleSignInResult(
         idToken: idToken,
@@ -68,7 +63,6 @@ class GoogleSignInService {
         googleId: account.id,
       );
     } catch (e) {
-      debugPrint('🔐 Google Sign-In │ Error: $e');
       rethrow;
     }
   }
@@ -91,7 +85,6 @@ class GoogleSignInService {
         googleId: account.id,
       );
     } catch (e) {
-      debugPrint('🔐 Google Sign-In │ Silent Auth Error: $e');
       return null;
     }
   }

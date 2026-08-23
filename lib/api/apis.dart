@@ -1,4 +1,3 @@
-import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -46,8 +45,6 @@ class ApiService {
       InterceptorsWrapper(
         onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
           final token = UserLocalStorage.getToken();
-          final currentUserId = UserLocalStorage.getUserId();
-          if (currentUserId != null) debugPrint('👤 User ID │ $currentUserId');
           final path = options.path;
 
           // Don't attach token for auth endpoints
@@ -67,7 +64,6 @@ class ApiService {
           // Check if error is 401 Unauthorized
           if (e.response?.statusCode == 401) {
             final provider = UserLocalStorage.getLoginProvider();
-            debugPrint('🔄 API │ Unauthorized (401). Provider: $provider');
 
             final refreshToken = UserLocalStorage.getRefreshToken();
             String? newAccess;
@@ -75,7 +71,6 @@ class ApiService {
 
             // 1. Attempt Backend Refresh
             if (refreshToken != null && refreshToken.isNotEmpty) {
-              debugPrint('🔄 API │ Attempting backend token refresh...');
               try {
                 // Use a separate Dio instance to avoid interceptor loop
                 final refreshDio = Dio(
@@ -123,9 +118,7 @@ class ApiService {
                                         : null)))
                           as String?;
                 }
-              } catch (reErr) {
-                debugPrint('❌ API │ Refresh failed: $reErr');
-              }
+              } catch (reErr) {}
             }
 
             // 2. Fallback for Social Login (if backend refresh failed)
@@ -134,7 +127,6 @@ class ApiService {
                 !e.requestOptions.path.contains('auth/')) {
               final socialIdToken = UserLocalStorage.getSocialIdToken();
               if (socialIdToken != null && socialIdToken.isNotEmpty) {
-                debugPrint('🔄 API │ Attempting social re-auth ($provider)...');
                 try {
                   final authResponse = provider == 'google'
                       ? await googleAuth(idToken: socialIdToken)
@@ -157,9 +149,6 @@ class ApiService {
                             as String?;
                   } else if (provider == 'google') {
                     // Try silent sign-in if native token expired
-                    debugPrint(
-                      '🔄 API │ Social re-auth failed. Trying silent Google sign-in...',
-                    );
                     final googleResult = await GoogleSignInService.instance
                         .signInSilently();
                     if (googleResult != null && googleResult.idToken != null) {
@@ -187,9 +176,7 @@ class ApiService {
                       }
                     }
                   }
-                } catch (reErr) {
-                  debugPrint('❌ API │ Social re-auth failed: $reErr');
-                }
+                } catch (reErr) {}
               }
             }
 
@@ -203,9 +190,7 @@ class ApiService {
               } else {
                 await UserLocalStorage.saveToken(newAccess);
               }
-              debugPrint('✅ API │ Tokens refreshed successfully.');
 
-              debugPrint('🔄 API │ Retrying original request...');
               e.requestOptions.headers['Authorization'] = 'Bearer $newAccess';
 
               try {
@@ -338,15 +323,10 @@ class ApiService {
     try {
       final data = {'idToken': idToken, ..._localePayload(locale, fcmToken)};
 
-      dev.log('🔐 Google Auth │ Sending data: $data');
-
       final response = await _dio.post('auth/google', data: data);
-
-      debugPrint('🔐 Google Auth │ Response: ${response.data}');
 
       return _success(response);
     } catch (e) {
-      debugPrint('🔐 Google Auth │ Error: $e');
       return _handleError(e);
     }
   }
@@ -363,15 +343,10 @@ class ApiService {
     try {
       final data = {'idToken': idToken, ..._localePayload(locale, fcmToken)};
 
-      dev.log('🍎 Apple Auth │ Sending data: $data');
-
       final response = await _dio.post('auth/apple', data: data);
-
-      debugPrint('🍎 Apple Auth │ Response: ${response.data}');
 
       return _success(response);
     } catch (e) {
-      debugPrint('🍎 Apple Auth │ Error: $e');
       return _handleError(e);
     }
   }
@@ -428,7 +403,6 @@ class ApiService {
       if (e is DioException && e.response?.statusCode == 401 && token == null) {
         final newToken = UserLocalStorage.getToken();
         if (newToken != null) {
-          debugPrint('🔄 API [Retry] │ Re-executing createUser...');
           return await createUser(
             username: username,
             email: email,
@@ -464,7 +438,6 @@ class ApiService {
       );
       return _profileFrom(_success(response), 'GET users/$id');
     } catch (e) {
-      debugPrint('❌ Profile │ GET users/$id failed: $e');
       return null;
     }
   }
@@ -482,26 +455,17 @@ class ApiService {
   /// stay attributable.
   UserModel? _profileFrom(Map<String, dynamic> data, String label) {
     if (data['success'] != true) {
-      debugPrint(
-        '⚠️ Profile │ $label rejected: '
-        '${data['message'] ?? data['error'] ?? 'no message'}',
-      );
       return null;
     }
 
     final userData = data['user'] ?? data['data'] ?? data;
     if (userData is Map<String, dynamic> && userData.containsKey('username')) {
-      debugPrint('👤 Profile │ $label loaded');
       return UserModel.fromJson(userData);
     }
 
     // The envelope said success but the body is not the user document the
     // model expects, so the keys that did arrive are named rather than leaving
     // a bare null behind.
-    debugPrint(
-      '⚠️ Profile │ $label returned no user — '
-      '${userData is Map ? 'keys: ${userData.keys.toList()}' : 'body: ${userData.runtimeType}'}',
-    );
     return null;
   }
 
@@ -551,7 +515,6 @@ class ApiService {
       if (e is DioException && e.response?.statusCode == 401 && token == null) {
         final newToken = UserLocalStorage.getToken();
         if (newToken != null) {
-          debugPrint('🔄 API [Retry] │ Re-executing updateUser...');
           return await updateUser(
             id: id,
             username: username,
@@ -673,9 +636,6 @@ class ApiService {
         'cities',
         options: token != null ? _authOptions(token) : null,
       );
-      if (kDebugMode) {
-        debugPrint('🚀 🌐 API │ GET Cities Response: ${response.data}');
-      }
       return _success(response);
     } catch (e) {
       return _handleError(e);
@@ -772,7 +732,6 @@ class ApiService {
           message = 'Something went wrong. Please try again.';
       }
 
-      debugPrint('🌐 API │ Error [$statusCode]: $message');
       return {
         'success': false,
         'statusCode': statusCode,
@@ -781,7 +740,6 @@ class ApiService {
       };
     }
 
-    debugPrint('🌐 API │ Unexpected error: $error');
     return {
       'success': false,
       'message': 'Something went wrong. Please try again.',

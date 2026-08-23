@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
+import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
@@ -68,12 +69,10 @@ class BlockedPage extends StatelessWidget {
                   } else {
                     // Fallback to clipboard or just showing the email
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            l10n.supportEmail('premium.force.sa@gmail.com'),
-                          ),
-                        ),
+                      AnimatedSnackBar.show(
+                        context,
+                        l10n.supportEmail('premium.force.sa@gmail.com'),
+                        'I',
                       );
                     }
                   }
@@ -91,9 +90,7 @@ class BlockedPage extends StatelessWidget {
                   );
                   try {
                     await launchUrl(phoneLaunchUri);
-                  } catch (e) {
-                    debugPrint('Could not launch phone: $e');
-                  }
+                  } catch (e) {}
                 },
               ),
               const SizedBox(height: 16),

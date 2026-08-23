@@ -70,11 +70,6 @@ class SessionPaymentService {
     if (kDebugMode &&
         PaytabsConfig.sandboxServerKey.isNotEmpty &&
         PaytabsConfig.sandboxClientKey.isNotEmpty) {
-      debugPrint(
-        '🧪 Session payment │ DEBUG build — ignoring backend credentials, '
-        'using sandbox profile "${PaytabsConfig.sandboxProfileId}". '
-        'No real money moves.',
-      );
       return (
         profileId: PaytabsConfig.sandboxProfileId,
         serverKey: PaytabsConfig.sandboxServerKey,
@@ -91,11 +86,6 @@ class SessionPaymentService {
     }
 
     // Lengths only — the keys themselves stay out of the log.
-    debugPrint(
-      '⚠️  Session payment │ Backend credentials malformed '
-      '(profile "${config.profileId}", server ${config.serverKey.length} chars, '
-      'client ${config.clientKey.length} chars) — using app live keys',
-    );
 
     return (
       profileId: PaytabsConfig.liveProfileId,
@@ -161,11 +151,6 @@ class SessionPaymentService {
   }) async {
     final completer = Completer<PaymentResult>();
 
-    debugPrint(
-      '💳 Session payment │ cart=${config.cartId} '
-      'amount=${config.amount} ${config.currency} applePay=$useApplePay',
-    );
-
     final credentials = _credentials(config);
 
     try {
@@ -219,7 +204,6 @@ class SessionPaymentService {
       void onEvent(dynamic event) {
         // The SDK callback is the only record of what the gateway decided, so
         // it is logged raw before being interpreted.
-        debugPrint('💳 PayTabs event │ cart=${config.cartId} │ $event');
 
         if (completer.isCompleted) return;
 
@@ -228,17 +212,11 @@ class SessionPaymentService {
           config: config,
           customerEmail: customerEmail,
         );
-        debugPrint(
-          '💳 PayTabs result │ success=${result.success} '
-          'code=${result.responseCode} ref=${result.transactionReference} '
-          'msg=${result.responseMessage}',
-        );
 
         completer.complete(result);
       }
 
       void onBridgeError(Object error) {
-        debugPrint('❌ Session payment bridge error: $error');
         if (completer.isCompleted) return;
         completer.complete(
           _failure(
@@ -265,7 +243,6 @@ class SessionPaymentService {
 
       return completer.future;
     } catch (error) {
-      debugPrint('❌ Session payment failed to start: $error');
       return _failure(
         config: config,
         customerEmail: customerEmail,

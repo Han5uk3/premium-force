@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
@@ -100,9 +100,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
         });
         _startTimer();
       }
-    } catch (e) {
-      debugPrint('Error starting record: $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> _stopRecording() async {
@@ -113,9 +111,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
         _isRecording = false;
         _audioPath = path;
       });
-    } catch (e) {
-      debugPrint('Error stopping record: $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> _playPauseAudio() async {
@@ -283,7 +279,10 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                         padding: const EdgeInsets.only(left: 8.0),
                         child: Text(
                           loc.recordVoiceNote,
-                          style: const TextStyle(color: Colors.white60, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -325,7 +324,10 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                 ),
                 child: Text(
                   loc.saveVoiceNote,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
           ],
@@ -334,4 +336,3 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
     );
   }
 }
-

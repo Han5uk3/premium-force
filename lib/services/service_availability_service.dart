@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/booking_api_v2.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/geo_models.dart';
@@ -114,14 +113,10 @@ class ServiceAvailabilityService {
     // Let it through: the backend re-validates on session init, and blocking
     // the user on a transient network fault would be worse than a late error.
     if (city == null) {
-      debugPrint('📍 Availability │ City lookup unavailable — allowing');
       return const LocationAvailability(isAvailable: true);
     }
 
     if (!city.isServiceable) {
-      debugPrint(
-        '📍 Availability │ ($lat, $lng) rejected: outside serviced cities',
-      );
       return LocationAvailability(
         isAvailable: false,
         message: city.message ?? _defaultCityFailure,
@@ -131,13 +126,9 @@ class ServiceAvailabilityService {
 
     if (needsZone) {
       if (zone == null) {
-        debugPrint('📍 Availability │ Zone lookup unavailable — allowing');
         return LocationAvailability(isAvailable: true, city: city);
       }
       if (!zone.isServiceable) {
-        debugPrint(
-          '📍 Availability │ ($lat, $lng) rejected: outside transfer zones',
-        );
         return LocationAvailability(
           isAvailable: false,
           message: zone.message ?? _defaultZoneFailure,
@@ -147,10 +138,6 @@ class ServiceAvailabilityService {
       }
     }
 
-    debugPrint(
-      '📍 Availability │ ($lat, $lng) accepted: city=${city.cityName}'
-      '${zone == null ? '' : ' zone=${zone.zoneName}'}',
-    );
     return LocationAvailability(isAvailable: true, city: city, zone: zone);
   }
 

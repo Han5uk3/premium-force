@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'dart:async';
 
 class VoicePlayer extends StatefulWidget {
@@ -81,13 +83,11 @@ class _VoicePlayerState extends State<VoicePlayer> {
         await _audioPlayer.play(UrlSource(widget.audioUrl));
       }
     } catch (e) {
-      debugPrint('❌ Audio Player Error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not play audio: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
+        AnimatedSnackBar.show(
+          context,
+          AppLocalizations.of(context)!.couldNotPlayAudio,
+          'E',
         );
       }
     }
@@ -136,13 +136,15 @@ class _VoicePlayerState extends State<VoicePlayer> {
                     ? _duration.inMilliseconds.toDouble()
                     : 1.0,
                 value: _position.inMilliseconds.toDouble().clamp(
-                      0,
-                      _duration.inMilliseconds.toDouble() > 0
-                          ? _duration.inMilliseconds.toDouble()
-                          : 1.0,
-                    ),
+                  0,
+                  _duration.inMilliseconds.toDouble() > 0
+                      ? _duration.inMilliseconds.toDouble()
+                      : 1.0,
+                ),
                 onChanged: (value) async {
-                  await _audioPlayer.seek(Duration(milliseconds: value.toInt()));
+                  await _audioPlayer.seek(
+                    Duration(milliseconds: value.toInt()),
+                  );
                 },
               ),
             ),
@@ -156,16 +158,10 @@ class _VoicePlayerState extends State<VoicePlayer> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          Text(
-            " / ",
-            style: TextStyle(color: Colors.white24, fontSize: 10),
-          ),
+          Text(" / ", style: TextStyle(color: Colors.white24, fontSize: 10)),
           Text(
             _formatDuration(_duration),
-            style: const TextStyle(
-              color: Colors.white38,
-              fontSize: 10,
-            ),
+            style: const TextStyle(color: Colors.white38, fontSize: 10),
           ),
           const SizedBox(width: 4),
         ],
