@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Bidi;
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/models/v2/booking_v2.dart';
+import 'package:premium_force_main/utils/booking_status_display.dart';
 import 'package:premium_force_main/utils/date_display.dart';
 
 class Bookingcard extends StatelessWidget {
-  final String status;
+  /// The booking's stage, or null on the review card — there is no booking
+  /// yet, and that card renders no status chip.
+  final BookingStatusV2? status;
+  /// The service, already localised by the caller — the card renders it as
+  /// given rather than deriving a label again from the text.
   final String type;
   final String pickup;
   final String dropoff;
@@ -17,6 +23,21 @@ class Bookingcard extends StatelessWidget {
   final bool isChauffeur;
   final String? chauffeurName;
 
+  /// Hours of chauffeur hire, already formatted and localised, e.g.
+  /// `"6 Hours"`.
+  ///
+  /// Shown across from the service type, in the place the status chip takes
+  /// on the list cards — so only the detail card, which carries no chip, has
+  /// the room for it. Null for anything that is not hourly hire.
+  final String? durationLabel;
+
+  /// The booking's reference, e.g. `"PF-APT-2608-7795"`, shown under the
+  /// service type.
+  ///
+  /// Absent on the review screen, which renders the card before a booking
+  /// exists to number.
+  final String? bookingNumber;
+
   /// The note the operator left when the booking was cancelled, shown on the
   /// card so a cancelled ride explains itself without being opened.
   final String? cancellationNote;
@@ -27,8 +48,10 @@ class Bookingcard extends StatelessWidget {
     this.isFromReviewAndConfirm = false,
     this.isChauffeur = false,
     this.chauffeurName,
+    this.bookingNumber,
+    this.durationLabel,
     this.cancellationNote,
-    required this.status,
+    this.status,
     required this.type,
     required this.pickup,
     required this.dropoff,
@@ -84,30 +107,23 @@ class Bookingcard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                isFromReviewAndConfirm
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            loc.service,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
-                            ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isFromReviewAndConfirm) ...[
+                        Text(
+                          loc.service,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
                           ),
-                          SizedBox(height: 5),
-                          Text(
-                            getServiceType(type, loc),
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Text(
+                        ),
+                        SizedBox(height: 5),
+                      ],
+                      Text(
                         type,
                         style: TextStyle(
                           fontSize: 14,
@@ -115,9 +131,56 @@ class Bookingcard extends StatelessWidget {
                           color: Colors.white,
                         ),
                       ),
-                !isFromReviewAndConfirm
-                    ? buildContainerText(true, false, loc)
-                    : SizedBox.shrink(),
+                      if (bookingNumber?.trim().isNotEmpty ?? false) ...[
+                        SizedBox(height: 3),
+                        Text(
+                          // The reference is latin text and digits: without
+                          // this it inherits the Arabic direction of the label
+                          // above it and comes out reversed in an RTL layout.
+                          Bidi.enforceLtrInText(bookingNumber!.trim()),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withAlpha(150),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!isFromReviewAndConfirm) ...[
+                  SizedBox(width: 8),
+                  buildContainerText(true, false, loc),
+                ] else if (durationLabel?.trim().isNotEmpty ?? false) ...[
+                  SizedBox(width: 8),
+                  // Mirrors the service block opposite it, so the two headings
+                  // and the two values sit on the same lines.
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        loc.duration,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 5),
+                      Text(
+                        durationLabel!.trim(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
 
@@ -354,20 +417,19 @@ class Bookingcard extends StatelessWidget {
       return chauffeurName!;
     }
 
-    final lowerStatus = status.toLowerCase().trim();
-    if (lowerStatus == 'assigned' ||
-        lowerStatus == 'starttracking' ||
-        lowerStatus == 'ongoing') {
-      return loc.driverAssigned;
-    }
+    // The name usually arrives with the assignment; this covers the gap
+    // between the ride being assigned and the driver record being populated.
+    if (status?.hasDriver ?? false) return loc.driverAssigned;
     return loc.notAssigned;
   }
 
   Widget buildContainerText(bool isPickup, bool isGrey, AppLocalizations loc) {
+    final stage = status ?? BookingStatusV2.unknown;
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isGrey ? Colors.grey.shade800 : getColorByStatus(status),
+        color: isGrey ? Colors.grey.shade800 : bookingStatusColor(stage),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -375,7 +437,7 @@ class Bookingcard extends StatelessWidget {
             ? isPickup
                   ? loc.pickup
                   : loc.dropoff
-            : getStatusText(status, loc),
+            : bookingStatusLabel(loc, stage),
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
@@ -383,68 +445,5 @@ class Bookingcard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String getStatusText(String status, AppLocalizations loc) {
-    status = status.toLowerCase();
-    if (status == "completed" || status == "c") {
-      return loc.completed;
-    } else if (status == "reviewed") {
-      return loc.reviewed;
-    } else if (status == "pending" || status == "p") {
-      return loc.pending;
-    } else if (status == "cancelled" || status == "x") {
-      return loc.cancelled;
-    } else if (status == "starttracking") {
-      return loc.tracking;
-    } else if (status == "stoptracking") {
-      return loc.trackingStopped;
-    } else if (status == "assigned") {
-      return loc.assigned;
-    } else if (status == "paymentpending" || status == "payment pending") {
-      return loc.paymentPending;
-    }
-    return status.isNotEmpty
-        ? status[0].toUpperCase() + status.substring(1)
-        : loc.unknown;
-  }
-
-  Color getColorByStatus(String status) {
-    status = status.toLowerCase();
-    if (status == "completed" || status == "c" || status == "reviewed") {
-      return Colors.green;
-    } else if (status == "pending" || status == "p") {
-      return Colors.orange;
-    } else if (status == "confirmed" ||
-        status == "ongoing" ||
-        status == "assigned" ||
-        status == "starttracking" ||
-        status == "stoptracking" ||
-        status == "paymentpending" ||
-        status == "payment pending") {
-      return Colors.blue;
-    } else if (status == "cancelled" || status == "x") {
-      return Colors.red;
-    }
-    return Colors.grey;
-  }
-
-  String getServiceType(String type, AppLocalizations loc) {
-    type = type.toLowerCase();
-    if (type == "airport arrival" || type == "arrival") {
-      return loc.airportArrival;
-    } else if (type == "airport departure" || type == "departure") {
-      return loc.airportDeparture;
-    } else if (type == "chauffeur" ||
-        type == "chauffeur service" ||
-        type.contains("chauffeur") ||
-        type == "hourly") {
-      return loc.chauffeur;
-    } else if (type == "private transfer") {
-      return loc.privateTransfer;
-    }
-    return type.isNotEmpty
-        ? type[0].toUpperCase() + type.substring(1)
-        : loc.unknown;
   }
 }

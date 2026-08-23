@@ -37,7 +37,7 @@ class Homepage extends StatefulWidget {
 }
 
 class _HomepageState extends State<Homepage>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   List<Map<String, dynamic>> _fleetCars = [];
   List<Map<String, dynamic>> _apiCities = [];
   List<Map<String, dynamic>> _apiAirports = [];
@@ -57,6 +57,7 @@ class _HomepageState extends State<Homepage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Load from cache first for zero-latency UI
     _loadCachedFleet();
     // Fetch fresh data in the background
@@ -71,6 +72,31 @@ class _HomepageState extends State<Homepage>
         Provider.of<NotificationProvider>(context, listen: false).refresh();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _isLoadingLocations.dispose();
+    super.dispose();
+  }
+
+  /// Re-read the bookings when the app comes back to the foreground.
+  ///
+  /// A push delivered while the app was backgrounded never reaches the handler
+  /// in `main` — that only runs for a message received by a live app, or one
+  /// the customer taps — so the driver could have set off, and the tracking
+  /// card would still not be there on return. This screen is also kept alive by
+  /// [AutomaticKeepAliveClientMixin], so `initState` will not run again to do
+  /// it.
+  ///
+  /// Silent: the customer did not ask, so the rows change under them rather
+  /// than the screen dropping into a spinner.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    context.read<BookingProvider>().fetchBookings(silent: true);
   }
 
   void _loadCachedFleet() {
@@ -589,9 +615,9 @@ class _HomepageState extends State<Homepage>
     return switch (booking.resolvedServiceType) {
       BookingServiceType.airportArrival => loc.airportArrival,
       BookingServiceType.airportDeparture => loc.airportDeparture,
-      BookingServiceType.chauffeur => loc.chauffeur,
+      BookingServiceType.chauffeur => loc.chauffeurService,
       BookingServiceType.privateTransfer => loc.privateTransfer,
-      null => booking.isChauffeur ? loc.chauffeur : 'Booking',
+      null => booking.isChauffeur ? loc.chauffeurService : 'Booking',
     };
   }
 
@@ -615,9 +641,9 @@ class _HomepageState extends State<Homepage>
               _buildBookService(context, loc),
               Consumer<BookingProvider>(
                 builder: (context, bookingProvider, child) {
-                  // Only once the driver has started the ride: before that
-                  // nothing is publishing a position, so the card and the
-                  // screen behind it stay hidden.
+                  // From the moment the driver sets off until the ride ends:
+                  // outside that window nothing is publishing a position, so
+                  // the card and the screen behind it stay hidden.
                   final trackingBooking = bookingProvider.trackableBooking;
                   if (trackingBooking == null) return const SizedBox.shrink();
 
@@ -753,7 +779,7 @@ class _HomepageState extends State<Homepage>
                           }
                         },
                         child: Bookingcard(
-                          status: booking.status.wireValue,
+                          status: booking.status,
                           type: _getBookingName(booking, context),
                           pickup: booking.pickupAddress ?? 'N/A',
                           dropoff: booking.dropOffAddress ?? 'N/A',
@@ -765,6 +791,7 @@ class _HomepageState extends State<Homepage>
                           chauffeurName: booking.driver?.name,
                           isChauffeur: booking.isChauffeur,
                           cancellationNote: booking.cancellationNote,
+                          bookingNumber: booking.bookingNumber,
                         ),
                       ),
                     );

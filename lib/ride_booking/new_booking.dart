@@ -1951,7 +1951,6 @@ class _NewBookingState extends State<NewBooking> {
 
               return Bookingcard(
                 isFromReviewAndConfirm: true,
-                status: "",
                 isChauffeur: _reviewServiceType.isChauffeur,
                 type: _reviewServiceLabel(context, loc),
                 pickup: _reviewPickupLabel(context, isArabic),

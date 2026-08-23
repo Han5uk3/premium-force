@@ -54,11 +54,20 @@ enum BookingStatusV2 {
   /// Whether the driver's live position is being published for this booking,
   /// and so whether tracking is worth offering at all.
   ///
-  /// The driver app starts sharing when it sets the ride to `trip_started` and
-  /// stops when the ride ends, so anything earlier would open a map with no car
-  /// on it. Every route into the tracking screen is gated on this — the home
-  /// card, and the button on the booking's details.
-  bool get isTrackable => this == tripStarted;
+  /// Mirrors the driver app's own sharing window, which opens the moment the
+  /// driver sets off for the pickup (`driver_en_route`) and closes when the
+  /// ride ends. Offering it any earlier would open a map with no car on it;
+  /// offering it only from `trip_started`, as this used to, hid the half of the
+  /// journey the customer actually waits through. Every route into the tracking
+  /// screen is gated on this — the home card, and the button on the booking's
+  /// details.
+  bool get isTrackable => isLive;
+
+  /// Whether a driver has been put on the ride.
+  ///
+  /// True from assignment onwards and through the ride itself, which is what
+  /// decides whether the card names a chauffeur or says none is assigned yet.
+  bool get hasDriver => this == driverAssigned || isLive;
 
   /// Whether the customer may still cancel.
   ///
@@ -298,11 +307,13 @@ class BookingV2 {
     this.vehicle,
     this.passengerDetails,
     this.rideNotes,
+    this.voiceNote,
     this.pricing,
     this.driver,
     this.fleet,
     this.payment,
     this.refund,
+    this.extraCharges,
     this.cancellationNote,
     this.timeline = const [],
     this.invoiceUrl,
@@ -323,11 +334,20 @@ class BookingV2 {
   final SelectedVehicle? vehicle;
   final PassengerDetails? passengerDetails;
   final String? rideNotes;
+
+  /// S3 URL of the recording the customer attached with their ride notes.
+  ///
+  /// Uploaded during vehicle selection and carried through to the booking, so
+  /// the detail payload echoes it back alongside [rideNotes].
+  final String? voiceNote;
   final CheckoutPricing? pricing;
   final DriverV2? driver;
   final FleetV2? fleet;
   final PaymentInfoV2? payment;
   final RefundInfoV2? refund;
+
+  /// Extra charges applied after trip completion (waiting time, parking, etc).
+  final ExtraCharges? extraCharges;
 
   /// Why the booking was cancelled, as it was recorded against the booking.
   ///
@@ -359,6 +379,7 @@ class BookingV2 {
     final refundJson = pickMap(json, const ['refund']);
     final pricingJson = pickMap(json, const ['pricing']);
     final passengerJson = pickMap(json, const ['passengerDetails']);
+    final extraChargesJson = pickMap(json, const ['extraCharges']);
 
     return BookingV2(
       id: pickId(json, const ['_id', 'id', 'bookingId']) ?? '',
@@ -378,6 +399,11 @@ class BookingV2 {
           ? null
           : PassengerDetails.fromJson(passengerJson),
       rideNotes: pickString(json, const ['rideNotes']),
+      voiceNote: pickString(json, const [
+        'voiceNote',
+        'voiceNoteUrl',
+        'specialRequestAudio',
+      ]),
       pricing: pricingJson.isEmpty
           ? null
           : CheckoutPricing.fromJson(pricingJson),
@@ -385,6 +411,9 @@ class BookingV2 {
       fleet: fleetJson.isEmpty ? null : FleetV2.fromJson(fleetJson),
       payment: paymentJson.isEmpty ? null : PaymentInfoV2.fromJson(paymentJson),
       refund: refundJson.isEmpty ? null : RefundInfoV2.fromJson(refundJson),
+      extraCharges: extraChargesJson.isEmpty
+          ? null
+          : ExtraCharges.fromJson(extraChargesJson),
       cancellationNote: _cancellationNoteOf(json),
       timeline: pickMapList(json, const [
         'timeline',
@@ -431,6 +460,9 @@ class BookingV2 {
   ].where((p) => p?.trim().isNotEmpty == true).join(' ').trim();
 
   int get passengersCount => passengerDetails?.passengersCount ?? 1;
+
+  /// Whether a recording was attached to the ride notes.
+  bool get hasVoiceNote => voiceNote?.trim().isNotEmpty ?? false;
 
   /// Whether a cancellation note was recorded, which is what decides if the
   /// card and the details screen show one.

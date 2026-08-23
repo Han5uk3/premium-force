@@ -48,6 +48,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bookingInfo => 'معلومات الحجز';
 
   @override
+  String get bookingTimeline => 'جدول الحجز';
+
+  @override
   String get bookingCategory => 'فئة الحجز';
 
   @override
@@ -1231,4 +1234,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get cancellationReasonHint => 'أخبرنا بسبب الإلغاء';
+
+  @override
+  String get onTheWay => 'في الطريق';
+
+  @override
+  String get arrived => 'وصل';
 }

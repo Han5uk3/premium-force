@@ -7,7 +7,8 @@ import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/services/apple_sign_in_service.dart';
 import 'package:premium_force_main/services/google_sign_in_service.dart';
 import 'package:premium_force_main/services/notification_service.dart';
-import 'package:premium_force_main/main.dart' show notificationProvider;
+import 'package:premium_force_main/main.dart'
+    show bookingProvider, notificationProvider;
 import 'package:premium_force_main/storage/user_local_storage.dart';
 
 enum AuthStatus {
@@ -935,9 +936,11 @@ class AuthProvider extends ChangeNotifier {
       // Clear local storage
       await UserLocalStorage.clearUser();
 
-      // The notification centre is per-account; drop what this session holds so
-      // the next sign-in starts from an empty inbox and badge.
+      // The notification centre and the bookings are per-account, and both now
+      // outlive the widget tree; drop what this session holds so the next
+      // sign-in starts from an empty inbox and an empty booking list.
       notificationProvider.reset();
+      bookingProvider.reset();
 
       _cancelResendTimer();
       _user = null;

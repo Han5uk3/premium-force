@@ -34,6 +34,15 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 /// screen being mounted can still refresh the feed and the unread badge.
 final NotificationProvider notificationProvider = NotificationProvider();
 
+/// The customer's bookings.
+///
+/// Created outside the widget tree for the same reason as the notification
+/// centre: a push announcing that the driver is on the way has to be able to
+/// re-read the bookings, and it arrives with no screen guaranteed to be
+/// mounted. Living in the tree is what left the "track your driver" card
+/// waiting for a manual pull-to-refresh.
+final BookingProvider bookingProvider = BookingProvider();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -97,10 +106,17 @@ void main() async {
   // Optional: react to notification taps globally
   NotificationService.instance.onNotificationTap = _handleNotificationTap;
 
-  // A push only announces that something happened; the notification centre is
-  // server-backed, so the app answers by re-reading the feed.
+  // A push only announces that something happened; both the feed and the
+  // bookings are server-backed, so the app answers by re-reading them.
+  //
+  // The bookings matter as much as the feed here: `CUSTOMER.DRIVER_EN_ROUTE`
+  // is what opens live tracking, and the home screen decides whether to offer
+  // it from the booking's status. Refreshing only the feed left the customer
+  // with a notification saying their driver was on the way and no way to watch
+  // them without pulling the home screen down by hand.
   NotificationService.instance.onMessageReceived = (_) {
     notificationProvider.refresh(silent: true);
+    bookingProvider.refreshBookings(silent: true);
   };
 
   runApp(const MainApp());
@@ -193,7 +209,7 @@ class _MainAppState extends State<MainApp> {
       providers: [
         ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProvider.value(value: _userProvider),
-        ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ChangeNotifierProvider.value(value: bookingProvider),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
         ChangeNotifierProvider.value(value: notificationProvider),
       ],

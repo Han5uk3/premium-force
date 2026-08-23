@@ -48,6 +48,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookingInfo => 'Booking Info';
 
   @override
+  String get bookingTimeline => 'Booking Timeline';
+
+  @override
   String get bookingCategory => 'Booking Category';
 
   @override
@@ -1243,4 +1246,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancellationReasonHint => 'Tell us why you are cancelling';
+
+  @override
+  String get onTheWay => 'On the Way';
+
+  @override
+  String get arrived => 'Arrived';
 }

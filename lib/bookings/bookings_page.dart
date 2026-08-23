@@ -12,7 +12,14 @@ import 'package:premium_force_main/utils/date_display.dart';
 import 'package:provider/provider.dart';
 
 class BookingsPage extends StatefulWidget {
-  const BookingsPage({super.key});
+  const BookingsPage({super.key, this.isVisible = true});
+
+  /// Whether this page is the one the shell is currently showing.
+  ///
+  /// [Home] keeps all three tabs alive in a `PageView`, so this page is not
+  /// rebuilt from scratch when the customer comes back to it — without being
+  /// told, it would go on showing whatever it last fetched.
+  final bool isVisible;
 
   @override
   State<BookingsPage> createState() => _BookingsPageState();
@@ -30,20 +37,40 @@ class _BookingsPageState extends State<BookingsPage>
       vsync: this,
     );
     _tabController.addListener(_loadSelectedTab);
+
+    // Built alongside the other shell tabs, so the first fetch waits until this
+    // one is actually on screen — otherwise every launch pays for a list the
+    // customer may never open. `didUpdateWidget` picks it up from there.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadSelectedTab();
+      if (mounted && widget.isVisible) _loadSelectedTab();
     });
   }
 
-  /// Each tab is its own query, so it is fetched the first time it is shown.
+  /// Re-read the selected tab from the server.
   ///
-  /// [BookingProvider.fetchTab] is a no-op for a tab that is already loaded,
-  /// which is what makes this safe to call on every tab notification.
+  /// Forced every time rather than left to [BookingProvider.fetchTab]'s own
+  /// "already loaded" shortcut: a booking's status changes outside the app —
+  /// a driver is assigned, a ride completes — so a cached tab is stale the
+  /// moment it leaves the screen. The rows already shown stay up while the
+  /// refresh is in flight, so this reads as an update rather than a reload.
   void _loadSelectedTab() {
     if (!mounted) return;
+
+    // The controller notifies twice for one change: once as the animation
+    // starts and again when it settles. Only the settled index is fetched.
+    if (_tabController.indexIsChanging) return;
+
     context.read<BookingProvider>().fetchTab(
       BookingTab.values[_tabController.index],
+      force: true,
     );
+  }
+
+  @override
+  void didUpdateWidget(BookingsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Brought back on screen from another shell tab.
+    if (!oldWidget.isVisible && widget.isVisible) _loadSelectedTab();
   }
 
   @override
@@ -198,16 +225,19 @@ class _BookingsPageState extends State<BookingsPage>
                           BookingDetailsPage(bookingId: booking.id),
                     ),
                   );
-                  if (result == true) {
-                    // A cancellation moves the booking to another tab, so every
-                    // cached tab is dropped and this one reloaded.
-                    bookingProvider.invalidateTabs();
-                    bookingProvider.fetchTab(tab);
-                  }
+                  if (!context.mounted) return;
+
+                  // A cancellation moves the booking to another tab, so the
+                  // others are dropped as well and refetch when next shown.
+                  if (result == true) bookingProvider.invalidateTabs();
+
+                  // The booking may have changed even without a cancellation,
+                  // so this tab is re-read either way.
+                  bookingProvider.fetchTab(tab, force: true);
                 },
                 child: Bookingcard(
                   isFromReviewAndConfirm: false,
-                  status: booking.status.wireValue,
+                  status: booking.status,
                   type: _getBookingCategoryName(booking, context),
                   pickup: booking.pickupAddress ?? 'N/A',
                   dropoff: booking.dropOffAddress ?? 'N/A',
@@ -219,6 +249,7 @@ class _BookingsPageState extends State<BookingsPage>
                   isChauffeur: booking.isChauffeur,
                   chauffeurName: booking.driver?.name,
                   cancellationNote: booking.cancellationNote,
+                  bookingNumber: booking.bookingNumber,
                 ),
               ),
             );
@@ -338,10 +369,10 @@ class _BookingsPageState extends State<BookingsPage>
     return switch (booking.resolvedServiceType) {
       BookingServiceType.airportArrival => loc.airportArrival,
       BookingServiceType.airportDeparture => loc.airportDeparture,
-      BookingServiceType.chauffeur => loc.chauffeur,
+      BookingServiceType.chauffeur => loc.chauffeurService,
       BookingServiceType.privateTransfer => loc.privateTransfer,
       // An unrecognised serviceType still has the duration to fall back on.
-      null => booking.isChauffeur ? loc.chauffeur : loc.unknown,
+      null => booking.isChauffeur ? loc.chauffeurService : loc.unknown,
     };
   }
 }

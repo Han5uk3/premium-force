@@ -20,23 +20,57 @@ class TrackingCard extends StatefulWidget {
 
 class _TrackingCardState extends State<TrackingCard> {
   StreamSubscription? _locationSubscription;
+  StreamSubscription? _sessionSubscription;
   LatLng? _driverLocation;
   LatLng? _lastFetchLocation;
   String _currentEta = '';
   String _currentDistance = '';
-  bool _isChauffeur = false;
+
+  /// The leg being driven, which decides what the ETA counts down to.
+  TrackingPhase _phase = TrackingPhase.toPickup;
+
+  /// Set when the driver ends the ride, at which point the card takes itself
+  /// away.
+  ///
+  /// The booking's own status says the same thing, but only after the next
+  /// refresh; this arrives the moment the driver taps complete, so the card
+  /// does not sit on the home screen offering to track a finished ride.
+  bool _tripEnded = false;
 
   @override
   void initState() {
     super.initState();
-    _isChauffeur = widget.booking.isChauffeur;
     _listenToDriverLocation();
+    _listenToSession();
   }
 
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _sessionSubscription?.cancel();
     super.dispose();
+  }
+
+  void _listenToSession() {
+    _sessionSubscription = DriverLocationService()
+        .watchSession(widget.booking.id)
+        .listen((session) {
+          if (!mounted) return;
+
+          if (session.phase != _phase) {
+            setState(() => _phase = session.phase);
+            // The destination moved; re-route without waiting for the car to
+            // travel another 100m.
+            _lastFetchLocation = null;
+            _fetchDirections();
+          }
+
+          if (!session.isActive && !_tripEnded) {
+            _locationSubscription?.cancel();
+            _locationSubscription = null;
+            setState(() => _tripEnded = true);
+          }
+        });
   }
 
   void _listenToDriverLocation() {
@@ -61,28 +95,15 @@ class _TrackingCardState extends State<TrackingCard> {
         });
   }
 
+  /// Distance and ETA for the leg being driven — the car to the pickup, or the
+  /// car to the drop-off, never both at once.
   Future<void> _fetchDirections() async {
-    final booking = widget.booking;
-    final pickupLat = booking.pickupLat ?? 0;
-    final pickupLng = booking.pickupLng ?? 0;
-    final dropoffLat = booking.dropOffLat ?? 0;
-    final dropoffLng = booking.dropOffLng ?? 0;
-    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
+    final destination = _legDestination();
+    // Hourly hire once under way has nowhere to route to.
+    if (destination == null || _driverLocation == null || _tripEnded) return;
 
-    String origin, destination, waypoints = '';
-    if (_driverLocation == null) {
-      if (!hasDropoff) return;
-      origin = '$pickupLat,$pickupLng';
-      destination = '$dropoffLat,$dropoffLng';
-    } else {
-      origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
-      if (_isChauffeur || !hasDropoff) {
-        destination = '$pickupLat,$pickupLng';
-      } else {
-        destination = '$dropoffLat,$dropoffLng';
-        waypoints = '&waypoints=$pickupLat,$pickupLng';
-      }
-    }
+    final origin =
+        '${_driverLocation!.latitude},${_driverLocation!.longitude}';
 
     final apiKey =
         dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
@@ -90,7 +111,8 @@ class _TrackingCardState extends State<TrackingCard> {
 
     try {
       final url =
-          'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
+          'https://maps.googleapis.com/maps/api/directions/json'
+          '?origin=$origin&destination=$destination&key=$apiKey';
       final response = await Dio().get(
         url,
         options: Options(
@@ -102,16 +124,12 @@ class _TrackingCardState extends State<TrackingCard> {
       if (response.statusCode == 200 && response.data['status'] == 'OK') {
         final routes = response.data['routes'] as List;
         if (routes.isNotEmpty) {
+          // One leg requested, one leg summed.
           final legs = routes.first['legs'] as List;
           int dist = 0, dur = 0;
-          if (_driverLocation == null || legs.length < 2) {
-            for (final leg in legs) {
-              dist += (leg['distance']['value'] as num).toInt();
-              dur += (leg['duration']['value'] as num).toInt();
-            }
-          } else {
-            dist = (legs[0]['distance']['value'] as num).toInt();
-            dur = (legs[0]['duration']['value'] as num).toInt();
+          for (final leg in legs) {
+            dist += (leg['distance']['value'] as num).toInt();
+            dur += (leg['duration']['value'] as num).toInt();
           }
 
           if (mounted) {
@@ -128,10 +146,31 @@ class _TrackingCardState extends State<TrackingCard> {
     } catch (_) {}
   }
 
+  /// Where the current leg is headed, or null when there is nowhere to route
+  /// to.
+  String? _legDestination() {
+    final booking = widget.booking;
+
+    if (_phase == TrackingPhase.toDropOff) {
+      final lat = booking.dropOffLat ?? 0;
+      final lng = booking.dropOffLng ?? 0;
+      return (lat == 0 || lng == 0) ? null : '$lat,$lng';
+    }
+
+    if (!_phase.hasDestination) return null;
+
+    final lat = booking.pickupLat ?? 0;
+    final lng = booking.pickupLng ?? 0;
+    return (lat == 0 || lng == 0) ? null : '$lat,$lng';
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final booking = widget.booking;
+
+    // The ride is over: nothing left to track, so nothing left to show.
+    if (_tripEnded) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

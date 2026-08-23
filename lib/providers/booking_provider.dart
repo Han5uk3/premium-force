@@ -70,8 +70,9 @@ class BookingProvider extends ChangeNotifier {
   /// The booking whose driver can be watched right now, if any — drives the
   /// home tracking card.
   ///
-  /// Null until the driver starts the ride: before that there is no position
-  /// being published, so the card would offer a map with nothing on it.
+  /// Null until the driver sets off for the pickup: before that there is no
+  /// position being published, so the card would offer a map with nothing on
+  /// it.
   BookingV2? get trackableBooking {
     for (final booking in _bookings) {
       if (booking.status.isTrackable) return booking;
@@ -182,9 +183,13 @@ class BookingProvider extends ChangeNotifier {
   ///
   /// Tabs never opened are skipped; they fetch on their own the first time
   /// they are shown.
-  Future<void> refreshBookings() async {
+  ///
+  /// [silent] leaves the loading flag alone, for refreshes the customer did
+  /// not ask for — a push arriving while they are looking at the home screen
+  /// should change the rows, not throw the screen into a spinner.
+  Future<void> refreshBookings({bool silent = false}) async {
     await Future.wait([
-      fetchBookings(),
+      fetchBookings(silent: silent),
       for (final entry in _tabs.entries)
         if (entry.value.isLoaded) fetchTab(entry.key, force: true),
     ]);
@@ -204,16 +209,22 @@ class BookingProvider extends ChangeNotifier {
   // ── Home screen ──────────────────────────────────────────────────────────
 
   /// Load the most recent bookings across every status, for the home screen.
-  Future<void> fetchBookings() async {
+  ///
+  /// This is also what decides whether the "track your driver" card is on
+  /// screen — [trackableBooking] reads the list this fills — so anything that
+  /// could have changed a ride's status has to call it.
+  Future<void> fetchBookings({bool silent = false}) async {
     if (UserLocalStorage.getUserId() == null) {
       _errorMessage = _notLoggedIn;
       notifyListeners();
       return;
     }
 
-    _isLoading = true;
+    if (!silent) {
+      _isLoading = true;
+      notifyListeners();
+    }
     _errorMessage = null;
-    notifyListeners();
 
     try {
       final result = await _api.getMyBookings(page: 1, limit: _homePageSize);
@@ -240,5 +251,22 @@ class BookingProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Drop everything this account's session holds, on logout.
+  ///
+  /// The provider outlives the widget tree so a push can refresh it, which
+  /// means it also outlives the sign-out that used to dispose of it — without
+  /// this, the next customer to sign in on the device would see the previous
+  /// one's bookings on the home screen.
+  void reset() {
+    _bookings = [];
+    _recentBookings = [];
+    _isLoading = false;
+    _errorMessage = null;
+    for (final state in _tabs.values) {
+      state.reset();
+    }
+    notifyListeners();
   }
 }

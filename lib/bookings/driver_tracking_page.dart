@@ -32,6 +32,20 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   Set<Polyline> _polylines = {};
   BitmapDescriptor? _driverIcon;
 
+  /// The pin drawn at the pickup and drop-off points.
+  ///
+  /// Held once and reused: the markers are rebuilt every time the leg changes,
+  /// and decoding a 1.4 MB asset again each time would be real work for an
+  /// identical result.
+  BitmapDescriptor? _pinIcon;
+
+  /// The leg being driven, as the driver app publishes it.
+  ///
+  /// Drives everything the map shows: which marker is the destination, where
+  /// the route runs, and what the ETA counts down to. Starts on the approach,
+  /// because that is the only leg a session can open on.
+  TrackingPhase _phase = TrackingPhase.toPickup;
+
   // Chauffeur timer
   bool _isChauffeur = false;
   DateTime? _chauffeurStartTime;
@@ -102,7 +116,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         _checkLocationPermission();
         _initStaticMarkersAndPolylines();
         _listenToDriverLocation();
-        _listenToSessionForChauffeur();
+        _listenToSession();
       }
     });
   }
@@ -128,6 +142,22 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       widget.booking.vehicleLabel,
       if (plate != null && plate.trim().isNotEmpty) plate,
     ].where((part) => part.trim().isNotEmpty).join(' · ');
+  }
+
+  /// Artwork for the pickup and drop-off pins.
+  static const String _pinAsset = 'assets/images/locationpin3.png';
+
+  /// Width in device pixels the pin is decoded at. Height follows the asset's
+  /// own aspect ratio, which a pin needs — it is taller than it is wide.
+  static const int _pinTargetWidth = 60;
+
+  /// Trimmed text, or null when there is nothing worth showing.
+  ///
+  /// An [InfoWindow] renders an empty string as a blank line, so anything that
+  /// might be absent has to come through here.
+  static String? _cleaned(String? value) {
+    final trimmed = value?.trim();
+    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
 
   // --- Permissions ---
@@ -179,48 +209,42 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
   // --- Markers & Polylines ---
 
+  /// Pin only what the current leg is about.
+  ///
+  /// On the approach that is the pickup; once the trip starts it is the
+  /// drop-off, and the pickup comes down — it is behind the car by then, and
+  /// leaving it up made the map read as though the driver were still going
+  /// there. Hourly hire pins the pickup throughout, having nowhere else to go.
   void _initStaticMarkersAndPolylines() {
     final booking = widget.booking;
-    // Direction determines which endpoint carries the airport marker.
-    final isArrival = booking.isAirportArrival;
-    final isDeparture = booking.isAirportDeparture;
+    final loc = AppLocalizations.of(context)!;
 
     final pickupLat = booking.pickupLat ?? 0;
     final pickupLng = booking.pickupLng ?? 0;
     final dropoffLat = booking.dropOffLat ?? 0;
     final dropoffLng = booking.dropOffLng ?? 0;
+    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
 
-    if (pickupLat == 0 || pickupLng == 0) return;
-
-    final pickupLatLng = LatLng(pickupLat, pickupLng);
-
-    if (_isChauffeur) {
+    // The pin says which end of the journey it is and, underneath, the address
+    // itself. Naming it after the *product* — "Airport (Pickup)" — told the
+    // customer something they already knew and left out the one thing they tap
+    // a pin to find out: where it actually is.
+    if (_phase == TrackingPhase.toDropOff && hasDropoff) {
+      _addMarkerWithCustomIcon(
+        id: 'dropoff',
+        position: LatLng(dropoffLat, dropoffLng),
+        title: loc.dropLocation,
+        snippet: booking.dropOffAddress,
+      );
+    } else if (pickupLat != 0 && pickupLng != 0) {
       _addMarkerWithCustomIcon(
         id: 'pickup',
-        position: pickupLatLng,
-        title: AppLocalizations.of(context)!.pickupPointLabel,
-        isGrayPin: true,
+        position: LatLng(pickupLat, pickupLng),
+        title: loc.pickupLocation,
+        snippet: booking.pickupAddress,
       );
-    } else {
-      _addMarkerWithCustomIcon(
-        id: 'pickup',
-        position: pickupLatLng,
-        title: isArrival
-            ? AppLocalizations.of(context)!.pickupPointLabel
-            : AppLocalizations.of(context)!.airportPickupLabel,
-        isGrayPin: true,
-      );
-      if (dropoffLat != 0 && dropoffLng != 0) {
-        _addMarkerWithCustomIcon(
-          id: 'dropoff',
-          position: LatLng(dropoffLat, dropoffLng),
-          title: isDeparture
-              ? AppLocalizations.of(context)!.dropoffPointLabel
-              : AppLocalizations.of(context)!.airportDropoffLabel,
-          isGrayPin: true,
-        );
-      }
     }
+
     _updateDriverMarker();
     // Only fetch directions if driver location is already available.
     // Otherwise, the Firebase listener will trigger _fetchDirections()
@@ -235,14 +259,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     required String id,
     required LatLng position,
     required String title,
-    bool isGrayPin = false,
+    String? snippet,
   }) async {
-    BitmapDescriptor icon;
-    if (isGrayPin) {
-      icon = await _getGrayPinIcon();
-    } else {
-      icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
-    }
+    final icon = await _getPinIcon();
 
     if (mounted) {
       setState(() {
@@ -251,7 +270,13 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
             Marker(
               markerId: MarkerId(id),
               position: position,
-              infoWindow: InfoWindow(title: title),
+              infoWindow: InfoWindow(
+                title: title,
+                // Google Maps drops an empty snippet rather than reserving a
+                // blank second line, so an address it does not have simply
+                // leaves the window one line tall.
+                snippet: _cleaned(snippet),
+              ),
               icon: icon,
             ),
           );
@@ -259,50 +284,40 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     }
   }
 
-  Future<BitmapDescriptor> _getGrayPinIcon() async {
-    const double size = 70.0;
-    final ui.PictureRecorder recorder = ui.PictureRecorder();
-    final ui.Canvas canvas = ui.Canvas(recorder);
-    final ui.Paint paint = ui.Paint()..color = const Color(0xFF2C2C2C);
+  /// The pin marking the pickup and the drop-off.
+  ///
+  /// Replaces a pin this screen used to draw onto a canvas by hand, so the
+  /// artwork now lives with the rest of the app's images rather than in forty
+  /// lines of bezier curves.
+  Future<BitmapDescriptor> _getPinIcon() async {
+    final cached = _pinIcon;
+    if (cached != null) return cached;
 
-    // Modern pin shape matching the reference image
-    final ui.Path path = ui.Path();
-    path.moveTo(size / 2, size);
-    path.quadraticBezierTo(size * 0.1, size * 0.6, size * 0.1, size * 0.4);
-    path.arcToPoint(
-      Offset(size * 0.9, size * 0.4),
-      radius: const Radius.circular(size * 0.4),
-      clockwise: true,
-    );
-    path.quadraticBezierTo(size * 0.9, size * 0.6, size / 2, size);
-    canvas.drawPath(path, paint);
+    try {
+      final ByteData data = await rootBundle.load(_pinAsset);
+      final ui.Codec codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: _pinTargetWidth,
+      );
+      final ui.FrameInfo frame = await codec.getNextFrame();
+      final ByteData? bytes = await frame.image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
 
-    // Inner white circle
-    canvas.drawCircle(
-      Offset(size / 2, size * 0.4),
-      size * 0.15,
-      ui.Paint()..color = Colors.white,
-    );
+      // Decoded at twice the width it is drawn at, so it stays sharp on a 2x
+      // screen while taking up the same room on the map as the pin it replaces.
+      _pinIcon = BitmapDescriptor.bytes(
+        bytes!.buffer.asUint8List(),
+        imagePixelRatio: 2,
+      );
+    } catch (e) {
+      // A missing asset is a build problem, not a runtime one — fall back to
+      // something visible rather than dropping the marker altogether.
+      debugPrint('⚠️ Error loading location pin: $e');
+      _pinIcon = BitmapDescriptor.defaultMarker;
+    }
 
-    // Inner gray center dot for the "modern target" look
-    canvas.drawCircle(
-      Offset(size / 2, size * 0.4),
-      size * 0.05,
-      ui.Paint()..color = const Color(0xFF2C2C2C),
-    );
-
-    final ui.Image image = await recorder.endRecording().toImage(
-      size.toInt(),
-      size.toInt(),
-    );
-    final ByteData? byteData = await image.toByteData(
-      format: ui.ImageByteFormat.png,
-    );
-    // Drawn at the exact pixel size wanted, so no further scaling.
-    return BitmapDescriptor.bytes(
-      byteData!.buffer.asUint8List(),
-      imagePixelRatio: 1,
-    );
+    return _pinIcon!;
   }
 
   void _addRoutePolyline(List<LatLng> points) {
@@ -381,23 +396,62 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         });
   }
 
-  void _listenToSessionForChauffeur() {
-    if (!_isChauffeur) return;
-
+  /// Follow the session for both of the things it decides: which leg is being
+  /// driven, and whether the ride is still running.
+  ///
+  /// Subscribed to for every booking, not only chauffeur hire — the leg change
+  /// when the driver starts the trip is what moves the map from the pickup to
+  /// the drop-off, and every ride has one.
+  void _listenToSession() {
     _sessionSubscription = DriverLocationService()
-        .watchChauffeurSession(widget.booking.id)
+        .watchSession(widget.booking.id)
         .listen((session) {
           if (!mounted) return;
 
-          if (session.startedAt != null && _chauffeurStartTime == null) {
+          if (session.phase != _phase) {
+            setState(() => _phase = session.phase);
+            // The destination moved, so the drawn route is now the wrong one.
+            _restaleRoute();
+            _initStaticMarkersAndPolylines();
+            _fetchDirections();
+          }
+
+          if (_isChauffeur &&
+              session.startedAt != null &&
+              _chauffeurStartTime == null) {
             _chauffeurStartTime = session.startedAt;
             _startChauffeurTimer();
           }
+
           if (!session.isActive && !_tripEnded) {
-            setState(() => _tripEnded = true);
-            _chauffeurTimer?.cancel();
+            _endTracking();
           }
         });
+  }
+
+  /// The ride is over: stop following the driver and clear the route.
+  ///
+  /// The map is left on screen showing where things ended rather than being
+  /// popped out from under the customer, but nothing on it is live any more.
+  void _endTracking() {
+    _locationSubscription?.cancel();
+    _locationSubscription = null;
+    _chauffeurTimer?.cancel();
+
+    setState(() {
+      _tripEnded = true;
+      _polylines = {};
+      _currentEta = '';
+      _currentDistance = '';
+    });
+  }
+
+  /// Forget the route drawn for the previous leg, so the next fix redraws
+  /// rather than waiting out the 100m movement threshold.
+  void _restaleRoute() {
+    _lastFetchLocation = null;
+    _polylines = {};
+    _markers = {};
   }
 
   void _startChauffeurTimer() {
@@ -422,7 +476,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       );
       final ui.Codec codec = await ui.instantiateImageCodec(
         data.buffer.asUint8List(),
-        targetWidth: 140, // Increased size for better visibility on the map
+        targetWidth: 60, // Increased size for better visibility on the map
       );
       final ui.FrameInfo fi = await codec.getNextFrame();
       final ByteData? byteData = await fi.image.toByteData(
@@ -451,7 +505,11 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     if (_driverLocation == null) return;
     if (!mounted) return;
 
-    final markerTitle = AppLocalizations.of(context)!.driverMarkerTitle;
+    // The driver by name, so tapping the car answers "who is coming for me".
+    // Falls back to the generic word while the booking has no driver populated.
+    final markerTitle =
+        _cleaned(widget.booking.driver?.name) ??
+        AppLocalizations.of(context)!.driverMarkerTitle;
 
     final newMarkers = Set<Marker>.from(_markers);
     newMarkers.removeWhere((m) => m.markerId.value == 'driver');
@@ -463,7 +521,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
             _driverIcon ??
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         anchor: const Offset(0.5, 0.5),
-        infoWindow: InfoWindow(title: markerTitle),
+        infoWindow: InfoWindow(
+          title: markerTitle,
+          snippet: _cleaned(_vehicleLine),
+        ),
       ),
     );
     _markers = newMarkers;
@@ -523,29 +584,40 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
   // --- Directions API ---
 
-  Future<void> _fetchDirections() async {
-    final seq = ++_fetchDirectionsSeq;
+  /// Where the current leg is headed, as a `lat,lng` pair, or null when there
+  /// is nowhere to route to.
+  String? _legDestination() {
     final booking = widget.booking;
-    final pickupLat = booking.pickupLat ?? 0;
-    final pickupLng = booking.pickupLng ?? 0;
-    final dropoffLat = booking.dropOffLat ?? 0;
-    final dropoffLng = booking.dropOffLng ?? 0;
-    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
 
-    String origin, destination, waypoints = '';
-    if (_driverLocation == null) {
-      if (!hasDropoff) return;
-      origin = '$pickupLat,$pickupLng';
-      destination = '$dropoffLat,$dropoffLng';
-    } else {
-      origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
-      if (_isChauffeur || !hasDropoff) {
-        destination = '$pickupLat,$pickupLng';
-      } else {
-        destination = '$dropoffLat,$dropoffLng';
-        waypoints = '&waypoints=$pickupLat,$pickupLng';
-      }
+    if (_phase == TrackingPhase.toDropOff) {
+      final lat = booking.dropOffLat ?? 0;
+      final lng = booking.dropOffLng ?? 0;
+      return (lat == 0 || lng == 0) ? null : '$lat,$lng';
     }
+
+    if (!_phase.hasDestination) return null;
+
+    final lat = booking.pickupLat ?? 0;
+    final lng = booking.pickupLng ?? 0;
+    return (lat == 0 || lng == 0) ? null : '$lat,$lng';
+  }
+
+  /// Route the leg being driven: the car to the pickup, or the car to the
+  /// drop-off.
+  ///
+  /// One leg, never both. Routing driver → pickup → drop-off in a single
+  /// request, as this used to, drew the whole journey at once and left the
+  /// customer reading a line through a place the car had already been.
+  Future<void> _fetchDirections() async {
+    if (_tripEnded) return;
+
+    final destination = _legDestination();
+    // Hourly hire once under way has nowhere to route to; the car is still
+    // live on the map, there is simply no line to draw.
+    if (destination == null || _driverLocation == null) return;
+
+    final seq = ++_fetchDirectionsSeq;
+    final origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
 
     final apiKey =
         dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
@@ -553,7 +625,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
     try {
       final url =
-          'https://maps.googleapis.com/maps/api/directions/json?origin=$origin&destination=$destination$waypoints&key=$apiKey';
+          'https://maps.googleapis.com/maps/api/directions/json'
+          '?origin=$origin&destination=$destination&key=$apiKey';
       final response = await Dio().get(
         url,
         options: Options(
@@ -565,16 +638,13 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       if (response.statusCode == 200 && response.data['status'] == 'OK') {
         final routes = response.data['routes'] as List;
         if (routes.isNotEmpty) {
+          // One leg is requested, so one leg is summed — the distance and ETA
+          // are for where the car is going now, not for the whole journey.
           final legs = routes.first['legs'] as List;
           int dist = 0, dur = 0;
-          if (_driverLocation == null || legs.length < 2) {
-            for (final leg in legs) {
-              dist += (leg['distance']['value'] as num).toInt();
-              dur += (leg['duration']['value'] as num).toInt();
-            }
-          } else {
-            dist = (legs[0]['distance']['value'] as num).toInt();
-            dur = (legs[0]['duration']['value'] as num).toInt();
+          for (final leg in legs) {
+            dist += (leg['distance']['value'] as num).toInt();
+            dur += (leg['duration']['value'] as num).toInt();
           }
 
           final List<LatLng> polyPoints = [];
@@ -826,12 +896,12 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
-                                    _isChauffeur
-                                        ? (_tripEnded
-                                              ? loc.tripEnded
-                                              : (_chauffeurStartTime == null
-                                                    ? "00:00:00"
-                                                    : _formatElapsed(_elapsed)))
+                                    _tripEnded
+                                        ? loc.tripEnded
+                                        : _isChauffeur
+                                        ? (_chauffeurStartTime == null
+                                              ? "00:00:00"
+                                              : _formatElapsed(_elapsed))
                                         : "$_currentEta (approx)",
                                     style: TextStyle(
                                       color: Colors.white.withAlpha(150),

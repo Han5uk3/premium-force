@@ -176,6 +176,12 @@ abstract class AppLocalizations {
   /// **'Booking Info'**
   String get bookingInfo;
 
+  /// No description provided for @bookingTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking Timeline'**
+  String get bookingTimeline;
+
   /// No description provided for @bookingCategory.
   ///
   /// In en, this message translates to:
@@ -2425,6 +2431,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tell us why you are cancelling'**
   String get cancellationReasonHint;
+
+  /// No description provided for @onTheWay.
+  ///
+  /// In en, this message translates to:
+  /// **'On the Way'**
+  String get onTheWay;
+
+  /// No description provided for @arrived.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrived'**
+  String get arrived;
 }
 
 class _AppLocalizationsDelegate

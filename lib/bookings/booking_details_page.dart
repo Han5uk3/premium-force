@@ -11,12 +11,14 @@ import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/common_widgets/riyal_symbol.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
+import 'package:premium_force_main/common_widgets/voice_player.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/models/v2/review_v2.dart';
 import 'package:premium_force_main/services/invoice_service.dart';
+import 'package:premium_force_main/utils/booking_status_display.dart';
 import 'package:premium_force_main/utils/date_display.dart';
 
 /// Detail view for a confirmed booking, backed by `GET /bookings/:id`.
@@ -137,6 +139,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   ) {
     final pickup = formatPickupDisplay(context, [booking.route]);
 
+    // Hourly hire is the only product with a booked duration; everything else
+    // leaves the slot across from the service type empty.
+    final durationHours = booking.route?.durationHours ?? 0;
+
     return RefreshIndicator(
       onRefresh: _loadBooking,
       color: const Color(0xFFE4A46B),
@@ -166,7 +172,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Bookingcard(
                 isFromReviewAndConfirm: true,
-                status: booking.status.wireValue,
+                status: booking.status,
                 isChauffeur: booking.isChauffeur,
                 type: _getBookingCategoryName(booking, context),
                 pickup: booking.pickupAddress ?? 'N/A',
@@ -176,6 +182,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 ride: booking.vehicleLabel,
                 brand: booking.vehicle?.name ?? '',
                 passengers: booking.passengersCount,
+                bookingNumber: booking.bookingNumber,
+                durationLabel: durationHours > 0
+                    ? loc.nHours(durationHours)
+                    : null,
                 chauffeurName: booking.driver?.name,
               ),
             ),
@@ -204,10 +214,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             const SizedBox(height: 20),
             _buildRideNotes(booking, loc),
 
-            _buildPaymentSummary(context, loc, booking),
-
-            _buildTransactionDetails(booking, loc),
-
+            // TODO: Payment summary section will be updated to show extra charges
+            // _buildPaymentSummary(context, loc, booking),
             // Shown from the booking's own refund record, or straight from the
             // cancellation the customer just made.
             if (booking.refund != null || (_cancellation?.hasRefund ?? false))
@@ -405,12 +413,16 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     required bool isArabic,
     required bool isLast,
   }) {
+    // Completed is checked before current, and the order matters: the backend
+    // marks the stage the booking has reached as both. Reading `isCurrent`
+    // first painted a step that was already done — a driver who had been
+    // assigned — in the in-progress gold instead of green.
     final Color color = step.isCancelled
         ? Colors.red
-        : step.isCurrent
-        ? const Color(0xFFE4A46B)
         : step.isCompleted
         ? Colors.green
+        : step.isCurrent
+        ? const Color(0xFFE4A46B)
         : Colors.white24;
 
     return IntrinsicHeight(
@@ -479,13 +491,15 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
-  /// Ride notes captured at booking time.
+  /// Ride notes captured at booking time — the typed request, the recording
+  /// the customer attached, or both.
   ///
-  /// Text only — the v2 session API has no field for the voice note the old
-  /// flow could attach.
+  /// Either one alone is enough to show the section: a booking can carry a
+  /// voice note with no text at all.
   Widget _buildRideNotes(BookingV2 booking, AppLocalizations loc) {
-    final notes = booking.rideNotes;
-    if (notes == null || notes.trim().isEmpty) return const SizedBox.shrink();
+    final notes = booking.rideNotes?.trim();
+    final hasNotes = notes != null && notes.isNotEmpty;
+    if (!hasNotes && !booking.hasVoiceNote) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -502,13 +516,24 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.shade700),
             ),
-            child: Text(
-              notes,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                height: 1.4,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasNotes)
+                  Text(
+                    notes,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                if (hasNotes && booking.hasVoiceNote)
+                  const SizedBox(height: 12),
+                if (booking.hasVoiceNote)
+                  VoicePlayer(audioUrl: booking.voiceNote!.trim()),
+              ],
             ),
           ),
         ),
@@ -1198,9 +1223,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     return switch (booking.resolvedServiceType) {
       BookingServiceType.airportArrival => loc.airportArrival,
       BookingServiceType.airportDeparture => loc.airportDeparture,
-      BookingServiceType.chauffeur => loc.chauffeur,
+      BookingServiceType.chauffeur => loc.chauffeurService,
       BookingServiceType.privateTransfer => loc.privateTransfer,
-      null => booking.isChauffeur ? loc.chauffeur : loc.unknown,
+      null => booking.isChauffeur ? loc.chauffeurService : loc.unknown,
     };
   }
 
@@ -1227,7 +1252,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           ),
           centerTitle: true,
           title: Text(
-            loc.bookingInfo,
+            loc.bookingTimeline,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
@@ -1242,15 +1267,15 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     );
   }
 
-  Color getStatusLabelColor(BookingStatusV2 status) {
-    return switch (status) {
-      BookingStatusV2.completed => Colors.green,
-      BookingStatusV2.cancelled => Colors.red,
-      BookingStatusV2.pendingPayment => Colors.orange,
-      _ => Colors.blue,
-    };
-  }
+  /// The banner colour, taken from the same mapping as the card's chip so
+  /// one booking never shows two colours for one status.
+  Color getStatusLabelColor(BookingStatusV2 status) =>
+      bookingStatusColor(status);
 
+  /// Full-sentence wording for the banner across the top of the page.
+  ///
+  /// Deliberately longer than [bookingStatusLabel], which has to fit in the
+  /// card's chip.
   String getBookingStatusText(BookingStatusV2 status) {
     final loc = AppLocalizations.of(context)!;
     return switch (status) {
@@ -1262,7 +1287,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       BookingStatusV2.driverEnRoute ||
       BookingStatusV2.driverArrived ||
       BookingStatusV2.tripStarted => loc.rideInProgressStatus,
-      BookingStatusV2.unknown => status.wireValue,
+      BookingStatusV2.unknown => bookingStatusLabel(loc, status),
     };
   }
 }

@@ -13,6 +13,7 @@
   "newBooking": "New Booking",
   "recentBookings": "Recent Bookings",
   "bookingInfo": "Booking Info",
+  "bookingTimeline": "Booking Timeline",
   "bookingCategory": "Booking Category",
   "brand": "Brand",
   "date": "Date",
@@ -405,5 +406,7 @@
   "notificationsCleared": "All notifications cleared",
   "cancellationNote": "Cancellation Note",
   "cancellationReason": "Reason for cancellation",
-  "cancellationReasonHint": "Tell us why you are cancelling"
+  "cancellationReasonHint": "Tell us why you are cancelling",
+  "onTheWay": "On the Way",
+  "arrived": "Arrived"
 }

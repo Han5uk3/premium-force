@@ -22,10 +22,13 @@ class _HomeState extends State<Home> {
   late final PageController _pageController;
   int _selectedIndex = 0;
 
+  /// Index of the bookings tab within the `PageView`.
+  static const int _bookingsPage = 1;
+
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.isfromSuccessPage ? 1 : 0;
+    _selectedIndex = widget.isfromSuccessPage ? _bookingsPage : 0;
     _pageController = PageController(initialPage: _selectedIndex);
   }
 
@@ -113,7 +116,13 @@ class _HomeState extends State<Home> {
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
           onPageChanged: _onPageChanged,
-          children: [Homepage(), BookingsPage(), AccountPage()],
+          children: [
+            Homepage(),
+            // The pages stay alive across switches, so the bookings tab is told
+            // when it is on screen — that is its cue to re-read the list.
+            BookingsPage(isVisible: _selectedIndex == _bookingsPage),
+            AccountPage(),
+          ],
         ),
 
 

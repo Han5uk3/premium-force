@@ -74,6 +74,46 @@ class VatDetail {
   }
 }
 
+/// Extra charges applied after the trip is completed (e.g., waiting time, parking).
+class ExtraCharges {
+  const ExtraCharges({
+    this.hasExtraCharges = false,
+    this.amount = 0,
+    this.paymentMethod,
+    this.notes,
+    this.collectedAt,
+  });
+
+  final bool hasExtraCharges;
+  final double amount;
+
+  /// How the extra charge was collected (e.g., 'pos', 'cash', 'wallet').
+  final String? paymentMethod;
+
+  /// Description of what the extra charges were for.
+  final String? notes;
+
+  /// When the extra charges were collected.
+  final DateTime? collectedAt;
+
+  factory ExtraCharges.fromJson(Map<String, dynamic> json) {
+    return ExtraCharges(
+      hasExtraCharges:
+          pickBool(json, const ['hasExtraCharges', 'has_extra_charges']) ??
+          false,
+      amount: pickDouble(json, const ['amount']) ?? 0,
+      paymentMethod: pickString(json, const [
+        'paymentMethod',
+        'payment_method',
+      ]),
+      notes: pickString(json, const ['notes']),
+      collectedAt: pickDateTime(json, const ['collectedAt', 'collected_at']),
+    );
+  }
+
+  bool get isEmpty => !hasExtraCharges || amount <= 0;
+}
+
 /// The authoritative price breakdown for the session.
 ///
 /// Invariant maintained by the backend:
