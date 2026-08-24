@@ -229,6 +229,19 @@ class _MainAppState extends State<MainApp> {
             // `w300` and `w800`/`w900` styles in the app resolve to the nearest
             // of them, since lighter and heavier cuts do not exist.
             fontFamily: 'NotoNaskhArabic',
+            textSelectionTheme: const TextSelectionThemeData(
+              // Every screen here is dark, and the country picker's search
+              // field takes its cursor from the ambient theme — it has no
+              // setting of its own. A field that wants a different cursor,
+              // like the review sheet's gold one, still overrides this
+              // locally.
+              cursorColor: Colors.white,
+              // Silver in place of the Material purple the handle defaulted
+              // to. The highlight goes with it: a silver handle dragging a
+              // purple selection reads as two different controls.
+              selectionHandleColor: Color(0xFFC0C0C0),
+              selectionColor: Color(0x55C0C0C0),
+            ),
           ),
           localizationsDelegates: [
             AppLocalizations.delegate,
