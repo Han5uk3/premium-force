@@ -3593,7 +3593,7 @@ class _NewBookingState extends State<NewBooking> {
                       builder: (context) => LocationPickerPage(
                         initialLat: initLat,
                         initialLng: initLng,
-                        needCurrentLocationButton: !isDropLocation,
+                        needCurrentLocationButton: true,
                       ),
                     ),
                   );
