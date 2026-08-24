@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,8 @@ import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/services/driver_location_service.dart';
+import 'package:premium_force_main/utils/screen_logger.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
@@ -23,13 +26,37 @@ class DriverTrackingPage extends StatefulWidget {
   State<DriverTrackingPage> createState() => _DriverTrackingPageState();
 }
 
-class _DriverTrackingPageState extends State<DriverTrackingPage> {
+class _DriverTrackingPageState extends State<DriverTrackingPage>
+    with SingleTickerProviderStateMixin {
   final Completer<GoogleMapController> _controller = Completer();
   StreamSubscription? _locationSubscription;
   StreamSubscription? _sessionSubscription;
 
+  /// Console tag prefixing this screen's log lines.
+  static const String _log = 'tracking';
+
+  /// Redraws the route and ETA on a clock as well as on movement, so a car
+  /// stopped in traffic still counts down.
+  Timer? _routeRefreshTimer;
+
+  /// Re-checks how long ago the driver app last published, for the stale
+  /// banner. Cheap — it only reads a timestamp already in hand.
+  Timer? _freshnessTimer;
+
+  /// The position last published, which is where the marker is animating *to*.
   LatLng? _driverLocation;
   Set<Marker> _markers = {};
+
+  /// The markers the map is actually drawing.
+  ///
+  /// Separate from [_markers] so the car can be moved without a [setState].
+  /// The marker is rebuilt on every animation frame, and a `setState` there
+  /// rebuilt this whole page sixty times a second — the app bar, the driver
+  /// card and its network image, the controls — which is what made each
+  /// position update look like the map reloading. Only the [GoogleMap] listens
+  /// to this, so only the map rebuilds.
+  final ValueNotifier<Set<Marker>> _mapMarkers = ValueNotifier({});
+
   Set<Polyline> _polylines = {};
   BitmapDescriptor? _driverIcon;
 
@@ -57,60 +84,170 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   // Location permissions
   bool _locationPermissionGranted = false;
 
-  // Distance & ETA
+  /// Whether a fix for the customer's own position is being waited on, so the
+  /// button can show it is working rather than looking dead for a few seconds.
+  bool _isLocatingCustomer = false;
+
+  // --- Marker animation ---
+
+  /// Drives the slide from [_animFrom] to [_animTo]. The driver app publishes
+  /// only every 50m, so without this the car would jump between fixes; with it
+  /// the marker walks the gap and reads as a moving vehicle.
+  late final AnimationController _markerController;
+
+  LatLng? _animFrom;
+  LatLng? _animTo;
+
+  // --- Route following ---
+
+  /// The drawn route, and the distance in metres from its start to each of its
+  /// points. Together these turn "how far along the route" into a position and
+  /// a heading, which is what lets the car track the line instead of cutting
+  /// across it.
+  List<LatLng> _routePoints = const [];
+  List<double> _routeCumulative = const [];
+
+  /// How far along the route the car is drawn, and the span the current
+  /// animation is covering. Null whenever there is no usable route, in which
+  /// case the marker falls back to a straight line between fixes.
+  double? _renderedAlong;
+  double? _animFromAlong;
+  double? _animToAlong;
+
+  /// Segment [_pointAlong] last landed on, so the next frame resumes there
+  /// instead of searching the route from the beginning. Reset with the route.
+  int _segmentHint = 0;
+
+  /// How far off the route a fix may be and still be treated as on it.
+  ///
+  /// Covers GPS scatter and the width of a carriageway. Beyond it the driver
+  /// has genuinely left the drawn route — a wrong turn, or a road the route
+  /// did not take — and snapping would slide the car sideways onto a line it
+  /// is not on, so the raw position is used until the next route arrives.
+  static const double _maxSnapMeters = 45;
+
+  /// The shortest move that is allowed to change the car's heading when there
+  /// is no route to take it from. Below this the displacement is GPS noise.
+  static const double _minBearingMeters = 5;
+
+  /// Metres in a degree of latitude — near enough constant everywhere, unlike
+  /// longitude, which narrows towards the poles.
+  static const double _metresPerLat = 111132.0;
+
+  /// Where the marker is drawn right now — between the last two fixes while the
+  /// animation runs, and exactly on the newest one once it settles.
+  LatLng? _renderedDriverLocation;
+
+  /// Heading in degrees the car icon is rotated to, so it points the way it is
+  /// travelling instead of always facing north.
+  double _driverBearing = 0;
+
+  /// How long the marker takes to walk from one fix to the next.
+  ///
+  /// Deliberately shorter than the gap between fixes at city speeds: finishing
+  /// early and waiting reads as a car pausing, which is honest, whereas running
+  /// long would have the marker still crossing ground the driver has left.
+  static const Duration _markerAnimation = Duration(milliseconds: 900);
+
+  // --- Camera ---
+
+  /// Whether the map still follows the car.
+  ///
+  /// Cleared the moment the customer pans or zooms: re-centring under their
+  /// finger every time a fix arrives made the map impossible to read ahead on.
+  /// The recentre button puts it back.
+  bool _followDriver = true;
+
+  /// Zoom the two locate buttons settle on — close enough to read the street
+  /// the car is on, which is the question either of them is asked.
+  static const double _driverFocusZoom = 17;
+  static const double _customerFocusZoom = 16;
+
+  /// Width of a circular map control — 20pt icon inside 12pt of padding.
+  ///
+  /// Used as its own size and as the width of the empty slot balancing it on
+  /// the other side of the row, which is what puts the recentre pill on the
+  /// screen's centre line.
+  static const double _mapControlSize = 44;
+
+  /// The points currently drawn — the route from the car forward, kept so the
+  /// line can be rebuilt at a new width without re-deriving it.
+  List<LatLng> _drawnPoints = const [];
+
+  /// Current line width in screen pixels. See [_routeWidthFor].
+  int _routeWidth = 6;
+
+  // --- Distance & ETA ---
+
   LatLng? _lastFetchLocation;
-  String _currentEta = 'Calculating...';
-  String _currentDistance = 'Calculating...';
+  DateTime? _lastFetchAt;
+
+  /// Null until the first successful Directions response — rendered as
+  /// "Calculating…", which cannot be built here because it needs a context.
+  String? _currentEta;
+  String? _currentDistance;
+
+  /// Consecutive Directions failures, for the backoff in [_scheduleRouteRetry].
+  int _directionsFailures = 0;
+  Timer? _directionsRetryTimer;
+
+  /// When the driver app last published, and whether that is long enough ago to
+  /// tell the customer the feed has stopped.
+  DateTime? _lastPingAt;
+  bool _feedIsStale = false;
 
   bool _mapLayoutReady = false;
-  bool _hasFittedDriverInitialLocation = false;
+  bool _hasCentredOnDriver = false;
+
+  // --- Opening the map ---
+
+  /// Where the map is created looking, and at what zoom.
+  ///
+  /// The map is not built at all until this is known, so it opens *on* the car
+  /// rather than flying to it. It used to be created at the booking's pickup
+  /// coordinate, which on an airport booking arrives as `0,0` — the middle of
+  /// the Atlantic — so the screen opened on blank ocean and then panned across
+  /// the world once the first fix landed.
+  LatLng? _mapOpenTarget;
+  double _mapOpenZoom = _driverFocusZoom;
+
+  /// Set once the map has faded in, after which the skeleton beneath it is no
+  /// longer built.
+  bool _mapRevealed = false;
+
+  /// How long to wait for a driver fix before opening the map anyway.
+  ///
+  /// A feed that never arrives — the driver's app killed, or no signal — must
+  /// not leave the customer watching a placeholder indefinitely. After this the
+  /// map opens on the booking instead, pulled back a little since the car could
+  /// be anywhere.
+  static const Duration _openWithoutDriverAfter = Duration(seconds: 10);
+  Timer? _openFallbackTimer;
   int _fetchDirectionsSeq = 0;
 
-  static const String _mapStyle = '''
-[
-  {
-    "elementType": "geometry",
-    "stylers": [{"color": "#212121"}]
-  },
-  {
-    "elementType": "labels.icon",
-    "stylers": [{"visibility": "off"}]
-  },
-  {
-    "elementType": "labels.text.fill",
-    "stylers": [{"color": "#757575"}]
-  },
-  {
-    "elementType": "labels.text.stroke",
-    "stylers": [{"color": "#212121"}]
-  },
-  {
-    "featureType": "administrative",
-    "elementType": "geometry",
-    "stylers": [{"color": "#757575"}]
-  },
-  {
-    "featureType": "road",
-    "elementType": "geometry.fill",
-    "stylers": [{"color": "#2c2c2c"}]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry",
-    "stylers": [{"color": "#3c3c3c"}]
-  },
-  {
-    "featureType": "water",
-    "elementType": "geometry",
-    "stylers": [{"color": "#000000"}]
-  }
-]
-''';
+  /// How far the car must move before the route is redrawn.
+  ///
+  /// The driver publishes every 50m, so this re-routes about every other fix.
+  static const double _rerouteDistanceMeters = 120;
+
+  /// The route is also refreshed on this clock, so an ETA held up in traffic
+  /// keeps falling while the car is barely moving.
+  static const Duration _routeRefreshInterval = Duration(seconds: 45);
+
+  /// No publish for this long means the driver's feed has stopped rather than
+  /// the car having stopped — the driver app heartbeats once a minute purely so
+  /// this is decidable.
+  static const Duration _staleAfter = Duration(seconds: 150);
 
   @override
   void initState() {
     super.initState();
     _isChauffeur = _detectChauffeur();
+
+    _markerController =
+        AnimationController(vsync: this, duration: _markerAnimation)
+          ..addListener(_onMarkerTick);
+
     _loadDriverIcon();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -118,6 +255,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         _initStaticMarkersAndPolylines();
         _listenToDriverLocation();
         _listenToSession();
+        _startRouteRefreshTimer();
+        _startFreshnessTimer();
+        _startOpenFallbackTimer();
       }
     });
   }
@@ -127,6 +267,12 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     _locationSubscription?.cancel();
     _sessionSubscription?.cancel();
     _chauffeurTimer?.cancel();
+    _routeRefreshTimer?.cancel();
+    _freshnessTimer?.cancel();
+    _directionsRetryTimer?.cancel();
+    _openFallbackTimer?.cancel();
+    _markerController.dispose();
+    _mapMarkers.dispose();
     super.dispose();
   }
 
@@ -146,7 +292,15 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
   }
 
   /// Artwork for the pickup and drop-off pins.
-  static const String _pinAsset = 'assets/images/locationpin3.png';
+  static const String _pinAsset = 'assets/images/locationpin.png';
+
+  /// Artwork for the driver's car — top-down, nose north.
+  static const String _carAsset = 'assets/images/carTopDown.png';
+
+  /// Width in device pixels the car is decoded at. Height follows the asset's
+  /// own aspect ratio, which is roughly 1:1.7, so this draws a car about 28pt
+  /// wide and 47pt long at [BitmapDescriptor.bytes]'s 2x ratio.
+  static const int _carTargetWidth = 56;
 
   /// Width in device pixels the pin is decoded at. Height follows the asset's
   /// own aspect ratio, which a pin needs — it is taller than it is wide.
@@ -226,6 +380,27 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     final dropoffLng = booking.dropOffLng ?? 0;
     final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
 
+    // A missing coordinate silently costs both the destination pin and the
+    // route — the pin is skipped here and `_legDestination` returns null, so
+    // the map shows a lone car and no line. Logged with the raw sources so it
+    // is obvious whether the payload lacked the point or the model missed it.
+    logScreen(
+      _log,
+      'markers for ${_phase.wireValue}: '
+      'pickup=$pickupLat,$pickupLng dropoff=$dropoffLat,$dropoffLng '
+      'hasDropoff=$hasDropoff',
+    );
+    logScreenDetail(
+      _log,
+      'sources — pickupLocation=${booking.route?.pickupLocation?.lat},'
+      '${booking.route?.pickupLocation?.lng} '
+      'dropOffLocation=${booking.route?.dropOffLocation?.lat},'
+      '${booking.route?.dropOffLocation?.lng} '
+      'airport=${booking.route?.airport?.name} '
+      '${booking.route?.airport?.lat},${booking.route?.airport?.lng} '
+      'service=${booking.resolvedServiceType?.name}',
+    );
+
     // The pin says which end of the journey it is and, underneath, the address
     // itself. Naming it after the *product* — "Airport (Pickup)" — told the
     // customer something they already knew and left out the one thing they tap
@@ -281,7 +456,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
               icon: icon,
             ),
           );
+        _publishMarkers();
       });
+
     }
   }
 
@@ -320,80 +497,494 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     return _pinIcon!;
   }
 
+  /// The route: one black line.
+  ///
+  /// Replaces four stacked translucent polylines that faked a glow for the old
+  /// dark map. On the default light map a plain dark line is both what reads
+  /// best and a quarter of the geometry to push across the platform channel
+  /// every time the route is redrawn.
   void _addRoutePolyline(List<LatLng> points) {
-    final newPolylines = Set<Polyline>.from(_polylines);
-
-    // 1. Core solid line
-    newPolylines.add(
+    _drawnPoints = points;
+    _polylines = {
       Polyline(
-        polylineId: const PolylineId('route_core'),
+        polylineId: const PolylineId('route'),
         points: points,
-        color: Colors.white,
-        width: 3,
+        color: Colors.black,
+        width: _routeWidth,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
       ),
-    );
+    };
+  }
 
-    // 2. High intensity inner bloom
-    newPolylines.add(
-      Polyline(
-        polylineId: const PolylineId('route_inner_glow'),
-        points: points,
-        color: Colors.white.withAlpha(150),
-        width: 7,
-      ),
-    );
+  /// Line width, in screen pixels, for the current zoom.
+  ///
+  /// [Polyline.width] is a *screen* measurement and does not scale with the
+  /// map, so a width chosen to sit nicely over a street at zoom 17 stays that
+  /// many pixels wide at zoom 10 — by which point the roads beneath it have
+  /// shrunk to hairlines and the route reads as a fat black smear across the
+  /// city. Thinning it as the map pulls back keeps it proportional to what it
+  /// is drawn over.
+  static int _routeWidthFor(double zoom) {
+    if (zoom >= 16) return 6;
+    if (zoom >= 14) return 4;
+    if (zoom >= 11) return 3;
+    return 2;
+  }
 
-    // 3. Diffuse soft glow
-    newPolylines.add(
-      Polyline(
-        polylineId: const PolylineId('route_outer_glow'),
-        points: points,
-        color: Colors.white.withAlpha(60),
-        width: 12,
-      ),
-    );
+  /// Re-draw the route if this zoom calls for a different width.
+  ///
+  /// Called from `onCameraMove`, which fires every frame of a pinch — so the
+  /// width is bucketed and the polyline is rebuilt only when the bucket
+  /// actually changes, not sixty times a second.
+  void _applyZoom(double zoom) {
+    final width = _routeWidthFor(zoom);
+    if (width == _routeWidth) return;
 
-    // 4. Ambient aura (replicates the bloom from the user's reference image)
-    newPolylines.add(
-      Polyline(
-        polylineId: const PolylineId('route_ambient'),
-        points: points,
-        color: Colors.white.withAlpha(25),
-        width: 22,
-      ),
-    );
-
-    _polylines = newPolylines;
+    setState(() {
+      _routeWidth = width;
+      if (_drawnPoints.isNotEmpty) _addRoutePolyline(_drawnPoints);
+    });
   }
 
   // --- RTDB Listeners ---
 
   void _listenToDriverLocation() {
     _locationSubscription = DriverLocationService()
-        .watchLocation(widget.booking.id)
-        .listen((position) {
+        .watchPing(widget.booking.id)
+        .listen((ping) {
           if (!mounted) return;
 
-          setState(() {
-            _driverLocation = position;
-            _updateDriverMarker();
-          });
-          _moveCameraToDriver();
+          final position = ping.position;
+          final previous = _driverLocation;
 
-          // Re-route only after real movement, so a stationary driver does not
-          // burn Directions quota on every heartbeat.
-          if (_lastFetchLocation == null ||
+          // A heartbeat republishes the same spot to prove the feed is alive.
+          // It refreshes the clock but must not restart the animation, which
+          // would jiggle a parked car.
+          final moved =
+              previous == null ||
               Geolocator.distanceBetween(
-                    _lastFetchLocation!.latitude,
-                    _lastFetchLocation!.longitude,
+                    previous.latitude,
+                    previous.longitude,
                     position.latitude,
                     position.longitude,
                   ) >
-                  100) {
-            _lastFetchLocation = position;
-            _fetchDirections();
+                  1;
+
+          setState(() {
+            _lastPingAt = ping.timestamp ?? DateTime.now();
+            _feedIsStale = false;
+            _driverLocation = position;
+            // First fix: this is where the map gets built, already looking at
+            // the car. Anything later leaves it alone — the camera follows by
+            // animation from here, not by re-creating the map.
+            if (_mapOpenTarget == null) {
+              _mapOpenTarget = position;
+              _mapOpenZoom = _driverFocusZoom;
+              _hasCentredOnDriver = true;
+              _openFallbackTimer?.cancel();
+            }
+          });
+
+          if (moved) {
+            _animateMarkerTo(position, from: previous);
+          } else if (_renderedDriverLocation == null) {
+            // First fix of the session, with nothing to animate from.
+            _renderedDriverLocation = position;
+            _updateDriverMarker();
           }
+
+          _moveCameraToDriver();
+
+          if (_shouldRefetchRoute(position)) _fetchDirections();
         });
+  }
+
+  /// Whether the route is worth re-requesting for this fix.
+  ///
+  /// Two triggers, because either alone leaves a case wrong: distance catches a
+  /// car making progress, and the clock catches one sitting in traffic whose
+  /// ETA is still rising while it barely moves.
+  bool _shouldRefetchRoute(LatLng position) {
+    final last = _lastFetchLocation;
+    if (last == null) return true;
+
+    final moved = Geolocator.distanceBetween(
+      last.latitude,
+      last.longitude,
+      position.latitude,
+      position.longitude,
+    );
+    if (moved >= _rerouteDistanceMeters) return true;
+
+    final at = _lastFetchAt;
+    return at == null ||
+        DateTime.now().difference(at) >= _routeRefreshInterval;
+  }
+
+  /// Redraw the route on a clock as well as on movement.
+  void _startRouteRefreshTimer() {
+    _routeRefreshTimer?.cancel();
+    _routeRefreshTimer = Timer.periodic(_routeRefreshInterval, (_) {
+      if (!mounted || _tripEnded || _driverLocation == null) return;
+      _fetchDirections();
+    });
+  }
+
+  /// Open the map on the booking if no driver fix turns up in time.
+  ///
+  /// The pickup is read through [BookingV2.pickupLat], which falls back to the
+  /// airport's own position, and is used only when it is a real coordinate —
+  /// a `0,0` from the payload is the Atlantic, not a location, and is exactly
+  /// what used to open this screen on blank water.
+  void _startOpenFallbackTimer() {
+    _openFallbackTimer?.cancel();
+    _openFallbackTimer = Timer(_openWithoutDriverAfter, () {
+      if (!mounted || _mapOpenTarget != null) return;
+
+      final lat = widget.booking.pickupLat ?? 0;
+      final lng = widget.booking.pickupLng ?? 0;
+      final hasPickup = lat != 0 && lng != 0;
+
+      logScreen(
+        _log,
+        'no driver fix in ${_openWithoutDriverAfter.inSeconds}s — opening on '
+        '${hasPickup ? 'the pickup' : 'the default city'}',
+      );
+
+      setState(() {
+        _mapOpenTarget = hasPickup
+            ? LatLng(lat, lng)
+            // Riyadh, so the map opens on the country it serves rather than
+            // on nothing at all.
+            : const LatLng(24.7136, 46.6753);
+        _mapOpenZoom = 13;
+      });
+    });
+  }
+
+  /// Watch the gap since the last publish, so a feed that stops is called out
+  /// rather than leaving a car frozen on the map with no explanation.
+  void _startFreshnessTimer() {
+    _freshnessTimer?.cancel();
+    _freshnessTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!mounted || _tripEnded) return;
+
+      final at = _lastPingAt;
+      final stale = at != null && DateTime.now().difference(at) > _staleAfter;
+      if (stale != _feedIsStale) setState(() => _feedIsStale = stale);
+    });
+  }
+
+  // --- Marker animation ---
+
+  /// Move the marker to [to], following the drawn route where it can.
+  ///
+  /// Two modes. With a usable route the car travels *along the line* — the
+  /// animation interpolates distance-along rather than latitude and longitude,
+  /// so it takes the bends instead of cutting the corner, and its heading comes
+  /// from whichever segment it is on at that instant. That is what makes it
+  /// turn with the road. Without a route — hourly hire, or before the first
+  /// Directions response — it falls back to a straight line between fixes.
+  void _animateMarkerTo(LatLng to, {LatLng? from}) {
+    final origin = from ?? _renderedDriverLocation;
+    final toAlong = _alongRoute(to);
+
+    if (toAlong != null) {
+      final fromAlong =
+          _renderedAlong ?? (origin == null ? null : _alongRoute(origin)) ?? 0;
+
+      _animFromAlong = fromAlong;
+      _animToAlong = toAlong;
+      _animFrom = null;
+      _animTo = null;
+
+      // The line is *not* re-trimmed here. It was, to drop the length already
+      // driven — but that copied the whole route and pushed every point across
+      // the platform channel on each fix, and a cross-city route is tens of
+      // thousands of points. That rebuild was the second half of the stutter.
+      // The route is re-requested from the driver's own position every 120m
+      // anyway, so the untrimmed tail behind the car is short-lived and costs
+      // nothing to leave.
+      _markerController
+        ..reset()
+        ..forward();
+      return;
+    }
+
+    // Off-route, or no route at all.
+    _animFromAlong = null;
+    _animToAlong = null;
+
+    if (origin == null) {
+      _renderedDriverLocation = to;
+      _updateDriverMarker();
+      return;
+    }
+
+    _animFrom = origin;
+    _animTo = to;
+
+    // Only re-aim on a move big enough to mean something. Two fixes a couple of
+    // metres apart are GPS scatter, not a direction, and taking a heading from
+    // them spins the car to an arbitrary angle while it sits still — which is
+    // how it ended up pointing north-ish on a north-east road.
+    final gap = Geolocator.distanceBetween(
+      origin.latitude,
+      origin.longitude,
+      to.latitude,
+      to.longitude,
+    );
+    if (gap >= _minBearingMeters) {
+      _driverBearing = _compassBearing(origin, to);
+    }
+
+    _markerController
+      ..reset()
+      ..forward();
+  }
+
+  /// One frame of the car's movement.
+  ///
+  /// Runs sixty times a second, so it does **no** [setState]: it writes the
+  /// fields and calls [_updateDriverMarker], which pushes the new marker into
+  /// [_mapMarkers]. Only the map is subscribed to that, so a frame costs one
+  /// small widget rebuild instead of rebuilding the whole screen.
+  void _onMarkerTick() {
+    if (!mounted) return;
+
+    final fromAlong = _animFromAlong;
+    final toAlong = _animToAlong;
+    final t = _markerController.value;
+
+    // Route mode: interpolate the distance travelled, then read the position
+    // and heading off the line at that distance.
+    if (fromAlong != null && toAlong != null) {
+      final along = fromAlong + (toAlong - fromAlong) * t;
+      final at = _pointAlong(along);
+      if (at == null) return;
+
+      _renderedAlong = along;
+      _renderedDriverLocation = at.position;
+      _driverBearing = at.bearing;
+      _updateDriverMarker();
+      return;
+    }
+
+    final from = _animFrom;
+    final to = _animTo;
+    if (from == null || to == null) return;
+
+    _renderedDriverLocation = LatLng(
+      from.latitude + (to.latitude - from.latitude) * t,
+      from.longitude + (to.longitude - from.longitude) * t,
+    );
+    _updateDriverMarker();
+  }
+
+  // --- Route geometry ---
+
+  /// Adopt [points] as the route and measure it.
+  ///
+  /// The cumulative table is built once here rather than per frame, since the
+  /// animation reads it sixty times a second.
+  void _setRoute(List<LatLng> points) {
+    _routePoints = _thin(points);
+    // The old hint indexes a line that no longer exists.
+    _segmentHint = 0;
+
+    final cumulative = List<double>.filled(_routePoints.length, 0);
+    for (var i = 1; i < _routePoints.length; i++) {
+      cumulative[i] =
+          cumulative[i - 1] +
+          Geolocator.distanceBetween(
+            _routePoints[i - 1].latitude,
+            _routePoints[i - 1].longitude,
+            _routePoints[i].latitude,
+            _routePoints[i].longitude,
+          );
+    }
+    _routeCumulative = cumulative;
+
+    // Every route is requested from the driver's own position, so the car is at
+    // the start of the new line — but it may still be animating towards the fix
+    // that line was built from, so its actual offset is measured rather than
+    // assumed to be zero.
+    final at = _renderedDriverLocation ?? _driverLocation;
+    _renderedAlong = at == null ? 0 : (_alongRoute(at) ?? 0);
+
+    // Point the car down the new road straight away. Waiting for the next
+    // animation tick means waiting for the next published fix — up to 50m of
+    // driving — during which the car sits at whatever heading it last had, or
+    // at due north if this is the first route of the session.
+    final at0 = _pointAlong(_renderedAlong ?? 0);
+    if (at0 != null) {
+      _renderedDriverLocation = at0.position;
+      _driverBearing = at0.bearing;
+      // A Marker is immutable, so moving the heading is not enough — the one
+      // already in `_markers` keeps whatever rotation it was built with. Every
+      // other place that changes the bearing rebuilds it; this one has to as
+      // well, or the car keeps the north it was created pointing at until the
+      // next published fix happens to redraw it.
+      _updateDriverMarker();
+    }
+  }
+
+  /// Drop points closer together than a metre.
+  ///
+  /// Two reasons, and the first is the one that was turning the car the wrong
+  /// way. The route is assembled from each step's own polyline, and every step
+  /// begins on the point the previous one ended on — so the joined line carries
+  /// a duplicated vertex at every turn. A duplicated vertex is a zero-length
+  /// segment, a zero-length segment has no direction, and asking
+  /// [Geolocator.bearingBetween] for one returns 0 — due north. The car
+  /// therefore snapped north at exactly the moments a turn made it most
+  /// visible. Sub-metre segments are noise for the same reason: their heading
+  /// is dominated by rounding rather than by the road.
+  ///
+  /// The second reason is cheaper: fewer points to measure, search and draw.
+  static List<LatLng> _thin(List<LatLng> points) {
+    if (points.length < 2) return points;
+
+    final thinned = <LatLng>[points.first];
+    for (final point in points.skip(1)) {
+      final last = thinned.last;
+      final gap = Geolocator.distanceBetween(
+        last.latitude,
+        last.longitude,
+        point.latitude,
+        point.longitude,
+      );
+      if (gap >= 1) thinned.add(point);
+    }
+
+    // Keep the true end even if it sat within a metre of the point before it,
+    // so the line still reaches the destination.
+    if (thinned.last != points.last) thinned.add(points.last);
+    return thinned;
+  }
+
+  /// How far along the route the point nearest [p] lies, or null when [p] is
+  /// further from the line than [_maxSnapMeters].
+  double? _alongRoute(LatLng p) {
+    if (_routePoints.length < 2) return null;
+
+    var bestDistance = double.infinity;
+    var bestAlong = 0.0;
+
+    for (var i = 0; i < _routePoints.length - 1; i++) {
+      final a = _routePoints[i];
+      final b = _routePoints[i + 1];
+      final t = _projectionFactor(a, b, p);
+
+      final projected = LatLng(
+        a.latitude + (b.latitude - a.latitude) * t,
+        a.longitude + (b.longitude - a.longitude) * t,
+      );
+      final distance = Geolocator.distanceBetween(
+        p.latitude,
+        p.longitude,
+        projected.latitude,
+        projected.longitude,
+      );
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestAlong =
+            _routeCumulative[i] +
+            (_routeCumulative[i + 1] - _routeCumulative[i]) * t;
+      }
+    }
+
+    return bestDistance <= _maxSnapMeters ? bestAlong : null;
+  }
+
+  /// Where [p] falls on the segment `a`–`b`, as a fraction clamped to it.
+  ///
+  /// Degrees are converted to metres first — a degree of longitude is a good
+  /// deal shorter than one of latitude at Saudi latitudes, and projecting in
+  /// raw degrees would bias every result eastward.
+  static double _projectionFactor(LatLng a, LatLng b, LatLng p) {
+    final metresPerLng =
+        111320.0 * math.cos((a.latitude + b.latitude) / 2 * math.pi / 180);
+
+    final bx = (b.longitude - a.longitude) * metresPerLng;
+    final by = (b.latitude - a.latitude) * _metresPerLat;
+    final px = (p.longitude - a.longitude) * metresPerLng;
+    final py = (p.latitude - a.latitude) * _metresPerLat;
+
+    final lengthSquared = bx * bx + by * by;
+    // A zero-length segment: the polyline repeats a point where two steps meet.
+    if (lengthSquared == 0) return 0;
+
+    return ((px * bx + py * by) / lengthSquared).clamp(0.0, 1.0);
+  }
+
+  /// The position and heading at [along] metres into the route.
+  ({LatLng position, double bearing})? _pointAlong(double along) {
+    if (_routePoints.length < 2) return null;
+
+    final total = _routeCumulative.last;
+    final target = along.clamp(0.0, total);
+
+    // Resume the search from the segment last used rather than from the start.
+    // The car only ever moves forward along the route, so this is one or two
+    // steps per frame instead of a scan of the whole line — which on a
+    // cross-city route is tens of thousands of points, sixty times a second.
+    var i = _segmentHint;
+    if (i >= _routeCumulative.length - 1 || _routeCumulative[i] > target) i = 0;
+    while (i < _routeCumulative.length - 2 && _routeCumulative[i + 1] < target) {
+      i++;
+    }
+    _segmentHint = i;
+
+    final segmentStart = _routeCumulative[i];
+    final segmentEnd = _routeCumulative[i + 1];
+    final span = segmentEnd - segmentStart;
+    final t = span > 0 ? (target - segmentStart) / span : 0.0;
+
+    final a = _routePoints[i];
+    final b = _routePoints[i + 1];
+
+    return (
+      position: LatLng(
+        a.latitude + (b.latitude - a.latitude) * t,
+        a.longitude + (b.longitude - a.longitude) * t,
+      ),
+      // The heading of the segment being driven, which is what turns the car
+      // through a bend as it reaches it.
+      bearing: _compassBearing(a, b),
+    );
+  }
+
+  /// Heading from [a] to [b] as degrees clockwise from north, 0–360.
+  ///
+  /// [Geolocator.bearingBetween] answers in −180…180, which is the same angle
+  /// but is not what [Marker.rotation] documents itself as taking.
+  static double _compassBearing(LatLng a, LatLng b) {
+    final bearing = Geolocator.bearingBetween(
+      a.latitude,
+      a.longitude,
+      b.latitude,
+      b.longitude,
+    );
+    return (bearing + 360) % 360;
+  }
+
+  /// The route from [along] onwards, headed by the exact point at that
+  /// distance so the line starts under the car rather than at the next vertex.
+  List<LatLng> _routeFrom(double along) {
+    if (_routePoints.length < 2) return _routePoints;
+
+    final head = _pointAlong(along);
+    if (head == null) return _routePoints;
+
+    return [
+      head.position,
+      for (var i = 0; i < _routePoints.length; i++)
+        if (_routeCumulative[i] > along) _routePoints[i],
+    ];
   }
 
   /// Follow the session for both of the things it decides: which leg is being
@@ -409,11 +1000,20 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
           if (!mounted) return;
 
           if (session.phase != _phase) {
-            setState(() => _phase = session.phase);
-            // The destination moved, so the drawn route is now the wrong one.
-            _restaleRoute();
+            // The destination moved, so the drawn route and the destination pin
+            // are both now the wrong ones. `_initStaticMarkersAndPolylines`
+            // re-requests the route itself once the markers are back, so it is
+            // not called again here — doing both fired two identical Directions
+            // requests for every leg change.
+            setState(() {
+              _phase = session.phase;
+              _restaleRoute();
+            });
             _initStaticMarkersAndPolylines();
-            _fetchDirections();
+            // Re-fit, because the leg the customer is watching just changed and
+            // the new destination is very likely off screen.
+            _hasCentredOnDriver = false;
+            _followDriver = true;
           }
 
           if (_isChauffeur &&
@@ -437,21 +1037,37 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     _locationSubscription?.cancel();
     _locationSubscription = null;
     _chauffeurTimer?.cancel();
+    _routeRefreshTimer?.cancel();
+    _freshnessTimer?.cancel();
+    _directionsRetryTimer?.cancel();
+    // Otherwise the marker keeps sliding towards a fix that is now final.
+    _markerController.stop();
 
     setState(() {
       _tripEnded = true;
       _polylines = {};
-      _currentEta = '';
-      _currentDistance = '';
+      _currentEta = null;
+      _currentDistance = null;
+      // The feed is meant to have stopped now, so the stale banner would be
+      // telling the customer something is wrong when nothing is.
+      _feedIsStale = false;
     });
   }
 
   /// Forget the route drawn for the previous leg, so the next fix redraws
-  /// rather than waiting out the 100m movement threshold.
+  /// rather than waiting out the movement threshold.
+  ///
+  /// Callers hold the [setState]; this only writes the fields.
   void _restaleRoute() {
     _lastFetchLocation = null;
+    _lastFetchAt = null;
+    _directionsFailures = 0;
+    _directionsRetryTimer?.cancel();
     _polylines = {};
     _markers = {};
+    _publishMarkers();
+    _currentEta = null;
+    _currentDistance = null;
   }
 
   void _startChauffeurTimer() {
@@ -465,24 +1081,28 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     });
   }
 
+  /// The car drawn at the driver's position.
+  ///
+  /// A top-down car, whose nose points north in the artwork — which is what
+  /// makes [Marker.rotation] usable directly: a bearing of 0 leaves it facing
+  /// up, and every other bearing turns it to match.
   Future<void> _loadDriverIcon() async {
     if (_driverIcon != null) return;
     try {
-      final ByteData data = await rootBundle.load(
-        'assets/images/car_image_generated.png',
-      );
+      final ByteData data = await rootBundle.load(_carAsset);
       final ui.Codec codec = await ui.instantiateImageCodec(
         data.buffer.asUint8List(),
-        targetWidth: 60, // Increased size for better visibility on the map
+        targetWidth: _carTargetWidth,
       );
       final ui.FrameInfo fi = await codec.getNextFrame();
       final ByteData? byteData = await fi.image.toByteData(
         format: ui.ImageByteFormat.png,
       );
-      // Already scaled to 140px above, so it is passed at 1:1.
+      // Decoded at twice the width it is drawn at, so it stays sharp on a 2x
+      // screen — the source art is far larger than a marker needs.
       _driverIcon = BitmapDescriptor.bytes(
         byteData!.buffer.asUint8List(),
-        imagePixelRatio: 1,
+        imagePixelRatio: 2,
       );
     } catch (e) {
       _driverIcon = BitmapDescriptor.defaultMarkerWithHue(
@@ -490,14 +1110,13 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       );
     }
     if (mounted && _driverLocation != null) {
-      setState(() {
-        _updateDriverMarker();
-      });
+      _updateDriverMarker();
     }
   }
 
   void _updateDriverMarker() {
-    if (_driverLocation == null) return;
+    final drawAt = _renderedDriverLocation ?? _driverLocation;
+    if (drawAt == null) return;
     if (!mounted) return;
 
     // The driver by name, so tapping the car answers "who is coming for me".
@@ -511,11 +1130,16 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
     newMarkers.add(
       Marker(
         markerId: const MarkerId('driver'),
-        position: _driverLocation!,
+        position: drawAt,
         icon:
             _driverIcon ??
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         anchor: const Offset(0.5, 0.5),
+        // Point the car the way it is going. Flat keeps the rotation in the
+        // map's plane, so it reads as a vehicle heading somewhere rather than
+        // a pin tipped over.
+        rotation: _driverBearing,
+        flat: true,
         infoWindow: InfoWindow(
           title: markerTitle,
           snippet: _cleaned(_vehicleLine),
@@ -523,41 +1147,106 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       ),
     );
     _markers = newMarkers;
+    _publishMarkers();
   }
 
+  /// Hand the current markers to the map.
+  ///
+  /// Call after every change to [_markers]; it is what makes the change
+  /// visible, and it is deliberately not a [setState] — see [_mapMarkers].
+  void _publishMarkers() => _mapMarkers.value = _markers;
+
+  /// Keep the camera on the car as it moves.
+  ///
+  /// Never changes the zoom except once, on the first fix of a leg, to settle
+  /// on a street-level view. Every later fix is a plain re-centre, so whatever
+  /// the customer has pinched to is preserved.
+  ///
+  /// This used to fit the driver and the destination into view instead. On a
+  /// cross-city booking those are hundreds of kilometres apart, so "fit both"
+  /// meant zooming out to country scale — which is what looked like the map
+  /// throwing itself away every time a position arrived.
   Future<void> _moveCameraToDriver() async {
     if (!_mapLayoutReady || _driverLocation == null) return;
 
-    if (!_hasFittedDriverInitialLocation) {
-      _hasFittedDriverInitialLocation = true;
-      _zoomToFitAllPins();
-      return;
-    }
+    // The customer has taken the map over; leave it where they put it. Without
+    // this, every fix dragged the view back to the car and made it impossible
+    // to look ahead at the route or the drop-off.
+    if (!_followDriver) return;
+
+    final isFirst = !_hasCentredOnDriver;
+    _hasCentredOnDriver = true;
 
     final controller = await _controller.future;
     try {
-      await controller.animateCamera(CameraUpdate.newLatLng(_driverLocation!));
+      await controller.animateCamera(
+        isFirst
+            ? CameraUpdate.newLatLngZoom(_driverLocation!, _driverFocusZoom)
+            : CameraUpdate.newLatLng(_driverLocation!),
+      );
     } catch (e) {}
   }
 
-  Future<void> _zoomToFitAllPins() async {
-    if (!mounted || !_mapLayoutReady || _markers.isEmpty) return;
+  /// Resume following, and bring the camera back onto the car.
+  ///
+  /// Zooms in as well as re-centring: the customer reaches for this after
+  /// panning or pinching out to see the whole route, so restoring the position
+  /// without the zoom would leave them looking at a car three streets wide.
+  Future<void> _recentreOnDriver() async {
+    setState(() => _followDriver = true);
+
+    final target = _renderedDriverLocation ?? _driverLocation;
+    if (target == null || !_mapLayoutReady) return;
+
     final controller = await _controller.future;
-    double minLat = _markers.first.position.latitude,
-        maxLat = _markers.first.position.latitude;
-    double minLng = _markers.first.position.longitude,
-        maxLng = _markers.first.position.longitude;
-    for (final m in _markers) {
-      if (m.position.latitude < minLat) minLat = m.position.latitude;
-      if (m.position.latitude > maxLat) maxLat = m.position.latitude;
-      if (m.position.longitude < minLng) minLng = m.position.longitude;
-      if (m.position.longitude > maxLng) maxLng = m.position.longitude;
+    try {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(target, _driverFocusZoom),
+      );
+    } catch (e) {}
+  }
+
+  /// Frame the whole journey — the route, the car and the destination pin.
+  ///
+  /// The only thing on this screen that zooms out, and it does so only when
+  /// asked. Fitting on its own used to run off every position update, which on
+  /// a cross-city booking threw the map out to province scale each time a fix
+  /// arrived; as a button it is the same view, offered rather than imposed.
+  ///
+  /// Bounds come from the route's own points as well as the markers, so a road
+  /// that bows well outside the straight line between the two ends is still
+  /// framed whole.
+  Future<void> _showFullRoute() async {
+    if (!_mapLayoutReady) return;
+
+    final points = <LatLng>[
+      ..._routePoints,
+      for (final marker in _markers) marker.position,
+    ];
+    if (points.isEmpty) return;
+
+    // Same reasoning as the locate button: this is the customer choosing a
+    // view, so the next fix must not drag the camera off it.
+    setState(() => _followDriver = false);
+
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final point in points) {
+      if (point.latitude < minLat) minLat = point.latitude;
+      if (point.latitude > maxLat) maxLat = point.latitude;
+      if (point.longitude < minLng) minLng = point.longitude;
+      if (point.longitude > maxLng) maxLng = point.longitude;
     }
 
+    final controller = await _controller.future;
     try {
+      // Degenerate bounds — everything on one spot — is not something
+      // `newLatLngBounds` can frame, so it gets a plain zoom instead.
       if (minLat == maxLat && minLng == maxLng) {
         await controller.animateCamera(
-          CameraUpdate.newLatLngZoom(LatLng(minLat, minLng), 14),
+          CameraUpdate.newLatLngZoom(points.first, _driverFocusZoom),
         );
       } else {
         await controller.animateCamera(
@@ -566,12 +1255,60 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
               southwest: LatLng(minLat, minLng),
               northeast: LatLng(maxLat, maxLng),
             ),
-            75,
+            60,
           ),
         );
       }
     } catch (e) {}
   }
+
+  /// Move the camera to the customer's own position.
+  ///
+  /// Stops following the driver, because this is the customer taking the
+  /// camera somewhere of their own — exactly what a pan is. The button sits
+  /// above the map in the stack, so its tap never reaches the [Listener] that
+  /// normally notices that; saying so here is what makes the recentre button
+  /// appear to undo this, and what stops the next driver fix from dragging the
+  /// camera straight back off the customer's own position.
+  Future<void> _goToCustomerLocation() async {
+    if (_isLocatingCustomer) return;
+    setState(() {
+      _isLocatingCustomer = true;
+      _followDriver = false;
+    });
+
+    try {
+      // `myLocationEnabled` draws the blue dot but hands us no coordinate, so
+      // the fix is read directly. Bounded, because a cold GPS start under a
+      // roof can otherwise hang for a long time.
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+      if (!mounted) return;
+
+      final controller = await _controller.future;
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(position.latitude, position.longitude),
+          _customerFocusZoom,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        AnimatedSnackBar.show(
+          context,
+          AppLocalizations.of(context)!.somethingWentWrong,
+          'E',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLocatingCustomer = false);
+    }
+  }
+
 
   // --- Directions API ---
 
@@ -604,8 +1341,15 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
 
     final destination = _legDestination();
     // Hourly hire once under way has nowhere to route to; the car is still
-    // live on the map, there is simply no line to draw.
-    if (destination == null || _driverLocation == null) return;
+    // live on the map, there is simply no line to draw. The other two reasons
+    // are faults, so all three are named rather than returning in silence.
+    if (destination == null || _driverLocation == null) {
+      logScreen(
+        _log,
+        'no route: ${destination == null ? 'no destination for ${_phase.wireValue}' : 'no driver fix yet'}',
+      );
+      return;
+    }
 
     final seq = ++_fetchDirectionsSeq;
     final origin = '${_driverLocation!.latitude},${_driverLocation!.longitude}';
@@ -614,10 +1358,19 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
         dotenv.env['GOOGLE_MAPS_API_KEY'] ?? dotenv.env['MAPS_API_KEY'] ?? '';
     if (apiKey.isEmpty) return;
 
+    _lastFetchLocation = _driverLocation;
+    _lastFetchAt = DateTime.now();
+
     try {
       final url =
           'https://maps.googleapis.com/maps/api/directions/json'
-          '?origin=$origin&destination=$destination&key=$apiKey';
+          '?origin=$origin&destination=$destination'
+          // Asks for a live estimate rather than a free-flow one. With no
+          // departure_time the API returns the drive as if the roads were
+          // empty, which on a Riyadh evening understates the arrival badly;
+          // with it, each leg also carries duration_in_traffic.
+          '&departure_time=now&traffic_model=best_guess&mode=driving'
+          '&key=$apiKey';
       final response = await Dio().get(
         url,
         options: Options(
@@ -626,39 +1379,98 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
           receiveTimeout: const Duration(seconds: 5),
         ),
       );
-      if (response.statusCode == 200 && response.data['status'] == 'OK') {
-        final routes = response.data['routes'] as List;
-        if (routes.isNotEmpty) {
-          // One leg is requested, so one leg is summed — the distance and ETA
-          // are for where the car is going now, not for the whole journey.
-          final legs = routes.first['legs'] as List;
-          int dist = 0, dur = 0;
-          for (final leg in legs) {
-            dist += (leg['distance']['value'] as num).toInt();
-            dur += (leg['duration']['value'] as num).toInt();
-          }
 
-          final List<LatLng> polyPoints = [];
-          for (final leg in legs) {
-            for (final step in (leg['steps'] as List)) {
-              polyPoints.addAll(_decodePolyline(step['polyline']['points']));
-            }
-          }
+      final status = response.data['status'];
+      if (response.statusCode != 200 || status != 'OK') {
+        logScreen(
+          _log,
+          'directions ${response.statusCode} $status — '
+          '${response.data['error_message'] ?? 'no error_message'}',
+        );
+        // ZERO_RESULTS is an answer, not a fault: there is no drivable route,
+        // and retrying will not invent one.
+        _onDirectionsFailure(retryable: status != 'ZERO_RESULTS');
+        return;
+      }
 
-          if (mounted && seq == _fetchDirectionsSeq) {
-            setState(() {
-              _polylines = {};
-              _addRoutePolyline(polyPoints);
-              _currentDistance = '${(dist / 1000).toStringAsFixed(1)} km';
-              final int mins = (dur / 60).round();
-              _currentEta = mins > 60
-                  ? '${mins ~/ 60} hr ${mins % 60} min'
-                  : '$mins min';
-            });
-          }
+      final routes = response.data['routes'] as List;
+      if (routes.isEmpty) {
+        _onDirectionsFailure(retryable: false);
+        return;
+      }
+
+      // One leg is requested, so one leg is summed — the distance and ETA are
+      // for where the car is going now, not for the whole journey.
+      final legs = routes.first['legs'] as List;
+      int dist = 0, dur = 0;
+      for (final leg in legs) {
+        dist += (leg['distance']['value'] as num).toInt();
+        // duration_in_traffic is only returned when the key is enabled for it
+        // and the request asked for a departure time; fall back to the
+        // free-flow duration rather than showing nothing.
+        final traffic = leg['duration_in_traffic']?['value'] as num?;
+        dur += (traffic ?? leg['duration']['value'] as num).toInt();
+      }
+
+      final List<LatLng> polyPoints = [];
+      for (final leg in legs) {
+        for (final step in (leg['steps'] as List)) {
+          polyPoints.addAll(_decodePolyline(step['polyline']['points']));
         }
       }
-    } catch (_) {}
+
+      logScreen(
+        _log,
+        'route ${_phase.wireValue}: ${polyPoints.length} points, '
+        '${(dist / 1000).toStringAsFixed(1)} km, ${(dur / 60).ceil()} min',
+      );
+
+      if (mounted && seq == _fetchDirectionsSeq) {
+        _directionsFailures = 0;
+        _directionsRetryTimer?.cancel();
+        setState(() {
+          _setRoute(polyPoints);
+          _polylines = {};
+          _addRoutePolyline(_routeFrom(_renderedAlong ?? 0));
+          _currentDistance = (dist / 1000).toStringAsFixed(1);
+          _currentEta = _formatEta(dur);
+        });
+      }
+    } catch (_) {
+      _onDirectionsFailure(retryable: true);
+    }
+  }
+
+  /// Render a duration in seconds as the ETA text, in the app's language.
+  String _formatEta(int seconds) {
+    final loc = AppLocalizations.of(context)!;
+    // Rounded up: a route 30 seconds out reads better as "1 min" than as "0".
+    final mins = (seconds / 60).ceil();
+    if (mins < 60) return loc.etaMinutes(mins);
+    return loc.etaHoursMinutes(mins ~/ 60, mins % 60);
+  }
+
+  /// A Directions request came back unusable.
+  ///
+  /// The previous route and ETA are deliberately left on screen: a stale line
+  /// is closer to the truth than an empty map, and the car is still live
+  /// regardless. [retryable] failures back off — 4s, 8s, 16s, capped — so a
+  /// blocked key or a flapping connection cannot spin the quota.
+  void _onDirectionsFailure({required bool retryable}) {
+    if (!mounted || !retryable) return;
+
+    _directionsFailures++;
+    // Movement or the refresh timer will ask again on its own by now.
+    if (_directionsFailures > 4) return;
+
+    final backoff = Duration(seconds: 2 << _directionsFailures);
+    _directionsRetryTimer?.cancel();
+    _directionsRetryTimer = Timer(backoff, () {
+      if (!mounted || _tripEnded) return;
+      // Force the next attempt past the movement gate.
+      _lastFetchAt = null;
+      _fetchDirections();
+    });
   }
 
   List<LatLng> _decodePolyline(String encoded) {
@@ -716,50 +1528,191 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        // Dark on light, since the bar floats over the map and the map is now
+        // Google's light one — the white these used to be is invisible on it.
+        // The status-bar icons have to flip with them for the same reason.
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           loc.trackYourDriver,
           style: const TextStyle(
-            color: Colors.white,
+            color: Colors.black,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: LatLng(
-                widget.booking.route?.pickupLocation?.lat ?? 24.7136,
-                widget.booking.route?.pickupLocation?.lng ?? 46.6753,
-              ),
-              zoom: 14,
-            ),
-            style: _mapStyle,
-            onMapCreated: (c) {
-              _controller.complete(c);
-              Future.delayed(const Duration(milliseconds: 500), () {
-                if (mounted) {
-                  setState(() {
-                    _mapLayoutReady = true;
-                  });
-                  _zoomToFitAllPins();
-                }
-              });
-            },
+          // A touch on the map is the one unambiguous signal that the customer
+          // wants to drive the camera themselves. `onCameraMoveStarted` cannot
+          // be used for this: it fires for our own `animateCamera` calls too,
+          // so following would switch itself off on the first fix.
+          // Under the map until it has faded in, then dropped.
+          if (!_mapRevealed) const Positioned.fill(child: _MapSkeleton()),
 
-            markers: _markers,
-            polylines: _polylines,
-            // Shows the customer's own position alongside the driver's, once
-            // they have granted permission.
-            myLocationEnabled: _locationPermissionGranted,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
+          if (_mapOpenTarget != null)
+          Listener(
+            onPointerDown: (_) {
+              if (_followDriver) setState(() => _followDriver = false);
+            },
+            // Only this subtree rebuilds when the car moves. The map keeps its
+            // own texture and camera across a rebuild — the plugin diffs the
+            // marker set and sends just what changed — so the car slides while
+            // everything else on screen stays untouched.
+            // Fades up over the skeleton once the platform view has laid out,
+            // so the map appears already settled on the car instead of
+            // snapping in mid-render.
+            child: AnimatedOpacity(
+              opacity: _mapLayoutReady ? 1 : 0,
+              duration: const Duration(milliseconds: 450),
+              curve: Curves.easeOut,
+              onEnd: () {
+                if (mounted && _mapLayoutReady && !_mapRevealed) {
+                  setState(() => _mapRevealed = true);
+                }
+              },
+              child: ValueListenableBuilder<Set<Marker>>(
+              valueListenable: _mapMarkers,
+              builder: (context, markers, _) => GoogleMap(
+                // Built only once there is somewhere to look, so this is the
+                // car's own position — the map opens on it rather than
+                // travelling there.
+                initialCameraPosition: CameraPosition(
+                  target: _mapOpenTarget!,
+                  zoom: _mapOpenZoom,
+                ),
+                // No `style`: Google's default light map. The dark style this
+                // used to carry buried the route and the pins in a near-black
+                // ground.
+                onMapCreated: (c) {
+                  _controller.complete(c);
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (mounted) {
+                      setState(() {
+                        _mapLayoutReady = true;
+                      });
+                      // No fit here either — the map opens on the pickup at
+                      // the zoom above and stays there until the first driver
+                      // fix centres it. Fitting would have pulled straight
+                      // back out to take in a destination that may be a
+                      // province away.
+                      _moveCameraToDriver();
+                    }
+                  });
+                },
+                onCameraMove: (position) => _applyZoom(position.zoom),
+                markers: markers,
+                polylines: _polylines,
+                // Shows the customer's own position alongside the driver's,
+                // once they have granted permission.
+                myLocationEnabled: _locationPermissionGranted,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+              ),
+              ),
+            ),
           ),
+
+          // Map controls, stacked above the driver card on the trailing edge.
+          // Directional, so they sit on the left in Arabic without a second
+          // layout — and clear of the card below either way.
+          PositionedDirectional(
+            start: 20,
+            end: 20,
+            bottom: 190,
+            child: Row(
+              children: [
+                // The two icon buttons are equal-width slots on either side, so
+                // the recentre pill between them lands on the screen's centre
+                // line rather than the middle of whatever is left over.
+                SizedBox(
+                  width: _mapControlSize,
+                  child: _routePoints.isEmpty
+                      ? null
+                      : _MapControl(
+                          icon: Icons.route,
+                          tooltip: loc.showFullRoute,
+                          onTap: _showFullRoute,
+                        ),
+                ),
+                Expanded(
+                  child: Center(
+                    // Offered only once the customer has taken the map over, so
+                    // it does not sit there implying the view has drifted when
+                    // it has not.
+                    child:
+                        (!_followDriver &&
+                            !_tripEnded &&
+                            _driverLocation != null)
+                        ? _MapControl(
+                            label: loc.recenterMap,
+                            icon: Icons.navigation_rounded,
+                            onTap: _recentreOnDriver,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+                SizedBox(
+                  width: _mapControlSize,
+                  child: _locationPermissionGranted
+                      ? _MapControl(
+                          icon: Icons.my_location,
+                          tooltip: loc.myLocation,
+                          isBusy: _isLocatingCustomer,
+                          onTap: _goToCustomerLocation,
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+
+          // The driver app heartbeats once a minute, so silence past
+          // [_staleAfter] means the feed stopped rather than the car. Said
+          // plainly, because a frozen marker otherwise reads as a car that has
+          // parked and the customer keeps waiting on it.
+          if (_feedIsStale && !_tripEnded)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + kToolbarHeight,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withAlpha(120)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_outlined,
+                      color: Colors.orange,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        loc.liveLocationPaused,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           Positioned(
             bottom: 30,
             left: 20,
@@ -893,7 +1846,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                                         ? (_chauffeurStartTime == null
                                               ? "00:00:00"
                                               : _formatElapsed(_elapsed))
-                                        : "$_currentEta (approx)",
+                                        : _currentEta == null
+                                        ? loc.calculatingEta
+                                        : loc.etaApprox(_currentEta!),
                                     style: TextStyle(
                                       color: Colors.white.withAlpha(150),
                                       fontSize: 12,
@@ -914,7 +1869,11 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
                                 const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
-                                    _currentDistance,
+                                    _tripEnded
+                                        ? ''
+                                        : _currentDistance == null
+                                        ? loc.calculatingEta
+                                        : loc.distanceKm(_currentDistance!),
                                     style: TextStyle(
                                       color: Colors.white.withAlpha(150),
                                       fontSize: 12,
@@ -950,4 +1909,175 @@ class _DriverTrackingPageState extends State<DriverTrackingPage> {
       ),
     );
   }
+}
+
+/// One floating control on the map.
+///
+/// Renders as a labelled pill when given a [label] and as a round icon button
+/// when not, so the two controls on this screen — a named action and a bare
+/// locate button — share one shape language without a second widget.
+class _MapControl extends StatelessWidget {
+  const _MapControl({
+    required this.icon,
+    required this.onTap,
+    this.label,
+    this.tooltip,
+    this.isBusy = false,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  /// Shown beside the icon. Null makes this a circular icon-only button.
+  final String? label;
+
+  /// Accessibility name, and the long-press tooltip. Falls back to [label].
+  final String? tooltip;
+
+  /// Swaps the icon for a spinner and refuses taps, for a control whose work
+  /// takes long enough to notice — waiting on a GPS fix, mostly.
+  final bool isBusy;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLabel = label != null;
+    final shape = hasLabel
+        ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))
+        : const CircleBorder();
+
+    final glyph = isBusy
+        ? SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white.withAlpha(220),
+            ),
+          )
+        : Icon(icon, color: Colors.white.withAlpha(220), size: 20);
+
+    return Tooltip(
+      message: tooltip ?? label ?? '',
+      child: Material(
+        color: const Color(0xFF1E1E1E),
+        shape: shape,
+        elevation: 4,
+        shadowColor: Colors.black54,
+        child: InkWell(
+          onTap: isBusy ? null : onTap,
+          customBorder: shape,
+          child: Padding(
+            padding: hasLabel
+                ? const EdgeInsets.symmetric(horizontal: 16, vertical: 10)
+                : const EdgeInsets.all(12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                glyph,
+                if (hasLabel) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    label!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder shown while the map waits for the driver's first position.
+///
+/// Deliberately map-shaped rather than a spinner: it holds the same ground the
+/// map is about to occupy, in the same light tone, with a few abstract streets
+/// running through it — so the real map resolving over it reads as the screen
+/// arriving rather than one thing being swapped for another.
+class _MapSkeleton extends StatelessWidget {
+  const _MapSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      // The light map's own ground colour, so the fade has nothing to travel.
+      color: const Color(0xFFE8EAED),
+      child: Shimmer.fromColors(
+        baseColor: const Color(0xFFE8EAED),
+        highlightColor: const Color(0xFFF6F7F9),
+        child: CustomPaint(
+          painter: _StreetsPainter(),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+  }
+}
+
+/// A handful of streets and a block or two — enough to read as a map without
+/// pretending to be one anywhere in particular.
+class _StreetsPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final road = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 14
+      ..strokeCap = StrokeCap.round;
+
+    final minor = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round;
+
+    // Two arterials crossing at a shallow angle, the way most city grids read
+    // when the map is turned slightly off north.
+    canvas.drawLine(
+      Offset(-40, size.height * 0.34),
+      Offset(size.width + 40, size.height * 0.52),
+      road,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.68, -40),
+      Offset(size.width * 0.32, size.height + 40),
+      road,
+    );
+
+    // Side streets running off them.
+    canvas.drawLine(
+      Offset(-20, size.height * 0.72),
+      Offset(size.width * 0.62, size.height * 0.86),
+      minor,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.12, size.height * 0.12),
+      Offset(size.width * 0.30, size.height * 0.62),
+      minor,
+    );
+
+    // A couple of blocks between them.
+    final block = Paint()..color = Colors.white.withAlpha(140);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.08, size.height * 0.56, 90, 62),
+        const Radius.circular(6),
+      ),
+      block,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.62, size.height * 0.18, 110, 74),
+        const Radius.circular(6),
+      ),
+      block,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -211,6 +211,24 @@ class _MainAppState extends State<MainApp> {
             appBarTheme: const AppBarTheme(
               systemOverlayStyle: SystemUiOverlayStyle.light,
             ),
+            // One family for the whole app, Arabic and Latin alike.
+            //
+            // Noto Naskh Arabic ships `latin` and `latin-ext` alongside
+            // `arabic`, so it draws the English text and the digits too. Using
+            // it for everything rather than only as an Arabic fallback is what
+            // keeps a mixed line — an Arabic address next to a Latin flight
+            // number — in a single typeface with one set of metrics, instead of
+            // two fonts meeting mid-sentence.
+            //
+            // It also settles what Arabic looked like before any of this: the
+            // OS decided, so it was Noto Naskh on stock Android, SF Arabic or
+            // Geeza Pro on iOS, and an OEM face on Samsung and Xiaomi.
+            //
+            // The family's weight axis is 400–700, which is the full range it
+            // offers. The four bundled faces cover it exactly; the handful of
+            // `w300` and `w800`/`w900` styles in the app resolve to the nearest
+            // of them, since lighter and heavier cuts do not exist.
+            fontFamily: 'NotoNaskhArabic',
           ),
           localizationsDelegates: [
             AppLocalizations.delegate,

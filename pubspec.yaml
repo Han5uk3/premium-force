@@ -59,3 +59,24 @@ flutter:
     - assets/flags/
     - assets/icons/
     - lib/.env
+
+  # The app's typeface, Arabic and Latin alike — the family covers `arabic`,
+  # `latin` and `latin-ext`, so it draws every screen. Set as `fontFamily` on
+  # ThemeData in main.dart. Without it Arabic fell to whatever face the OS
+  # supplied, which differed on stock Android, iOS and OEM skins.
+  #
+  # These four faces are the whole family: its weight axis runs 400–700, so
+  # there is no lighter or heavier cut to add.
+  #
+  # Licensed under the SIL Open Font License 1.1 — see assets/fonts/OFL.txt.
+  fonts:
+    - family: NotoNaskhArabic
+      fonts:
+        - asset: assets/fonts/NotoNaskhArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoNaskhArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoNaskhArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoNaskhArabic-Bold.ttf
+          weight: 700

@@ -205,6 +205,7 @@ class BookingApiV2 extends V2ApiClient {
             'flightNumber': flightNumber.trim(),
           'pickupDate': formatPickupDate(pickupDateTime),
           'pickupTime': formatPickupTime(pickupDateTime),
+          'pickupUTC': formatPickupUtc(pickupDateTime),
         },
       ),
     );
@@ -235,6 +236,7 @@ class BookingApiV2 extends V2ApiClient {
           'dropOffAddress': dropOffAddress,
           'pickupDate': formatPickupDate(pickupDateTime),
           'pickupTime': formatPickupTime(pickupDateTime),
+          'pickupUTC': formatPickupUtc(pickupDateTime),
         },
       ),
     );
@@ -264,6 +266,7 @@ class BookingApiV2 extends V2ApiClient {
           chauffeurType.durationField: hours,
           'pickupDate': formatPickupDate(pickupDateTime),
           'pickupTime': formatPickupTime(pickupDateTime),
+          'pickupUTC': formatPickupUtc(pickupDateTime),
         },
       ),
     );
@@ -612,6 +615,24 @@ class BookingApiV2 extends V2ApiClient {
     final minute = dateTime.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
+
+  /// The selected pickup as a UTC instant, e.g. `"2026-08-10T15:00:00.000Z"`.
+  ///
+  /// Sent as `pickupUTC` alongside [formatPickupDate]/[formatPickupTime], which
+  /// stay in the payload: the two are not interchangeable, and dropping them
+  /// would break the request rather than improve it. The wall-clock strings are
+  /// what the backend pairs with the pickup city's timezone to derive its own
+  /// `pickupUTC`; if they were replaced with UTC-shifted components, that
+  /// derivation would apply the city's offset a second time and store a pickup
+  /// hours away from the one chosen.
+  ///
+  /// The instant is computed with the **device's** offset, since that is the
+  /// only zone the pickers know. It therefore names the moment the customer
+  /// meant only when the phone is set to the pickup city's timezone — for a
+  /// phone elsewhere, the wall-clock strings plus the city's timezone remain
+  /// the truer reading. That is the second reason they are still sent.
+  static String formatPickupUtc(DateTime dateTime) =>
+      dateTime.toUtc().toIso8601String();
 
   // ---------------------------------------------------------------------------
   // Internal plumbing

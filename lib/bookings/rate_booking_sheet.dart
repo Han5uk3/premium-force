@@ -88,7 +88,6 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final driverName = widget.booking.driver?.name;
 
     return Padding(
       // Lift the sheet above the keyboard while the comment field has focus.
@@ -98,83 +97,99 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
       child: Container(
         decoration: const BoxDecoration(
           color: Color(0xFF1E1105),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+            // Same header the logout and delete-account sheets use: the title
+            // ranged left at 18pt with a close control opposite it, over a
+            // full-bleed rule. The drag handle that used to sit here is gone
+            // with it — those sheets are dismissed by the X, and two ways out
+            // in one corner is one more than the pattern has.
+            Padding(
+              padding: const EdgeInsets.only(
+                top: 24,
+                bottom: 12,
+                left: 24,
+                right: 24,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      loc.rateYourDriver,
+                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
+            const Divider(color: Colors.white, thickness: 1),
+            const SizedBox(height: 24),
 
-            Text(
-              loc.rateYourDriver,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                 
+
+                  _buildStars(),
+                  const SizedBox(height: 20),
+
+                  TextField(
+                    controller: _comment,
+                    maxLines: 3,
+                    maxLength: 500,
+                    enabled: !_isSubmitting,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    cursorColor: const Color(0xFFE4A46B),
+                    decoration: InputDecoration(
+                      hintText: loc.addAnOptionalReview,
+                      hintStyle: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 13,
+                      ),
+                      counterStyle: const TextStyle(color: Colors.white24),
+                      filled: true,
+                      fillColor: Colors.black,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade800),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade800),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE4A46B)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  PremiumButton(
+                    fontsize: 12,
+                    text: loc.submit,
+                    showLoader: _isSubmitting,
+                    enabled: _rating > 0,
+                    textColor: Colors.black,
+                    onTap: _submit,
+                  ),
+                ],
               ),
-            ),
-            if (driverName != null && driverName.trim().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                driverName,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFE4A46B), fontSize: 13),
-              ),
-            ],
-            const SizedBox(height: 20),
-
-            _buildStars(),
-            const SizedBox(height: 20),
-
-            TextField(
-              controller: _comment,
-              maxLines: 3,
-              maxLength: 500,
-              enabled: !_isSubmitting,
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-              cursorColor: const Color(0xFFE4A46B),
-              decoration: InputDecoration(
-                hintText: loc.addAnOptionalReview,
-                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                counterStyle: const TextStyle(color: Colors.white24),
-                filled: true,
-                fillColor: Colors.black,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade800),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade800),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE4A46B)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            PremiumButton(
-              fontsize: 12,
-              text: loc.submit,
-              showLoader: _isSubmitting,
-              enabled: _rating > 0,
-              textColor: Colors.black,
-              onTap: _submit,
             ),
           ],
         ),
@@ -196,7 +211,7 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
           icon: Icon(
             isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
             color: isFilled ? const Color(0xFFE4A46B) : Colors.white24,
-            size: 36,
+            size: 40,
           ),
         );
       }),

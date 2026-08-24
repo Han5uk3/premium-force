@@ -41,6 +41,30 @@ enum TrackingPhase {
   bool get hasDestination => this != inProgress;
 }
 
+/// One published position, with the moment the driver app wrote it.
+///
+/// The timestamp is the point of the driver app's heartbeat: it rewrites a
+/// stationary car's position once a minute purely so this value keeps moving.
+/// A [timestamp] that stops advancing therefore means the feed itself has
+/// stopped — the driver's app was killed, lost signal, or had location turned
+/// off — which is not otherwise distinguishable from a car sitting at a light.
+class DriverPing {
+  const DriverPing({required this.position, this.timestamp});
+
+  final LatLng position;
+
+  /// When the driver app wrote this fix, or null if it published none —
+  /// older driver builds, and the hand-written shapes [parsePosition] tolerates.
+  final DateTime? timestamp;
+
+  /// How long ago this was written, or null when there is no timestamp to
+  /// measure from.
+  Duration? get age {
+    final at = timestamp;
+    return at == null ? null : DateTime.now().difference(at);
+  }
+}
+
 /// The live tracking session for a booking, as the driver app reports it.
 class TrackingSession {
   const TrackingSession({
@@ -101,18 +125,56 @@ class DriverLocationService {
 
   /// Positions for [bookingId], skipping anything unreadable.
   ///
-  /// Errors are logged and swallowed rather than closing the stream, so a
-  /// transient database fault does not permanently kill tracking on the screen.
-  Stream<LatLng> watchLocation(String bookingId) {
+  /// Errors are swallowed rather than closing the stream, so a transient
+  /// database fault does not permanently kill tracking on the screen.
+  Stream<LatLng> watchLocation(String bookingId) =>
+      watchPing(bookingId).map((ping) => ping.position);
+
+  /// The same feed as [watchLocation], carrying the write time alongside the
+  /// position so a caller can tell a live feed from a frozen one.
+  Stream<DriverPing> watchPing(String bookingId) {
     final path = 'bookings/$bookingId/driver_location';
 
     return _database
         .ref(path)
         .onValue
         .handleError((Object error) {})
-        .map((event) => parsePosition(event.snapshot.value))
-        .where((position) => position != null)
-        .cast<LatLng>();
+        .map((event) {
+          final position = parsePosition(event.snapshot.value);
+          if (position == null) return null;
+          return DriverPing(
+            position: position,
+            timestamp: parseTimestamp(event.snapshot.value),
+          );
+        })
+        .where((ping) => ping != null)
+        .cast<DriverPing>();
+  }
+
+  /// Read the write time out of a published position.
+  ///
+  /// The driver app writes milliseconds since the epoch; a string date is
+  /// accepted too, since nothing stops a future publisher from sending one.
+  /// Anything else yields null, which callers read as "no heartbeat to judge".
+  @visibleForTesting
+  static DateTime? parseTimestamp(dynamic data) {
+    if (data is! Map) return null;
+    final raw = data['timestamp'] ?? data['time'] ?? data['updatedAt'];
+
+    if (raw is num) {
+      final ms = raw.toInt();
+      // Tolerates a publisher that sends seconds: any plausible ride time in
+      // milliseconds is far past this, and in seconds far below it.
+      return DateTime.fromMillisecondsSinceEpoch(
+        ms < 100000000000 ? ms * 1000 : ms,
+      );
+    }
+    if (raw is String) {
+      final epoch = int.tryParse(raw.trim());
+      if (epoch != null) return parseTimestamp({'timestamp': epoch});
+      return DateTime.tryParse(raw.trim());
+    }
+    return null;
   }
 
   /// The live session for [bookingId] — which leg is being driven, whether it

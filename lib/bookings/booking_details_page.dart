@@ -7,8 +7,8 @@ import 'package:premium_force_main/api/booking_api_v2.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:premium_force_main/bookings/rate_booking_sheet.dart';
 import 'package:premium_force_main/common_widgets/bookingcard.dart';
+import 'package:premium_force_main/common_widgets/booking_details_shimmer.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
-import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/common_widgets/riyal_symbol.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/common_widgets/voice_player.dart';
@@ -20,6 +20,8 @@ import 'package:premium_force_main/models/v2/review_v2.dart';
 import 'package:premium_force_main/services/invoice_service.dart';
 import 'package:premium_force_main/utils/booking_status_display.dart';
 import 'package:premium_force_main/utils/date_display.dart';
+import 'package:premium_force_main/utils/screen_logger.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class _CancelBookingDialog extends StatefulWidget {
   const _CancelBookingDialog({
@@ -161,9 +163,17 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   /// Set once the booking is cancelled, so popping refreshes the list behind.
   bool _didChange = false;
 
+  /// Console tag prefixing this screen's log lines.
+  static const String _log = 'booking-details';
+
+  /// Last pickup line logged, so [_buildContent] — which runs on every frame —
+  /// logs the card's date and time once per load rather than once per frame.
+  String? _loggedPickup;
+
   @override
   void initState() {
     super.initState();
+    logScreen(_log, 'open ${widget.bookingId}');
     _loadBooking();
   }
 
@@ -173,12 +183,40 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       _errorMessage = null;
     });
 
+    logScreen(_log, 'GET booking ${widget.bookingId}');
+    final startedAt = DateTime.now();
     final result = await _api.getBookingById(widget.bookingId);
-    if (!mounted) return;
+    final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+
+    if (!mounted) {
+      // Worth a line: the request did come back, it just arrived after the
+      // customer had left, so nothing below runs.
+      logScreen(_log, 'loaded after dispose, discarded (${elapsedMs}ms)');
+      return;
+    }
+
+    final booking = result.data;
+    if (booking == null) {
+      logScreen(
+        _log,
+        'load failed (${elapsedMs}ms): ${result.message ?? 'no message'}',
+      );
+    } else {
+      logScreen(_log, 'loaded (${elapsedMs}ms) ${bookingSummary(booking)}');
+      logScreenDetail(
+        _log,
+        'timeline=${booking.timeline.length} steps '
+        'trackable=${booking.status.isTrackable} '
+        'cancellable=${booking.status.isCancellable}',
+      );
+      // A fresh payload may resolve the pickup differently, so the card's
+      // date and time are logged again for it.
+      _loggedPickup = null;
+    }
 
     setState(() {
       _isLoading = false;
-      _booking = result.data;
+      _booking = booking;
       _errorMessage = result.hasData
           ? null
           : (result.message ?? 'Could not load this booking.');
@@ -192,18 +230,32 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) Navigator.pop(context, _didChange);
+        if (!didPop) {
+          logScreen(_log, 'close, changed=$_didChange');
+          Navigator.pop(context, _didChange);
+        }
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF1E1105),
         appBar: buidAppBar(context),
         body: _isLoading
-            ? const Center(child: PremiumLoader(size: 40))
+            ? const BookingDetailsShimmer()
             : _booking == null
             ? _buildErrorState(loc)
             : _buildContent(context, loc, _booking!),
       ),
     );
+  }
+
+  /// Log the pickup date and time the card is about to show, once per load.
+  ///
+  /// Called from the build path, so it compares against the last line emitted:
+  /// rebuilds for anything else — a snackbar, the invoice spinner — log nothing.
+  void _logPickup(BookingV2 booking, ({String date, String time}) pickup) {
+    final line = '${pickup.date}|${pickup.time}';
+    if (_loggedPickup == line) return;
+    _loggedPickup = line;
+    logPickupDisplay(_log, booking, date: pickup.date, time: pickup.time);
   }
 
   Widget _buildErrorState(AppLocalizations loc) {
@@ -242,6 +294,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     BookingV2 booking,
   ) {
     final pickup = formatPickupDisplay(context, [booking.route]);
+    _logPickup(booking, pickup);
 
     // Hourly hire is the only product with a booked duration; everything else
     // leaves the slot across from the service type empty.
@@ -329,28 +382,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
             const SizedBox(height: 24),
 
-            // Hidden until the driver starts the ride, which is when the
-            // driver app begins publishing its position.
-            if (booking.status.isTrackable)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: PremiumButton(
-                  fontsize: 12,
-                  text: loc.trackDriver,
-                  showLoader: false,
-                  gradient: const [Color(0xFFE4A46B), Color(0xFF49280B)],
-                  textColor: Colors.black,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            DriverTrackingPage(booking: booking),
-                      ),
-                    );
-                  },
-                ),
-              ),
+            // Tracking and rating both live inside the driver card — see
+            // `_buildDriverCard`. Both are about the driver, so they belong
+            // with their name and photo rather than in the run of page-level
+            // actions here.
 
             // Shown from `invoiceUrl`, which the API attaches only once the
             // booking is paid for — so its presence is the whole condition.
@@ -368,21 +403,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               ),
             ],
 
-            if (booking.isCompleted && booking.driver != null) ...[
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: _review == null
-                    ? PremiumButton(
-                        fontsize: 12,
-                        text: loc.rateYourDriver,
-                        showLoader: false,
-                        onTap: _rateBooking,
-                      )
-                    : _buildSubmittedReview(loc, _review!),
-              ),
-            ],
-
+            // Rating lives inside the driver card — see `_buildDriverCard`.
+            // It is about the driver, so it belongs with their name and photo
+            // rather than in the run of page-level actions at the bottom.
             if (booking.status.isCancellable) ...[
               const SizedBox(height: 12),
               Padding(
@@ -400,7 +423,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               ),
             ],
 
-            const SizedBox(height: 80),
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -414,7 +437,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         text,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -973,10 +996,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               const SizedBox(height: 4),
               Text(
                 value,
+                // No family, so this follows the app's — see ThemeData in
+                // main.dart. It was 'monospace' to keep reference digits
+                // aligned; naming the family here instead would just be a
+                // second place to update the next time it changes.
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 12,
-                  fontFamily: 'monospace',
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1045,8 +1071,27 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Widget _buildDriverCard(BookingV2 booking) {
+    final loc = AppLocalizations.of(context)!;
     final driver = booking.driver!;
     final plate = booking.fleet?.licensePlate;
+
+    // Once the ride is over there is nothing left to call the driver about, so
+    // a finished or cancelled booking shows neither the number nor the call
+    // button. Treated as "no phone at all" rather than as a separate flag, so
+    // the two stay in step: the button is the only thing that dials, and it
+    // reads the same value the row renders.
+    final phone = booking.status.isConcluded ? null : driver.phone?.trim();
+    final canCall = phone != null && phone.isNotEmpty;
+
+    // Rating belongs to the driver, so it sits in their card rather than in
+    // the run of page actions at the foot of the screen. Only once the ride is
+    // done — there is nothing to rate before that.
+    final canRate = booking.isCompleted;
+
+    // Hidden until the driver sets off, which is when the driver app starts
+    // publishing its position. The two are mutually exclusive — a ride is
+    // either under way or finished — so the card only ever grows one action.
+    final canTrack = booking.status.isTrackable;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1055,97 +1100,180 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade800),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ClipOval(
-            child: Container(
-              width: 50,
-              height: 50,
-              color: const Color(0xFF49280B),
-              child: (driver.avatar != null && driver.avatar!.isNotEmpty)
-                  ? CachedNetworkImage(
-                      imageUrl: driver.avatar!,
-                      fit: BoxFit.cover,
-                      // 50pt avatar at 3x.
-                      memCacheWidth: 150,
-                      placeholder: (context, url) => const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Color(0xFFE4A46B),
-                            strokeWidth: 2,
+          Row(
+            children: [
+              ClipOval(
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  color: const Color(0xFF49280B),
+                  child: (driver.avatar != null && driver.avatar!.isNotEmpty)
+                      ? CachedNetworkImage(
+                          imageUrl: driver.avatar!,
+                          fit: BoxFit.cover,
+                          // 50pt avatar at 3x.
+                          memCacheWidth: 150,
+                          placeholder: (context, url) => const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFE4A46B),
+                                strokeWidth: 2,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) =>
-                          const Icon(Icons.person, color: Color(0xFFE4A46B)),
-                    )
-                  : const Icon(Icons.person, color: Color(0xFFE4A46B)),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-               
-                Text(
-                  driver.name ?? '',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                          errorWidget: (context, url, error) => const Icon(
+                            Icons.person,
+                            color: Color(0xFFE4A46B),
+                          ),
+                        )
+                      : const Icon(Icons.person, color: Color(0xFFE4A46B)),
                 ),
-                Row(
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (driver.rating != null) ...[
-                      const Icon(
-                        Icons.star,
-                        color: Color(0xFFE4A46B),
-                        size: 12,
+                    Text(
+                      driver.name ?? '',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
-                      const SizedBox(width: 2),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Row(
+                      children: [
+                        if (driver.rating != null) ...[
+                          const Icon(
+                            Icons.star,
+                            color: Color(0xFFE4A46B),
+                            size: 12,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            driver.rating!.toStringAsFixed(1),
+                            style: TextStyle(
+                              color: Colors.white.withAlpha(153),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                        if (driver.rating != null && plate != null)
+                          Text(
+                            '  ·  ',
+                            style: TextStyle(
+                              color: Colors.white.withAlpha(90),
+                              fontSize: 12,
+                            ),
+                          ),
+                        if (plate != null)
+                          Flexible(
+                            child: Text(
+                              plate,
+                              style: TextStyle(
+                                color: Colors.white.withAlpha(153),
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (canCall) ...[
                       Text(
-                        driver.rating!.toStringAsFixed(1),
+                        phone,
                         style: TextStyle(
                           color: Colors.white.withAlpha(153),
                           fontSize: 12,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    if (driver.rating != null && plate != null)
-                      Text(
-                        '  ·  ',
-                        style: TextStyle(
-                          color: Colors.white.withAlpha(90),
-                          fontSize: 12,
-                        ),
-                      ),
-                    if (plate != null)
-                      Flexible(
-                        child: Text(
-                          plate,
-                          style: TextStyle(
-                            color: Colors.white.withAlpha(153),
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              if (canCall)
+                IconButton.filled(
+                  onPressed: () => _makePhoneCall(phone),
+                  icon: const Icon(Icons.phone, size: 18),
+                  color: const Color(0xFFE4A46B),
+                  padding: const EdgeInsets.all(20),
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStatePropertyAll(
+                      Colors.grey.shade900,
+                    ),
+                    shape: WidgetStatePropertyAll(CircleBorder()),
+                  ),
+                  tooltip: AppLocalizations.of(context)!.phoneNumber,
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
           ),
+
+          if (canTrack || canRate) ...[
+            const SizedBox(height: 14),
+            Divider(color: Colors.grey.shade800, height: 1),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: canTrack
+                  ? PremiumButton(
+                      fontsize: 12,
+                      text: loc.trackDriver,
+                      showLoader: false,
+                      textColor: Colors.black,
+                      onTap: () {
+                        logScreen(
+                          _log,
+                          'open tracking ${bookingRef(booking)} '
+                          'at ${booking.status.wireValue}',
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                DriverTrackingPage(booking: booking),
+                          ),
+                        );
+                      },
+                    )
+                  : _review == null
+                  ? PremiumButton(
+                      fontsize: 12,
+                      text: loc.rateYourDriver,
+                      showLoader: false,
+                      onTap: _rateBooking,
+                    )
+                  : _buildSubmittedReview(loc, _review!),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    } else if (mounted) {
+      AnimatedSnackBar.show(
+        context,
+        AppLocalizations.of(context)!.cannotMakePhoneCalls,
+        'E',
+      );
+    }
   }
 
   /// Confirmation before cancelling, styled like the app's exit dialog: the
@@ -1178,6 +1306,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   Future<void> _cancelBooking(String reason) async {
     setState(() => _isCancelling = true);
 
+    // The reason itself is the customer's own words, so only its length is
+    // logged — enough to confirm the dialog passed something through.
+    logScreen(
+      _log,
+      'cancel ${widget.bookingId} (reason ${reason.length} chars)',
+    );
+
     final result = await _api.cancelBooking(
       bookingId: widget.bookingId,
       reason: reason,
@@ -1187,6 +1322,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     setState(() => _isCancelling = false);
 
     if (!result.success) {
+      logScreen(_log, 'cancel failed: ${result.message ?? 'no message'}');
       AnimatedSnackBar.show(
         context,
         result.message ?? AppLocalizations.of(context)!.somethingWentWrong,
@@ -1196,6 +1332,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     }
 
     _didChange = true;
+    final cancellation = result.data;
+    logScreen(
+      _log,
+      'cancelled — refund=${cancellation?.hasRefund ?? false} '
+      'status=${cancellation?.refundStatus ?? '-'} '
+      'amount=${cancellation?.refundAmount ?? '-'}',
+    );
     AnimatedSnackBar.show(
       context,
       AppLocalizations.of(context)!.bookingCancelledSuccessfully,
@@ -1221,11 +1364,23 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     setState(() => _isOpeningInvoice = true);
     AnimatedSnackBar.show(context, loc.preparingInvoice, 'I');
 
+    logScreen(_log, 'open invoice ${bookingRef(booking)}');
     final outcome = await _invoices.open(booking);
     if (!mounted) return;
 
     setState(() => _isOpeningInvoice = false);
-    if (outcome.success) return;
+    if (outcome.success) {
+      logScreen(_log, 'invoice handed to the device viewer');
+      return;
+    }
+
+    logScreen(
+      _log,
+      'invoice failed — unavailable=${outcome.isUnavailable} '
+      'missingViewer=${outcome.isMissingViewer} '
+      'generic=${outcome.isGenericFailure} '
+      'message=${outcome.message ?? '-'}',
+    );
 
     // `message` is either one of the service's sentinels or a server string
     // worth showing verbatim (e.g. "Invoice not available for unpaid booking").
@@ -1249,9 +1404,19 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     final booking = _booking;
     if (booking == null) return;
 
+    logScreen(_log, 'rate sheet opened for ${bookingRef(booking)}');
     final review = await RateBookingSheet.show(context, booking: booking);
-    if (review == null || !mounted) return;
+    if (review == null || !mounted) {
+      logScreen(
+        _log,
+        review == null
+            ? 'rate sheet dismissed without a review'
+            : 'review submitted but the page was gone',
+      );
+      return;
+    }
 
+    logScreen(_log, 'review submitted — ${review.rate}★');
     setState(() => _review = review);
     AnimatedSnackBar.show(
       context,
@@ -1261,41 +1426,37 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   /// The rating just submitted, shown in place of the rate button.
+  ///
+  /// Carries no card of its own: it renders inside the driver card, which
+  /// already supplies the black panel and its border. Wrapping it in a second
+  /// identical one drew a border inside a border.
   Widget _buildSubmittedReview(AppLocalizations loc, ReviewV2 review) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade800),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            loc.yourReview,
-            style: TextStyle(color: Colors.white.withAlpha(153), fontSize: 12),
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          loc.yourReview,
+          style: TextStyle(color: Colors.white.withAlpha(153), fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(5, (index) {
+            final isFilled = index < review.rate;
+            return Icon(
+              isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
+              color: isFilled ? const Color(0xFFE4A46B) : Colors.white24,
+              size: 18,
+            );
+          }),
+        ),
+        if (review.reviewText?.trim().isNotEmpty ?? false) ...[
           const SizedBox(height: 8),
-          Row(
-            children: List.generate(5, (index) {
-              final isFilled = index < review.rate;
-              return Icon(
-                isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: isFilled ? const Color(0xFFE4A46B) : Colors.white24,
-                size: 18,
-              );
-            }),
+          Text(
+            review.reviewText!,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
-          if (review.reviewText?.trim().isNotEmpty ?? false) ...[
-            const SizedBox(height: 8),
-            Text(
-              review.reviewText!,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ],
         ],
-      ),
+      ],
     );
   }
 
@@ -1362,7 +1523,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   String getBookingStatusText(BookingStatusV2 status) {
     final loc = AppLocalizations.of(context)!;
     return switch (status) {
-      BookingStatusV2.completed => loc.completed,
+      BookingStatusV2.completed => loc.rideCompletedStatus,
       BookingStatusV2.cancelled => loc.bookingCanceledStatus,
       BookingStatusV2.pendingPayment => loc.paymentPendingStatus,
       BookingStatusV2.confirmed => loc.pendingDriverStatus,

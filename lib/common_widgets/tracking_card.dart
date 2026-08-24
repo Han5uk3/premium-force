@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' show Bidi;
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
@@ -200,31 +201,24 @@ class _TrackingCardState extends State<TrackingCard> {
           children: [
             Row(
               children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE4A46B).withAlpha(20),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFE4A46B).withAlpha(40),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.local_taxi_rounded,
-                      color: Color(0xFFE4A46B),
-                      size: 28,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        loc.ongoing.toUpperCase(),
+                        // The booking's own reference, in place of a status
+                        // word: the card only ever appears for a ride under
+                        // way, so "ongoing" told the customer what its
+                        // presence already had. Forced left-to-right — it is
+                        // Latin text and digits, and inherits the Arabic
+                        // direction of the layout otherwise, which reverses it.
+                        booking.bookingNumber.trim().isEmpty
+                            ? loc.ongoing.toUpperCase()
+                            : Bidi.enforceLtrInText(
+                                booking.bookingNumber.trim(),
+                              ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFFE4A46B),
                           fontSize: 10,
@@ -286,9 +280,9 @@ class _TrackingCardState extends State<TrackingCard> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withAlpha(40),
+                    color: Colors.green.withAlpha(40),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.blue.withAlpha(80)),
+                    border: Border.all(color: Colors.green.withAlpha(80)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -297,7 +291,7 @@ class _TrackingCardState extends State<TrackingCard> {
                         width: 6,
                         height: 6,
                         decoration: const BoxDecoration(
-                          color: Colors.blue,
+                          color: Colors.green,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -305,7 +299,7 @@ class _TrackingCardState extends State<TrackingCard> {
                       Text(
                         loc.tracking.toUpperCase(),
                         style: const TextStyle(
-                          color: Colors.blue,
+                          color: Colors.green,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                         ),
@@ -320,6 +314,9 @@ class _TrackingCardState extends State<TrackingCard> {
               child: Divider(color: Colors.white10, height: 1),
             ),
             Row(
+              // Top-aligned, so the PICKUP and DROPOFF labels stay level when
+              // one address wraps to two lines and the other does not.
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
@@ -336,12 +333,13 @@ class _TrackingCardState extends State<TrackingCard> {
                       const SizedBox(height: 4),
                       Text(
                         booking.pickupAddress ?? "Pickup Point",
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
+                          height: 1.3,
                         ),
                       ),
                     ],
@@ -350,10 +348,23 @@ class _TrackingCardState extends State<TrackingCard> {
                 if (booking.dropOffAddress != null &&
                     booking.dropOffAddress!.isNotEmpty) ...[
                   const SizedBox(width: 12),
-                  const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Colors.white24,
-                    size: 16,
+                  // Nudged down past the label row, so it sits against the
+                  // addresses it points between rather than the headings.
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: const BoxDecoration(
+                        color: Colors.black,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -371,12 +382,13 @@ class _TrackingCardState extends State<TrackingCard> {
                         const SizedBox(height: 4),
                         Text(
                           booking.dropOffAddress!,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
+                            height: 1.3,
                           ),
                         ),
                       ],

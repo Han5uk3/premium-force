@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
+import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/services/apple_sign_in_service.dart';
 import 'package:premium_force_main/services/google_sign_in_service.dart';
@@ -106,16 +107,19 @@ class AuthProvider extends ChangeNotifier {
   // Fetch user from backend
   // ---------------------------------------------------------------------------
 
-  /// Fetch the full user profile from the backend using [userId].
+  /// Fetch the signed-in customer's full profile from the backend.
   ///
-  /// Calls `GET /api/users/:id`. Returns the [UserModel] on success,
-  /// or `null` if the user was not found.
+  /// Calls `GET /api/v2/user/me`, which identifies the customer from the bearer
+  /// token. [userId] therefore no longer selects *which* profile is read — it
+  /// is kept only as the "is anyone signed in" guard it already served, since
+  /// every caller passes the stored id or nothing at all.
+  ///
+  /// Returns the [UserModel] on success, or `null` if the read failed.
   Future<UserModel?> fetchUser({String? userId}) async {
     final id = userId ?? UserLocalStorage.getUserId();
     if (id == null || id.isEmpty) return null;
 
-    final token = UserLocalStorage.getToken();
-    final result = await _api.getUserById(id: id, token: token);
+    final result = (await UserApiV2().getProfile()).data;
 
     if (result != null) {
       _user = result;
@@ -535,8 +539,10 @@ class AuthProvider extends ChangeNotifier {
           // (the createUser response may not include all fields like profileImageUrl)
           UserModel? fullUser;
           try {
-            final freshToken = UserLocalStorage.getToken();
-            fullUser = await _api.getUserById(id: uid, token: freshToken);
+            // Reads `GET /api/v2/user/me` off the token just saved, so it needs
+            // no id — `uid` above is still what the credentials were stored
+            // under.
+            fullUser = (await UserApiV2().getProfile()).data;
           } catch (e) {}
 
           if (fullUser != null) {

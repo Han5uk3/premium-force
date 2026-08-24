@@ -228,10 +228,11 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                 // Token text
                 SelectableText(
                   _token!,
+                  // Follows the app's family rather than naming one — see
+                  // ThemeData in main.dart.
                   style: const TextStyle(
                     color: Color(0xFFB0B0C8),
                     fontSize: 12,
-                    fontFamily: 'monospace',
                     height: 1.6,
                     letterSpacing: 0.2,
                   ),

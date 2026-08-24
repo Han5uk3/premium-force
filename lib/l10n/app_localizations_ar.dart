@@ -136,6 +136,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get terminal => 'صالة';
 
   @override
+  String get noTerminals => 'لا توجد صالات متاحة';
+
+  @override
   String get riyadh => 'الرياض';
 
   @override
@@ -327,7 +330,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get iAmACorporateEmployee =>
-      'اضغط هنا إذا كنت موظفاً لدى جهة شريكة ل بريميوم فورس';
+      'اضغط هنا إذا كنت موظفاً لدى جهة شريكة ل بريميم فورس';
 
   @override
   String get createAccount => 'إنشاء حساب';
@@ -661,14 +664,14 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get termsIntro =>
-      'تحدد هذه الشروط والأحكام قواعد ولوائح استخدام تطبيق بريميوم فورس، وهي خدمة حجز سائق خاص فاخرة تعمل في المملكة العربية السعودية.\n\nمن خلال الوصول إلى هذا التطبيق، نفترض أنك تقبل هذه الشروط والأحكام. لا تستمر في استخدام بريميوم فورس إذا كنت لا توافق على أخذ جميع الشروط والأحكام المذكورة في هذه الصفحة.\n';
+      'تحدد هذه الشروط والأحكام قواعد ولوائح استخدام تطبيق بريميم فورس، وهي خدمة حجز سائق خاص فاخرة تعمل في المملكة العربية السعودية.\n\nمن خلال الوصول إلى هذا التطبيق، نفترض أنك تقبل هذه الشروط والأحكام. لا تستمر في استخدام بريميم فورس إذا كنت لا توافق على أخذ جميع الشروط والأحكام المذكورة في هذه الصفحة.\n';
 
   @override
   String get termsSection1Title => '١. خدمات التطبيق والحجوزات';
 
   @override
   String get termsSection1Content =>
-      'يربط بريميوم فورس المستخدمين بخدمات سائق خاص فاخرة داخل المملكة العربية السعودية. تخضع جميع الحجوزات للتوافر، ونحتفظ بالحق في رفض أو إلغاء الحجوزات في ظل ظروف معينة موضحة في سياساتنا.';
+      'يربط بريميم فورس المستخدمين بخدمات سائق خاص فاخرة داخل المملكة العربية السعودية. تخضع جميع الحجوزات للتوافر، ونحتفظ بالحق في رفض أو إلغاء الحجوزات في ظل ظروف معينة موضحة في سياساتنا.';
 
   @override
   String get termsSection2Title => '٢. مسؤوليات المستخدم';
@@ -696,7 +699,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get termsSection5Content =>
-      'يتم توفير هذا التطبيق \"كما هو\"، ولا تقدم بريميوم فورس أي إقرارات أو ضمانات تتعلق بالتوافر المستمر للتطبيق أو سائقين محددين.';
+      'يتم توفير هذا التطبيق \"كما هو\"، ولا تقدم بريميم فورس أي إقرارات أو ضمانات تتعلق بالتوافر المستمر للتطبيق أو سائقين محددين.';
 
   @override
   String get termsSection6Title => '٦. القانون الحاكم والولاية القضائية';
@@ -840,6 +843,41 @@ class AppLocalizationsAr extends AppLocalizations {
   String get etaPrefix => 'الوقت المتوقع للوصول:';
 
   @override
+  String get calculatingEta => 'جارٍ الحساب…';
+
+  @override
+  String etaMinutes(int count) {
+    return '$count دقيقة';
+  }
+
+  @override
+  String etaHoursMinutes(int hours, int minutes) {
+    return '$hours ساعة $minutes دقيقة';
+  }
+
+  @override
+  String etaApprox(String eta) {
+    return '$eta (تقريباً)';
+  }
+
+  @override
+  String distanceKm(String km) {
+    return '$km كم';
+  }
+
+  @override
+  String get liveLocationPaused => 'تم إيقاف الموقع المباشر مؤقتاً';
+
+  @override
+  String get recenterMap => 'إعادة التوسيط';
+
+  @override
+  String get myLocation => 'موقعي';
+
+  @override
+  String get showFullRoute => 'عرض المسار كاملاً';
+
+  @override
   String get pickupPointLabel => 'نقطة الاستلام';
 
   @override
@@ -893,6 +931,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get rideInProgressStatus => 'رحلتك قيد التنفيذ.';
+
+  @override
+  String get rideCompletedStatus => 'اكتملت رحلتك. شكراً لاختيارك خدمتنا!';
 
   @override
   String get paymentPendingStatus => 'الدفع معلق للساعات الإضافية.';

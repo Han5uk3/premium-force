@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/api_result.dart';
 import 'package:premium_force_main/api/v2_client.dart';
 import 'package:premium_force_main/models/user.dart';
@@ -58,11 +61,73 @@ class UserApiV2 extends V2ApiClient {
     return request(
       () => dio.get('user/me'),
       parse: (payload) {
+        _logProfilePayload(payload);
+
         final body = asMap(payload);
         // The document arrives either bare or wrapped, depending on the route.
         final nested = pickMap(body, const ['user', 'customer', 'profile']);
-        return UserModel.fromJson(nested.isEmpty ? body : nested);
+        final source = nested.isEmpty ? body : nested;
+
+        final user = UserModel.fromJson(source);
+        _logParsedProfile(nested.isEmpty ? '(bare)' : 'nested', source, user);
+        return user;
       },
+    );
+  }
+
+  /// Dump what `GET /user/me` handed the parser, unredacted.
+  ///
+  /// [BookingApiLogger] already prints the HTTP exchange, but it masks anything
+  /// whose key looks like a credential and it prints the whole envelope. This
+  /// prints the payload the model is actually built from — after
+  /// [V2ApiClient.request] has unwrapped `data` — which is the thing to read
+  /// when a field arrives null and it is not clear whether the backend omitted
+  /// it or the model looked under the wrong key.
+  ///
+  /// Debug builds only: a profile is the customer's name, email and phone, and
+  /// none of that belongs in a release log.
+  void _logProfilePayload(dynamic payload) {
+    if (!kDebugMode) return;
+
+    debugPrint('👤 user/me │ raw payload (${payload.runtimeType})');
+    if (payload is Map) {
+      debugPrint('   user/me │ top-level keys: ${payload.keys.join(', ')}');
+    }
+
+    String rendered;
+    try {
+      rendered = const JsonEncoder.withIndent('  ').convert(payload);
+    } catch (_) {
+      // Not JSON-encodable — whatever it is, its toString is still worth more
+      // than nothing.
+      rendered = payload.toString();
+    }
+    // debugPrint truncates long lines, so the body goes out one line at a time.
+    for (final line in rendered.split('\n')) {
+      debugPrint('   user/me │ $line');
+    }
+  }
+
+  /// What the payload became, so a silently-empty profile is obvious.
+  ///
+  /// The fields are named rather than dumped: this line answers "did the parse
+  /// find anything", and the values themselves are already above.
+  void _logParsedProfile(
+    String shape,
+    Map<String, dynamic> source,
+    UserModel user,
+  ) {
+    if (!kDebugMode) return;
+
+    debugPrint(
+      '👤 user/me │ parsed from $shape '
+      '(${source.length} keys) → '
+      'uid=${user.uid.isEmpty ? '(empty)' : user.uid} '
+      'username=${user.username.isEmpty ? '(empty)' : user.username} '
+      'email=${user.email.isEmpty ? '(empty)' : user.email} '
+      'phone=${user.countryCode}${user.phoneNumber} '
+      'role=${user.role} '
+      'image=${user.profileImageUrl == null ? 'none' : 'yes'}',
     );
   }
 

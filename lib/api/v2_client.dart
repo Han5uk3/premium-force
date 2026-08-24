@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:premium_force_main/api/accept_language.dart';
 import 'package:premium_force_main/api/api_logger.dart';
 import 'package:premium_force_main/api/api_result.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
@@ -40,7 +41,11 @@ abstract class V2ApiClient {
     // Debug-only: payloads carry customer PII and, on confirm, live gateway
     // credentials. See BookingApiLogger for what it masks.
     if (kDebugMode) {
-      dio.interceptors.add(BookingApiLogger());
+      // Raised from the 4000-char default so a session's request and response
+      // are logged whole. The booking draft that comes back from every step is
+      // large — route, vehicle, pricing and passenger blocks — and truncating
+      // it hides the pickup fields, which sit near the end of the route block.
+      dio.interceptors.add(BookingApiLogger(maxBodyChars: 24000));
     }
 
     dio.interceptors.add(
@@ -50,6 +55,7 @@ abstract class V2ApiClient {
           if (token != null && options.headers['Authorization'] == null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          options.headers[acceptLanguageHeader] = currentAcceptLanguage();
           return handler.next(options);
         },
         onError: (DioException e, handler) async {
@@ -99,6 +105,10 @@ abstract class V2ApiClient {
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            // Set here rather than by interceptor: this client is built fresh
+            // for one call and deliberately carries none, so nothing goes
+            // stale.
+            acceptLanguageHeader: currentAcceptLanguage(),
           },
         ),
       );

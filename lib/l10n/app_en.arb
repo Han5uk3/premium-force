@@ -42,6 +42,7 @@
   "city": "City",
   "airport": "Airport",
   "terminal": "Terminal",
+  "noTerminals": "No terminals available",
   "riyadh": "Riyadh",
   "jeddah": "Jeddah",
   "dammam": "Dammam",
@@ -274,6 +275,46 @@
   "waitingForDriver": "Waiting for driver...",
   "waitingForLocation": "Waiting for driver location...",
   "etaPrefix": "ETA:",
+  "calculatingEta": "Calculating…",
+  "etaMinutes": "{count} min",
+  "@etaMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "etaHoursMinutes": "{hours} hr {minutes} min",
+  "@etaHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "etaApprox": "{eta} (approx)",
+  "@etaApprox": {
+    "placeholders": {
+      "eta": {
+        "type": "String"
+      }
+    }
+  },
+  "distanceKm": "{km} km",
+  "@distanceKm": {
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "liveLocationPaused": "Live location paused",
+  "recenterMap": "Recentre",
+  "myLocation": "My location",
+  "showFullRoute": "Show full route",
   "pickupPointLabel": "Pickup Point",
   "airportDropoffLabel": "Airport (Dropoff)",
   "airportPickupLabel": "Airport (Pickup)",
@@ -292,6 +333,7 @@
   "pendingDriverStatus": "A driver will be assigned to you soon!",
   "driverAssignedStatus": "A driver has been assigned!",
   "rideInProgressStatus": "Your ride is in progress.",
+  "rideCompletedStatus": "Your ride is complete. Thank you for riding with us!",
   "paymentPendingStatus": "Payment pending for extra hours.",
   "tripReviewedStatus": "Trip reviewed.",
   "extraHoursInfo": "Any additional hours beyond the selected duration will be charged accordingly. Payment for these extra hours will be settled at the completion of your journey.",

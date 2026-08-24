@@ -76,6 +76,15 @@ enum BookingStatusV2 {
   /// (`driver_en_route` onwards) or already finished.
   bool get isCancellable =>
       this == pendingPayment || this == confirmed || this == driverAssigned;
+
+  /// Whether the booking is over, either way — the two statuses behind the
+  /// Completed and Cancelled tabs.
+  ///
+  /// What it gates is contact with the driver: there is no longer a ride to
+  /// call about, so the details screen stops showing the driver's number and
+  /// the call button once this is true. The driver is still named and rated
+  /// from there; only the phone goes.
+  bool get isConcluded => this == completed || this == cancelled;
 }
 
 /// The tabs of the bookings screen.
@@ -438,10 +447,27 @@ class BookingV2 {
   /// Drop-off address. Null for chauffeur hire, which has no destination.
   String? get dropOffAddress => route?.dropOffLocation?.address;
 
-  double? get pickupLat => route?.pickupLocation?.lat;
-  double? get pickupLng => route?.pickupLocation?.lng;
-  double? get dropOffLat => route?.dropOffLocation?.lat;
-  double? get dropOffLng => route?.dropOffLocation?.lng;
+  /// Coordinates of the two ends of the journey.
+  ///
+  /// Each falls back to the airport's own position on the leg where the airport
+  /// *is* that end — the pickup on an arrival, the drop-off on a departure.
+  /// The payload gives no `pickupLocation` for a terminal, so without this the
+  /// tracking map had no coordinate to pin or route to on airport bookings and
+  /// drew the driver alone on an empty map. [pickupAddress] has always fallen
+  /// back the same way; only the coordinates were missed.
+  ///
+  /// Still null when the airport record itself carries no position, which some
+  /// do not — callers must handle that rather than assume a coordinate exists.
+  double? get pickupLat =>
+      route?.pickupLocation?.lat ?? (isAirportArrival ? route?.airport?.lat : null);
+  double? get pickupLng =>
+      route?.pickupLocation?.lng ?? (isAirportArrival ? route?.airport?.lng : null);
+  double? get dropOffLat =>
+      route?.dropOffLocation?.lat ??
+      (isAirportDeparture ? route?.airport?.lat : null);
+  double? get dropOffLng =>
+      route?.dropOffLocation?.lng ??
+      (isAirportDeparture ? route?.airport?.lng : null);
 
   bool get isAirportArrival =>
       resolvedServiceType == BookingServiceType.airportArrival;

@@ -136,6 +136,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get terminal => 'Terminal';
 
   @override
+  String get noTerminals => 'No terminals available';
+
+  @override
   String get riyadh => 'Riyadh';
 
   @override
@@ -849,6 +852,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get etaPrefix => 'ETA:';
 
   @override
+  String get calculatingEta => 'Calculating…';
+
+  @override
+  String etaMinutes(int count) {
+    return '$count min';
+  }
+
+  @override
+  String etaHoursMinutes(int hours, int minutes) {
+    return '$hours hr $minutes min';
+  }
+
+  @override
+  String etaApprox(String eta) {
+    return '$eta (approx)';
+  }
+
+  @override
+  String distanceKm(String km) {
+    return '$km km';
+  }
+
+  @override
+  String get liveLocationPaused => 'Live location paused';
+
+  @override
+  String get recenterMap => 'Recentre';
+
+  @override
+  String get myLocation => 'My location';
+
+  @override
+  String get showFullRoute => 'Show full route';
+
+  @override
   String get pickupPointLabel => 'Pickup Point';
 
   @override
@@ -902,6 +940,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rideInProgressStatus => 'Your ride is in progress.';
+
+  @override
+  String get rideCompletedStatus =>
+      'Your ride is complete. Thank you for riding with us!';
 
   @override
   String get paymentPendingStatus => 'Payment pending for extra hours.';

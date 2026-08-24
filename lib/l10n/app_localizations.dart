@@ -350,6 +350,12 @@ abstract class AppLocalizations {
   /// **'Terminal'**
   String get terminal;
 
+  /// No description provided for @noTerminals.
+  ///
+  /// In en, this message translates to:
+  /// **'No terminals available'**
+  String get noTerminals;
+
   /// No description provided for @riyadh.
   ///
   /// In en, this message translates to:
@@ -1706,6 +1712,60 @@ abstract class AppLocalizations {
   /// **'ETA:'**
   String get etaPrefix;
 
+  /// No description provided for @calculatingEta.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculating…'**
+  String get calculatingEta;
+
+  /// No description provided for @etaMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min'**
+  String etaMinutes(int count);
+
+  /// No description provided for @etaHoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hr {minutes} min'**
+  String etaHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @etaApprox.
+  ///
+  /// In en, this message translates to:
+  /// **'{eta} (approx)'**
+  String etaApprox(String eta);
+
+  /// No description provided for @distanceKm.
+  ///
+  /// In en, this message translates to:
+  /// **'{km} km'**
+  String distanceKm(String km);
+
+  /// No description provided for @liveLocationPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Live location paused'**
+  String get liveLocationPaused;
+
+  /// No description provided for @recenterMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Recentre'**
+  String get recenterMap;
+
+  /// No description provided for @myLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'My location'**
+  String get myLocation;
+
+  /// No description provided for @showFullRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Show full route'**
+  String get showFullRoute;
+
   /// No description provided for @pickupPointLabel.
   ///
   /// In en, this message translates to:
@@ -1813,6 +1873,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your ride is in progress.'**
   String get rideInProgressStatus;
+
+  /// No description provided for @rideCompletedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Your ride is complete. Thank you for riding with us!'**
+  String get rideCompletedStatus;
 
   /// No description provided for @paymentPendingStatus.
   ///

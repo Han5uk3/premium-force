@@ -373,7 +373,7 @@ class _SignUpPageState extends State<SignUpPage>
     // Delegate everything to AuthProvider.submitSignUp() which handles:
     // - API call to createUser
     // - Token extraction and saving
-    // - Fetching full user profile from backend (getUserById)
+    // - Fetching full user profile from backend (GET /api/v2/user/me)
     // - Setting AuthProvider._user and notifying listeners
     // - Saving user data + credentials to local storage
     final auth = Provider.of<AuthProvider>(context, listen: false);

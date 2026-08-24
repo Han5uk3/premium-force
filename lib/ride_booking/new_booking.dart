@@ -23,6 +23,7 @@ import 'package:premium_force_main/ride_booking/payment_rejected_page.dart';
 import 'package:premium_force_main/ride_booking/payment_cancelled_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:premium_force_main/api/booking_api_v2.dart';
+import 'package:premium_force_main/utils/screen_logger.dart';
 import 'package:premium_force_main/models/v2/available_vehicle.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/chauffeur_options.dart';
@@ -309,6 +310,46 @@ class _NewBookingState extends State<NewBooking> {
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
+  /// Console tag prefixing this screen's log lines.
+  static const String _log = 'new-booking';
+
+  /// Log the pickup the pickers hold and exactly what will go on the wire for
+  /// it, so the value the customer saw can be compared against the value the
+  /// backend was given.
+  ///
+  /// The device's zone name and offset are logged with it: the pickers deal in
+  /// wall clock only, so the offset is what turns the selected time into the
+  /// `pickupUTC` instant, and it is the number to check first when a card shows
+  /// a different time than the one chosen here.
+  void _logPickupSelection(String where) {
+    final now = DateTime.now();
+    final instant = _pickupInstant;
+
+    logScreen(_log, 'pickup selection ($where)');
+    logScreenDetail(
+      _log,
+      'device zone=${now.timeZoneName} offset=${now.timeZoneOffset}',
+    );
+
+    if (instant == null) {
+      logScreenDetail(_log, 'no pickup chosen yet');
+      return;
+    }
+
+    logScreenDetail(
+      _log,
+      'selector shows ${TimeOfDay.fromDateTime(instant).format(context)} '
+      'on ${BookingApiV2.formatPickupDate(instant)} '
+      '(local DateTime ${instant.toIso8601String()}, isUtc=${instant.isUtc})',
+    );
+    logScreenDetail(
+      _log,
+      'will send pickupDate=${BookingApiV2.formatPickupDate(instant)} '
+      'pickupTime=${BookingApiV2.formatPickupTime(instant)} '
+      'pickupUTC=${BookingApiV2.formatPickupUtc(instant)}',
+    );
+  }
+
   /// How far ahead the selected city requires bookings to be made.
   ///
   /// The resolved city wins, since [_loadCarData] may have corrected which city
@@ -423,6 +464,11 @@ class _NewBookingState extends State<NewBooking> {
       _showCustomSnackBar(loc.somethingWentWrong, 'E');
       return false;
     }
+
+    // The last word on what the customer chose before it leaves the device —
+    // the request that follows is logged by BookingApiLogger, so the two lines
+    // sit next to each other in the console.
+    _logPickupSelection('session init, service=${_serviceType.name}');
 
     bool started = false;
 
@@ -2860,7 +2906,7 @@ class _NewBookingState extends State<NewBooking> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         child: Text(
-          'No brands available',
+          AppLocalizations.of(context)!.noBrandsAvailable,
           style: TextStyle(color: Colors.white.withAlpha(128)),
         ),
       );
@@ -3843,6 +3889,9 @@ class _NewBookingState extends State<NewBooking> {
                               _selectedTime = resolvedTime;
                             }
                           });
+                          _logPickupSelection(
+                            'date picker done, bumped=$needsBump',
+                          );
                           if (needsBump && keptTime != null) {
                             AnimatedSnackBar.show(
                               context,
@@ -3964,9 +4013,20 @@ class _NewBookingState extends State<NewBooking> {
                                                 brightness: Brightness.dark,
                                                 textTheme:
                                                     CupertinoTextThemeData(
+                                                  // Cupertino widgets do
+                                                  // not read the Material
+                                                  // text theme, so the
+                                                  // family set in main.dart
+                                                  // misses this wheel — its
+                                                  // dates would be drawn in
+                                                  // the OS font while the
+                                                  // rest of the screen uses
+                                                  // Noto Naskh.
                                                       dateTimePickerTextStyle:
-                                                          TextStyle(
+                                                      const TextStyle(
                                                             color: Colors.white,
+                                                        fontFamily:
+                                                            'NotoNaskhArabic',
                                                           ),
                                                     ),
                                               ),
@@ -4040,6 +4100,11 @@ class _NewBookingState extends State<NewBooking> {
                                               _selectedTime = tempTime;
                                             }
                                           });
+                                          _logPickupSelection(
+                                            'time picker done, '
+                                            'wheel=${tempTime.hour}:'
+                                            '${tempTime.minute.toString().padLeft(2, '0')}',
+                                          );
                                           state.didChange(true);
                                           Navigator.of(dialogContext).pop();
                                         },
@@ -4241,11 +4306,59 @@ class _NewBookingState extends State<NewBooking> {
     );
   }
 
+  /// Whether the UI is currently in Arabic.
+  bool _isArabic(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'ar';
+
+  /// Pick the Arabic or English name for the app's language.
+  ///
+  /// The Arabic name is optional in the payload — `"King Khalid International
+  /// Airport 2"` has none, and several terminals are the same — so an absent or
+  /// blank one falls back to English rather than rendering an empty dropdown
+  /// row. Mirrors [AirportV2.displayName]; the rule is repeated here because
+  /// the dropdowns work on the flattened maps [_fetchAirportsV2] and
+  /// [_fetchTerminalsV2] build, not on the models.
+  static String _localisedName(dynamic arabic, dynamic english, bool isArabic) {
+    final englishName = english?.toString().trim() ?? '';
+    if (!isArabic) return englishName;
+    final arabicName = arabic?.toString().trim() ?? '';
+    return arabicName.isNotEmpty ? arabicName : englishName;
+  }
+
+  /// An airport's name in the app's language.
+  ///
+  /// This doubles as the airport's key: the dropdown holds a list of these
+  /// strings, [_selectedAirportCode] indexes it, and [_getSelectedAirportId]
+  /// finds the airport again by matching one. Every one of those places calls
+  /// this, so they agree in either language — matching a displayed Arabic name
+  /// against a stored English one would find nothing and send session init a
+  /// null airportId.
+  String _airportDisplayName(Map<String, dynamic> airport, bool isArabic) =>
+      _localisedName(
+        airport['airportNameAr'],
+        airport['airportName'],
+        isArabic,
+      );
+
+  /// A terminal's name in the app's language. Keyed the same way as
+  /// [_airportDisplayName].
+  String _terminalDisplayName(Map<String, dynamic> terminal, bool isArabic) =>
+      _localisedName(
+        terminal['terminalNameAr'],
+        terminal['terminalName'],
+        isArabic,
+      );
+
   /// Get airports based on selected city (using cityID from _apiCities).
+  ///
+  /// Named in the app's language. The order comes from [_apiAirports] and so
+  /// does not depend on the language — [_selectedAirportCode] stays pointing at
+  /// the same airport if the customer switches language mid-booking.
   ///
   /// Empty means the city has none; callers surface that rather than showing it
   /// as a selectable airport.
   List<String> _getAvailableAirports(BuildContext context) {
+    final isArabic = _isArabic(context);
     if (_apiCities.isNotEmpty && _apiAirports.isNotEmpty) {
       try {
         if (_selectedCityCode < _apiCities.length) {
@@ -4267,7 +4380,7 @@ class _NewBookingState extends State<NewBooking> {
 
                 return aCityIdStr != null && aCityIdStr == cityId && isActive;
               })
-              .map((a) => a['airportName'].toString())
+              .map((a) => _airportDisplayName(a, isArabic))
               .toSet()
               .toList();
 
@@ -4278,8 +4391,9 @@ class _NewBookingState extends State<NewBooking> {
     return const [];
   }
 
-  /// Get terminals based on selected airport
+  /// Get terminals based on selected airport, named in the app's language.
   List<String> _getAvailableTerminals(BuildContext context) {
+    final isArabic = _isArabic(context);
     if (_apiAirports.isNotEmpty && _apiTerminals.isNotEmpty) {
       try {
         final airportNames = _getAvailableAirports(context);
@@ -4291,7 +4405,7 @@ class _NewBookingState extends State<NewBooking> {
                   : 0];
 
           final airport = _apiAirports.firstWhere(
-            (a) => a['airportName']?.toString() == selectedAirportName,
+            (a) => _airportDisplayName(a, isArabic) == selectedAirportName,
             orElse: () => {},
           );
 
@@ -4315,7 +4429,7 @@ class _NewBookingState extends State<NewBooking> {
                       tAirportIdStr == airportId &&
                       isActive;
                 })
-                .map((t) => t['terminalName'].toString())
+                .map((t) => _terminalDisplayName(t, isArabic))
                 .toSet()
                 .toList();
 
@@ -4324,7 +4438,11 @@ class _NewBookingState extends State<NewBooking> {
         }
       } catch (e) {}
     }
-    return ["no terminals"];
+    // A placeholder row rather than an empty dropdown, so the field still
+    // renders and says why it is empty. It is not a selectable terminal: no
+    // entry in [_apiTerminals] carries this name, so [_getSelectedTerminalId]
+    // finds nothing and session init is refused before it is sent.
+    return [AppLocalizations.of(context)!.noTerminals];
   }
 
   String? _getSelectedTerminalName(BuildContext context) {
@@ -4356,8 +4474,9 @@ class _NewBookingState extends State<NewBooking> {
                 ? _selectedAirportCode
                 : 0];
         try {
+          final isArabic = _isArabic(context);
           final airport = _apiAirports.firstWhere(
-            (a) => a['airportName']?.toString() == selectedAirportName,
+            (a) => _airportDisplayName(a, isArabic) == selectedAirportName,
             orElse: () => {},
           );
           return (airport['_id'] ?? airport['id'])?.toString();
@@ -4378,8 +4497,9 @@ class _NewBookingState extends State<NewBooking> {
                 ? _selectedTerminalCode
                 : 0];
         try {
+          final isArabic = _isArabic(context);
           final terminal = _apiTerminals.firstWhere(
-            (t) => t['terminalName']?.toString() == selectedTerminalName,
+            (t) => _terminalDisplayName(t, isArabic) == selectedTerminalName,
             orElse: () => {},
           );
           return (terminal['_id'] ?? terminal['id'])?.toString();

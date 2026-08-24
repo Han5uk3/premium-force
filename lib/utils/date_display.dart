@@ -44,20 +44,37 @@ String formatDisplayTime(BuildContext context, DateTime? dateTime) {
 ///
 /// [routes] are tried in order, so a caller holding both the checkout summary
 /// and the session draft can pass both and get whichever names the pickup
-/// first. The sources are preferred in this order:
+/// first.
 ///
-/// 1. `pickupDate` + `pickupTime` — the plain local strings the backend stores.
-///    They carry no zone, so they are read as a wall clock and formatted
-///    without being shifted.
-/// 2. `pickupDateTime`/`pickupUTC` — an instant, converted to device time.
-/// 3. `pickupLocalTimeFormatted` — the server's own rendering
+/// The pickup shown is the one the **pickup city's** clock reads — the hour the
+/// driver will actually arrive, and the hour the customer chose. It is not
+/// converted to the device's timezone, so the same booking reads the same on a
+/// phone in any country.
+///
+/// That constraint is what fixes the source order, because only some of the
+/// fields can honour it:
+///
+/// 1. `pickupDate` + `pickupTime` — the pickup city's wall clock, stored as the
+///    customer entered it. Carries no zone, so it is read as a wall clock and
+///    formatted without being shifted. Preferred: it is exact on every device,
+///    and it is the only source that is also localised.
+/// 2. `pickupLocalTimeFormatted` — the server's own rendering
 ///    (`"10 Aug 2026, 05:00 PM (AST)"`), split at the comma and shown verbatim.
-///    Last because it is already in the pickup city's timezone but is not
-///    localised.
+///    Also in the city's zone, so it is accurate, but it arrives pre-rendered
+///    in English — which is why it sits behind the wall clock rather than
+///    ahead of it.
+/// 3. [fallbackInstant] — the pickup the customer just chose on the device,
+///    for the review screen before any route has come back. Already local, and
+///    by definition the value they are looking at.
+/// 4. `pickupUTC` — the backend's authoritative instant, converted to device
+///    time. **Last resort.** Dart can only shift an instant into the device's
+///    zone, and the project carries no IANA timezone database to shift it into
+///    the pickup city's instead, so this reads correctly only when the two
+///    zones agree. Booking 5:15 PM in Riyadh from a phone on IST renders as
+///    7:45 PM here — the +2:30 between the zones. It is kept because a payload
+///    that carries nothing else still has to show something.
 ///
-/// [fallbackInstant] covers the case where no route has come back yet — the
-/// pickup the customer chose on the device, which is local already. With no
-/// source at all both halves come back as `N/A`, matching
+/// With no source at all both halves come back as `N/A`, matching
 /// [formatDisplayDate] on a null instant.
 ({String date, String time}) formatPickupDisplay(
   BuildContext context,
@@ -66,39 +83,54 @@ String formatDisplayTime(BuildContext context, DateTime? dateTime) {
 }) {
   final present = routes.whereType<SessionRoute>().toList();
 
-  DateTime? instant;
   for (final route in present) {
-    instant = pickupWallClock(route);
-    if (instant != null) break;
-  }
-  if (instant == null) {
-    for (final route in present) {
-      instant = route.pickupDateTime;
-      if (instant != null) break;
+    final wallClock = pickupWallClock(route);
+    if (wallClock != null) {
+      return (
+        date: formatDisplayDate(context, wallClock),
+        time: formatDisplayTime(context, wallClock),
+      );
     }
   }
-  instant ??= fallbackInstant;
 
-  if (instant != null) {
+  for (final route in present) {
+    final split = _splitFormattedPickup(route.pickupLocalTimeFormatted);
+    if (split != null) return split;
+  }
+
+  if (fallbackInstant != null) {
     return (
-      date: formatDisplayDate(context, instant),
-      time: formatDisplayTime(context, instant),
+      date: formatDisplayDate(context, fallbackInstant),
+      time: formatDisplayTime(context, fallbackInstant),
     );
   }
 
   for (final route in present) {
-    final formatted = route.pickupLocalTimeFormatted;
-    if (formatted == null || formatted.trim().isEmpty) continue;
-
-    final separator = formatted.lastIndexOf(',');
-    if (separator <= 0) return (date: formatted.trim(), time: '');
-    return (
-      date: formatted.substring(0, separator).trim(),
-      time: formatted.substring(separator + 1).trim(),
-    );
+    final instant = route.pickupDateTime;
+    if (instant != null) {
+      return (
+        date: formatDisplayDate(context, instant),
+        time: formatDisplayTime(context, instant),
+      );
+    }
   }
 
   return (date: 'N/A', time: 'N/A');
+}
+
+/// Split `"10 Aug 2026, 05:00 PM (AST)"` into its date and time halves.
+///
+/// The last comma is the separator, since the date half may contain one of its
+/// own (`"Aug 12, 2026, 06:00 PM"`). A string with no comma is all date.
+({String date, String time})? _splitFormattedPickup(String? formatted) {
+  if (formatted == null || formatted.trim().isEmpty) return null;
+
+  final separator = formatted.lastIndexOf(',');
+  if (separator <= 0) return (date: formatted.trim(), time: '');
+  return (
+    date: formatted.substring(0, separator).trim(),
+    time: formatted.substring(separator + 1).trim(),
+  );
 }
 
 /// The route's pickup as a wall clock, or `null` when it holds no date/time

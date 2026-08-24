@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
+import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 
@@ -24,14 +25,16 @@ class UserProvider extends ChangeNotifier {
   // Provider methods
   // ---------------------------------------------------------------------------
 
-  /// Load a user profile by [uid].
+  /// Load the signed-in customer's profile.
+  ///
+  /// Reads `GET /api/v2/user/me`, which answers for whoever the stored token
+  /// belongs to; [uid] is no longer what selects the profile.
   Future<void> loadUser(String uid) async {
     _status = UserStatus.loading;
     notifyListeners();
 
     try {
-      final token = UserLocalStorage.getToken();
-      final user = await _api.getUserById(id: uid, token: token);
+      final user = (await UserApiV2().getProfile()).data;
 
       if (user != null) {
         _user = user;

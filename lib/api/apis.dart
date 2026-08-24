@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:premium_force_main/api/accept_language.dart';
 import 'package:premium_force_main/api/api_logger.dart';
 import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/services/google_sign_in_service.dart';
@@ -58,6 +59,11 @@ class ApiService {
               !isAuthEndpoint) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+
+          // Unconditional, unlike the token: an auth endpoint has no bearer
+          // but still renders messages, and an OTP or a rejection reads in
+          // whichever language the customer is looking at.
+          options.headers[acceptLanguageHeader] = currentAcceptLanguage();
           return handler.next(options);
         },
         onError: (DioException e, ErrorInterceptorHandler handler) async {
@@ -79,6 +85,10 @@ class ApiService {
                     headers: {
                       'Accept': 'application/json',
                       'Content-Type': 'application/json',
+                      // Set here rather than by interceptor: this client is
+                      // built fresh for one call and deliberately carries no
+                      // interceptors, so there is nothing to go stale.
+                      acceptLanguageHeader: currentAcceptLanguage(),
                     },
                   ),
                 );

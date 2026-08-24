@@ -9,6 +9,7 @@ import 'package:premium_force_main/common_widgets/booking_shimmer.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/utils/date_display.dart';
+import 'package:premium_force_main/utils/screen_logger.dart';
 import 'package:provider/provider.dart';
 
 class BookingsPage extends StatefulWidget {
@@ -29,6 +30,23 @@ class _BookingsPageState extends State<BookingsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  /// Console tag prefixing this screen's log lines.
+  static const String _log = 'bookings';
+
+  /// Last state line logged per tab, so [_buildBookingsList] — which runs on
+  /// every frame — logs only when what it is showing actually changed.
+  final Map<BookingTab, String> _loggedTabState = {};
+
+  /// Pickup lines already logged, keyed by booking and resolved value. The item
+  /// builder re-runs on every scroll, so without this each row would log again
+  /// every time it came back into view. Cleared on a refetch, so a pickup that
+  /// changed is logged afresh.
+  final Set<String> _loggedPickups = {};
+
+  /// Row count at which a paging request was last logged, per tab — see
+  /// [_logLoadMore].
+  final Map<BookingTab, int> _loggedLoadMoreAt = {};
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +60,7 @@ class _BookingsPageState extends State<BookingsPage>
     // one is actually on screen — otherwise every launch pays for a list the
     // customer may never open. `didUpdateWidget` picks it up from there.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && widget.isVisible) _loadSelectedTab();
+      if (mounted && widget.isVisible) _loadSelectedTab(trigger: 'first-show');
     });
   }
 
@@ -53,24 +71,30 @@ class _BookingsPageState extends State<BookingsPage>
   /// a driver is assigned, a ride completes — so a cached tab is stale the
   /// moment it leaves the screen. The rows already shown stay up while the
   /// refresh is in flight, so this reads as an update rather than a reload.
-  void _loadSelectedTab() {
+  ///
+  /// [trigger] only names the cause in the log — the fetch itself is the same
+  /// whichever entry point called it.
+  void _loadSelectedTab({String trigger = 'tab-change'}) {
     if (!mounted) return;
 
     // The controller notifies twice for one change: once as the animation
     // starts and again when it settles. Only the settled index is fetched.
     if (_tabController.indexIsChanging) return;
 
-    context.read<BookingProvider>().fetchTab(
-      BookingTab.values[_tabController.index],
-      force: true,
-    );
+    final tab = BookingTab.values[_tabController.index];
+    logScreen(_log, 'fetch ${tab.name} (force, $trigger)');
+
+    _resetRowLogs(tab);
+    context.read<BookingProvider>().fetchTab(tab, force: true);
   }
 
   @override
   void didUpdateWidget(BookingsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Brought back on screen from another shell tab.
-    if (!oldWidget.isVisible && widget.isVisible) _loadSelectedTab();
+    if (!oldWidget.isVisible && widget.isVisible) {
+      _loadSelectedTab(trigger: 'became-visible');
+    }
   }
 
   @override
@@ -148,6 +172,7 @@ class _BookingsPageState extends State<BookingsPage>
     AppLocalizations loc,
   ) {
     final bookings = bookingProvider.bookingsFor(tab);
+    _logTabState(bookingProvider, tab, bookings);
 
     if (bookings.isEmpty && bookingProvider.isTabLoading(tab)) {
       return const BookingShimmer();
@@ -182,6 +207,7 @@ class _BookingsPageState extends State<BookingsPage>
         // flowing; loadMore ignores the call unless there is more to fetch.
         onNotification: (notification) {
           if (notification.metrics.extentAfter < 300) {
+            _logLoadMore(bookingProvider, tab, bookings.length);
             bookingProvider.loadMore(tab);
           }
           return false;
@@ -213,11 +239,16 @@ class _BookingsPageState extends State<BookingsPage>
 
             final booking = bookings[index];
             final pickup = formatPickupDisplay(context, [booking.route]);
+            _logRow(tab, index, booking, pickup);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: GestureDetector(
                 onTap: () async {
+                  logScreen(
+                    _log,
+                    'open details ${bookingRef(booking)} from ${tab.name}',
+                  );
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -227,12 +258,19 @@ class _BookingsPageState extends State<BookingsPage>
                   );
                   if (!context.mounted) return;
 
+                  logScreen(
+                    _log,
+                    'back from details, changed=${result == true} — '
+                    'refetching ${tab.name}',
+                  );
+
                   // A cancellation moves the booking to another tab, so the
                   // others are dropped as well and refetch when next shown.
                   if (result == true) bookingProvider.invalidateTabs();
 
                   // The booking may have changed even without a cancellation,
                   // so this tab is re-read either way.
+                  _resetRowLogs(tab);
                   bookingProvider.fetchTab(tab, force: true);
                 },
                 child: Bookingcard(
@@ -257,6 +295,72 @@ class _BookingsPageState extends State<BookingsPage>
         ),
       ),
     );
+  }
+
+  /// Forget what has been logged for one tab's rows, so a refetch logs them
+  /// again — the same booking may come back with a different status or pickup,
+  /// and that is exactly what a refetch is being watched for.
+  void _resetRowLogs(BookingTab tab) {
+    _loggedPickups.removeWhere((key) => key.startsWith('${tab.name}|'));
+    _loggedLoadMoreAt.remove(tab);
+  }
+
+  /// Log a paging request, once per page rather than once per scroll frame.
+  ///
+  /// The scroll handler calls [BookingProvider.loadMore] on every notification
+  /// near the end of the list and lets the provider drop the ones it cannot
+  /// serve, so the row count at the time of the call is what makes a request
+  /// distinct: it changes only when a page actually arrived.
+  void _logLoadMore(
+    BookingProvider bookingProvider,
+    BookingTab tab,
+    int rows,
+  ) {
+    if (!bookingProvider.tabHasMore(tab)) return;
+    if (_loggedLoadMoreAt[tab] == rows) return;
+    _loggedLoadMoreAt[tab] = rows;
+    logScreen(_log, 'load more ${tab.name} after $rows rows');
+  }
+
+  /// Log one row of the list: the booking itself, and the pickup date and time
+  /// the card will show with the field they came from.
+  ///
+  /// Called from the item builder, so it is keyed on booking and resolved
+  /// value: a row scrolling back into view logs nothing, but a row whose
+  /// pickup resolved differently after a refetch logs again.
+  void _logRow(
+    BookingTab tab,
+    int index,
+    BookingV2 booking,
+    ({String date, String time}) pickup,
+  ) {
+    final key = '${tab.name}|${booking.id}|${pickup.date}|${pickup.time}';
+    if (!_loggedPickups.add(key)) return;
+
+    logScreen(_log, '${tab.name}[$index] ${bookingSummary(booking)}');
+    logPickupDisplay(_log, booking, date: pickup.date, time: pickup.time);
+  }
+
+  /// Log which of the four states a tab is rendering, once per change.
+  ///
+  /// Called from the build path, so it compares against the last line emitted
+  /// for this tab — a tab that is simply on screen and idle logs nothing, while
+  /// the shimmer → rows → error transitions each show up exactly once.
+  void _logTabState(
+    BookingProvider bookingProvider,
+    BookingTab tab,
+    List<BookingV2> bookings,
+  ) {
+    final error = bookingProvider.tabError(tab);
+    final state =
+        'rows=${bookings.length} '
+        'loading=${bookingProvider.isTabLoading(tab)} '
+        'hasMore=${bookingProvider.tabHasMore(tab)} '
+        'error=${error ?? '-'}';
+
+    if (_loggedTabState[tab] == state) return;
+    _loggedTabState[tab] = state;
+    logScreen(_log, '${tab.name}: $state');
   }
 
   /// Empty and error states still need to be pullable to refresh.

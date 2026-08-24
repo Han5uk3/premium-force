@@ -83,6 +83,8 @@ class SessionAirport {
     this.terminalId,
     this.terminalName,
     this.terminalNameAr,
+    this.lat,
+    this.lng,
   });
 
   final String? id;
@@ -91,6 +93,16 @@ class SessionAirport {
   final String? terminalId;
   final String? terminalName;
   final String? terminalNameAr;
+
+  /// Where the terminal is, when the record carries it.
+  ///
+  /// On an airport booking one end of the journey *is* the airport, and the
+  /// payload gives no [SessionLocation] for that end — so without these the
+  /// map has no coordinate to pin or route to. Not every airport in the
+  /// database has them filled in, which is why they stay nullable and callers
+  /// have to cope with their absence.
+  final double? lat;
+  final double? lng;
 
   factory SessionAirport.fromJson(Map<String, dynamic> json) {
     // `terminal` is nested on session payloads but a sibling key on booking
@@ -103,6 +115,10 @@ class SessionAirport {
       terminalId: pickId(terminal, const ['id', '_id', 'terminalId']),
       terminalName: pickString(terminal, const ['name', 'terminalName']),
       terminalNameAr: pickString(terminal, const ['nameAr', 'terminalNameAr']),
+      // `long` is what the airports endpoint calls it; the others are accepted
+      // in case the booking payload spells it differently.
+      lat: pickDouble(json, const ['lat', 'latitude']),
+      lng: pickDouble(json, const ['lng', 'long', 'longitude']),
     );
   }
 
@@ -177,7 +193,11 @@ class SessionRoute {
   final String? pickupTime;
 
   /// Authoritative pickup instant (UTC) computed by the backend from the local
-  /// date/time plus [pickupTimezone].
+  /// date/time plus [pickupTimezone]. Read from `pickupUTC`.
+  ///
+  /// Not what the cards display: shifting it lands in the *device's* zone, not
+  /// the pickup city's, so [pickupDate]/[pickupTime] are shown instead and this
+  /// is only a last resort. See [formatPickupDisplay].
   final DateTime? pickupDateTime;
   final String? pickupTimezone;
 
@@ -241,9 +261,12 @@ class SessionRoute {
       distanceKm: pickDouble(json, const ['distanceKm', 'distance']),
       pickupDate: pickString(json, const ['pickupDate']),
       pickupTime: pickString(json, const ['pickupTime']),
+      // `pickupUTC` is read first: it is the key the backend documents as the
+      // authoritative instant, and it is what the cards display. The other two
+      // spellings are the same value under names older payloads use.
       pickupDateTime: pickDateTime(json, const [
-        'pickupDateTime',
         'pickupUTC',
+        'pickupDateTime',
         'pickupdatetime',
       ]),
       pickupTimezone: pickString(json, const ['pickupTimezone']),
