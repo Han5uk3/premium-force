@@ -8,8 +8,6 @@ import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/home/homepage.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 
-
-
 class Home extends StatefulWidget {
   const Home({super.key, this.isfromSuccessPage = false});
   final bool isfromSuccessPage;
@@ -125,7 +123,6 @@ class _HomeState extends State<Home> {
           ],
         ),
 
-
         resizeToAvoidBottomInset: true,
         bottomNavigationBar: BottomNavBar(
           selectedIndex: _selectedIndex,
@@ -135,4 +132,3 @@ class _HomeState extends State<Home> {
     );
   }
 }
-
