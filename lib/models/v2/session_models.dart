@@ -276,6 +276,20 @@ class SessionRoute {
     );
   }
 
+  /// The pickup as a wall clock, or null when the payload holds no date/time
+  /// strings.
+  ///
+  /// [pickupDate] and [pickupTime] name a time in the pickup city, not an
+  /// instant, so they are parsed without a zone: the result carries exactly
+  /// the digits the backend sent, which is what makes it safe to format
+  /// without shifting. `formatPickupDisplay` reads this to print the card.
+  DateTime? get pickupWallClock {
+    final date = pickupDate;
+    final time = pickupTime;
+    if (date == null || time == null) return null;
+    return DateTime.tryParse('${date}T$time');
+  }
+
   String? cityFromDisplay(bool isArabic) => isArabic
       ? (cityFromNameAr?.trim().isNotEmpty == true
             ? cityFromNameAr

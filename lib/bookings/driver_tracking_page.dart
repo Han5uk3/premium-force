@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
+import 'package:premium_force_main/services/address_geocoding_service.dart';
 import 'package:premium_force_main/services/driver_location_service.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/theme/app_theme.dart';
@@ -77,6 +78,18 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
   /// the route runs, and what the ETA counts down to. Starts on the approach,
   /// because that is the only leg a session can open on.
   TrackingPhase _phase = TrackingPhase.toPickup;
+
+  /// Ends of the journey recovered from their address text, for a booking that
+  /// arrived with `0,0` where the coordinate should have been.
+  ///
+  /// Null until a lookup succeeds, and never used in preference to a real
+  /// coordinate from the payload — see [_pickupPoint] and [_dropOffPoint].
+  LatLng? _geocodedPickup;
+  LatLng? _geocodedDropOff;
+
+  /// Whether a lookup is already running, so a leg change does not start a
+  /// second pass over the same two addresses.
+  bool _resolvingEndpoints = false;
 
   // Chauffeur timer
   bool _isChauffeur = false;
@@ -366,6 +379,105 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     );
   }
 
+  // --- Journey endpoints ---
+
+  /// Where the pickup is, or null while it is still unknown.
+  ///
+  /// The payload's coordinate wins; `0,0` — which is what a booking saved
+  /// without a point comes back as — is not a place, so it falls through to
+  /// whatever [_resolveMissingEndpoints] recovered from the address text.
+  LatLng? get _pickupPoint =>
+      _usable(widget.booking.pickupLat, widget.booking.pickupLng) ??
+      _geocodedPickup;
+
+  /// Where the drop-off is, or null while it is still unknown. Always null for
+  /// hourly hire, which has no drop-off to know.
+  LatLng? get _dropOffPoint =>
+      _usable(widget.booking.dropOffLat, widget.booking.dropOffLng) ??
+      _geocodedDropOff;
+
+  /// A coordinate pair as a point, unless it is absent or `0,0`.
+  static LatLng? _usable(double? lat, double? lng) {
+    if (lat == null || lng == null) return null;
+    if (lat == 0 || lng == 0) return null;
+    return LatLng(lat, lng);
+  }
+
+  /// A point for the log line, or why there isn't one.
+  static String _describe(LatLng? point) =>
+      point == null ? 'none' : '${point.latitude},${point.longitude}';
+
+  /// Recover the ends of the journey the payload positioned at `0,0`.
+  ///
+  /// Bookings arrive fairly often with the address written out in full but no
+  /// coordinate behind it, and until now that cost the customer the pin, the
+  /// route and the ETA — a car crawling across an empty map. The address is
+  /// enough to find the point, so it is looked up and used exactly as a payload
+  /// coordinate would be.
+  ///
+  /// Both ends are resolved in one pass rather than only the leg being driven,
+  /// so the drop-off is already in hand when the driver starts the ride and the
+  /// map does not have to wait on a lookup at the moment the leg changes.
+  Future<void> _resolveMissingEndpoints() async {
+    if (_resolvingEndpoints) return;
+
+    final booking = widget.booking;
+    final needsPickup = _pickupPoint == null;
+    final needsDropOff =
+        _dropOffPoint == null &&
+        (booking.dropOffAddress?.trim().isNotEmpty ?? false);
+    if (!needsPickup && !needsDropOff) return;
+
+    _resolvingEndpoints = true;
+    try {
+      final geocoder = AddressGeocodingService();
+
+      if (needsPickup) {
+        final resolved = await geocoder.resolve(booking.pickupAddress);
+        if (!mounted) return;
+        if (resolved != null) {
+          setState(() => _geocodedPickup = resolved);
+          logScreen(
+            _log,
+            'pickup recovered from address → ${_describe(resolved)}',
+          );
+          _onEndpointResolved(resolved);
+        }
+      }
+
+      if (needsDropOff) {
+        final resolved = await geocoder.resolve(booking.dropOffAddress);
+        if (!mounted) return;
+        if (resolved != null) {
+          setState(() => _geocodedDropOff = resolved);
+          logScreen(
+            _log,
+            'drop-off recovered from address → ${_describe(resolved)}',
+          );
+          _onEndpointResolved(resolved);
+        }
+      }
+    } finally {
+      _resolvingEndpoints = false;
+    }
+  }
+
+  /// Put up the pin and draw the route now that there is somewhere to put them.
+  ///
+  /// Only the end the current leg is driving to acts on this. Recovering the
+  /// drop-off while the car is still on its way to the pickup changes nothing
+  /// on screen — the point is simply held until that leg comes round, rather
+  /// than spending a Directions request redrawing the leg already drawn.
+  void _onEndpointResolved(LatLng resolved) {
+    final destination = _phase == TrackingPhase.toDropOff
+        ? _dropOffPoint
+        : _pickupPoint;
+    if (destination != resolved) return;
+
+    _addLegDestinationMarker();
+    if (_driverLocation != null) _fetchDirections();
+  }
+
   // --- Markers & Polylines ---
 
   /// Pin only what the current leg is about.
@@ -376,13 +488,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
   /// there. Hourly hire pins the pickup throughout, having nowhere else to go.
   void _initStaticMarkersAndPolylines() {
     final booking = widget.booking;
-    final loc = AppLocalizations.of(context)!;
 
-    final pickupLat = booking.pickupLat ?? 0;
-    final pickupLng = booking.pickupLng ?? 0;
-    final dropoffLat = booking.dropOffLat ?? 0;
-    final dropoffLng = booking.dropOffLng ?? 0;
-    final hasDropoff = dropoffLat != 0 && dropoffLng != 0;
+    final pickup = _pickupPoint;
+    final dropoff = _dropOffPoint;
 
     // A missing coordinate silently costs both the destination pin and the
     // route — the pin is skipped here and `_legDestination` returns null, so
@@ -391,8 +499,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     logScreen(
       _log,
       'markers for ${_phase.wireValue}: '
-      'pickup=$pickupLat,$pickupLng dropoff=$dropoffLat,$dropoffLng '
-      'hasDropoff=$hasDropoff',
+      'pickup=${_describe(pickup)} dropoff=${_describe(dropoff)}',
     );
     logScreenDetail(
       _log,
@@ -405,33 +512,49 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
       'service=${booking.resolvedServiceType?.name}',
     );
 
-    // The pin says which end of the journey it is and, underneath, the address
-    // itself. Naming it after the *product* — "Airport (Pickup)" — told the
-    // customer something they already knew and left out the one thing they tap
-    // a pin to find out: where it actually is.
-    if (_phase == TrackingPhase.toDropOff && hasDropoff) {
-      _addMarkerWithCustomIcon(
-        id: 'dropoff',
-        position: LatLng(dropoffLat, dropoffLng),
-        title: loc.dropLocation,
-        snippet: booking.dropOffAddress,
-      );
-    } else if (pickupLat != 0 && pickupLng != 0) {
-      _addMarkerWithCustomIcon(
-        id: 'pickup',
-        position: LatLng(pickupLat, pickupLng),
-        title: loc.pickupLocation,
-        snippet: booking.pickupAddress,
-      );
-    }
-
+    _addLegDestinationMarker();
     _updateDriverMarker();
+    // An end of the journey the payload left at `0,0` is looked up from its
+    // address, and the pin and the route go in when it lands.
+    _resolveMissingEndpoints();
     // Only fetch directions if driver location is already available.
     // Otherwise, the Firebase listener will trigger _fetchDirections()
     // once the driver location arrives, avoiding a race condition where
     // a stale (no-driver) response could overwrite the correct route.
     if (_driverLocation != null) {
       _fetchDirections();
+    }
+  }
+
+  /// The pin for the end of the journey the current leg is driving to.
+  ///
+  /// The pin says which end of the journey it is and, underneath, the address
+  /// itself. Naming it after the *product* — "Airport (Pickup)" — told the
+  /// customer something they already knew and left out the one thing they tap
+  /// a pin to find out: where it actually is.
+  void _addLegDestinationMarker() {
+    final booking = widget.booking;
+    final loc = AppLocalizations.of(context)!;
+
+    final dropoff = _dropOffPoint;
+    if (_phase == TrackingPhase.toDropOff && dropoff != null) {
+      _addMarkerWithCustomIcon(
+        id: 'dropoff',
+        position: dropoff,
+        title: loc.dropLocation,
+        snippet: booking.dropOffAddress,
+      );
+      return;
+    }
+
+    final pickup = _pickupPoint;
+    if (_phase != TrackingPhase.toDropOff && pickup != null) {
+      _addMarkerWithCustomIcon(
+        id: 'pickup',
+        position: pickup,
+        title: loc.pickupLocation,
+        snippet: booking.pickupAddress,
+      );
     }
   }
 
@@ -658,31 +781,30 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
 
   /// Open the map on the booking if no driver fix turns up in time.
   ///
-  /// The pickup is read through [BookingV2.pickupLat], which falls back to the
-  /// airport's own position, and is used only when it is a real coordinate —
-  /// a `0,0` from the payload is the Atlantic, not a location, and is exactly
-  /// what used to open this screen on blank water.
+  /// The pickup is read through [_pickupPoint], which falls back to the
+  /// airport's own position and then to the address lookup, and is used only
+  /// when it is a real coordinate — a `0,0` from the payload is the Atlantic,
+  /// not a location, and is exactly what used to open this screen on blank
+  /// water.
   void _startOpenFallbackTimer() {
     _openFallbackTimer?.cancel();
     _openFallbackTimer = Timer(_openWithoutDriverAfter, () {
       if (!mounted || _mapOpenTarget != null) return;
 
-      final lat = widget.booking.pickupLat ?? 0;
-      final lng = widget.booking.pickupLng ?? 0;
-      final hasPickup = lat != 0 && lng != 0;
+      final pickup = _pickupPoint;
 
       logScreen(
         _log,
         'no driver fix in ${_openWithoutDriverAfter.inSeconds}s — opening on '
-        '${hasPickup ? 'the pickup' : 'the default city'}',
+        '${pickup != null ? 'the pickup' : 'the default city'}',
       );
 
       setState(() {
-        _mapOpenTarget = hasPickup
-            ? LatLng(lat, lng)
+        _mapOpenTarget =
+            pickup ??
             // Riyadh, so the map opens on the country it serves rather than
             // on nothing at all.
-            : const LatLng(24.7136, 46.6753);
+            const LatLng(24.7136, 46.6753);
         _mapOpenZoom = 13;
       });
     });
@@ -1339,19 +1461,11 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
   /// Where the current leg is headed, as a `lat,lng` pair, or null when there
   /// is nowhere to route to.
   String? _legDestination() {
-    final booking = widget.booking;
+    final point = _phase == TrackingPhase.toDropOff
+        ? _dropOffPoint
+        : (_phase.hasDestination ? _pickupPoint : null);
 
-    if (_phase == TrackingPhase.toDropOff) {
-      final lat = booking.dropOffLat ?? 0;
-      final lng = booking.dropOffLng ?? 0;
-      return (lat == 0 || lng == 0) ? null : '$lat,$lng';
-    }
-
-    if (!_phase.hasDestination) return null;
-
-    final lat = booking.pickupLat ?? 0;
-    final lng = booking.pickupLng ?? 0;
-    return (lat == 0 || lng == 0) ? null : '$lat,$lng';
+    return point == null ? null : '${point.latitude},${point.longitude}';
   }
 
   /// Route the leg being driven: the car to the pickup, or the car to the

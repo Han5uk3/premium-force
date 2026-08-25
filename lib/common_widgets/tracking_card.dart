@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' show Bidi;
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
+import 'package:premium_force_main/services/address_geocoding_service.dart';
 import 'package:premium_force_main/services/driver_location_service.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -39,11 +40,18 @@ class _TrackingCardState extends State<TrackingCard> {
   /// does not sit on the home screen offering to track a finished ride.
   bool _tripEnded = false;
 
+  /// Ends of the journey recovered from their address text, for a booking that
+  /// arrived with `0,0` where the coordinate should have been. Without them
+  /// the card has nothing to route to and shows no ETA at all.
+  LatLng? _geocodedPickup;
+  LatLng? _geocodedDropOff;
+
   @override
   void initState() {
     super.initState();
     _listenToDriverLocation();
     _listenToSession();
+    _resolveMissingEndpoints();
   }
 
   @override
@@ -151,19 +159,62 @@ class _TrackingCardState extends State<TrackingCard> {
   /// Where the current leg is headed, or null when there is nowhere to route
   /// to.
   String? _legDestination() {
-    final booking = widget.booking;
+    final point = _phase == TrackingPhase.toDropOff
+        ? _dropOffPoint
+        : (_phase.hasDestination ? _pickupPoint : null);
 
-    if (_phase == TrackingPhase.toDropOff) {
-      final lat = booking.dropOffLat ?? 0;
-      final lng = booking.dropOffLng ?? 0;
-      return (lat == 0 || lng == 0) ? null : '$lat,$lng';
+    return point == null ? null : '${point.latitude},${point.longitude}';
+  }
+
+  /// Where the pickup is, or null while it is still unknown. The payload's
+  /// coordinate wins; `0,0` is not a place, so it falls through to whatever
+  /// [_resolveMissingEndpoints] recovered from the address text.
+  LatLng? get _pickupPoint =>
+      _usable(widget.booking.pickupLat, widget.booking.pickupLng) ??
+      _geocodedPickup;
+
+  /// Where the drop-off is, or null while it is still unknown. Always null for
+  /// hourly hire, which has no drop-off to know.
+  LatLng? get _dropOffPoint =>
+      _usable(widget.booking.dropOffLat, widget.booking.dropOffLng) ??
+      _geocodedDropOff;
+
+  /// A coordinate pair as a point, unless it is absent or `0,0`.
+  static LatLng? _usable(double? lat, double? lng) {
+    if (lat == null || lng == null) return null;
+    if (lat == 0 || lng == 0) return null;
+    return LatLng(lat, lng);
+  }
+
+  /// Recover the ends of the journey the payload positioned at `0,0`, from the
+  /// addresses it did carry, and put the ETA back on the card once one lands.
+  ///
+  /// The lookups are shared with the tracking map through
+  /// [AddressGeocodingService]'s cache, so opening the map from this card
+  /// costs nothing again.
+  Future<void> _resolveMissingEndpoints() async {
+    final booking = widget.booking;
+    final geocoder = AddressGeocodingService();
+
+    if (_pickupPoint == null) {
+      final resolved = await geocoder.resolve(booking.pickupAddress);
+      if (!mounted) return;
+      if (resolved != null) {
+        setState(() => _geocodedPickup = resolved);
+        // Only the leg being driven has an ETA to put back; the other end is
+        // held until its leg comes round.
+        if (_phase != TrackingPhase.toDropOff) _fetchDirections();
+      }
     }
 
-    if (!_phase.hasDestination) return null;
-
-    final lat = booking.pickupLat ?? 0;
-    final lng = booking.pickupLng ?? 0;
-    return (lat == 0 || lng == 0) ? null : '$lat,$lng';
+    if (_dropOffPoint == null) {
+      final resolved = await geocoder.resolve(booking.dropOffAddress);
+      if (!mounted) return;
+      if (resolved != null) {
+        setState(() => _geocodedDropOff = resolved);
+        if (_phase == TrackingPhase.toDropOff) _fetchDirections();
+      }
+    }
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -169,11 +171,24 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   /// logs the card's date and time once per load rather than once per frame.
   String? _loggedPickup;
 
+  /// Fires the moment the cancellation window closes.
+  ///
+  /// The button is decided in [build], so a page left open across the
+  /// four-hour mark would otherwise keep offering a cancellation the rule no
+  /// longer allows until something else happened to rebuild it.
+  Timer? _cancellationCutoffTimer;
+
   @override
   void initState() {
     super.initState();
     logScreen(_log, 'open ${widget.bookingId}');
     _loadBooking();
+  }
+
+  @override
+  void dispose() {
+    _cancellationCutoffTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadBooking() async {
@@ -206,7 +221,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         _log,
         'timeline=${booking.timeline.length} steps '
         'trackable=${booking.status.isTrackable} '
-        'cancellable=${booking.status.isCancellable}',
+        'cancellable=${booking.isCancellable} '
+        '(status=${booking.status.isCancellable} '
+        'insideCutoff=${booking.isWithinCancellationCutoff})',
       );
       // A fresh payload may resolve the pickup differently, so the card's
       // date and time are logged again for it.
@@ -219,6 +236,28 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       _errorMessage = result.hasData
           ? null
           : (result.message ?? 'Could not load this booking.');
+    });
+
+    _scheduleCancellationCutoff(booking);
+  }
+
+  /// Take the cancel button down the moment the window closes.
+  ///
+  /// A page opened just outside the four hours is the case worth covering: the
+  /// customer reads for a few minutes, the window closes while they sit there,
+  /// and without this the button is still on screen offering something the
+  /// rule no longer allows. Nothing is scheduled for a booking that cannot be
+  /// cancelled anyway, or for one whose window has already closed.
+  void _scheduleCancellationCutoff(BookingV2? booking) {
+    _cancellationCutoffTimer?.cancel();
+    if (booking == null || !booking.isCancellable) return;
+
+    final closesIn = booking.untilCancellationCloses;
+    if (closesIn == null || closesIn.isNegative) return;
+
+    logScreenDetail(_log, 'cancellation closes in ${closesIn.inMinutes} min');
+    _cancellationCutoffTimer = Timer(closesIn, () {
+      if (mounted) setState(() {});
     });
   }
 
@@ -406,7 +445,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             // Rating lives inside the driver card — see `_buildDriverCard`.
             // It is about the driver, so it belongs with their name and photo
             // rather than in the run of page-level actions at the bottom.
-            if (booking.status.isCancellable) ...[
+            // Status alone is not enough: cancelling closes four hours before
+            // the pickup, so `BookingV2.isCancellable` is what this reads.
+            if (booking.isCancellable) ...[
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
