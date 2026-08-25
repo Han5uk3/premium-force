@@ -140,9 +140,8 @@ String formatDisplayTime(BuildContext context, DateTime? dateTime) {
 /// instant, so they are parsed without a zone: the result is a local
 /// `DateTime` carrying exactly the digits the backend sent, which formatting
 /// then leaves alone.
-DateTime? pickupWallClock(SessionRoute? route) {
-  final date = route?.pickupDate;
-  final time = route?.pickupTime;
-  if (date == null || time == null) return null;
-  return DateTime.tryParse('${date}T$time');
-}
+///
+/// The parsing itself lives on [SessionRoute.pickupWallClock], so the booking
+/// model can read the same value without reaching into this Flutter-facing
+/// library; this stays as the null-tolerant form the formatters call.
+DateTime? pickupWallClock(SessionRoute? route) => route?.pickupWallClock;

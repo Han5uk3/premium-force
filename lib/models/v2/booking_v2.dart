@@ -37,11 +37,15 @@ enum BookingStatusV2 {
     }
     // Tolerate spellings the backend may use interchangeably.
     return switch (normalised) {
-      'canceled' => cancelled,
-      'in_trip' || 'ontrip' || 'on_trip' || 'started' => tripStarted,
-      'en_route' || 'enroute' => driverEnRoute,
-      'arrived' => driverArrived,
-      'assigned' => driverAssigned,
+      'canceled' || 'cancelled' => cancelled,
+      'in_trip' ||
+      'ontrip' ||
+      'on_trip' ||
+      'started' ||
+      'trip_started' => tripStarted,
+      'driver_en_route' || 'enroute' || 'en_route' => driverEnRoute,
+      'arrived' || 'driver_arrived' => driverArrived,
+      'assigned' || 'driver_assigned' => driverAssigned,
       'awaiting_payment' || 'paymentpending' => pendingPayment,
       _ => unknown,
     };
@@ -438,6 +442,48 @@ class BookingV2 {
 
   /// Pickup instant, for date/time display.
   DateTime? get pickupDateTime => route?.pickupDateTime;
+
+  /// How close to the pickup the customer may still cancel.
+  static const Duration cancellationCutoff = Duration(hours: 4);
+
+  /// Whether the customer may still cancel this booking.
+  ///
+  /// Two things have to hold, and the status is only the first of them:
+  /// [BookingStatusV2.isCancellable] says the ride has not started, and
+  /// [isWithinCancellationCutoff] says the pickup is still far enough off. A
+  /// booking four hours out is close enough that a car is being readied for
+  /// it, so the button comes down even though the status would still allow it.
+  ///
+  /// This is what the cancel button is gated on; the status alone is not.
+  bool get isCancellable => status.isCancellable && !isWithinCancellationCutoff;
+
+  /// Whether the pickup is now [cancellationCutoff] away or nearer.
+  ///
+  /// The boundary itself counts as closed: a pickup exactly four hours off is
+  /// inside the rule, not the last minute outside it.
+  ///
+  /// False when the payload names no pickup at all: the button is left to the
+  /// status rule rather than taken away over a date the app never had.
+  bool get isWithinCancellationCutoff {
+    final remaining = untilCancellationCloses;
+    return remaining != null && remaining <= Duration.zero;
+  }
+
+  /// How long is left before cancelling closes, or null when the payload names
+  /// no pickup. Negative once the window has closed.
+  ///
+  /// Measured against `pickupUTC` — the backend's authoritative instant —
+  /// rather than the wall clock the card prints, because only the instant is
+  /// comparable to *now* from a phone in another timezone: a Riyadh pickup
+  /// reading 5:15 PM on the card is four hours away at a different moment for
+  /// a customer in Karachi than for one in Riyadh. The wall clock stands in
+  /// only for a payload that carries no instant at all, where reading it as
+  /// device-local is the closest thing to the pickup on the card.
+  Duration? get untilCancellationCloses {
+    final pickup = pickupDateTime ?? route?.pickupWallClock;
+    if (pickup == null) return null;
+    return pickup.subtract(cancellationCutoff).difference(DateTime.now());
+  }
 
   /// Pickup address, falling back to the airport name on arrivals where the
   /// pickup point is a terminal rather than a street address.
