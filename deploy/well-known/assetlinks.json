@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.brandbik.premiumforce",
+      "sha256_cert_fingerprints": [
+        "BF:F5:5C:46:FF:58:C2:36:0A:B7:D5:39:10:D3:8F:F5:B0:25:4A:B6:BE:63:2A:62:68:70:ED:A1:1F:84:8D:4F",
+        "88:1d:b6:27:f0:92:84:bd:a0:37:51:fd:17:85:ec:43:18:73:6d:2a:5a:9b:56:ac:17:cb:c9:5f:88:e5:66:30"
+      ]
+    }
+  }
+]

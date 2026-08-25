@@ -7,6 +7,7 @@ import 'package:premium_force_main/account/account.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/home/homepage.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/services/deep_link_service.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key, this.isfromSuccessPage = false});
@@ -28,6 +29,10 @@ class _HomeState extends State<Home> {
     super.initState();
     _selectedIndex = widget.isfromSuccessPage ? _bookingsPage : 0;
     _pageController = PageController(initialPage: _selectedIndex);
+
+    // Every authenticated entry path (splash, login, OTP, signup) lands here,
+    // so this is where a link held across startup is released.
+    DeepLinkService.instance.notifyReady();
   }
 
   @override

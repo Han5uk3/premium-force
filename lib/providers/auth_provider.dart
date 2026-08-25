@@ -8,6 +8,7 @@ import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/services/apple_sign_in_service.dart';
 import 'package:premium_force_main/services/google_sign_in_service.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+import 'package:premium_force_main/services/deep_link_service.dart';
 import 'package:premium_force_main/main.dart'
     show bookingProvider, notificationProvider;
 import 'package:premium_force_main/storage/user_local_storage.dart';
@@ -863,6 +864,10 @@ class AuthProvider extends ChangeNotifier {
       // sign-in starts from an empty inbox and an empty booking list.
       notificationProvider.reset();
       bookingProvider.reset();
+
+      // A link held across startup belongs to the account that was signed in
+      // when it arrived; drop it so it cannot open for the next one.
+      DeepLinkService.instance.clearPending();
 
       _cancelResendTimer();
       _user = null;

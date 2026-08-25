@@ -16,6 +16,7 @@ import 'package:premium_force_main/firebase_options.dart';
 import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+import 'package:premium_force_main/services/deep_link_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:flutter/services.dart';
@@ -96,6 +97,10 @@ void main() async {
 
   // Initialise push notifications
   await NotificationService.instance.init();
+
+  // Start listening for App Links. Init is deliberately before runApp so a
+  // cold-start link is captured; the service holds it until Home is up.
+  await DeepLinkService.instance.init();
 
   // Optional: react to notification taps globally
   NotificationService.instance.onNotificationTap = _handleNotificationTap;
