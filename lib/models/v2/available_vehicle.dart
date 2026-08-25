@@ -61,6 +61,32 @@ class VehicleTaxonomy {
   String displayName(bool isArabic) =>
       isArabic ? (nameAr?.trim().isNotEmpty == true ? nameAr! : name) : name;
 
+  /// This taxonomy with anything it lacks filled in from [other].
+  ///
+  /// The two places a category arrives are not equally complete. Each vehicle
+  /// carries a nested `category` of just `{id, name}`, while the response's
+  /// top-level `categories` array is where the backend puts `name_ar`.
+  /// Joining the two on `id` is what lets a vehicle's class render in Arabic
+  /// without the nested object having to repeat the field — and it keeps
+  /// working unchanged if the backend later sends `name_ar` in both places.
+  ///
+  /// Only empty fields are filled: whatever the nested object *did* send wins,
+  /// so this can never overwrite a good value with a stale one.
+  VehicleTaxonomy mergedWith(VehicleTaxonomy? other) {
+    if (other == null) return this;
+
+    final hasNameAr = nameAr?.trim().isNotEmpty ?? false;
+    final hasIcon = icon?.trim().isNotEmpty ?? false;
+    if (hasNameAr && hasIcon && name.isNotEmpty) return this;
+
+    return VehicleTaxonomy(
+      id: id,
+      name: name.isNotEmpty ? name : other.name,
+      nameAr: hasNameAr ? nameAr : other.nameAr,
+      icon: hasIcon ? icon : other.icon,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       other is VehicleTaxonomy && other.id == id && other.name == name;
@@ -168,6 +194,25 @@ class AvailableVehicle {
     );
   }
 
+
+  /// This vehicle with richer taxonomies swapped in.
+  ///
+  /// Only the two the response can improve on are parameters; passing null for
+  /// either keeps what the vehicle already had.
+  AvailableVehicle copyWith({VehicleTaxonomy? category, VehicleTaxonomy? brand}) {
+    return AvailableVehicle(
+      vehicleId: vehicleId,
+      name: name,
+      model: model,
+      image: image,
+      maxPassengers: maxPassengers,
+      maxLuggage: maxLuggage,
+      category: category ?? this.category,
+      brand: brand ?? this.brand,
+      isAvailable: isAvailable,
+    );
+  }
+
   /// Label for the vehicle, e.g. `"S450 2023"`.
   String get displayName =>
       [name, model].where((p) => p?.trim().isNotEmpty == true).join(' ').trim();
@@ -225,14 +270,45 @@ class AvailableVehiclesResponse {
       'brands',
     ]).map(VehicleTaxonomy.fromJson).where((t) => t.name.isNotEmpty).toList();
 
+    // Fold the top-level taxonomies back into each vehicle.
+    //
+    // The payload sends a category twice and not identically: the top-level
+    // `categories` array carries `name_ar`, while the copy nested on each
+    // vehicle is only `{id, name}`. Everything downstream reads the nested one
+    // — the class picker, the review summary — so without this join the
+    // Arabic name would be parsed and then never seen. Joining here rather
+    // than at each call site means one fix covers all of them.
+    final categoriesById = {
+      for (final category in explicitCategories)
+        if (category.id.isNotEmpty) category.id: category,
+    };
+    final brandsById = {
+      for (final brand in explicitBrands)
+        if (brand.id.isNotEmpty) brand.id: brand,
+    };
+
+    final joined = (categoriesById.isEmpty && brandsById.isEmpty)
+        ? vehicles
+        : [
+            for (final vehicle in vehicles)
+              vehicle.copyWith(
+                category: vehicle.category?.mergedWith(
+                  categoriesById[vehicle.category!.id],
+                ),
+                brand: vehicle.brand?.mergedWith(
+                  brandsById[vehicle.brand!.id],
+                ),
+              ),
+          ];
+
     return AvailableVehiclesResponse(
-      vehicles: vehicles,
+      vehicles: joined,
       categories: explicitCategories.isNotEmpty
           ? explicitCategories
-          : _distinct(vehicles.map((v) => v.category)),
+          : _distinct(joined.map((v) => v.category)),
       brands: explicitBrands.isNotEmpty
           ? explicitBrands
-          : _distinct(vehicles.map((v) => v.brand)),
+          : _distinct(joined.map((v) => v.brand)),
     );
   }
 
