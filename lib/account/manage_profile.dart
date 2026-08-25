@@ -12,6 +12,7 @@ import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -144,17 +145,20 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          decoration: const BoxDecoration(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(20),
+            ),
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF3E230A), Color(0xFF141313)],
+              colors: c.sheetGradient,
             ),
           ),
           child: SafeArea(
@@ -172,20 +176,20 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                         Text(
                           loc.chooseProfilePicture,
                           style: TextStyle(
-                            color: Colors.white,
+                            color: c.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         GestureDetector(
                           onTap: () => Navigator.pop(context),
-                          child: Icon(Icons.close, color: Colors.white),
+                          child: Icon(Icons.close, color: c.icon),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Divider(thickness: 1),
+                  Divider(color: c.divider, thickness: 1),
                   const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -250,6 +254,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
     required String label,
     required VoidCallback onTap,
   }) {
+    final c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: PremiumContainer(
@@ -264,14 +269,14 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                 child: SizedBox(
                   width: 72,
                   height: 72,
-                  child: Icon(icon, color: const Color(0xFFE4A46B), size: 30),
+                  child: Icon(icon, color: c.accent, size: 30),
                 ),
               ),
 
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: c.textPrimary,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),
@@ -437,17 +442,13 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   Widget build(BuildContext context) {
     final user = Provider.of<AuthProvider>(context).user;
 
+    final c = context.colors;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1105),
-            Color(0xFF1E1105),
-            Color.fromARGB(255, 26, 23, 23),
-            Color.fromARGB(255, 26, 23, 23),
-          ],
+          colors: c.pageGradient,
         ),
       ),
       child: PopScope(
@@ -486,14 +487,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                     height: 116,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      gradient: const LinearGradient(
+                                      gradient: LinearGradient(
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
-                                        colors: [
-                                          Color(0xFF49280B),
-                                          Color(0xFFE4A46B),
-                                          Color(0xFF60350F),
-                                        ],
+                                        colors: c.goldGradient,
                                       ),
                                     ),
                                     child: Center(
@@ -502,7 +499,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                         height: 112,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: const Color(0xFF0D0A08),
+                                          color: c.surfaceDeep,
                                         ),
                                         child: _profileImage != null
                                             ? ClipOval(
@@ -531,11 +528,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                                   memCacheWidth: 336,
                                                   placeholder: (context, url) =>
                                                       const Center(
-                                                        child: PremiumLoader(
-                                                          color: Color(
-                                                            0xFFE4A46B,
-                                                          ),
-                                                        ),
+                                                        child: PremiumLoader(),
                                                       ),
                                                   errorWidget:
                                                       (context, url, error) =>
@@ -556,24 +549,20 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                       height: 34,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        gradient: const LinearGradient(
-                                          colors: [
-                                            Color(0xFF49280B),
-                                            Color(0xFFE4A46B),
-                                            Color(0xFF60350F),
-                                          ],
+                                        gradient: LinearGradient(
+                                          colors: c.goldGradient,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withAlpha(100),
+                                            color: c.shadow,
                                             blurRadius: 6,
                                             offset: const Offset(0, 2),
                                           ),
                                         ],
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.camera_alt_rounded,
-                                        color: Colors.black,
+                                        color: c.onGold,
                                         size: 18,
                                       ),
                                     ),
@@ -589,7 +578,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                 context,
                               )!.tapToAddPhotoOptional,
                               style: TextStyle(
-                                color: Colors.white.withAlpha(100),
+                                color: c.textTertiary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w400,
                               ),
@@ -611,12 +600,8 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                             obscureText: false,
                             prefixIcon: ShaderMask(
                               shaderCallback: (Rect bounds) {
-                                return const LinearGradient(
-                                  colors: [
-                                    Color(0xFF49280B),
-                                    Color(0xFFE4A46B),
-                                    Color(0xFF60350F),
-                                  ],
+                                return LinearGradient(
+                                  colors: c.goldIconGradient,
                                 ).createShader(bounds);
                               },
                               child: const Icon(
@@ -656,12 +641,8 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                             readOnly: true,
                             prefixIcon: ShaderMask(
                               shaderCallback: (Rect bounds) {
-                                return const LinearGradient(
-                                  colors: [
-                                    Color(0xFF49280B),
-                                    Color(0xFFE4A46B),
-                                    Color(0xFF60350F),
-                                  ],
+                                return LinearGradient(
+                                  colors: c.goldIconGradient,
                                 ).createShader(bounds);
                               },
                               // The handset glyph leans to one side, so mirror it
@@ -699,12 +680,8 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                             readOnly: true,
                             prefixIcon: ShaderMask(
                               shaderCallback: (Rect bounds) {
-                                return const LinearGradient(
-                                  colors: [
-                                    Color(0xFF49280B),
-                                    Color(0xFFE4A46B),
-                                    Color(0xFF60350F),
-                                  ],
+                                return LinearGradient(
+                                  colors: c.goldIconGradient,
                                 ).createShader(bounds);
                               },
                               child: const Icon(
@@ -729,11 +706,11 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                             ),
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: Colors.white.withAlpha(60),
+                                color: c.border,
                                 width: 1,
                               ),
                               borderRadius: BorderRadius.circular(12),
-                              color: const Color(0xFF0D0A08),
+                              color: c.surfaceDeep,
                             ),
                             child: Row(
                               children: [
@@ -750,20 +727,20 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                     decoration: BoxDecoration(
                                       border: Border.all(
                                         color: _isCorporateEmployee
-                                            ? const Color(0xFFE4A46B)
-                                            : Colors.white.withAlpha(100),
+                                            ? c.accent
+                                            : c.borderStrong,
                                         width: 2,
                                       ),
                                       borderRadius: BorderRadius.circular(4),
                                       color: _isCorporateEmployee
-                                          ? const Color(0xFFE4A46B)
+                                          ? c.accent
                                           : Colors.transparent,
                                     ),
                                     child: _isCorporateEmployee
-                                        ? const Icon(
+                                        ? Icon(
                                             Icons.check,
                                             size: 14,
-                                            color: Color(0xFF0D0A08),
+                                            color: c.onAccent,
                                           )
                                         : null,
                                   ),
@@ -774,8 +751,8 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                     AppLocalizations.of(
                                       context,
                                     )!.iAmACorporateEmployee,
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: c.textPrimary,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -801,12 +778,8 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                               enabled: !_isPromoValid,
                               prefixIcon: ShaderMask(
                                 shaderCallback: (Rect bounds) {
-                                  return const LinearGradient(
-                                    colors: [
-                                      Color(0xFF49280B),
-                                      Color(0xFFE4A46B),
-                                      Color(0xFF60350F),
-                                    ],
+                                  return LinearGradient(
+                                    colors: c.goldIconGradient,
                                   ).createShader(bounds);
                                 },
                                 child: const Icon(
@@ -838,12 +811,8 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                     enabled: !_isPromoValid,
                                     prefixIcon: ShaderMask(
                                       shaderCallback: (Rect bounds) {
-                                        return const LinearGradient(
-                                          colors: [
-                                            Color(0xFF49280B),
-                                            Color(0xFFE4A46B),
-                                            Color(0xFF60350F),
-                                          ],
+                                        return LinearGradient(
+                                          colors: c.goldIconGradient,
                                         ).createShader(bounds);
                                       },
                                       child: const Icon(
@@ -880,11 +849,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                             : AppLocalizations.of(
                                                 context,
                                               )!.apply,
+                                        // Destructive, so it drops the gold for
+                                        // the error tone.
                                         gradient: _isPromoValid
-                                            ? [
-                                                Colors.red.shade800,
-                                                Colors.red.shade400,
-                                              ]
+                                            ? [c.error, c.error]
                                             : null,
                                         onTap: _isCheckingPromo
                                             ? () {}
@@ -906,9 +874,9 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                 ),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(8),
-                                  color: Colors.green.withAlpha(30),
+                                  color: c.successSurface,
                                   border: Border.all(
-                                    color: Colors.green.shade400,
+                                    color: c.successBorder,
                                     width: 1,
                                   ),
                                 ),
@@ -919,7 +887,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                       children: [
                                         Icon(
                                           Icons.check_circle,
-                                          color: Colors.green.shade400,
+                                          color: c.success,
                                           size: 18,
                                         ),
                                         const SizedBox(width: 8),
@@ -930,7 +898,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                                   context,
                                                 )!.promoCodeAppliedSuccessfully,
                                             style: TextStyle(
-                                              color: Colors.green.shade300,
+                                              color: c.success,
                                               fontSize: 12,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -939,8 +907,8 @@ class _ManageProfilePageState extends State<ManageProfilePage>
                                       ],
                                     ),
                                     const SizedBox(height: 8),
-                                    const Divider(
-                                      color: Colors.white24,
+                                    Divider(
+                                      color: c.divider,
                                       height: 1,
                                     ),
                                     const SizedBox(height: 8),
@@ -996,9 +964,10 @@ class _ManageProfilePageState extends State<ManageProfilePage>
 
   Widget _buildStatusRow(String? status) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
 
     String label = loc.verificationPending;
-    Color color = Colors.orange.shade400;
+    Color color = c.warning;
     IconData icon = Icons.hourglass_empty;
 
     // If the promo code has changed, it's pending until profile is saved and reviewed
@@ -1009,17 +978,17 @@ class _ManageProfilePageState extends State<ManageProfilePage>
       switch (status?.toLowerCase()) {
         case 'approved':
           label = loc.discountApproved;
-          color = Colors.green.shade400;
+          color = c.success;
           icon = Icons.verified;
           break;
         case 'rejected':
           label = loc.discountRejected;
-          color = Colors.red.shade400;
+          color = c.error;
           icon = Icons.cancel;
           break;
         default:
           label = loc.verificationPending;
-          color = Colors.orange.shade400;
+          color = c.warning;
           icon = Icons.hourglass_empty;
       }
     }
@@ -1031,7 +1000,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
         Text(
           '${loc.status}: ',
           style: TextStyle(
-            color: Colors.white70,
+            color: c.textSecondary,
             fontSize: 12,
             fontWeight: FontWeight.w400,
           ),
@@ -1049,19 +1018,21 @@ class _ManageProfilePageState extends State<ManageProfilePage>
   }
 
   Widget _buildPlaceholderIcon() {
+    final c = context.colors;
     return Center(
       child: ShaderMask(
-        shaderCallback: (Rect bounds) {
-          return const LinearGradient(
-            colors: [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
-          ).createShader(bounds);
-        },
+        shaderCallback: (Rect bounds) =>
+            LinearGradient(colors: c.goldIconGradient).createShader(bounds),
+        // White, and it has to be: ShaderMask defaults to BlendMode.modulate,
+        // which multiplies the child by the shader, and white is that
+        // operation's identity.
         child: const Icon(Icons.person_rounded, color: Colors.white, size: 48),
       ),
     );
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final c = context.colors;
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: Container(
@@ -1069,7 +1040,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(150), Colors.transparent],
+            colors: c.appBarScrim,
           ),
         ),
         child: AppBar(
@@ -1078,7 +1049,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
             AppLocalizations.of(context)!.manageProfile,
             style: TextStyle(
               fontSize: 18,
-              color: Colors.white,
+              color: c.textPrimary,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
             ),
@@ -1089,7 +1060,7 @@ class _ManageProfilePageState extends State<ManageProfilePage>
               Icons.arrow_back_ios,
               size: 16,
               // Dimmed while saving so the disabled state reads as deliberate.
-              color: _isLoading ? Colors.white38 : Colors.white,
+              color: _isLoading ? c.textDisabled : c.icon,
             ),
             onPressed: _isLoading ? null : () => Navigator.pop(context),
           ),

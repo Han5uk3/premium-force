@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/models/banner_model.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:shimmer/shimmer.dart';
 import 'dart:async';
 
@@ -183,6 +184,8 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
       return const SizedBox.shrink();
     }
 
+    final c = context.colors;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -251,9 +254,7 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                             decoration: BoxDecoration(
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withAlpha(
-                                    64,
-                                  ), // Using alpha for stability
+                                  color: c.shadow,
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -288,9 +289,11 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
                       height: 6,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        // The dots sit under the banner, on the page — not on
+                        // the artwork — so they take the page's ink.
                         color: _currentIndex == index
-                            ? Colors.white
-                            : Colors.white.withAlpha(128),
+                            ? c.textPrimary
+                            : c.textTertiary,
                       ),
                     ),
                   ),
@@ -303,10 +306,14 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
   }
 
   Widget _buildBannerItem(BuildContext context, BannerModel banner) {
+    final c = context.colors;
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
+      // The deep-gold ground shows only where the artwork does not reach, and
+      // while it loads — so it is the same warm tone in both modes rather than
+      // a surface colour, which would read as a hole in the carousel.
       child: Container(
-        color: const Color(0xFF49280B),
+        color: c.accentDeep,
         width: double.infinity,
         height: double.infinity,
         child: CachedNetworkImage(
@@ -323,9 +330,9 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
           // source asset size, which is plenty for any phone screen.
           memCacheWidth: 1080,
           placeholder: (context, url) =>
-              Container(color: const Color(0xFF49280B).withAlpha(100)),
+              Container(color: c.accentDeep.withAlpha(100)),
           errorWidget: (context, url, error) =>
-              Container(color: const Color(0xFF49280B).withAlpha(100)),
+              Container(color: c.accentDeep.withAlpha(100)),
           imageBuilder: (context, imageProvider) {
             return Container(
               decoration: BoxDecoration(
@@ -340,9 +347,12 @@ class _InfiniteScrollBannerState extends State<InfiniteScrollBanner>
 
   Widget _buildShimmerLoading(BuildContext context) {
     final double width = MediaQuery.of(context).size.width;
+    final c = context.colors;
+    // The white blocks below are alpha stencils: Shimmer masks its child with
+    // `BlendMode.srcIn`, so these two colours are the only ones painted.
     return Shimmer.fromColors(
-      baseColor: Colors.grey[800]!,
-      highlightColor: Colors.grey[700]!,
+      baseColor: c.shimmerBase,
+      highlightColor: c.shimmerHighlight,
       child: AspectRatio(
         aspectRatio: 2.5,
         child: Stack(

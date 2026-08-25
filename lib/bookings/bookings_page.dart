@@ -8,6 +8,7 @@ import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/common_widgets/booking_shimmer.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/utils/date_display.dart';
 import 'package:premium_force_main/utils/screen_logger.dart';
 import 'package:provider/provider.dart';
@@ -107,17 +108,13 @@ class _BookingsPageState extends State<BookingsPage>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1105),
-            Color(0xFF1E1105),
-            Color.fromARGB(255, 26, 23, 23),
-            Color.fromARGB(255, 26, 23, 23),
-          ],
+          colors: c.pageGradient,
         ),
       ),
       child: Consumer<BookingProvider>(
@@ -129,23 +126,24 @@ class _BookingsPageState extends State<BookingsPage>
               children: [
                 TabBar(
                   controller: _tabController,
-                  dividerColor: Colors.grey.shade800,
+                  dividerColor: c.divider,
                   indicatorSize: TabBarIndicatorSize.tab,
                   indicatorPadding: const EdgeInsets.symmetric(
                     horizontal: 20.0,
                   ),
-                  indicator: const _GradientTabIndicator(
-                    gradient: _tabGradient,
+                  indicator: _GradientTabIndicator(
+                    gradient: _tabGradient(c),
                     height: 3.0,
                   ),
-                  unselectedLabelColor: Colors.white38,
+                  unselectedLabelColor: c.textTertiary,
                   tabs: [
                     for (final tab in BookingTab.values)
                       _GradientTab(
                         text: _tabLabel(loc, tab),
                         controller: _tabController,
                         index: tab.index,
-                        gradient: _tabGradient,
+                        gradient: _tabGradient(c),
+                        unselectedColor: c.textTertiary,
                       ),
                   ],
                 ),
@@ -171,6 +169,7 @@ class _BookingsPageState extends State<BookingsPage>
     BookingTab tab,
     AppLocalizations loc,
   ) {
+    final c = context.colors;
     final bookings = bookingProvider.bookingsFor(tab);
     _logTabState(bookingProvider, tab, bookings);
 
@@ -188,7 +187,7 @@ class _BookingsPageState extends State<BookingsPage>
                 child: Text(
                   error,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: c.textPrimary),
                 ),
               )
             : _buildEmptyState(
@@ -200,8 +199,8 @@ class _BookingsPageState extends State<BookingsPage>
 
     return RefreshIndicator(
       onRefresh: () => bookingProvider.fetchTab(tab, force: true),
-      color: const Color(0xFFE4A46B),
-      backgroundColor: Colors.black,
+      color: c.accent,
+      backgroundColor: c.surface,
       child: NotificationListener<ScrollNotification>(
         // Ask for the next page slightly before the end so the list keeps
         // flowing; loadMore ignores the call unless there is more to fetch.
@@ -222,7 +221,7 @@ class _BookingsPageState extends State<BookingsPage>
           itemCount: bookings.length + (bookingProvider.tabHasMore(tab) ? 1 : 0),
           itemBuilder: (context, index) {
             if (index == bookings.length) {
-              return const Padding(
+              return Padding(
                 padding: EdgeInsets.only(bottom: 16),
                 child: Center(
                   child: SizedBox(
@@ -230,7 +229,7 @@ class _BookingsPageState extends State<BookingsPage>
                     width: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Color(0xFFE4A46B),
+                      color: c.accent,
                     ),
                   ),
                 ),
@@ -369,10 +368,11 @@ class _BookingsPageState extends State<BookingsPage>
     BookingTab tab, {
     required Widget child,
   }) {
+    final c = context.colors;
     return RefreshIndicator(
       onRefresh: () => bookingProvider.fetchTab(tab, force: true),
-      color: const Color(0xFFE4A46B),
-      backgroundColor: Colors.black,
+      color: c.accent,
+      backgroundColor: c.surface,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: SizedBox(
@@ -399,6 +399,7 @@ class _BookingsPageState extends State<BookingsPage>
 
   PreferredSizeWidget buidAppBar(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return PreferredSize(
       preferredSize: Size.fromHeight(kToolbarHeight),
       child: Container(
@@ -406,7 +407,7 @@ class _BookingsPageState extends State<BookingsPage>
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(100), Colors.transparent],
+            colors: c.appBarScrim,
           ),
         ),
         child: AppBar(
@@ -416,7 +417,7 @@ class _BookingsPageState extends State<BookingsPage>
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
-              color: Colors.white,
+              color: c.textPrimary,
               letterSpacing: 0.5,
             ),
           ),
@@ -428,22 +429,22 @@ class _BookingsPageState extends State<BookingsPage>
   }
 
   Widget _buildEmptyState(String title, String subtitle) {
+    final c = context.colors;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ShaderMask(
             shaderCallback: (Rect bounds) {
-              return const LinearGradient(
+              return LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF49280B),
-                  Color(0xFFE4A46B),
-                  Color(0xFF60350F),
-                ],
+                colors: c.goldIconGradient,
               ).createShader(bounds);
             },
+            // White because [ShaderMask] defaults to `BlendMode.modulate`,
+            // which multiplies the child by the shader — white lets the ramp
+            // through untouched.
             child: const Icon(
               Icons.calendar_month_outlined,
               size: 80,
@@ -453,8 +454,8 @@ class _BookingsPageState extends State<BookingsPage>
           const SizedBox(height: 24),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: c.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -481,8 +482,12 @@ class _BookingsPageState extends State<BookingsPage>
   }
 }
 
-const Gradient _tabGradient = LinearGradient(
-  colors: [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
+/// The gold the selected tab's label and its underline are painted with.
+///
+/// A function of the palette rather than a constant: the ramp that reads on
+/// black is not the one that reads on ivory.
+Gradient _tabGradient(AppPalette c) => LinearGradient(
+  colors: c.goldIconGradient,
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
 );
@@ -524,11 +529,15 @@ class _GradientTab extends AnimatedWidget implements PreferredSizeWidget {
   final int index;
   final Gradient gradient;
 
+  /// The label colour while this tab is not the selected one.
+  final Color unselectedColor;
+
   _GradientTab({
     required this.text,
     required this.controller,
     required this.index,
     required this.gradient,
+    required this.unselectedColor,
   }) : super(listenable: controller.animation!);
 
   @override
@@ -545,9 +554,9 @@ class _GradientTab extends AnimatedWidget implements PreferredSizeWidget {
             opacity: 1.0 - isSelectedValue,
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: Colors.white38,
+                color: unselectedColor,
                 fontWeight: FontWeight.normal,
               ),
             ),
@@ -559,11 +568,13 @@ class _GradientTab extends AnimatedWidget implements PreferredSizeWidget {
                 Rect.fromLTWH(0, 0, bounds.width, bounds.height),
               ),
               blendMode: BlendMode.srcIn,
+              // srcIn here, so the label's own colour is discarded entirely
+              // and replaced by the gradient — only its alpha survives.
               child: Text(
                 text,
                 style: const TextStyle(
                   fontSize: 11,
-                  color: Colors.white38,
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),

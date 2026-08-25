@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class PremiumCheckbox extends StatelessWidget {
   final VoidCallback ontap;
@@ -11,6 +12,7 @@ class PremiumCheckbox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return GestureDetector(
       onTap: ontap,
       child: AnimatedContainer(
@@ -20,8 +22,8 @@ class PremiumCheckbox extends StatelessWidget {
         height: 20,
         margin: const EdgeInsets.only(top: 2),
         decoration: BoxDecoration(
-          color: isAgreed ? const Color(0xFFD4A574) : Colors.transparent,
-          border: Border.all(color: const Color(0xFFD4A574), width: 2),
+          color: isAgreed ? c.accentSoft : Colors.transparent,
+          border: Border.all(color: c.accentSoft, width: 2),
           borderRadius: BorderRadius.circular(4),
         ),
         child: AnimatedSwitcher(
@@ -30,11 +32,13 @@ class PremiumCheckbox extends StatelessWidget {
             return ScaleTransition(scale: animation, child: child);
           },
           child: isAgreed
-              ? const Icon(
+              // The tick sits on the gold fill, so it takes the same colour a
+              // label on a gold button would rather than the page's ink.
+              ? Icon(
                   Icons.check,
                   size: 14,
-                  color: Colors.white,
-                  key: ValueKey('check'),
+                  color: c.onGold,
+                  key: const ValueKey('check'),
                 )
               : const SizedBox.shrink(key: ValueKey('empty')),
         ),

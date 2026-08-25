@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/services/notification_service.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 /// Temporary debug screen to display and copy the FCM token.
 /// Replace [Homepage()] with this widget in home.dart for testing,
@@ -59,8 +60,9 @@ class _FcmDebugPageState extends State<FcmDebugPage>
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
+      backgroundColor: c.scaffold,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -73,15 +75,13 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A2E),
+                      color: c.infoSurface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF7B61FF).withValues(alpha: 0.4),
-                      ),
+                      border: Border.all(color: c.info.withValues(alpha: 0.4)),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.notifications_active_rounded,
-                      color: Color(0xFF7B61FF),
+                      color: c.info,
                       size: 22,
                     ),
                   ),
@@ -92,7 +92,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                       Text(
                         'FCM Debug',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.95),
+                          color: c.textPrimary,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.3,
@@ -100,10 +100,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                       ),
                       Text(
                         'Push notification token',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: c.textTertiary, fontSize: 12),
                       ),
                     ],
                   ),
@@ -122,26 +119,20 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                 width: double.infinity,
                 child: TextButton.icon(
                   onPressed: _loadToken,
-                  icon: const Icon(
-                    Icons.refresh_rounded,
-                    color: Color(0xFF7B61FF),
-                    size: 18,
-                  ),
-                  label: const Text(
+                  icon: Icon(Icons.refresh_rounded, color: c.info, size: 18),
+                  label: Text(
                     'Refresh Token',
                     style: TextStyle(
-                      color: Color(0xFF7B61FF),
+                      color: c.info,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: const Color(0xFF7B61FF).withValues(alpha: 0.08),
+                    backgroundColor: c.info.withValues(alpha: 0.08),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
-                      side: BorderSide(
-                        color: const Color(0xFF7B61FF).withValues(alpha: 0.25),
-                      ),
+                      side: BorderSide(color: c.info.withValues(alpha: 0.25)),
                     ),
                   ),
                 ),
@@ -154,6 +145,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
   }
 
   Widget _buildTokenCard() {
+    final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -167,12 +159,12 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                 child: Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF4CAF50),
+                  decoration: BoxDecoration(
+                    color: c.success,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Color(0x664CAF50),
+                        color: c.success,
                         blurRadius: 6,
                         spreadRadius: 2,
                       ),
@@ -185,7 +177,7 @@ class _FcmDebugPageState extends State<FcmDebugPage>
             Text(
               'Token ready',
               style: TextStyle(
-                color: const Color(0xFF4CAF50).withValues(alpha: 0.9),
+                color: c.success.withValues(alpha: 0.9),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,
@@ -204,19 +196,19 @@ class _FcmDebugPageState extends State<FcmDebugPage>
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF141428),
+              color: c.infoSurface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _copied
-                    ? const Color(0xFF4CAF50).withValues(alpha: 0.6)
-                    : const Color(0xFF7B61FF).withValues(alpha: 0.2),
+                    ? c.success.withValues(alpha: 0.6)
+                    : c.info.withValues(alpha: 0.2),
                 width: _copied ? 1.5 : 1,
               ),
               boxShadow: [
                 BoxShadow(
                   color: _copied
-                      ? const Color(0xFF4CAF50).withValues(alpha: 0.08)
-                      : const Color(0xFF7B61FF).withValues(alpha: 0.06),
+                      ? c.success.withValues(alpha: 0.08)
+                      : c.info.withValues(alpha: 0.06),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -230,8 +222,8 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                   _token!,
                   // Follows the app's family rather than naming one — see
                   // ThemeData in main.dart.
-                  style: const TextStyle(
-                    color: Color(0xFFB0B0C8),
+                  style: TextStyle(
+                    color: c.textSecondary,
                     fontSize: 12,
                     height: 1.6,
                     letterSpacing: 0.2,
@@ -245,19 +237,19 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
                       child: _copied
-                          ? const Row(
+                          ? Row(
                               key: ValueKey('copied'),
                               children: [
                                 Icon(
                                   Icons.check_circle_rounded,
-                                  color: Color(0xFF4CAF50),
+                                  color: c.success,
                                   size: 15,
                                 ),
                                 SizedBox(width: 6),
                                 Text(
                                   'Copied!',
                                   style: TextStyle(
-                                    color: Color(0xFF4CAF50),
+                                    color: c.success,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -269,18 +261,14 @@ class _FcmDebugPageState extends State<FcmDebugPage>
                               children: [
                                 Icon(
                                   Icons.copy_rounded,
-                                  color: const Color(
-                                    0xFF7B61FF,
-                                  ).withValues(alpha: 0.7),
+                                  color: c.info.withValues(alpha: 0.7),
                                   size: 15,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Tap to copy',
                                   style: TextStyle(
-                                    color: const Color(
-                                      0xFF7B61FF,
-                                    ).withValues(alpha: 0.7),
+                                    color: c.info.withValues(alpha: 0.7),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -308,10 +296,10 @@ class _FcmDebugPageState extends State<FcmDebugPage>
             ),
             label: Text(_copied ? 'Copied to clipboard!' : 'Copy Token'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _copied
-                  ? const Color(0xFF4CAF50)
-                  : const Color(0xFF7B61FF),
+              backgroundColor: _copied ? c.success : c.info,
               foregroundColor: Colors.white,
+              // White on both the violet and the green fill, neither of which
+              // lightens in the light theme.
               padding: const EdgeInsets.symmetric(vertical: 15),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
@@ -329,26 +317,23 @@ class _FcmDebugPageState extends State<FcmDebugPage>
   }
 
   Widget _buildNoTokenCard() {
+    final c = context.colors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: c.warningSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        border: Border.all(color: c.warningBorder),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            color: Colors.orange.withValues(alpha: 0.8),
-            size: 36,
-          ),
+          Icon(Icons.warning_amber_rounded, color: c.warning, size: 36),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'No FCM token yet',
             style: TextStyle(
-              color: Colors.white,
+              color: c.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -357,15 +342,10 @@ class _FcmDebugPageState extends State<FcmDebugPage>
           Text(
             'This is expected on iOS Simulator.\nTest on a real device to get a token.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.45),
-              fontSize: 11,
-              height: 1.5,
-            ),
+            style: TextStyle(color: c.textTertiary, fontSize: 11, height: 1.5),
           ),
         ],
       ),
     );
   }
 }
-

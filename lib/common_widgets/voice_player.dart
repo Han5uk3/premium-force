@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'dart:async';
 
 class VoicePlayer extends StatefulWidget {
@@ -95,12 +96,13 @@ class _VoicePlayerState extends State<VoicePlayer> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withAlpha(50),
+        color: c.surfaceAlt,
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: c.divider),
       ),
       child: Row(
         children: [
@@ -108,13 +110,15 @@ class _VoicePlayerState extends State<VoicePlayer> {
             onTap: _playPause,
             child: Container(
               padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Color(0xFFE4A46B),
+              decoration: BoxDecoration(
+                color: c.accent,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 _isPlaying ? Icons.pause : Icons.play_arrow,
-                color: Colors.black,
+                // On the gold disc, so it takes the on-gold ink rather than the
+                // page's.
+                color: c.onAccent,
                 size: 20,
               ),
             ),
@@ -126,9 +130,9 @@ class _VoicePlayerState extends State<VoicePlayer> {
                 trackHeight: 2,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                activeTrackColor: const Color(0xFFE4A46B),
-                inactiveTrackColor: Colors.white24,
-                thumbColor: const Color(0xFFE4A46B),
+                activeTrackColor: c.accent,
+                inactiveTrackColor: c.border,
+                thumbColor: c.accent,
               ),
               child: Slider(
                 min: 0,
@@ -150,18 +154,20 @@ class _VoicePlayerState extends State<VoicePlayer> {
             ),
           ),
           const SizedBox(width: 8),
+          // Position, then total: the elapsed side is the one being read, so it
+          // carries the stronger ink.
           Text(
             _formatDuration(_position),
-            style: const TextStyle(
-              color: Colors.white70,
+            style: TextStyle(
+              color: c.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w500,
             ),
           ),
-          Text(" / ", style: TextStyle(color: Colors.white24, fontSize: 10)),
+          Text(" / ", style: TextStyle(color: c.textTertiary, fontSize: 10)),
           Text(
             _formatDuration(_duration),
-            style: const TextStyle(color: Colors.white38, fontSize: 10),
+            style: TextStyle(color: c.textTertiary, fontSize: 10),
           ),
           const SizedBox(width: 4),
         ],

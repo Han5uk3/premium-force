@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class PremiumButton extends StatelessWidget {
   const PremiumButton({
@@ -29,15 +30,10 @@ class PremiumButton extends StatelessWidget {
   /// loader stays legible on the gold) while also blocking taps.
   final bool enabled;
 
-  /// Muted stand-in for the gold gradient while [enabled] is false.
-  static const _disabledGradient = [
-    Color(0xFF332B22),
-    Color(0xFF4E4335),
-    Color(0xFF332B22),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+
     // A button mid-save is still "enabled" — it just isn't tappable yet.
     final canTap = enabled && !showLoader;
 
@@ -50,17 +46,16 @@ class PremiumButton extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
+          // The gold itself is the same in both modes — a filled gold chip is
+          // the brand's signature and reads on black or on ivory alike. Only
+          // the disabled stand-in has to change, since a dark grey that says
+          // "off" on black says "on" on ivory.
           colors: enabled
-              ? (gradient ??
-                    [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)])
-              : _disabledGradient,
+              ? (gradient ?? c.goldGradient)
+              : c.goldDisabledGradient,
         ),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(10),
-            blurRadius: 8,
-            spreadRadius: 3,
-          ),
+          BoxShadow(color: c.shadow, blurRadius: 8, spreadRadius: 3),
         ],
         borderRadius: BorderRadius.circular(borderRadius ?? 12),
       ),
@@ -75,13 +70,15 @@ class PremiumButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(borderRadius ?? 12),
           child: Center(
             child: showLoader
-                ? PremiumLoader(size: 28, color: Colors.black)
+                // Black, not the accent: the loader spins on the gold fill, so
+                // it takes the same colour the label would.
+                ? const PremiumLoader(size: 28, color: Colors.black)
                 : Text(
                     text,
                     style: TextStyle(
                       color: enabled
-                          ? (textColor ?? Colors.black)
-                          : Colors.white38,
+                          ? (textColor ?? c.onGold)
+                          : c.textDisabled,
                       fontSize: fontsize,
                       fontWeight: FontWeight.w700,
                     ),

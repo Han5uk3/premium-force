@@ -8,6 +8,7 @@ import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/notification_v2.dart';
 import 'package:premium_force_main/providers/notification_provider.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 /// The in-app notification centre, backed by `GET /notifications`.
 ///
@@ -72,30 +73,31 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     final provider = context.watch<NotificationProvider>();
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: c.scaffold,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: c.scaffold,
         elevation: 0,
         title: Text(
           loc.notifications,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: c.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: c.icon, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           if (provider.unreadCount > 0)
             IconButton(
               tooltip: loc.markAllAsRead,
-              icon: const Icon(Icons.done_all, color: Color(0xFFE4A46B)),
+              icon: Icon(Icons.done_all, color: c.accent),
               onPressed: () async {
                 final marked = await provider.markAllAsRead();
                 if (!context.mounted || !marked) return;
@@ -105,23 +107,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
           if (provider.notifications.isNotEmpty)
             TextButton(
               onPressed: () => _showClearConfirmation(context, loc, provider),
-              child: Text(
-                loc.clearAll,
-                style: const TextStyle(color: Color(0xFFE4A46B)),
-              ),
+              child: Text(loc.clearAll, style: TextStyle(color: c.accent)),
             ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () => provider.refresh(silent: true),
-        color: const Color(0xFFE4A46B),
-        backgroundColor: Colors.black,
+        color: c.accent,
+        backgroundColor: c.surface,
         child: _buildBody(loc, provider),
       ),
     );
   }
 
   Widget _buildBody(AppLocalizations loc, NotificationProvider provider) {
+    final c = context.colors;
     if (provider.status == NotificationFeedStatus.loading ||
         provider.status == NotificationFeedStatus.initial) {
       return const Center(child: PremiumLoader(size: 40));
@@ -145,7 +145,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       // One extra row carries the "loading more" spinner at the tail.
       itemCount: notifications.length + (provider.isLoadingMore ? 1 : 0),
       separatorBuilder: (context, index) =>
-          Divider(color: Colors.grey.withValues(alpha: 0.1), height: 24),
+          Divider(color: c.divider, height: 24),
       itemBuilder: (context, index) {
         if (index >= notifications.length) {
           return const Padding(
@@ -165,6 +165,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Widget _buildEmptyState(AppLocalizations loc) {
+    final c = context.colors;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
@@ -174,20 +175,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFF292929).withValues(alpha: 0.4),
+                color: c.surfaceAlt,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.notifications_off_outlined,
                 size: 64,
-                color: Colors.grey.withValues(alpha: 0.5),
+                color: c.iconMuted,
               ),
             ),
             const SizedBox(height: 16),
             Text(
               loc.noNotificationsYet,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: c.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -196,10 +197,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             Text(
               loc.updatesAboutBookings,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.withValues(alpha: 0.7),
-                fontSize: 12,
-              ),
+              style: TextStyle(color: c.textTertiary, fontSize: 12),
             ),
           ],
         ),
@@ -208,6 +206,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Widget _buildErrorState(AppLocalizations loc, NotificationProvider provider) {
+    final c = context.colors;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
@@ -216,20 +215,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             children: [
-              const Icon(Icons.error_outline, color: Colors.white24, size: 56),
+              Icon(Icons.error_outline, color: c.iconMuted, size: 56),
               const SizedBox(height: 16),
               Text(
                 provider.errorMessage ?? loc.somethingWentWrong,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: c.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: provider.refresh,
-                child: Text(
-                  loc.retry,
-                  style: const TextStyle(color: Color(0xFFE4A46B)),
-                ),
+                child: Text(loc.retry, style: TextStyle(color: c.accent)),
               ),
             ],
           ),
@@ -247,22 +243,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
     AppLocalizations loc,
     NotificationProvider provider,
   ) {
+    final c = context.colors;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: Text(loc.clearAll, style: const TextStyle(color: Colors.white)),
+        backgroundColor: c.surfaceElevated,
+        title: Text(loc.clearAll, style: TextStyle(color: c.textPrimary)),
         content: Text(
           loc.clearAllConfirmDesc,
-          style: const TextStyle(color: Colors.grey),
+          style: TextStyle(color: c.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              loc.cancel,
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(loc.cancel, style: TextStyle(color: c.textPrimary)),
           ),
           TextButton(
             onPressed: () async {
@@ -271,10 +265,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
               if (!mounted || !cleared) return;
               _showMessage(loc.notificationsCleared);
             },
-            child: Text(
-              loc.clear,
-              style: const TextStyle(color: Colors.redAccent),
-            ),
+            child: Text(loc.clear, style: TextStyle(color: c.error)),
           ),
         ],
       ),
@@ -305,6 +296,7 @@ class _NotificationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final createdAt = notification.createdAt;
     final timeStr = createdAt == null
@@ -323,26 +315,23 @@ class _NotificationItem extends StatelessWidget {
         alignment: isArabic ? Alignment.centerLeft : Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: Colors.redAccent.withValues(alpha: 0.1),
+          color: c.errorSurface,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.delete_outline, color: Colors.redAccent),
+        child: Icon(Icons.delete_outline, color: c.error),
       ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.all(12),
+          // Unread rows carry a gold tint and a gold hairline; read ones sit
+          // flat on the page. That difference is the only thing marking them,
+          // so it has to survive the theme swap.
           decoration: BoxDecoration(
-            color: isRead
-                ? Colors.transparent
-                : const Color(0xFFE4A46B).withValues(alpha: 0.05),
+            color: isRead ? Colors.transparent : c.accentSurface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isRead
-                  ? Colors.grey.withValues(alpha: 0.1)
-                  : const Color(0xFFE4A46B).withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: isRead ? c.divider : c.accentBorder),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,15 +339,13 @@ class _NotificationItem extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isRead
-                      ? const Color(0xFF292929)
-                      : const Color(0xFFE4A46B).withValues(alpha: 0.1),
+                  color: isRead ? c.surfaceAlt : c.accentSurface,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   _icon,
                   size: 20,
-                  color: isRead ? Colors.grey : const Color(0xFFE4A46B),
+                  color: isRead ? c.iconMuted : c.accent,
                 ),
               ),
               const SizedBox(width: 12),
@@ -373,7 +360,7 @@ class _NotificationItem extends StatelessWidget {
                           child: Text(
                             notification.displayTitle(isArabic),
                             style: TextStyle(
-                              color: Colors.white,
+                              color: c.textPrimary,
                               fontSize: 13,
                               fontWeight: isRead
                                   ? FontWeight.w500
@@ -385,10 +372,7 @@ class _NotificationItem extends StatelessWidget {
                           const SizedBox(width: 8),
                           Text(
                             timeStr,
-                            style: TextStyle(
-                              color: Colors.grey.withValues(alpha: 0.6),
-                              fontSize: 12,
-                            ),
+                            style: TextStyle(color: c.textTertiary, fontSize: 12),
                           ),
                         ],
                       ],
@@ -397,7 +381,7 @@ class _NotificationItem extends StatelessWidget {
                     Text(
                       notification.displayBody(isArabic),
                       style: TextStyle(
-                        color: Colors.grey.withValues(alpha: 0.8),
+                        color: c.textSecondary,
                         fontSize: 11,
                         height: 1.4,
                       ),

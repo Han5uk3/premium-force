@@ -418,5 +418,18 @@
   "arrived": "وصل",
   "failedToDeleteAccount": "تعذر حذف الحساب. يرجى المحاولة مرة أخرى.",
   "cannotMakePhoneCalls": "لا يمكن إجراء مكالمات هاتفية على هذا الجهاز.",
-  "couldNotPlayAudio": "تعذر تشغيل الملاحظة الصوتية."
+  "couldNotPlayAudio": "تعذر تشغيل الملاحظة الصوتية.",
+  "appearance": "المظهر",
+  "theme": "السمة",
+  "darkMode": "داكن",
+  "lightMode": "فاتح",
+  "systemMode": "النظام",
+  "systemModeDescription": "اتباع إعداد العرض في جهازك",
+  "mapStyle": "نمط الخريطة",
+  "mapStyleMatchApp": "مطابقة التطبيق",
+  "mapStyleLight": "نهاري",
+  "mapStyleDark": "ليلي",
+  "mapStyleDescription": "يُستخدم في خريطة تتبع السائق",
+  "switchToLightMap": "التبديل إلى الخريطة النهارية",
+  "switchToDarkMap": "التبديل إلى الخريطة الليلية"
 }

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class Premuimfleetcard extends StatefulWidget {
   const Premuimfleetcard({
@@ -58,7 +59,13 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
   Widget build(BuildContext context) {
     super.build(context);
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     final imageProvider = widget.image;
+
+    // Everything drawn *over* the vehicle photo below — the frosted strip and
+    // its text, the brand-logo backdrop — is deliberately fixed rather than
+    // theme-derived. It sits on a photograph, not on an app surface, so it is
+    // the photo it has to stay legible against, in either mode.
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -71,11 +78,11 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
             // Base image
             imageProvider.isEmpty
                 ? Container(
-                    color: Colors.grey[800],
+                    color: c.skeleton,
                     child: Center(
                       child: Icon(
                         Icons.directions_car,
-                        color: Colors.grey[600],
+                        color: c.iconMuted,
                         size: 60,
                       ),
                     ),
@@ -88,20 +95,15 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
                     // Decode at ~3x the 240pt display width, not full source res.
                     memCacheWidth: 720,
                     placeholder: (context, url) => Container(
-                      color: Colors.grey[800],
-                      child: Center(
-                        child: PremiumLoader(
-                          size: 24,
-                          color: Color(0xFFE4A46B),
-                        ),
-                      ),
+                      color: c.skeleton,
+                      child: const Center(child: PremiumLoader(size: 24)),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[800],
+                      color: c.skeleton,
                       child: Center(
                         child: Icon(
                           Icons.image_not_supported,
-                          color: Colors.grey[600],
+                          color: c.iconMuted,
                           size: 40,
                         ),
                       ),
@@ -154,7 +156,7 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
                                     ),
                                   ),
                                 )
-                              : Container(color: Colors.grey[800]),
+                              : Container(color: c.skeleton),
                           // Subtle dark tint for better legibility
                           Container(color: Colors.black.withAlpha(40)),
                         ],
@@ -263,7 +265,7 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
                                   : null,
                               width: 240,
                               height: 160,
-                              child: Container(color: Colors.grey[800]),
+                              child: Container(color: c.skeleton),
                             ),
                       Container(
                         decoration: BoxDecoration(
@@ -277,12 +279,8 @@ class _PremuimfleetcardState extends State<Premuimfleetcard>
                                 imageUrl: widget.brandLogoUrl!,
                                 fit: BoxFit.fill,
                                 memCacheWidth: 160,
-                                placeholder: (context, url) => Center(
-                                  child: PremiumLoader(
-                                    size: 12,
-                                    color: Color(0xFFE4A46B),
-                                  ),
-                                ),
+                                placeholder: (context, url) =>
+                                    const Center(child: PremiumLoader(size: 12)),
                                 errorWidget: (context, url, error) => Center(
                                   child: Icon(
                                     Icons.directions_car,

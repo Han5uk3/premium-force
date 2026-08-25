@@ -5,6 +5,7 @@ import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:premium_force_main/services/driver_location_service.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:dio/dio.dart';
@@ -168,6 +169,7 @@ class _TrackingCardState extends State<TrackingCard> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     final booking = widget.booking;
 
     // The ride is over: nothing left to track, so nothing left to show.
@@ -177,15 +179,15 @@ class _TrackingCardState extends State<TrackingCard> {
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       padding: const EdgeInsets.all(1),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFE4A46B), Color(0xFF60350F)],
+        gradient: LinearGradient(
+          colors: [c.goldGradient[1], c.goldGradient.last],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE4A46B).withAlpha(40),
+            color: c.accent.withAlpha(40),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -194,7 +196,7 @@ class _TrackingCardState extends State<TrackingCard> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
+          color: c.surfaceAlt,
           borderRadius: BorderRadius.circular(19),
         ),
         child: Column(
@@ -219,8 +221,8 @@ class _TrackingCardState extends State<TrackingCard> {
                               ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFE4A46B),
+                        style: TextStyle(
+                          color: c.accent,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.2,
@@ -231,8 +233,8 @@ class _TrackingCardState extends State<TrackingCard> {
                         booking.vehicleLabel.isNotEmpty
                             ? booking.vehicleLabel
                             : "Premium Ride",
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: c.textPrimary,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -241,30 +243,30 @@ class _TrackingCardState extends State<TrackingCard> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.timer_outlined,
-                              color: Colors.white70,
+                              color: c.textSecondary,
                               size: 12,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               _currentEta,
-                              style: const TextStyle(
-                                color: Colors.white70,
+                              style: TextStyle(
+                                color: c.textSecondary,
                                 fontSize: 12,
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Icon(
+                            Icon(
                               Icons.location_on_outlined,
-                              color: Colors.white70,
+                              color: c.textSecondary,
                               size: 12,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               _currentDistance,
-                              style: const TextStyle(
-                                color: Colors.white70,
+                              style: TextStyle(
+                                color: c.textSecondary,
                                 fontSize: 12,
                               ),
                             ),
@@ -280,9 +282,9 @@ class _TrackingCardState extends State<TrackingCard> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withAlpha(40),
+                    color: c.successSurface,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.green.withAlpha(80)),
+                    border: Border.all(color: c.successBorder),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -290,16 +292,16 @@ class _TrackingCardState extends State<TrackingCard> {
                       Container(
                         width: 6,
                         height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
+                        decoration: BoxDecoration(
+                          color: c.success,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Text(
                         loc.tracking.toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.green,
+                        style: TextStyle(
+                          color: c.success,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                         ),
@@ -309,9 +311,9 @@ class _TrackingCardState extends State<TrackingCard> {
                 ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Divider(color: Colors.white10, height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Divider(color: c.divider, height: 1),
             ),
             Row(
               // Top-aligned, so the PICKUP and DROPOFF labels stay level when
@@ -325,7 +327,7 @@ class _TrackingCardState extends State<TrackingCard> {
                       Text(
                         loc.pickup.toUpperCase(),
                         style: TextStyle(
-                          color: Colors.white.withAlpha(100),
+                          color: c.textTertiary,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -335,8 +337,8 @@ class _TrackingCardState extends State<TrackingCard> {
                         booking.pickupAddress ?? "Pickup Point",
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: c.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           height: 1.3,
@@ -355,13 +357,13 @@ class _TrackingCardState extends State<TrackingCard> {
                     child: Container(
                       width: 26,
                       height: 26,
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
+                      decoration: BoxDecoration(
+                        color: c.surfaceDeep,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.arrow_forward_rounded,
-                        color: Colors.white,
+                        color: c.icon,
                         size: 15,
                       ),
                     ),
@@ -374,7 +376,7 @@ class _TrackingCardState extends State<TrackingCard> {
                         Text(
                           loc.dropoff.toUpperCase(),
                           style: TextStyle(
-                            color: Colors.white.withAlpha(100),
+                            color: c.textTertiary,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -384,8 +386,8 @@ class _TrackingCardState extends State<TrackingCard> {
                           booking.dropOffAddress!,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: c.textPrimary,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             height: 1.3,
@@ -408,8 +410,8 @@ class _TrackingCardState extends State<TrackingCard> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE4A46B),
-                foregroundColor: Colors.black,
+                backgroundColor: c.accent,
+                foregroundColor: c.onAccent,
                 minimumSize: const Size(double.infinity, 48),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

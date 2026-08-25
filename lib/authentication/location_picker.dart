@@ -8,6 +8,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
+import 'package:premium_force_main/theme/map_style.dart';
+import 'package:premium_force_main/theme/theme_provider.dart';
+import 'package:provider/provider.dart';
 
 class LocationPickerPage extends StatefulWidget {
   final double? initialLat;
@@ -316,17 +320,16 @@ class _LocationPickerPageState extends State<LocationPickerPage>
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    // The tiles answer to the map preference; everything floating over them is
+    // app chrome and answers to the app's own theme.
+    final mapSkin = context.watch<ThemeProvider>().mapSkinFor(context);
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1105),
-            Color(0xFF1E1105),
-            Color.fromARGB(255, 26, 23, 23),
-            Color.fromARGB(255, 26, 23, 23),
-          ],
+          colors: c.pageGradient,
         ),
       ),
       child: Scaffold(
@@ -363,7 +366,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
-              style: _mapDarkStyle,
+              style: MapStyle.forSkin(mapSkin),
             ),
 
             // Search bar overlay at top
@@ -376,15 +379,12 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                   // Search field
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D0A08).withAlpha(240),
+                      color: c.overlaySurface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF49280B),
-                        width: 1,
-                      ),
+                      border: Border.all(color: c.accentBorder, width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withAlpha(100),
+                          color: c.shadow,
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -395,12 +395,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                         const SizedBox(width: 16),
                         ShaderMask(
                           shaderCallback: (Rect bounds) {
-                            return const LinearGradient(
-                              colors: [
-                                Color(0xFF49280B),
-                                Color(0xFFE4A46B),
-                                Color(0xFF60350F),
-                              ],
+                            return LinearGradient(
+                              colors: c.goldIconGradient,
                             ).createShader(bounds);
                           },
                           child: const Icon(
@@ -414,8 +410,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                           child: TextField(
                             controller: _searchController,
                             focusNode: _searchFocusNode,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: c.textPrimary,
                               fontSize: 13,
                             ),
                             decoration: InputDecoration(
@@ -423,7 +419,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                 context,
                               )!.searchForALocation,
                               hintStyle: TextStyle(
-                                color: Colors.white.withAlpha(120),
+                                color: c.textTertiary,
                                 fontSize: 13,
                               ),
                               border: InputBorder.none,
@@ -431,7 +427,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                 vertical: 16,
                               ),
                             ),
-                            cursorColor: const Color(0xFFE4A46B),
+                            cursorColor: c.accent,
                             onChanged: (value) {
                               _debounceTimer?.cancel();
                               _debounceTimer = Timer(
@@ -453,7 +449,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                               padding: const EdgeInsets.all(12),
                               child: Icon(
                                 Icons.close,
-                                color: Colors.white.withAlpha(150),
+                                color: c.iconMuted,
                                 size: 20,
                               ),
                             ),
@@ -469,52 +465,34 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                       margin: const EdgeInsets.only(top: 4),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D0A08).withAlpha(240),
+                        color: c.overlaySurface,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF49280B),
-                          width: 1,
-                        ),
+                        border: Border.all(color: c.accentBorder, width: 1),
                       ),
-                      child: const Center(
-                        child: PremiumLoader(
-                          size: 20,
-                          color: Color(0xFFE4A46B),
-                        ),
-                      ),
+                      child: const Center(child: PremiumLoader(size: 20)),
                     ),
                   if (_searchResults.isNotEmpty)
                     Container(
                       margin: const EdgeInsets.only(top: 4),
                       constraints: const BoxConstraints(maxHeight: 200),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D0A08).withAlpha(240),
+                        color: c.overlaySurface,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF49280B),
-                          width: 1,
-                        ),
+                        border: Border.all(color: c.accentBorder, width: 1),
                       ),
                       child: ListView.separated(
                         shrinkWrap: true,
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         itemCount: _searchResults.length,
-                        separatorBuilder: (_, __) => Divider(
-                          color: Colors.grey.shade800.withAlpha(100),
-                          height: 1,
-                          indent: 48,
-                        ),
+                        separatorBuilder: (_, __) =>
+                            Divider(color: c.divider, height: 1, indent: 48),
                         itemBuilder: (context, index) {
                           return ListTile(
                             dense: true,
                             leading: ShaderMask(
                               shaderCallback: (Rect bounds) {
-                                return const LinearGradient(
-                                  colors: [
-                                    Color(0xFF49280B),
-                                    Color(0xFFE4A46B),
-                                    Color(0xFF60350F),
-                                  ],
+                                return LinearGradient(
+                                  colors: c.goldIconGradient,
                                 ).createShader(bounds);
                               },
                               child: const Icon(
@@ -528,8 +506,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                   ? _searchResults[index]['main_text']
                                   : _searchResults[index]['address'],
                               textAlign: TextAlign.left,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: c.textPrimary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -545,7 +523,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                     _searchResults[index]['secondary_text'],
                                     textAlign: TextAlign.left,
                                     style: TextStyle(
-                                      color: Colors.white.withAlpha(150),
+                                      color: c.textTertiary,
                                       fontSize: 12,
                                     ),
                                     maxLines: 1,
@@ -582,10 +560,10 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                     : 0,
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Color(0xFF3E230A), Color(0xFF141313)],
+                      colors: c.sheetGradient,
                     ),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(24),
@@ -593,7 +571,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withAlpha(150),
+                        color: c.shadow,
                         blurRadius: 20,
                         offset: const Offset(0, -5),
                       ),
@@ -635,12 +613,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                           children: [
                                             ShaderMask(
                                               shaderCallback: (Rect bounds) {
-                                                return const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFF49280B),
-                                                    Color(0xFFE4A46B),
-                                                    Color(0xFF60350F),
-                                                  ],
+                                                return LinearGradient(
+                                                  colors: c.goldIconGradient,
                                                 ).createShader(bounds);
                                               },
                                               child: const Icon(
@@ -654,8 +628,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                               AppLocalizations.of(
                                                 context,
                                               )!.selectedLocationDisplay,
-                                              style: const TextStyle(
-                                                color: Colors.white,
+                                              style: TextStyle(
+                                                color: c.textPrimary,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -666,7 +640,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                         Text(
                                           _selectedAddress,
                                           style: TextStyle(
-                                            color: Colors.white.withAlpha(180),
+                                            color: c.textSecondary,
                                             fontSize: 11,
                                             height: 1.4,
                                           ),
@@ -689,10 +663,10 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                   width: double.infinity,
                                   height: 50,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF0D0A08),
+                                    color: c.surfaceDeep,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: const Color(0xFF49280B),
+                                      color: c.accentBorder,
                                       width: 1,
                                     ),
                                   ),
@@ -704,19 +678,12 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                           MainAxisAlignment.center,
                                       children: [
                                         if (_isLoading)
-                                          const PremiumLoader(
-                                            size: 24,
-                                            color: Color(0xFFE4A46B),
-                                          )
+                                          const PremiumLoader(size: 24)
                                         else
                                           ShaderMask(
                                             shaderCallback: (Rect bounds) {
-                                              return const LinearGradient(
-                                                colors: [
-                                                  Color(0xFF49280B),
-                                                  Color(0xFFE4A46B),
-                                                  Color(0xFF60350F),
-                                                ],
+                                              return LinearGradient(
+                                                colors: c.goldIconGradient,
                                               ).createShader(bounds);
                                             },
                                             child: const Icon(
@@ -734,8 +701,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                               : AppLocalizations.of(
                                                   context,
                                                 )!.useCurrentLocation,
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: c.textPrimary,
                                             fontSize: 13,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -781,21 +748,17 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                         width: double.infinity,
                                         height: 56,
                                         decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
+                                          gradient: LinearGradient(
                                             begin: Alignment.centerLeft,
                                             end: Alignment.centerRight,
-                                            colors: [
-                                              Color(0xFF49280B),
-                                              Color(0xFFE4A46B),
-                                              Color(0xFF60350F),
-                                            ],
+                                            colors: c.goldGradient,
                                           ),
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withAlpha(10),
+                                              color: c.shadow,
                                               blurRadius: 8,
                                               spreadRadius: 3,
                                             ),
@@ -806,8 +769,8 @@ class _LocationPickerPageState extends State<LocationPickerPage>
                                             AppLocalizations.of(
                                               context,
                                             )!.confirmLocation,
-                                            style: const TextStyle(
-                                              color: Colors.black,
+                                            style: TextStyle(
+                                              color: c.onGold,
                                               fontSize: 15,
                                               fontWeight: FontWeight.bold,
                                               letterSpacing: 0.5,
@@ -835,6 +798,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final c = context.colors;
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: Container(
@@ -842,7 +806,7 @@ class _LocationPickerPageState extends State<LocationPickerPage>
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(150), Colors.transparent],
+            colors: c.appBarScrim,
           ),
         ),
         child: AppBar(
@@ -852,13 +816,13 @@ class _LocationPickerPageState extends State<LocationPickerPage>
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: c.textPrimary,
               letterSpacing: 0.5,
             ),
           ),
           backgroundColor: Colors.transparent,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back, color: c.icon),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -866,30 +830,3 @@ class _LocationPickerPageState extends State<LocationPickerPage>
     );
   }
 }
-
-// Dark map style JSON for premium look
-const String _mapDarkStyle = '''
-[
-  {"elementType": "geometry", "stylers": [{"color": "#212121"}]},
-  {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]},
-  {"elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
-  {"elementType": "labels.text.stroke", "stylers": [{"color": "#212121"}]},
-  {"featureType": "administrative", "elementType": "geometry", "stylers": [{"color": "#757575"}]},
-  {"featureType": "administrative.country", "elementType": "labels.text.fill", "stylers": [{"color": "#9e9e9e"}]},
-  {"featureType": "administrative.land_parcel", "stylers": [{"visibility": "off"}]},
-  {"featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{"color": "#bdbdbd"}]},
-  {"featureType": "poi", "elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
-  {"featureType": "poi.park", "elementType": "geometry", "stylers": [{"color": "#181818"}]},
-  {"featureType": "poi.park", "elementType": "labels.text.fill", "stylers": [{"color": "#616161"}]},
-  {"featureType": "poi.park", "elementType": "labels.text.stroke", "stylers": [{"color": "#1b1b1b"}]},
-  {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#2c2c2c"}]},
-  {"featureType": "road", "elementType": "labels.text.fill", "stylers": [{"color": "#8a8a8a"}]},
-  {"featureType": "road.arterial", "elementType": "geometry", "stylers": [{"color": "#373737"}]},
-  {"featureType": "road.highway", "elementType": "geometry", "stylers": [{"color": "#3c3c3c"}]},
-  {"featureType": "road.highway.controlled_access", "elementType": "geometry", "stylers": [{"color": "#4e4e4e"}]},
-  {"featureType": "road.local", "elementType": "labels.text.fill", "stylers": [{"color": "#616161"}]},
-  {"featureType": "transit", "elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
-  {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#000000"}]},
-  {"featureType": "water", "elementType": "labels.text.fill", "stylers": [{"color": "#3d3d3d"}]}
-]
-''';

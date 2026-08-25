@@ -16,6 +16,9 @@ import 'package:premium_force_main/firebase_options.dart';
 import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
+import 'package:premium_force_main/theme/app_theme.dart';
+import 'package:premium_force_main/theme/theme_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:flutter/services.dart';
@@ -69,15 +72,6 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-
-  // Set system UI overlay style for dark theme visibility
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light, // Android
-      statusBarBrightness: Brightness.dark, // iOS
-    ),
-  );
 
   // Load environment variables
   await dotenv.load(fileName: "lib/.env");
@@ -137,19 +131,47 @@ class MainApp extends StatefulWidget {
   State<MainApp> createState() => _MainAppState();
 }
 
-class _MainAppState extends State<MainApp> {
+class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   Locale _locale = const Locale('ar');
   late final AuthProvider _authProvider;
   late final UserProvider _userProvider;
 
+  /// Which theme the app paints, and which skin its maps wear.
+  ///
+  /// Built here rather than with `create:` on the provider so its constructor —
+  /// which reads both choices straight out of Hive — has run before the first
+  /// frame. A future resolving one frame late would show the app in the wrong
+  /// mode and then flip it.
+  late final ThemeProvider _themeProvider;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _authProvider = AuthProvider();
     _userProvider = UserProvider();
+    _themeProvider = ThemeProvider();
 
     // Load the previously selected language from persistence
     _loadSavedLanguage();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Repaint when the device flips its own dark-mode setting.
+  ///
+  /// [MaterialApp] handles this for everything below it. The one thing it does
+  /// not cover is the strip behind the root [SafeArea], which is painted above
+  /// it from the platform brightness directly — so on [ThemeMode.system] that
+  /// strip needs this to stay in step.
+  @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    if (mounted) setState(() {});
   }
 
   void _loadSavedLanguage() {
@@ -196,64 +218,73 @@ class _MainAppState extends State<MainApp> {
         ChangeNotifierProvider.value(value: bookingProvider),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
         ChangeNotifierProvider.value(value: notificationProvider),
+        ChangeNotifierProvider.value(value: _themeProvider),
       ],
-      child: SafeArea(
-        top: false,
-        bottom: Platform.isAndroid ? isThickNavBar : false,
-        child: MaterialApp(
-          title: "Premium Force",
-          debugShowCheckedModeBanner: false,
-          navigatorKey: navigatorKey,
-          locale: _locale,
-          theme: ThemeData(
-            brightness: Brightness.dark,
-            scaffoldBackgroundColor: Colors.black, // Assuming a dark theme
-            appBarTheme: const AppBarTheme(
-              systemOverlayStyle: SystemUiOverlayStyle.light,
-            ),
-            // One family for the whole app, Arabic and Latin alike.
-            //
-            // Noto Naskh Arabic ships `latin` and `latin-ext` alongside
-            // `arabic`, so it draws the English text and the digits too. Using
-            // it for everything rather than only as an Arabic fallback is what
-            // keeps a mixed line — an Arabic address next to a Latin flight
-            // number — in a single typeface with one set of metrics, instead of
-            // two fonts meeting mid-sentence.
-            //
-            // It also settles what Arabic looked like before any of this: the
-            // OS decided, so it was Noto Naskh on stock Android, SF Arabic or
-            // Geeza Pro on iOS, and an OEM face on Samsung and Xiaomi.
-            //
-            // The family's weight axis is 400–700, which is the full range it
-            // offers. The four bundled faces cover it exactly; the handful of
-            // `w300` and `w800`/`w900` styles in the app resolve to the nearest
-            // of them, since lighter and heavier cuts do not exist.
-            fontFamily: 'NotoNaskhArabic',
-            textSelectionTheme: const TextSelectionThemeData(
-              // Every screen here is dark, and the country picker's search
-              // field takes its cursor from the ambient theme — it has no
-              // setting of its own. A field that wants a different cursor,
-              // like the review sheet's gold one, still overrides this
-              // locally.
-              cursorColor: Colors.white,
-              // Silver in place of the Material purple the handle defaulted
-              // to. The highlight goes with it: a silver handle dragging a
-              // purple selection reads as two different controls.
-              selectionHandleColor: Color(0xFFC0C0C0),
-              selectionColor: Color(0x55C0C0C0),
+      // Only the theme choice is watched here, so a booking or a notification
+      // arriving does not rebuild the whole app under [MaterialApp].
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) => ColoredBox(
+          // The ground behind the [SafeArea]'s inset.
+          //
+          // Nothing else paints there — it is outside [MaterialApp], so what
+          // shows through is the *native* window background, and Android picks
+          // that from the OS's own dark-mode setting. A customer running the app
+          // light on a dark phone would get a black band under it. This paints
+          // the strip from the app's own theme instead.
+          //
+          // It cannot use `context.colors`: this sits above [MaterialApp], so
+          // there is no theme here to read, and no MediaQuery either — hence the
+          // platform brightness comes from the view and the observer above
+          // rebuilds when it changes.
+          color: _palette(themeProvider).scaffold,
+          child: SafeArea(
+            top: false,
+            bottom: Platform.isAndroid ? isThickNavBar : false,
+            child: MaterialApp(
+              title: "Premium Force",
+              debugShowCheckedModeBanner: false,
+              navigatorKey: navigatorKey,
+              locale: _locale,
+              // Two full themes and the mode that picks between them. Every
+              // colour either carries comes from [AppPalette], so the same widget
+              // tree paints itself in whichever one is in force.
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: themeProvider.themeMode,
+              // The status and navigation bars belong to the OS, not to any
+              // widget, so nothing in the tree updates them on a theme change.
+              // Stamping the style here covers every screen; a screen that floats
+              // its bar over a map or a photo still overrides this with its own
+              // [AnnotatedRegion] or app bar.
+              builder: (context, child) =>
+                  AnnotatedRegion<SystemUiOverlayStyle>(
+                    value: AppTheme.overlayStyle(Theme.of(context).brightness),
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+              localizationsDelegates: [
+                AppLocalizations.delegate,
+                CountryLocalizations.delegate,
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: SplashScreen(),
             ),
           ),
-          localizationsDelegates: [
-            AppLocalizations.delegate,
-            CountryLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: SplashScreen(),
         ),
       ),
     );
+  }
+
+  /// The palette in force, resolved without a theme or a [MediaQuery].
+  ///
+  /// Only for the strip behind the root [SafeArea], which is painted above
+  /// [MaterialApp] and so has neither to read.
+  AppPalette _palette(ThemeProvider themeProvider) {
+    final platform = View.of(context).platformDispatcher.platformBrightness;
+    return themeProvider.brightnessFrom(platform) == Brightness.dark
+        ? AppPalette.dark
+        : AppPalette.light;
   }
 }

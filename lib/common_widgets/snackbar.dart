@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class AnimatedSnackBar extends StatefulWidget {
   final String message;
@@ -117,6 +118,9 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    final tone = _toneColor(c);
+
     return Dismissible(
       key: UniqueKey(),
       direction: DismissDirection.down,
@@ -129,22 +133,18 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
             scale: _scaleAnimation,
             child: Container(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF49280B),
-                    Color(0xFFE4A46B),
-                    Color(0xFF60350F),
-                  ],
-                ),
+                gradient: LinearGradient(colors: c.goldGradient),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withAlpha(77),
+                    color: c.shadow,
                     blurRadius: 10,
                     offset: const Offset(0, 5),
                   ),
                 ],
               ),
+              // The 2px inset is what leaves the gradient above showing as a
+              // gold hairline, so the fill has to stay opaque.
               child: Padding(
                 padding: const EdgeInsets.all(2.0),
                 child: Container(
@@ -153,25 +153,26 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black,
+                    color: c.surfaceElevated,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.info_outline, color: getSnackbarType()),
+                      Icon(Icons.info_outline, color: tone),
                       const SizedBox(width: 12),
                       Flexible(
                         child: Text(
                           widget.message,
                           style: TextStyle(
-                            color: getSnackbarType(),
+                            color: tone,
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
                           ),
                         ),
                       ),
-                      if (widget.actionText != null && widget.onAction != null) ...[
+                      if (widget.actionText != null &&
+                          widget.onAction != null) ...[
                         const SizedBox(width: 8),
                         TextButton(
                           onPressed: () {
@@ -186,7 +187,7 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
                           child: Text(
                             widget.actionText!,
                             style: TextStyle(
-                              color: getSnackbarType(),
+                              color: tone,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                               decoration: TextDecoration.underline,
@@ -205,14 +206,12 @@ class AnimatedSnackBarState extends State<AnimatedSnackBar>
     );
   }
 
-  getSnackbarType() {
-    if (widget.type == "E") {
-      return Colors.red;
-    } else if (widget.type == "S") {
-      return Colors.green;
-    } else {
-      return Colors.white;
-    }
-  }
+  /// The icon and text colour for this snack's type: `E` error, `S` success,
+  /// anything else neutral.
+  Color _toneColor(AppPalette c) => switch (widget.type) {
+    'E' => c.error,
+    'S' => c.success,
+    _ => c.textPrimary,
+  };
 }
 

@@ -8,7 +8,9 @@ import 'package:premium_force_main/common_widgets/premiumdropdown.dart';
 import 'package:premium_force_main/common_widgets/riyal_symbol.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/common_widgets/textfield.dart';
+import 'package:premium_force_main/common_widgets/country_picker_theme.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/authentication/location_picker.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/ride_booking/voice_note_dialog.dart';
@@ -1014,18 +1016,23 @@ class _NewBookingState extends State<NewBooking> {
           userData?['phone'] ?? userData?['phoneNumber'] ?? '';
 
       final service = SessionPaymentService();
+      // The gateway sheet is native, so the app's palette is handed to it
+      // rather than read from a context it does not have.
+      final palette = context.colors;
       final paymentResult = method == 'apple_pay'
           ? await service.startApplePayPayment(
               config: config,
               customerName: customerName,
               customerEmail: customerEmail,
               customerPhone: customerPhone,
+              palette: palette,
             )
           : await service.startCardPayment(
               config: config,
               customerName: customerName,
               customerEmail: customerEmail,
               customerPhone: customerPhone,
+              palette: palette,
             );
 
       if (!paymentResult.success) {
@@ -1079,11 +1086,12 @@ class _NewBookingState extends State<NewBooking> {
   ///
   /// Returns `null` when the sheet is dismissed without choosing.
   Future<String?> _choosePaymentMethod(AppLocalizations loc) async {
+    final c = context.colors;
     if (!Platform.isIOS) return 'card';
 
     return showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF1E1105),
+      backgroundColor: c.sheet,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1094,30 +1102,23 @@ class _NewBookingState extends State<NewBooking> {
             const SizedBox(height: 16),
             Text(
               loc.selectPaymentMethod,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: c.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.apple, color: Colors.white, size: 30),
-              title: Text(
-                loc.applePay,
-                style: const TextStyle(color: Colors.white),
-              ),
+              leading: Icon(Icons.apple, color: c.textPrimary, size: 30),
+              title: Text(loc.applePay, style: TextStyle(color: c.textPrimary)),
               onTap: () => Navigator.pop(context, 'apple_pay'),
             ),
             ListTile(
-              leading: const Icon(
-                Icons.credit_card,
-                color: Colors.white,
-                size: 30,
-              ),
+              leading: Icon(Icons.credit_card, color: c.textPrimary, size: 30),
               title: Text(
                 loc.creditDebitCard,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: c.textPrimary),
               ),
               onTap: () => Navigator.pop(context, 'card'),
             ),
@@ -1195,13 +1196,14 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   void _showNoServiceAlert({String? message}) {
+    final c = context.colors;
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: const Color(0xFF141313),
+        backgroundColor: c.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Colors.white24),
+          side: BorderSide(color: c.border),
         ),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -1211,16 +1213,12 @@ class _NewBookingState extends State<NewBooking> {
             children: [
               Row(
                 children: [
-                  const Icon(
-                    Icons.info_outline,
-                    color: Color(0xFFE4A46B),
-                    size: 28,
-                  ),
+                  Icon(Icons.info_outline, color: c.accent, size: 28),
                   const SizedBox(width: 12),
                   Text(
                     AppLocalizations.of(context)!.serviceNotAvailable,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: c.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1231,8 +1229,8 @@ class _NewBookingState extends State<NewBooking> {
               Text(
                 message ??
                     AppLocalizations.of(context)!.serviceNotAvailableMessage,
-                style: const TextStyle(
-                  color: Colors.white70,
+                style: TextStyle(
+                  color: c.textSecondary,
                   fontSize: 15,
                   height: 1.5,
                 ),
@@ -1241,8 +1239,8 @@ class _NewBookingState extends State<NewBooking> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE4A46B),
-                  foregroundColor: Colors.black,
+                  backgroundColor: c.accent,
+                  foregroundColor: c.onAccent,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1639,6 +1637,7 @@ class _NewBookingState extends State<NewBooking> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final loc = AppLocalizations.of(context)!;
     return PopScope(
       canPop: showTripInfo && !_isBooking,
@@ -1649,7 +1648,7 @@ class _NewBookingState extends State<NewBooking> {
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xff3E230A), Color(0xff141313)],
+            colors: c.sheetGradient,
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -1940,6 +1939,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildReviewAndConfirmPage(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1948,7 +1948,7 @@ class _NewBookingState extends State<NewBooking> {
           child: Text(
             loc.reviewAndConfirm,
             style: TextStyle(
-              color: Colors.white,
+              color: c.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -1960,7 +1960,7 @@ class _NewBookingState extends State<NewBooking> {
           child: Text(
             loc.reviewAndConfirmYourRequest,
             style: TextStyle(
-              color: Colors.white,
+              color: c.textPrimary,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -2012,7 +2012,7 @@ class _NewBookingState extends State<NewBooking> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      color: Colors.black,
+                      color: c.skeleton,
                       width: double.infinity,
                       child: AspectRatio(
                         aspectRatio: 1.7,
@@ -2020,20 +2020,19 @@ class _NewBookingState extends State<NewBooking> {
                           imageUrl: carImageUrl,
                           fit: BoxFit.cover,
                           memCacheWidth: 1080,
-                          errorWidget: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.directions_car,
-                                size: 50,
-                                color: Colors.white24,
-                              ),
+                          errorWidget: (context, error, stackTrace) => Icon(
+                            Icons.directions_car,
+                            size: 50,
+                            color: c.border,
+                          ),
                           placeholder: (context, url) => Shimmer.fromColors(
-                            baseColor: Colors.white.withAlpha(5),
-                            highlightColor: Colors.white.withAlpha(15),
+                            baseColor: c.shimmerBase,
+                            highlightColor: c.shimmerHighlight,
                             child: Container(
                               width: double.infinity,
                               height: double.infinity,
                               decoration: BoxDecoration(
-                                color: Colors.black,
+                                color: c.textPrimary,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
@@ -2046,8 +2045,8 @@ class _NewBookingState extends State<NewBooking> {
                   Text(
                     "${_selectedVehicleBrand ?? ""} ${_selectedVehicleModel ?? ""}",
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: c.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
@@ -2072,24 +2071,20 @@ class _NewBookingState extends State<NewBooking> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(5),
+                color: c.shimmerBase,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white24, width: 0.5),
+                border: Border.all(color: c.border, width: 0.5),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.info_outline,
-                    color: Color(0xFFE4A46B),
-                    size: 20,
-                  ),
+                  Icon(Icons.info_outline, color: c.accent, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       loc.extraHoursInfo,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: c.textPrimary,
                         fontSize: 13,
                         height: 1.5,
                         fontWeight: FontWeight.w400,
@@ -2110,6 +2105,7 @@ class _NewBookingState extends State<NewBooking> {
   /// recalculated checkout, so the price summary below updates from the same
   /// response — the client never adjusts the total itself.
   Widget buildCouponSection(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     final applied = _appliedCoupon;
 
     return Padding(
@@ -2119,8 +2115,8 @@ class _NewBookingState extends State<NewBooking> {
         children: [
           Text(
             loc.promoCode,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: c.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -2132,10 +2128,7 @@ class _NewBookingState extends State<NewBooking> {
             _buildCouponInputRow(loc),
           if (_couponError != null) ...[
             const SizedBox(height: 8),
-            Text(
-              _couponError!,
-              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-            ),
+            Text(_couponError!, style: TextStyle(color: c.error, fontSize: 12)),
           ],
         ],
       ),
@@ -2144,16 +2137,17 @@ class _NewBookingState extends State<NewBooking> {
 
   /// The applied-coupon state: code, the amount it took off, and a remove action.
   Widget _buildAppliedCouponRow(AppLocalizations loc, AppliedCoupon applied) {
+    final c = context.colors;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: c.surfaceDeep,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.shade700),
+        border: Border.all(color: c.successBorder),
       ),
       child: Row(
         children: [
-          const Icon(Icons.local_offer_outlined, color: Colors.green, size: 20),
+          Icon(Icons.local_offer_outlined, color: c.success, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -2162,8 +2156,8 @@ class _NewBookingState extends State<NewBooking> {
               children: [
                 Text(
                   applied.code,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: c.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.5,
@@ -2174,15 +2168,12 @@ class _NewBookingState extends State<NewBooking> {
                   mainAxisSize: MainAxisSize.min,
                   textDirection: TextDirection.ltr,
                   children: [
-                    const Text(
-                      "-",
-                      style: TextStyle(color: Colors.green, fontSize: 13),
-                    ),
-                    const RiyalSymbol(color: Colors.green, size: 13),
+                    Text("-", style: TextStyle(color: c.success, fontSize: 13)),
+                    RiyalSymbol(color: c.success, size: 13),
                     Text(
                       " ${applied.amount.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        color: Colors.green,
+                      style: TextStyle(
+                        color: c.success,
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -2193,16 +2184,16 @@ class _NewBookingState extends State<NewBooking> {
             ),
           ),
           _isCouponBusy
-              ? const Padding(
+              ? Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: PremiumLoader(size: 16, color: Color(0xFFE4A46B)),
+                  child: PremiumLoader(size: 16, color: c.accent),
                 )
               : TextButton(
                   onPressed: () => _removeCouponCode(loc),
                   child: Text(
                     loc.remove,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
+                    style: TextStyle(
+                      color: c.error,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -2214,6 +2205,7 @@ class _NewBookingState extends State<NewBooking> {
 
   /// The empty state: a code field with an apply action.
   Widget _buildCouponInputRow(AppLocalizations loc) {
+    final c = context.colors;
     return PremiumTextField(
       controller: _couponController,
       needTitle: false,
@@ -2225,24 +2217,22 @@ class _NewBookingState extends State<NewBooking> {
       enabled: !_isCouponBusy,
       needAutoCapitalize: true,
       suffixIcon: _isCouponBusy
-          ? const Padding(
+          ? Padding(
               padding: EdgeInsets.all(12),
-              child: PremiumLoader(size: 16, color: Color(0xFFE4A46B)),
+              child: PremiumLoader(size: 16, color: c.accent),
             )
           : TextButton(
               onPressed: () => _applyCouponCode(loc),
               child: Text(
                 loc.apply,
-                style: const TextStyle(
-                  color: Color(0xFFE4A46B),
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: c.accent, fontWeight: FontWeight.bold),
               ),
             ),
     );
   }
 
   Widget buildPaymentSummary(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2251,7 +2241,7 @@ class _NewBookingState extends State<NewBooking> {
           child: Text(
             loc.paymentSummary,
             style: TextStyle(
-              color: Colors.white,
+              color: c.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -2263,9 +2253,9 @@ class _NewBookingState extends State<NewBooking> {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: c.surfaceDeep,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade700),
+              border: Border.all(color: c.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2278,7 +2268,7 @@ class _NewBookingState extends State<NewBooking> {
                     Text(
                       loc.totalDistance,
                       style: TextStyle(
-                        color: Colors.white,
+                        color: c.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -2286,7 +2276,7 @@ class _NewBookingState extends State<NewBooking> {
                     Text(
                       "${_totalDistance.toStringAsFixed(2)} ${loc.km}",
                       style: TextStyle(
-                        color: Colors.white,
+                        color: c.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -2307,7 +2297,7 @@ class _NewBookingState extends State<NewBooking> {
                   blackbg: true,
                   borderRadius: 12,
                   suffixIcon: _isCheckingPromo
-                      ? const Padding(
+                      ? Padding(
                           padding: EdgeInsets.all(12.0),
                           child: SizedBox(
                             width: 20,
@@ -2315,7 +2305,7 @@ class _NewBookingState extends State<NewBooking> {
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFFE4A46B),
+                                c.accent,
                               ),
                             ),
                           ),
@@ -2325,7 +2315,7 @@ class _NewBookingState extends State<NewBooking> {
                           child: Text(
                             _isPromoValid ? "Remove" : "Apply",
                             style: TextStyle(
-                              color: _isPromoValid ? Colors.red : const Color(0xFFE4A46B),
+                              color: _isPromoValid ? c.error : c.accent,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -2340,9 +2330,9 @@ class _NewBookingState extends State<NewBooking> {
                       child: Text(
                         maxLines: 2,
                         getBaseChargeText(loc),
-                        style: const TextStyle(
+                        style: TextStyle(
                           overflow: TextOverflow.ellipsis,
-                          color: Colors.white,
+                          color: c.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -2352,19 +2342,16 @@ class _NewBookingState extends State<NewBooking> {
                       mainAxisSize: MainAxisSize.min,
                       textDirection: TextDirection.ltr,
                       children: [
-                        const RiyalSymbol(color: Colors.white, size: 16),
+                        RiyalSymbol(color: c.textPrimary, size: 16),
                         _isCheckingRoute && _selectedCatCode == 3
-                            ? const Padding(
+                            ? Padding(
                                 padding: EdgeInsets.only(left: 8),
-                                child: PremiumLoader(
-                                  size: 16,
-                                  color: Color(0xFFE4A46B),
-                                ),
+                                child: PremiumLoader(size: 16, color: c.accent),
                               )
                             : Text(
                                 " ${_summaryBaseFare.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: c.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -2384,8 +2371,8 @@ class _NewBookingState extends State<NewBooking> {
                           loc.discount,
                           _discountPercentage,
                         ),
-                        style: const TextStyle(
-                          color: Colors.green,
+                        style: TextStyle(
+                          color: c.success,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -2394,23 +2381,23 @@ class _NewBookingState extends State<NewBooking> {
                         mainAxisSize: MainAxisSize.min,
                         textDirection: TextDirection.ltr,
                         children: [
-                          const Text(
+                          Text(
                             "-",
-                            style: TextStyle(color: Colors.green, fontSize: 16),
+                            style: TextStyle(color: c.success, fontSize: 16),
                           ),
-                          const RiyalSymbol(color: Colors.green, size: 16),
+                          RiyalSymbol(color: c.success, size: 16),
                           _isCheckingRoute && _selectedCatCode == 3
-                              ? const Padding(
+                              ? Padding(
                                   padding: EdgeInsets.only(left: 8),
                                   child: PremiumLoader(
                                     size: 16,
-                                    color: Colors.green,
+                                    color: c.success,
                                   ),
                                 )
                               : Text(
                                   " ${_summaryDiscount.toStringAsFixed(2)}",
-                                  style: const TextStyle(
-                                    color: Colors.green,
+                                  style: TextStyle(
+                                    color: c.success,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -2428,8 +2415,8 @@ class _NewBookingState extends State<NewBooking> {
                   children: [
                     Text(
                       Bookingcard.formatPercentLabel(loc.vat, _vatPercentage),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: c.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -2438,19 +2425,16 @@ class _NewBookingState extends State<NewBooking> {
                       mainAxisSize: MainAxisSize.min,
                       textDirection: TextDirection.ltr,
                       children: [
-                        const RiyalSymbol(color: Colors.white, size: 16),
+                        RiyalSymbol(color: c.textPrimary, size: 16),
                         _isCheckingRoute && _selectedCatCode == 3
-                            ? const Padding(
+                            ? Padding(
                                 padding: EdgeInsets.only(left: 8),
-                                child: PremiumLoader(
-                                  size: 16,
-                                  color: Color(0xFFE4A46B),
-                                ),
+                                child: PremiumLoader(size: 16, color: c.accent),
                               )
                             : Text(
                                 " ${_summaryVatAmount.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: c.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -2461,7 +2445,7 @@ class _NewBookingState extends State<NewBooking> {
                 ),
                 const SizedBox(height: 8),
 
-                Divider(color: Colors.grey.shade700),
+                Divider(color: c.divider),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2469,8 +2453,8 @@ class _NewBookingState extends State<NewBooking> {
                   children: [
                     Text(
                       loc.total,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: c.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -2479,19 +2463,16 @@ class _NewBookingState extends State<NewBooking> {
                       mainAxisSize: MainAxisSize.min,
                       textDirection: TextDirection.ltr,
                       children: [
-                        const RiyalSymbol(color: Colors.white, size: 16),
+                        RiyalSymbol(color: c.textPrimary, size: 16),
                         _isCheckingRoute && _selectedCatCode == 3
-                            ? const Padding(
+                            ? Padding(
                                 padding: EdgeInsets.only(left: 8),
-                                child: PremiumLoader(
-                                  size: 16,
-                                  color: Color(0xFFE4A46B),
-                                ),
+                                child: PremiumLoader(size: 16, color: c.accent),
                               )
                             : Text(
                                 " ${_summaryTotal.toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: c.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -2516,6 +2497,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildPassengerForm(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Form(
       key: _passengerFormKey,
       child: Column(
@@ -2526,7 +2508,7 @@ class _NewBookingState extends State<NewBooking> {
             child: Text(
               loc.passenger,
               style: TextStyle(
-                color: Colors.white,
+                color: c.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
               ),
@@ -2537,7 +2519,7 @@ class _NewBookingState extends State<NewBooking> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
               loc.providePassengerInfo,
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(color: c.textTertiary, fontSize: 12),
             ),
           ),
           SizedBox(height: 16),
@@ -2595,49 +2577,7 @@ class _NewBookingState extends State<NewBooking> {
                     context: context,
                     showPhoneCode: true,
                     customFlagBuilder: (context) => const SizedBox.shrink(),
-                    countryListTheme: CountryListThemeData(
-                      backgroundColor: const Color(0xFF141313),
-                      textStyle: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                      searchTextStyle: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30),
-                      ),
-                      inputDecoration: InputDecoration(
-                        hintText: loc.search,
-                        hintStyle: TextStyle(
-                          color: Colors.white.withAlpha(180),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.white,
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF1A1410),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade800),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade800),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE4A46B),
-                          ),
-                        ),
-                      ),
-                      bottomSheetHeight:
-                          MediaQuery.of(context).size.height * 0.75,
-                    ),
+                    countryListTheme: buildCountryListTheme(context),
                     onSelect: (Country country) {
                       setState(() {
                         _selectedPassengerCountryCode = country.phoneCode;
@@ -2657,17 +2597,14 @@ class _NewBookingState extends State<NewBooking> {
                     children: [
                       Text(
                         '+$_selectedPassengerCountryCode',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: c.textPrimary, fontSize: 14),
                       ),
-                      const Icon(Icons.arrow_drop_down, color: Colors.white),
+                      Icon(Icons.arrow_drop_down, color: c.icon),
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 8),
                         height: 24,
                         width: 1,
-                        color: Colors.grey,
+                        color: c.border,
                       ),
                     ],
                   ),
@@ -2687,6 +2624,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildPreferancesForm(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Form(
       key: _preferencesFormKey,
       child: Column(
@@ -2697,7 +2635,7 @@ class _NewBookingState extends State<NewBooking> {
             child: Text(
               loc.preferences,
               style: TextStyle(
-                color: Colors.white,
+                color: c.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
               ),
@@ -2708,7 +2646,7 @@ class _NewBookingState extends State<NewBooking> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
               loc.chooseYouPreferredVehicle,
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(color: c.textTertiary, fontSize: 12),
             ),
           ),
           SizedBox(height: 16),
@@ -2727,6 +2665,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildSpecialRequests(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: PremiumTextField(
@@ -2762,26 +2701,28 @@ class _NewBookingState extends State<NewBooking> {
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
-                    const Icon(Icons.mic, color: Color(0xFFE4A46B)),
+                    Icon(Icons.mic, color: c.accent),
                     Positioned(
                       right: -2,
                       bottom: -2,
                       child: Container(
                         padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
+                        decoration: BoxDecoration(
+                          color: c.success,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        // On the green badge, so it stays white against it in
+                        // both themes rather than following the page's ink.
+                        child: Icon(
                           Icons.check,
                           size: 10,
-                          color: Colors.black, // High contrast with green
+                          color: c.textPrimary,
                         ),
                       ),
                     ),
                   ],
                 )
-              : const Icon(Icons.mic_none_outlined, color: Colors.white),
+              : Icon(Icons.mic_none_outlined, color: c.icon),
         ),
         title: loc.specialRequests,
         controller: specialRequestsController,
@@ -2900,6 +2841,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildVehicleBrandSelector(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     final List<String> brands = _getAvailableBrands(_selectedVehicleClass);
 
     if (brands.isEmpty) {
@@ -2907,7 +2849,7 @@ class _NewBookingState extends State<NewBooking> {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         child: Text(
           AppLocalizations.of(context)!.noBrandsAvailable,
-          style: TextStyle(color: Colors.white.withAlpha(128)),
+          style: TextStyle(color: c.textTertiary),
         ),
       );
     }
@@ -2919,7 +2861,7 @@ class _NewBookingState extends State<NewBooking> {
         children: [
           Text(
             loc.choosePreferredBrand,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: TextStyle(color: c.textPrimary, fontSize: 14),
           ),
           const SizedBox(height: 12),
           GridView.builder(
@@ -2958,7 +2900,7 @@ class _NewBookingState extends State<NewBooking> {
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected ? Colors.green : Colors.black,
+                      color: isSelected ? c.success : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -2974,20 +2916,17 @@ class _NewBookingState extends State<NewBooking> {
                                   // Brand icon in a square grid cell.
                                   memCacheWidth: 300,
                                   placeholder: (context, url) =>
-                                      const PremiumLoader(
-                                        size: 20,
-                                        color: Colors.white24,
-                                      ),
-                                  errorWidget: (context, url, e) => const Icon(
+                                      PremiumLoader(size: 20, color: c.border),
+                                  errorWidget: (context, url, e) => Icon(
                                     Icons.directions_car,
-                                    color: Colors.white24,
+                                    color: c.border,
                                     size: 24,
                                   ),
                                 ),
                               )
-                            : const Icon(
+                            : Icon(
                                 Icons.directions_car,
-                                color: Colors.white24,
+                                color: c.border,
                                 size: 24,
                               ),
                       ),
@@ -3000,7 +2939,7 @@ class _NewBookingState extends State<NewBooking> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isSelected ? Colors.green : Colors.white24,
+                              color: isSelected ? c.success : c.border,
                               width: 1.5,
                             ),
                           ),
@@ -3009,9 +2948,9 @@ class _NewBookingState extends State<NewBooking> {
                                   child: Container(
                                     width: 6,
                                     height: 6,
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.green,
+                                      color: c.success,
                                     ),
                                   ),
                                 )
@@ -3062,6 +3001,7 @@ class _NewBookingState extends State<NewBooking> {
     BuildContext context,
     AppLocalizations loc,
   ) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.only(left: 12, right: 12),
       child: Column(
@@ -3072,7 +3012,7 @@ class _NewBookingState extends State<NewBooking> {
             child: Text(
               loc.similarVehicleNote,
               style: TextStyle(
-                color: Colors.white.withAlpha(179),
+                color: c.textSecondary,
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
               ),
@@ -3084,16 +3024,17 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildCarImageDisplay(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     final carsList = _cars.isNotEmpty ? _cars : availableCars;
 
     // Find the selected car
     CarModel? selectedCar;
     try {
       selectedCar = carsList.firstWhere(
-        (c) =>
-            c.className == _selectedVehicleClass &&
-            c.brand == _selectedVehicleBrand &&
-            c.modelName == _selectedVehicleModel,
+        (car) =>
+            car.className == _selectedVehicleClass &&
+            car.brand == _selectedVehicleBrand &&
+            car.modelName == _selectedVehicleModel,
       );
     } catch (e) {
       return const SizedBox();
@@ -3108,7 +3049,7 @@ class _NewBookingState extends State<NewBooking> {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              color: Colors.black,
+              color: c.skeleton,
               width: double.infinity,
               child: AspectRatio(
                 aspectRatio: 1.7,
@@ -3118,23 +3059,20 @@ class _NewBookingState extends State<NewBooking> {
                   memCacheWidth: 1080,
                   placeholder: (context, url) {
                     return Shimmer.fromColors(
-                      baseColor: Colors.white.withAlpha(5),
-                      highlightColor: Colors.white.withAlpha(15),
+                      baseColor: c.shimmerBase,
+                      highlightColor: c.shimmerHighlight,
                       child: Container(
                         width: double.infinity,
                         height: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.black,
+                          color: c.textPrimary,
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     );
                   },
-                  errorWidget: (context, url, error) => const Icon(
-                    Icons.directions_car,
-                    size: 50,
-                    color: Colors.white24,
-                  ),
+                  errorWidget: (context, url, error) =>
+                      Icon(Icons.directions_car, size: 50, color: c.border),
                 ),
               ),
             ),
@@ -3144,7 +3082,7 @@ class _NewBookingState extends State<NewBooking> {
           Text(
             _selectedVehicleModel ?? '',
             style: TextStyle(
-              color: Colors.white,
+              color: c.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -3156,6 +3094,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildTripInfoForm(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Form(
       key: _tripInfoFormKey,
       child: Column(
@@ -3166,7 +3105,7 @@ class _NewBookingState extends State<NewBooking> {
             child: Text(
               loc.tripInfo,
               style: TextStyle(
-                color: Colors.white,
+                color: c.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
               ),
@@ -3177,7 +3116,7 @@ class _NewBookingState extends State<NewBooking> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Text(
               loc.tellUsAboutYourJourney,
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(color: c.textTertiary, fontSize: 12),
             ),
           ),
           SizedBox(height: 16),
@@ -3492,6 +3431,7 @@ class _NewBookingState extends State<NewBooking> {
     AppLocalizations loc,
     bool isDropLocation,
   ) {
+    final c = context.colors;
     return FormField<bool>(
       validator: (value) {
         if (isDropLocation) {
@@ -3515,7 +3455,7 @@ class _NewBookingState extends State<NewBooking> {
             children: [
               Text(
                 isDropLocation ? loc.dropLocation : loc.pickupLocation,
-                style: TextStyle(color: Colors.white, fontSize: 14),
+                style: TextStyle(color: c.textPrimary, fontSize: 14),
               ),
               SizedBox(height: 8), // Added SizedBox for spacing
               GestureDetector(
@@ -3526,13 +3466,13 @@ class _NewBookingState extends State<NewBooking> {
                   if (_apiCities.isNotEmpty) {
                     final cityName = _getCityName(context, _selectedCityCode);
                     // Find actual city data by name to avoid index mismatch
-                    final cityData = _apiCities.firstWhere((c) {
+                    final cityData = _apiCities.firstWhere((city) {
                       final isArabic =
                           Localizations.localeOf(context).languageCode == 'ar';
                       final name =
                           (isArabic
-                                  ? (c['cityNameAr'] ?? c['cityName'])
-                                  : c['cityName'])
+                                  ? (city['cityNameAr'] ?? city['cityName'])
+                                  : city['cityName'])
                               .toString();
                       return name == cityName;
                     }, orElse: () => _apiCities.first);
@@ -3687,12 +3627,10 @@ class _NewBookingState extends State<NewBooking> {
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: c.field,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: state.hasError
-                            ? const Color(0xFFCF6679)
-                            : Colors.white24,
+                        color: state.hasError ? c.error : c.border,
                       ),
                     ),
                     child: Row(
@@ -3706,13 +3644,15 @@ class _NewBookingState extends State<NewBooking> {
                                 : _pickupAddress ??
                                       loc.tapToSelectAPickupLocation,
                             style: TextStyle(
-                              color: isDropLocation
-                                  ? _dropAddress != null
-                                        ? Colors.white
-                                        : Colors.white60
-                                  : _pickupAddress != null
-                                  ? Colors.white
-                                  : Colors.white60,
+                              // Set once the customer has picked a place, and
+                              // still a hint until then.
+                              color:
+                                  (isDropLocation
+                                          ? _dropAddress
+                                          : _pickupAddress) !=
+                                      null
+                                  ? c.textPrimary
+                                  : c.textTertiary,
                               fontSize: 14,
                             ),
                             maxLines: 3,
@@ -3722,7 +3662,7 @@ class _NewBookingState extends State<NewBooking> {
                         SizedBox(width: 20),
                         Icon(
                           Icons.location_on_outlined,
-                          color: Colors.white,
+                          color: c.textPrimary,
                           size: 28,
                         ),
                       ],
@@ -3735,10 +3675,7 @@ class _NewBookingState extends State<NewBooking> {
                   padding: const EdgeInsets.only(top: 4, left: 4),
                   child: Text(
                     state.errorText!,
-                    style: const TextStyle(
-                      color: Color(0xFFCF6679),
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: c.error, fontSize: 12),
                   ),
                 ),
             ],
@@ -3780,6 +3717,7 @@ class _NewBookingState extends State<NewBooking> {
     AppLocalizations loc,
     bool isPickup,
   ) {
+    final c = context.colors;
     return FormField<bool>(
       validator: (value) {
         if (isPickup) {
@@ -3802,7 +3740,7 @@ class _NewBookingState extends State<NewBooking> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 loc.pickupDateAndTime,
-                style: TextStyle(color: Colors.white, fontSize: 14),
+                style: TextStyle(color: c.textPrimary, fontSize: 14),
               ),
             ),
             SizedBox(height: 8),
@@ -3812,13 +3750,9 @@ class _NewBookingState extends State<NewBooking> {
               margin: EdgeInsets.symmetric(horizontal: 24),
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: c.field,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: state.hasError
-                      ? const Color(0xFFCF6679)
-                      : Colors.white24,
-                ),
+                border: Border.all(color: state.hasError ? c.error : c.border),
               ),
               child: Row(
                 children: [
@@ -3842,20 +3776,12 @@ class _NewBookingState extends State<NewBooking> {
                               : currentDate,
                           firstDate: firstDate,
                           lastDate: DateTime(2100),
+                          // No `builder`: the picker is Material's own and
+                          // takes its colours from the ambient theme, which
+                          // already carries a [DatePickerThemeData] tuned for
+                          // both modes. It used to be wrapped in a hand-built
+                          // dark one here, which is what pinned it dark.
                           confirmText: loc.done,
-                          builder: (context, child) {
-                            return Theme(
-                              data: ThemeData.dark().copyWith(
-                                colorScheme: ColorScheme.dark(
-                                  primary: Color(0xffE4A46B),
-                                  onPrimary: Colors.black,
-                                  surface: Colors.grey.shade900,
-                                  onSurface: Colors.white,
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
                         );
                         if (picked != null) {
                           FocusScope.of(context).requestFocus(FocusNode());
@@ -3906,7 +3832,7 @@ class _NewBookingState extends State<NewBooking> {
                         padding: EdgeInsets.symmetric(vertical: 8),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade900,
+                          color: c.surfaceAlt,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -3923,7 +3849,7 @@ class _NewBookingState extends State<NewBooking> {
                                         context,
                                         _selectedDate,
                                       )),
-                          style: TextStyle(color: Colors.white, fontSize: 14),
+                          style: TextStyle(color: c.textPrimary, fontSize: 14),
                         ),
                       ),
                     ),
@@ -3967,157 +3893,148 @@ class _NewBookingState extends State<NewBooking> {
                             String? errorMessage;
                             return StatefulBuilder(
                               builder: (context, setDialogState) {
-                                return Theme(
-                                  data: ThemeData.dark().copyWith(
-                                    colorScheme: ColorScheme.dark(
-                                      surface: Colors.grey.shade900,
+                                return AlertDialog(
+                                  backgroundColor: c.surfaceElevated,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  title: Text(
+                                    loc.selectTime,
+                                    style: TextStyle(
+                                      color: c.textPrimary,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  child: AlertDialog(
-                                    backgroundColor: Colors.grey.shade800,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    title: Text(
-                                      loc.selectTime,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    contentPadding: EdgeInsets.zero,
-                                    content: SizedBox(
-                                      height: 250,
-                                      child: Column(
-                                        children: [
-                                          if (errorMessage != null)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                top: 16.0,
-                                                left: 16,
-                                                right: 16,
-                                              ),
-                                              child: Text(
-                                                errorMessage!,
-                                                style: TextStyle(
-                                                  color: Colors.redAccent,
-                                                  fontSize: 13,
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
+                                  contentPadding: EdgeInsets.zero,
+                                  content: SizedBox(
+                                    height: 250,
+                                    child: Column(
+                                      children: [
+                                        if (errorMessage != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 16.0,
+                                              left: 16,
+                                              right: 16,
                                             ),
-                                          Expanded(
-                                            child: CupertinoTheme(
-                                              data: CupertinoThemeData(
-                                                brightness: Brightness.dark,
-                                                textTheme:
-                                                    CupertinoTextThemeData(
-                                                  // Cupertino widgets do
-                                                  // not read the Material
-                                                  // text theme, so the
-                                                  // family set in main.dart
-                                                  // misses this wheel — its
-                                                  // dates would be drawn in
-                                                  // the OS font while the
-                                                  // rest of the screen uses
-                                                  // Noto Naskh.
-                                                      dateTimePickerTextStyle:
-                                                      const TextStyle(
-                                                            color: Colors.white,
-                                                        fontFamily:
-                                                            'NotoNaskhArabic',
-                                                          ),
-                                                    ),
+                                            child: Text(
+                                              errorMessage!,
+                                              style: TextStyle(
+                                                color: c.error,
+                                                fontSize: 13,
                                               ),
-                                              child: CupertinoDatePicker(
-                                                mode: CupertinoDatePickerMode
-                                                    .time,
-                                                use24hFormat: false,
-                                                // Anchored on the chosen day so
-                                                // minimumDate bounds the same
-                                                // date the wheel is showing.
-                                                initialDateTime:
-                                                    _clampToMinimum(
-                                                      DateTime(
-                                                        pickedDate.year,
-                                                        pickedDate.month,
-                                                        pickedDate.day,
-                                                        tempTime.hour,
-                                                        tempTime.minute,
-                                                      ),
-                                                      minimumTime,
-                                                    ),
-                                                minimumDate: minimumTime,
-                                                onDateTimeChanged:
-                                                    (DateTime newDateTime) {
-                                                      setDialogState(() {
-                                                        errorMessage = null;
-                                                        tempTime =
-                                                            TimeOfDay.fromDateTime(
-                                                              newDateTime,
-                                                            );
-                                                      });
-                                                    },
-                                              ),
+                                              textAlign: TextAlign.center,
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          // The wheel can be dragged below the
-                                          // minimum before it springs back, so
-                                          // the bound is enforced again here.
-                                          final chosen = DateTime(
-                                            pickedDate.year,
-                                            pickedDate.month,
-                                            pickedDate.day,
-                                            tempTime.hour,
-                                            tempTime.minute,
-                                          );
-                                          // Against the bound the wheel was
-                                          // built with, so the button never
-                                          // refuses a time the wheel allows;
-                                          // the continue step re-checks against
-                                          // the clock as it stands then.
-                                          if (chosen.isBefore(earliest)) {
-                                            setDialogState(() {
-                                              errorMessage =
-                                                  _bufferAdvanceMessage(
-                                                    context,
-                                                    loc,
-                                                  );
-                                            });
-                                            return;
-                                          }
-                                          setState(() {
-                                            if (isPickup) {
-                                              _selectedPickupTime = tempTime;
-                                            } else {
-                                              _selectedTime = tempTime;
-                                            }
-                                          });
-                                          _logPickupSelection(
-                                            'time picker done, '
-                                            'wheel=${tempTime.hour}:'
-                                            '${tempTime.minute.toString().padLeft(2, '0')}',
-                                          );
-                                          state.didChange(true);
-                                          Navigator.of(dialogContext).pop();
-                                        },
-                                        child: Text(
-                                          loc.done,
-                                          style: TextStyle(
-                                            color: Color(0xffE4A46B),
-                                            fontWeight: FontWeight.bold,
+                                        Expanded(
+                                          child: CupertinoTheme(
+                                            data: CupertinoThemeData(
+                                              brightness: c.brightness,
+                                              textTheme: CupertinoTextThemeData(
+                                                // Cupertino widgets do
+                                                // not read the Material
+                                                // text theme, so the
+                                                // family set in main.dart
+                                                // misses this wheel — its
+                                                // dates would be drawn in
+                                                // the OS font while the
+                                                // rest of the screen uses
+                                                // Noto Naskh.
+                                                dateTimePickerTextStyle:
+                                                    TextStyle(
+                                                      color: c.textPrimary,
+                                                      fontFamily:
+                                                          'NotoNaskhArabic',
+                                                    ),
+                                              ),
+                                            ),
+                                            child: CupertinoDatePicker(
+                                              mode:
+                                                  CupertinoDatePickerMode.time,
+                                              use24hFormat: false,
+                                              // Anchored on the chosen day so
+                                              // minimumDate bounds the same
+                                              // date the wheel is showing.
+                                              initialDateTime: _clampToMinimum(
+                                                DateTime(
+                                                  pickedDate.year,
+                                                  pickedDate.month,
+                                                  pickedDate.day,
+                                                  tempTime.hour,
+                                                  tempTime.minute,
+                                                ),
+                                                minimumTime,
+                                              ),
+                                              minimumDate: minimumTime,
+                                              onDateTimeChanged:
+                                                  (DateTime newDateTime) {
+                                                    setDialogState(() {
+                                                      errorMessage = null;
+                                                      tempTime =
+                                                          TimeOfDay.fromDateTime(
+                                                            newDateTime,
+                                                          );
+                                                    });
+                                                  },
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        // The wheel can be dragged below the
+                                        // minimum before it springs back, so
+                                        // the bound is enforced again here.
+                                        final chosen = DateTime(
+                                          pickedDate.year,
+                                          pickedDate.month,
+                                          pickedDate.day,
+                                          tempTime.hour,
+                                          tempTime.minute,
+                                        );
+                                        // Against the bound the wheel was
+                                        // built with, so the button never
+                                        // refuses a time the wheel allows;
+                                        // the continue step re-checks against
+                                        // the clock as it stands then.
+                                        if (chosen.isBefore(earliest)) {
+                                          setDialogState(() {
+                                            errorMessage =
+                                                _bufferAdvanceMessage(
+                                                  context,
+                                                  loc,
+                                                );
+                                          });
+                                          return;
+                                        }
+                                        setState(() {
+                                          if (isPickup) {
+                                            _selectedPickupTime = tempTime;
+                                          } else {
+                                            _selectedTime = tempTime;
+                                          }
+                                        });
+                                        _logPickupSelection(
+                                          'time picker done, '
+                                          'wheel=${tempTime.hour}:'
+                                          '${tempTime.minute.toString().padLeft(2, '0')}',
+                                        );
+                                        state.didChange(true);
+                                        Navigator.of(dialogContext).pop();
+                                      },
+                                      child: Text(
+                                        loc.done,
+                                        style: TextStyle(
+                                          color: c.accent,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 );
                               },
                             );
@@ -4129,7 +4046,7 @@ class _NewBookingState extends State<NewBooking> {
                         padding: EdgeInsets.symmetric(vertical: 8),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade900,
+                          color: c.surfaceAlt,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -4140,7 +4057,7 @@ class _NewBookingState extends State<NewBooking> {
                               : (_selectedTime == null
                                     ? loc.selectTime
                                     : _selectedTime!.format(context)),
-                          style: TextStyle(color: Colors.white, fontSize: 14),
+                          style: TextStyle(color: c.textPrimary, fontSize: 14),
                         ),
                       ),
                     ),
@@ -4153,10 +4070,7 @@ class _NewBookingState extends State<NewBooking> {
                 padding: const EdgeInsets.only(left: 28, top: 4),
                 child: Text(
                   state.errorText!,
-                  style: const TextStyle(
-                    color: Color(0xFFCF6679),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: c.error, fontSize: 12),
                 ),
               ),
           ],
@@ -4166,21 +4080,30 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildIncompleteCheckMark(BuildContext context) {
-    return Icon(Icons.circle_outlined, color: Colors.grey.shade700, size: 20);
+    return Icon(
+      Icons.circle_outlined,
+      color: context.colors.textDisabled,
+      size: 20,
+    );
   }
 
   Widget buildCompletedCheckMark(BuildContext context) {
+    final c = context.colors;
     return ShaderMask(
       shaderCallback: (bounds) => LinearGradient(
-        colors: [Color(0xff49280B), Color(0xffE4A46B), Color(0xff60350F)],
+        colors: context.colors.goldIconGradient,
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
       ).createShader(bounds),
-      child: Icon(Icons.check_circle, color: Colors.white, size: 20),
+      // White, and it has to be: ShaderMask defaults to BlendMode.modulate,
+      // which multiplies the child by the shader, and white is that
+      // operation's identity.
+      child: Icon(Icons.check_circle, color: c.textPrimary, size: 20),
     );
   }
 
   PreferredSizeWidget buidAppBar(BuildContext context) {
+    final c = context.colors;
     final loc = AppLocalizations.of(context)!;
     return PreferredSize(
       preferredSize: Size.fromHeight(kToolbarHeight + 76),
@@ -4189,7 +4112,7 @@ class _NewBookingState extends State<NewBooking> {
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(100), Colors.transparent],
+            colors: c.appBarScrim,
           ),
         ),
         child: AppBar(
@@ -4199,14 +4122,14 @@ class _NewBookingState extends State<NewBooking> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 20,
-              color: Colors.white,
+              color: c.textPrimary,
               letterSpacing: 0.5,
             ),
           ),
           backgroundColor: Colors.transparent,
           leading: IconButton(
             enableFeedback: true,
-            icon: Icon(Icons.arrow_back_ios, color: Colors.white, size: 16),
+            icon: Icon(Icons.arrow_back_ios, color: c.textPrimary, size: 16),
             onPressed: _handleBackAction,
           ),
           bottom: PreferredSize(
@@ -4219,6 +4142,7 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   Widget buildStepper(BuildContext context) {
+    final c = context.colors;
     AppLocalizations loc = AppLocalizations.of(context)!;
 
     bool isPrefActiveOrPassed =
@@ -4226,7 +4150,7 @@ class _NewBookingState extends State<NewBooking> {
     bool isPassActiveOrPassed = showPassenger || showReviewAndConfirm;
 
     return Container(
-      decoration: BoxDecoration(color: Colors.black.withAlpha(140)),
+      decoration: BoxDecoration(color: c.surfaceAlt),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
         child: Row(
@@ -4240,15 +4164,13 @@ class _NewBookingState extends State<NewBooking> {
                 buildCompletedCheckMark(context),
                 Text(
                   loc.tripInfo,
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+                  style: TextStyle(color: c.textPrimary, fontSize: 12),
                 ),
               ],
             ),
             Expanded(
               child: Divider(
-                color: isPrefActiveOrPassed
-                    ? const Color(0xffE4A46B)
-                    : Colors.grey.shade700,
+                color: isPrefActiveOrPassed ? c.accent : c.textDisabled,
                 thickness: 1,
                 indent: 20,
                 endIndent: 20,
@@ -4266,17 +4188,15 @@ class _NewBookingState extends State<NewBooking> {
                   style: TextStyle(
                     fontSize: 12,
                     color: isPrefActiveOrPassed
-                        ? Colors.white
-                        : Colors.grey.shade700,
+                        ? c.textPrimary
+                        : c.textDisabled,
                   ),
                 ),
               ],
             ),
             Expanded(
               child: Divider(
-                color: isPassActiveOrPassed
-                    ? const Color(0xffE4A46B)
-                    : Colors.grey.shade700,
+                color: isPassActiveOrPassed ? c.accent : c.textDisabled,
                 thickness: 1,
                 indent: 20,
                 endIndent: 20,
@@ -4294,8 +4214,8 @@ class _NewBookingState extends State<NewBooking> {
                   style: TextStyle(
                     fontSize: 12,
                     color: isPassActiveOrPassed
-                        ? Colors.white
-                        : Colors.grey.shade700,
+                        ? c.textPrimary
+                        : c.textDisabled,
                   ),
                 ),
               ],

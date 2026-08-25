@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:shimmer/shimmer.dart';
 
 class PremuimfleetcardShimmer extends StatelessWidget {
@@ -6,16 +7,21 @@ class PremuimfleetcardShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    // Shimmer masks its child with `BlendMode.srcIn`, so only the child's
+    // *alpha* survives — its colours are replaced by the sweep. That is why the
+    // blocks below are left as translucent whites: they are opacity stencils,
+    // and the two colours here are the only ones that reach the screen.
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Shimmer.fromColors(
-        baseColor: Colors.grey[900]!,
-        highlightColor: Colors.grey[800]!,
+        baseColor: c.shimmerBase,
+        highlightColor: c.shimmerHighlight,
         child: Container(
           height: 160,
           width: 240,
           decoration: BoxDecoration(
-            color: Colors.black,
+            color: c.skeleton,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Stack(

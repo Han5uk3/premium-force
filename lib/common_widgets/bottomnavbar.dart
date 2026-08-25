@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -16,8 +17,19 @@ class BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return Container(
       margin: const EdgeInsets.only(left: 18, right: 18, bottom: 22),
+      // The bar floats over the page rather than sitting on it, so it is lifted
+      // by a shadow. On the dark theme that shadow all but vanishes against
+      // black — which is fine, the frost already separates it. On the light one
+      // it is what stops a white bar dissolving into a near-white page.
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+        boxShadow: [
+          BoxShadow(color: c.shadow, blurRadius: 20, offset: const Offset(0, 6)),
+        ],
+      ),
       child: ClipRRect(
         borderRadius: const BorderRadius.all(Radius.circular(16)),
         child: BackdropFilter(
@@ -32,8 +44,11 @@ class BottomNavBar extends StatelessWidget {
             width: MediaQuery.of(context).size.width,
             height: 70,
             decoration: BoxDecoration(
-              color: const Color(0xff292929).withValues(alpha: 0.7),
+              // Already translucent — the blur behind it is doing the frosting,
+              // so this must not be opaque.
+              color: c.navBar,
               borderRadius: const BorderRadius.all(Radius.circular(16)),
+              border: Border.all(color: c.border.withValues(alpha: 0.5)),
             ),
             child: Row(
               spacing: 8,
@@ -132,6 +147,21 @@ class _MenuIconState extends State<MenuIcon>
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    // The selected pill is a gold wash that starts dark and settles: one deep
+    // stop, then the accent held across the rest of the width so the label sits
+    // on flat gold rather than on a ramp.
+    final selectedFill = LinearGradient(
+      colors: [
+        c.goldGradient.last,
+        c.goldGradient[1],
+        c.goldGradient[1],
+        c.goldGradient[1],
+        c.goldGradient[1],
+        c.goldGradient[1],
+      ],
+    );
+
     return Expanded(
       child: Material(
         borderRadius: BorderRadius.circular(16),
@@ -145,16 +175,7 @@ class _MenuIconState extends State<MenuIcon>
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               gradient: widget.isSelected
-                  ? const LinearGradient(
-                      colors: [
-                        Color(0xff60350F),
-                        Color(0xffE4A46B),
-                        Color(0xffE4A46B),
-                        Color(0xffE4A46B),
-                        Color(0xffE4A46B),
-                        Color(0xffE4A46B),
-                      ],
-                    )
+                  ? selectedFill
                   : const LinearGradient(
                       colors: [Colors.transparent, Colors.transparent],
                     ),
@@ -171,7 +192,9 @@ class _MenuIconState extends State<MenuIcon>
                   child: Icon(
                     widget.icon,
                     key: ValueKey(widget.isSelected),
-                    color: widget.isSelected ? Colors.black : Colors.white,
+                    // Selected sits on gold and takes the on-gold ink;
+                    // unselected sits on the frosted bar and takes the page's.
+                    color: widget.isSelected ? c.onGold : c.textPrimary,
                     size: 20,
                   ),
                 ),
@@ -191,8 +214,8 @@ class _MenuIconState extends State<MenuIcon>
                                   widget.label,
                                   maxLines: 1,
                                   overflow: TextOverflow.clip,
-                                  style: const TextStyle(
-                                    color: Colors.black,
+                                  style: TextStyle(
+                                    color: c.onGold,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w900,
                                   ),

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter_paytabs_bridge/BaseBillingShippingInfo.dart';
-import 'package:flutter_paytabs_bridge/IOSThemeConfiguration.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkConfigurationDetails.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkLocale.dart';
 import 'package:flutter_paytabs_bridge/PaymentSDKNetworks.dart';
@@ -9,7 +8,9 @@ import 'package:flutter_paytabs_bridge/flutter_paytabs_bridge.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkTokeniseType.dart';
 import 'package:flutter_paytabs_bridge/PaymentSdkTransactionType.dart';
 import 'package:premium_force_main/models/payment_model.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
+import 'package:premium_force_main/utils/paytabs_theme.dart';
 
 /// Payment service wrapper for Paytabs bridge
 /// This service handles all payment transactions with Paytabs
@@ -37,7 +38,14 @@ class PaymentService {
 
   /// Start payment transaction
   /// Returns PaymentResult with transaction details
-  Future<PaymentResult> startPayment({required PaymentRequest request}) async {
+  ///
+  /// [palette] is the theme the gateway sheet should be drawn in. It defaults
+  /// to the dark one, which is what this path shipped with; a caller that knows
+  /// the app's current theme should pass it.
+  Future<PaymentResult> startPayment({
+    required PaymentRequest request,
+    AppPalette palette = AppPalette.dark,
+  }) async {
     final Completer<PaymentResult> completer = Completer<PaymentResult>();
 
     try {
@@ -102,51 +110,9 @@ class PaymentService {
         ],
       );
 
-      var theme = IOSThemeConfigurations();
-      theme.logoImage = "assets/applogo/premiumforcelogo.png";
-
-      // Screen background (black)
-      theme.backgroundColor = "000000";
-      theme.backgroundColorDark = "000000";
-
-      // Primary accent color (Grey)
-      theme.primaryColor = "444444";
-      theme.primaryColorDark = "444444";
-
-      // Secondary/Card container background color
-      theme.secondaryColor = "1E1E1E";
-      theme.secondaryColorDark = "1E1E1E";
-
-      // Text color in text fields (white)
-      theme.primaryFontColor = "FFFFFF";
-      theme.primaryFontColorDark = "FFFFFF";
-
-      // Label / helper text color (light gray)
-      theme.secondaryFontColor = "E0E0E0";
-      theme.secondaryFontColorDark = "E0E0E0";
-
-      // Button background and text color
-      theme.buttonColor = "444444";
-      theme.buttonColorDark = "444444";
-      theme.buttonFontColor = "FFFFFF";
-      theme.buttonFontColorDark = "FFFFFF";
-
-      // Navigation title color
-      theme.titleFontColor = "FFFFFF";
-      theme.titleFontColorDark = "FFFFFF";
-
-      // Borders/Stroke color and thickness
-      theme.strokeColor = "444444";
-      theme.strokeColorDark = "444444";
-      theme.strokeThinckness = 1;
-
-      // Text fields placeholder and background colors
-      theme.placeholderColor = "888888";
-      theme.placeholderColorDark = "888888";
-      theme.inputFieldBackgroundColor = "141313";
-      theme.inputFieldBackgroundColorDark = "141313";
-
-      configuration.iOSThemeConfigurations = theme;
+      // The same builder the session-driven service uses, so the two checkouts
+      // cannot drift apart.
+      configuration.iOSThemeConfigurations = buildPremiumForceTheme(palette);
 
       // 3. Initiate Payment (Do not await method launch so we can return the future)
       FlutterPaytabsBridge.startCardPayment(configuration, (event) {
@@ -306,8 +272,9 @@ class PaymentService {
   Future<PaymentResult> startRecurringPayment({
     required PaymentRequest request,
     required String agreementId,
+    AppPalette palette = AppPalette.dark,
   }) async {
-    return startPayment(request: request);
+    return startPayment(request: request, palette: palette);
   }
 
   /// Start Apple Pay payment (iOS only)

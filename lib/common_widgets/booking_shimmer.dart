@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:shimmer/shimmer.dart';
 
 class BookingShimmer extends StatelessWidget {
@@ -17,6 +18,7 @@ class BookingShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return ListView.builder(
       itemCount: itemCount,
       shrinkWrap: shrinkWrap,
@@ -32,12 +34,16 @@ class BookingShimmer extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: c.surfaceDeep,
               borderRadius: BorderRadius.circular(12),
             ),
+            // Card chrome outside the sweep, placeholder bars inside it: the
+            // shimmer masks its child with `BlendMode.srcIn`, so anything under
+            // it keeps only its alpha and the whole card would otherwise
+            // dissolve into one shimmering block.
             child: Shimmer.fromColors(
-              baseColor: Colors.grey.shade900,
-              highlightColor: Colors.grey.shade800,
+              baseColor: c.shimmerBase,
+              highlightColor: c.shimmerHighlight,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -135,7 +141,10 @@ class BookingShimmer extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      color: const Color(0xFF332627),
+                      // Inside the sweep, so this is an alpha stencil rather
+                      // than a colour: half strength reads as a filled band
+                      // behind the bars instead of another bar.
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

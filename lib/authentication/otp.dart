@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:pinput/pinput.dart';
 import 'package:smart_auth/smart_auth.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/authentication/signup.dart';
@@ -150,6 +151,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     PreferredSizeWidget buidAppBar() {
       return PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
@@ -158,7 +160,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              colors: [Colors.black.withAlpha(150), Colors.transparent],
+              colors: c.appBarScrim,
             ),
           ),
           child: AppBar(
@@ -167,14 +169,14 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
               AppLocalizations.of(context)!.enterOtp,
               style: TextStyle(
                 fontSize: 18,
-                color: Colors.white,
+                color: c.textPrimary,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),
             ),
             backgroundColor: Colors.transparent,
             leading: IconButton(
-              icon: Icon(Icons.arrow_back_ios, size: 16, color: Colors.white),
+              icon: Icon(Icons.arrow_back_ios, size: 16, color: c.icon),
               onPressed: () {
                 Navigator.pop(context);
               },
@@ -187,29 +189,26 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     final defaultPinTheme = PinTheme(
       width: 55,
       height: 55,
-      textStyle: const TextStyle(
+      textStyle: TextStyle(
         fontSize: 20,
-        color: Colors.white,
+        color: c.textPrimary,
         fontWeight: FontWeight.w600,
       ),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: c.field,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.transparent),
+        // Matches the fill, so an unfocused box reads as borderless while the
+        // focused theme below still has an edge to draw on.
+        border: Border.all(color: c.field),
       ),
     );
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1105),
-            Color(0xFF1E1105),
-            Color.fromARGB(255, 26, 23, 23),
-            Color.fromARGB(255, 26, 23, 23),
-          ],
+          colors: c.pageGradient,
         ),
       ),
       child: Scaffold(
@@ -232,7 +231,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
-                        color: Colors.white,
+                        color: c.textSecondary,
                       ),
                     ),
                     WidgetSpan(
@@ -244,7 +243,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: c.textPrimary,
                           ),
                         ),
                       ),
@@ -292,7 +291,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                     separatorBuilder: (index) => const SizedBox(width: 8),
                     focusedPinTheme: defaultPinTheme.copyWith(
                       decoration: defaultPinTheme.decoration!.copyWith(
-                        border: Border.all(color: const Color(0xFFD4A574)),
+                        border: Border.all(color: c.accent),
                       ),
                     ),
                     onCompleted: (pin) {
@@ -317,10 +316,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                     children: [
                       Text(
                         AppLocalizations.of(context)!.didntReceiveTheCode,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withAlpha(180),
-                        ),
+                        style: TextStyle(fontSize: 12, color: c.textTertiary),
                       ),
                       GestureDetector(
                         onTap: canResend
@@ -366,9 +362,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: canResend
-                                ? const Color(0xFFD4A574)
-                                : Colors.white.withAlpha(100),
+                            color: canResend ? c.accent : c.textDisabled,
                           ),
                         ),
                       ),

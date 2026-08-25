@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 /// Dropdown whose menu opens directly below the field.
 ///
@@ -62,6 +63,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final selected = widget.items.contains(_selectedValue)
         ? _selectedValue
         : null;
@@ -72,7 +74,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
         if (widget.title.isNotEmpty) ...[
           Text(
             widget.title,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: TextStyle(color: c.textPrimary, fontSize: 14),
           ),
           const SizedBox(height: 8),
         ],
@@ -90,7 +92,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
               consumeOutsideTap: true,
               style: MenuStyle(
                 alignment: AlignmentDirectional.bottomStart,
-                backgroundColor: const WidgetStatePropertyAll(Colors.black),
+                backgroundColor: WidgetStatePropertyAll(c.surfaceElevated),
                 surfaceTintColor: const WidgetStatePropertyAll(
                   Colors.transparent,
                 ),
@@ -103,15 +105,15 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
                 shape: WidgetStatePropertyAll(
                   RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(_radius),
-                    side: const BorderSide(color: Colors.white24),
+                    side: BorderSide(color: c.border),
                   ),
                 ),
               ),
               menuChildren: [
-                for (final item in widget.items) _buildMenuItem(item, width),
+                for (final item in widget.items) _buildMenuItem(c, item, width),
               ],
               builder: (context, controller, _) =>
-                  _buildField(controller, selected),
+                  _buildField(c, controller, selected),
             );
           },
         ),
@@ -120,11 +122,15 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
   }
 
   /// The closed field: what the old button looked like, made tappable.
-  Widget _buildField(MenuController controller, String? selected) {
+  Widget _buildField(
+    AppPalette c,
+    MenuController controller,
+    String? selected,
+  ) {
     final imageUrl = selected == null ? null : widget.itemImages?[selected];
 
     return Material(
-      color: Colors.black,
+      color: c.fieldStrong,
       borderRadius: BorderRadius.circular(_radius),
       child: InkWell(
         borderRadius: BorderRadius.circular(_radius),
@@ -140,24 +146,25 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(_radius),
-            border: Border.all(color: Colors.white24),
+            border: Border.all(color: c.border),
           ),
           child: Row(
             children: [
               if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                _buildThumbnail(imageUrl),
+                _buildThumbnail(c, imageUrl),
                 const SizedBox(width: 12),
               ],
               Expanded(
                 child: Text(
                   selected ?? widget.hint ?? '',
                   style: TextStyle(
-                    color: selected == null ? Colors.white54 : Colors.white,
+                    // Nothing picked yet reads as a hint, not as an answer.
+                    color: selected == null ? c.textTertiary : c.textPrimary,
                     fontSize: 14,
                   ),
                 ),
               ),
-              const Icon(Icons.arrow_drop_down, color: Colors.white),
+              Icon(Icons.arrow_drop_down, color: c.icon),
             ],
           ),
         ),
@@ -166,7 +173,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
   }
 
   /// One menu row, sized to [width] so the menu is never wider than the field.
-  Widget _buildMenuItem(String item, double width) {
+  Widget _buildMenuItem(AppPalette c, String item, double width) {
     final imageUrl = widget.itemImages?[item];
 
     return MenuItemButton(
@@ -177,7 +184,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
           EdgeInsets.symmetric(horizontal: _horizontalPadding),
         ),
         backgroundColor: WidgetStatePropertyAll(
-          item == _selectedValue ? Colors.white10 : Colors.transparent,
+          item == _selectedValue ? c.accentSurface : Colors.transparent,
         ),
       ),
       child: SizedBox(
@@ -186,13 +193,13 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
         child: Row(
           children: [
             if (imageUrl != null && imageUrl.isNotEmpty) ...[
-              _buildThumbnail(imageUrl),
+              _buildThumbnail(c, imageUrl),
               const SizedBox(width: 12),
             ],
             Expanded(
               child: Text(
                 item,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: TextStyle(color: c.textPrimary, fontSize: 14),
               ),
             ),
           ],
@@ -201,7 +208,12 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
     );
   }
 
-  Widget _buildThumbnail(String imageUrl) {
+  /// A vehicle thumbnail.
+  ///
+  /// The tile behind it stays white in both modes: these are photographs shot
+  /// on white, and darkening the plate would leave a bright rectangle floating
+  /// inside a dark one.
+  Widget _buildThumbnail(AppPalette c, String imageUrl) {
     return Container(
       width: 32,
       height: 32,
@@ -215,7 +227,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
         fit: BoxFit.contain,
         // 32pt thumbnail at 3x.
         memCacheWidth: 100,
-        placeholder: (context, url) => Container(color: Colors.grey.shade800),
+        placeholder: (context, url) => Container(color: c.shimmerBase),
         errorWidget: (context, url, error) =>
             const Icon(Icons.directions_car, size: 20, color: Colors.black),
       ),

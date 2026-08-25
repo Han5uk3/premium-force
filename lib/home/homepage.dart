@@ -27,6 +27,8 @@ import 'package:premium_force_main/models/v2/geo_models.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/home/fleet_list_page.dart';
 import 'package:premium_force_main/common_widgets/tracking_card.dart';
+import 'package:premium_force_main/common_widgets/gold_icon.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -46,12 +48,6 @@ class _HomepageState extends State<Homepage>
 
   @override
   bool get wantKeepAlive => true;
-
-  final Gradient gradient = LinearGradient(
-    colors: [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
 
   @override
   void initState() {
@@ -508,11 +504,12 @@ class _HomepageState extends State<Homepage>
   Widget build(BuildContext context) {
     super.build(context);
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: c.scaffold,
       body: RefreshIndicator(
-        color: Color(0xFFE4A46B),
-        backgroundColor: Colors.black,
+        color: c.accent,
+        backgroundColor: c.surface,
         onRefresh: _handleRefresh,
         child: SingleChildScrollView(
           physics: const ClampingScrollPhysics(),
@@ -544,7 +541,7 @@ class _HomepageState extends State<Homepage>
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: c.textPrimary,
                           ),
                         ),
                       ),
@@ -556,10 +553,9 @@ class _HomepageState extends State<Homepage>
               _buildPremiumFleet(context, loc),
 
               Flexible(child: _buildRecentBookings(context, loc)),
-              Container(
-                height: 130,
-                color: Color(0xff292929).withValues(alpha: 0.6),
-              ),
+              // Runs the recent-bookings band on past the last card, so the
+              // floating nav bar sits over that band rather than over a seam.
+              Container(height: 130, color: c.surfaceAlt),
             ],
           ),
         ),
@@ -568,10 +564,11 @@ class _HomepageState extends State<Homepage>
   }
 
   Widget _buildRecentBookings(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Consumer<BookingProvider>(
       builder: (context, bookingProvider, child) {
         return Container(
-          color: const Color(0xff292929).withValues(alpha: 0.6),
+          color: c.surfaceAlt,
           width: MediaQuery.of(context).size.width,
           padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
           child: Column(
@@ -584,7 +581,7 @@ class _HomepageState extends State<Homepage>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: c.textPrimary,
                 ),
               ),
               if (bookingProvider.isLoading)
@@ -607,9 +604,9 @@ class _HomepageState extends State<Homepage>
                       horizontal: 16,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(80),
+                      color: c.surface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.withAlpha(20)),
+                      border: Border.all(color: c.border),
                     ),
                     child: Center(
                       child: Column(
@@ -618,7 +615,7 @@ class _HomepageState extends State<Homepage>
                           Icon(
                             Icons.history_rounded,
                             size: 42,
-                            color: Colors.grey.withAlpha(120),
+                            color: c.iconMuted,
                           ),
                           SizedBox(height: 12),
                           Text(
@@ -626,7 +623,7 @@ class _HomepageState extends State<Homepage>
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: Colors.grey.withAlpha(200),
+                              color: c.textTertiary,
                             ),
                           ),
                         ],
@@ -688,9 +685,10 @@ class _HomepageState extends State<Homepage>
   }
 
   Widget _buildPremiumFleet(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Container(
       height: 230,
-      color: Colors.black,
+      color: c.scaffold,
       width: MediaQuery.of(context).size.width,
       padding: const EdgeInsets.only(top: 12),
       child: Column(
@@ -707,7 +705,7 @@ class _HomepageState extends State<Homepage>
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: c.textPrimary,
                   ),
                 ),
                 GestureDetector(
@@ -724,7 +722,7 @@ class _HomepageState extends State<Homepage>
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFFE4A46B),
+                      color: c.accent,
                     ),
                   ),
                 ),
@@ -752,7 +750,7 @@ class _HomepageState extends State<Homepage>
                 ? Center(
                     child: Text(
                       loc.noCarsAvailable,
-                      style: TextStyle(color: Colors.white54),
+                      style: TextStyle(color: c.textTertiary),
                     ),
                   )
                 : ListView.builder(
@@ -782,9 +780,10 @@ class _HomepageState extends State<Homepage>
   }
 
   Widget _buildBookService(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return Container(
       height: 200,
-      color: Color(0xFF401F02),
+      color: c.accentSurface,
       width: MediaQuery.of(context).size.width,
       padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
       child: Column(
@@ -796,7 +795,7 @@ class _HomepageState extends State<Homepage>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: c.textPrimary,
             ),
           ),
           SizedBox(height: 8),
@@ -819,20 +818,7 @@ class _HomepageState extends State<Homepage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          height: 44,
-                          width: 44,
-                          child: ShaderMask(
-                            shaderCallback: (bounds) => gradient.createShader(
-                              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                            ),
-                            blendMode: BlendMode.srcIn,
-                            child: Image.asset(
-                              "assets/icons/airportservices.png",
-                              fit: BoxFit.fill,
-                            ),
-                          ),
-                        ),
+                        const GoldIcon(asset: "assets/icons/airportservices.png", size: 44),
                         SizedBox(height: 8),
                         Text(
                           loc.airportServices,
@@ -841,7 +827,7 @@ class _HomepageState extends State<Homepage>
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: c.textPrimary,
                           ),
                         ),
                       ],
@@ -865,20 +851,7 @@ class _HomepageState extends State<Homepage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          height: 44,
-                          width: 44,
-                          child: ShaderMask(
-                            shaderCallback: (bounds) => gradient.createShader(
-                              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                            ),
-                            blendMode: BlendMode.srcIn,
-                            child: Image.asset(
-                              "assets/icons/chauffeur.png",
-                              fit: BoxFit.fill,
-                            ),
-                          ),
-                        ),
+                        const GoldIcon(asset: "assets/icons/chauffeur.png", size: 44),
                         SizedBox(height: 8),
                         Text(
                           loc.privateTransfer,
@@ -887,7 +860,7 @@ class _HomepageState extends State<Homepage>
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: c.textPrimary,
                           ),
                         ),
                       ],
@@ -911,20 +884,7 @@ class _HomepageState extends State<Homepage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          height: 44,
-                          width: 44,
-                          child: ShaderMask(
-                            shaderCallback: (bounds) => gradient.createShader(
-                              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                            ),
-                            blendMode: BlendMode.srcIn,
-                            child: Image.asset(
-                              "assets/icons/chauff.png",
-                              fit: BoxFit.fill,
-                            ),
-                          ),
-                        ),
+                        const GoldIcon(asset: "assets/icons/chauff.png", size: 44),
                         SizedBox(height: 8),
                         Text(
                           loc.chauffeurService,
@@ -933,7 +893,7 @@ class _HomepageState extends State<Homepage>
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: c.textPrimary,
                           ),
                         ),
                       ],
@@ -949,16 +909,21 @@ class _HomepageState extends State<Homepage>
   }
 
   Widget _buildAppbar(BuildContext context, AppLocalizations loc) {
+    // The header stays a dark photograph in both themes. It is the page's hero
+    // image, not a surface — a light theme with a dark hero is the look, and
+    // washing the photo out to match the page would cost the greeting and the
+    // icons over it their only contrast. Everything drawn on it therefore keeps
+    // the fixed white it needs against the picture.
     return Container(
       height: 301,
       padding: const EdgeInsets.only(top: 50),
       decoration: BoxDecoration(
         image: DecorationImage(
           colorFilter: ColorFilter.mode(
-            Color(0xFF1E1105).withAlpha(120),
+            const Color(0xFF1E1105).withAlpha(120),
             BlendMode.srcATop,
           ),
-          image: AssetImage('assets/images/homeappbar.jpeg'),
+          image: const AssetImage('assets/images/homeappbar.jpeg'),
           fit: BoxFit.none,
         ),
       ),
@@ -1135,6 +1100,7 @@ class _HomepageState extends State<Homepage>
     if (catcode == 0 || catcode == 1) {
       _fetchLocationData();
     }
+    final c = context.colors;
     bool isEnglish = Localizations.localeOf(context).languageCode == 'en';
     int selectedCityIndex = 0; // default to Riyadh
 
@@ -1156,12 +1122,14 @@ class _HomepageState extends State<Homepage>
               behavior: HitTestBehavior.opaque,
               onTap: () {},
               child: Container(
-                decoration: const BoxDecoration(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color(0xFF3E230A), Color(0xFF141313)],
+                    colors: c.sheetGradient,
                   ),
                 ),
                 child: Padding(
@@ -1183,10 +1151,10 @@ class _HomepageState extends State<Homepage>
                           children: [
                             Text(
                               loc.chooseCity,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                                color: c.textPrimary,
                               ),
                             ),
                             const Spacer(),
@@ -1194,15 +1162,12 @@ class _HomepageState extends State<Homepage>
                               onTap: () {
                                 Navigator.pop(context);
                               },
-                              child: const Icon(
-                                Icons.close,
-                                color: Colors.white,
-                              ),
+                              child: Icon(Icons.close, color: c.icon),
                             ),
                           ],
                         ),
                       ),
-                      const Divider(color: Colors.grey, thickness: 1),
+                      Divider(color: c.divider, thickness: 1),
                       const SizedBox(height: 8),
                       LayoutBuilder(
                         builder: (context, constraints) {
@@ -1246,8 +1211,8 @@ class _HomepageState extends State<Homepage>
                                                     isEnglish
                                                         ? "No active cities available"
                                                         : "Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø¯Ù† Ù†Ø´Ø·Ø© Ù…ØªØ§Ø­Ø©",
-                                                    style: const TextStyle(
-                                                      color: Colors.white70,
+                                                    style: TextStyle(
+                                                      color: c.textSecondary,
                                                     ),
                                                   ),
                                                 ),
@@ -1423,12 +1388,13 @@ class _HomepageState extends State<Homepage>
   }
 
   Widget _buildCityGridShimmer(double maxWidth, {int count = 6}) {
+    final c = context.colors;
     return Padding(
       key: const ValueKey('city_grid_shimmer'),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Shimmer.fromColors(
-        baseColor: Colors.white.withAlpha(20),
-        highlightColor: Colors.white.withAlpha(40),
+        baseColor: c.shimmerBase,
+        highlightColor: c.shimmerHighlight,
         child: Wrap(
           spacing: 12,
           runSpacing: 12,
@@ -1463,6 +1429,10 @@ class _HomepageState extends State<Homepage>
     bool isApiImage = false,
     required VoidCallback onTap,
   }) {
+    final c = context.colors;
+    // The tile is a city photograph with its name reversed out of a scrim, so
+    // the caption and the scrim below stay fixed — they answer to the picture.
+    // Only the selection ring and the loading placeholder follow the theme.
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1470,7 +1440,7 @@ class _HomepageState extends State<Homepage>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFFE4A46B) : Colors.transparent,
+            color: isSelected ? c.accent : Colors.transparent,
             width: 2,
           ),
         ),
@@ -1487,17 +1457,12 @@ class _HomepageState extends State<Homepage>
                         // City tile is 125pt tall in a grid — decode small.
                         memCacheWidth: 600,
                         placeholder: (context, url) => Container(
-                          color: Colors.black26,
-                          child: const Center(
-                            child: PremiumLoader(
-                              color: Color(0xFFE4A46B),
-                              size: 20,
-                            ),
-                          ),
+                          color: c.skeleton,
+                          child: const Center(child: PremiumLoader(size: 20)),
                         ),
-                        errorWidget: (context, url, error) => const Icon(
+                        errorWidget: (context, url, error) => Icon(
                           Icons.image_not_supported,
-                          color: Colors.grey,
+                          color: c.iconMuted,
                         ),
                       )
                     : Image.asset(image, fit: BoxFit.cover),
@@ -1542,15 +1507,11 @@ class _HomepageState extends State<Homepage>
                   left: !isEnglish ? 6 : null,
                   child: Container(
                     padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE4A46B),
+                    decoration: BoxDecoration(
+                      color: c.accent,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.check,
-                      size: 14,
-                      color: Colors.black,
-                    ),
+                    child: Icon(Icons.check, size: 14, color: c.onAccent),
                   ),
                 ),
             ],
@@ -1564,7 +1525,7 @@ class _HomepageState extends State<Homepage>
     BuildContext context,
     AppLocalizations loc,
   ) {
-    bool isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final c = context.colors;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1577,12 +1538,14 @@ class _HomepageState extends State<Homepage>
           behavior: HitTestBehavior.opaque,
           onTap: () {},
           child: Container(
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF3E230A), Color(0xFF141313)],
+                colors: c.sheetGradient,
               ),
             ),
 
@@ -1601,10 +1564,10 @@ class _HomepageState extends State<Homepage>
                     children: [
                       Text(
                         loc.serviceType,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: c.textPrimary,
                         ),
                       ),
                       const Spacer(),
@@ -1612,12 +1575,12 @@ class _HomepageState extends State<Homepage>
                         onTap: () {
                           Navigator.pop(context);
                         },
-                        child: const Icon(Icons.close, color: Colors.white),
+                        child: Icon(Icons.close, color: c.icon),
                       ),
                     ],
                   ),
                 ),
-                const Divider(),
+                Divider(color: c.divider),
 
                 Padding(
                   padding: const EdgeInsets.only(left: 24, right: 24, top: 24),
@@ -1637,23 +1600,21 @@ class _HomepageState extends State<Homepage>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    height: 44,
-                                    width: 44,
-                                    child: Transform.scale(
-                                      scaleX: isArabic ? -1 : 1,
-                                      child: SvgPicture.asset(
-                                        'assets/icons/arrival.svg',
-                                        fit: BoxFit.fill,
-                                      ),
-                                    ),
+                                  // Repainted on the light theme only: the
+                                  // artwork carries white detail that reads on
+                                  // the dark card and vanishes on the ivory one.
+                                  const GoldIcon(
+                                    asset: 'assets/icons/arrival.svg',
+                                    size: 44,
+                                    mirrorInRtl: true,
+                                    lightModeOnly: true,
                                   ),
                                   SizedBox(height: 12),
                                   Text(
                                     loc.airportArrival,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
-                                      color: Colors.white,
+                                      color: c.textPrimary,
                                     ),
                                   ),
                                 ],
@@ -1677,23 +1638,18 @@ class _HomepageState extends State<Homepage>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    height: 44,
-                                    width: 44,
-                                    child: Transform.scale(
-                                      scaleX: isArabic ? -1 : 1,
-                                      child: SvgPicture.asset(
-                                        'assets/icons/departure.svg',
-                                        fit: BoxFit.fill,
-                                      ),
-                                    ),
+                                  const GoldIcon(
+                                    asset: 'assets/icons/departure.svg',
+                                    size: 44,
+                                    mirrorInRtl: true,
+                                    lightModeOnly: true,
                                   ),
                                   SizedBox(height: 12),
                                   Text(
                                     loc.airportDeparture,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
-                                      color: Colors.white,
+                                      color: c.textPrimary,
                                     ),
                                   ),
                                 ],

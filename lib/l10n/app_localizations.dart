@@ -2533,6 +2533,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not play the voice note.'**
   String get couldNotPlayAudio;
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @darkMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get darkMode;
+
+  /// No description provided for @lightMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get lightMode;
+
+  /// No description provided for @systemMode.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get systemMode;
+
+  /// No description provided for @systemModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow your device\'s display setting'**
+  String get systemModeDescription;
+
+  /// No description provided for @mapStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Map style'**
+  String get mapStyle;
+
+  /// No description provided for @mapStyleMatchApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Match app'**
+  String get mapStyleMatchApp;
+
+  /// No description provided for @mapStyleLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Day'**
+  String get mapStyleLight;
+
+  /// No description provided for @mapStyleDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Night'**
+  String get mapStyleDark;
+
+  /// No description provided for @mapStyleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Used on the driver tracking map'**
+  String get mapStyleDescription;
+
+  /// No description provided for @switchToLightMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to the day map'**
+  String get switchToLightMap;
+
+  /// No description provided for @switchToDarkMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to the night map'**
+  String get switchToDarkMap;
 }
 
 class _AppLocalizationsDelegate

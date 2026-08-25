@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 /// A premium waveform / equalizer-style loader.
 ///
@@ -19,8 +20,13 @@ class PremiumLoader extends StatefulWidget {
   /// Overall height of the loader. Width scales automatically.
   final double size;
 
-  /// Bar colour. Defaults to the app's gold accent.
-  final Color color;
+  /// Bar colour.
+  ///
+  /// Null takes the gold from the ambient theme, which is the right answer
+  /// almost everywhere. Pass a colour only when the loader sits on something
+  /// that is not the page — inside a gold button, over a photo — where the
+  /// page's own accent would disappear.
+  final Color? color;
 
   /// Number of bars in the waveform.
   final int barCount;
@@ -31,7 +37,7 @@ class PremiumLoader extends StatefulWidget {
   const PremiumLoader({
     super.key,
     this.size = 20,
-    this.color = const Color(0xFFD4A574),
+    this.color,
     this.barCount = 5,
     this.duration = const Duration(milliseconds: 1200),
   });
@@ -74,7 +80,7 @@ class _PremiumLoaderState extends State<PremiumLoader>
           return CustomPaint(
             painter: _WaveformPainter(
               progress: _controller.value,
-              color: widget.color,
+              color: widget.color ?? context.colors.accentSoft,
               barCount: widget.barCount,
               barWidth: barWidth,
               gap: gap,
@@ -139,9 +145,13 @@ class _WaveformPainter extends CustomPainter {
     }
   }
 
+  // The colour is now theme-derived, so it can change under a loader that is
+  // already spinning — repainting on progress alone would leave the bars in
+  // the outgoing theme's gold until the mode change happened to coincide with
+  // a frame.
   @override
   bool shouldRepaint(covariant _WaveformPainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,13 +173,8 @@ class PremiumLoaderOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withAlpha(140),
-      child: Center(
-        child: PremiumLoader(
-          size: loaderSize,
-          color: loaderColor ?? const Color(0xFFD4A574),
-        ),
-      ),
+      color: context.colors.scrim,
+      child: Center(child: PremiumLoader(size: loaderSize, color: loaderColor)),
     );
   }
 }

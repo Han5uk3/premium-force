@@ -3,6 +3,7 @@ import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,16 +13,17 @@ class BlockedPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final c = context.colors;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1105),
+      backgroundColor: c.sheet,
       body: Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF3E230A), Color(0xFF141313)],
+            colors: c.sheetGradient,
           ),
         ),
         child: Padding(
@@ -29,16 +31,12 @@ class BlockedPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.block_flipped,
-                color: Color(0xFFE4A46B),
-                size: 80,
-              ),
+              Icon(Icons.block_flipped, color: c.accent, size: 80),
               const SizedBox(height: 24),
               Text(
                 l10n.accountBlockedTitle,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: c.textPrimary,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
@@ -47,10 +45,7 @@ class BlockedPage extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 l10n.accountBlockedMessage,
-                style: TextStyle(
-                  color: Colors.white.withAlpha(200),
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: c.textSecondary, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
@@ -105,8 +100,8 @@ class BlockedPage extends StatelessWidget {
                 },
                 child: Text(
                   l10n.backToLogin,
-                  style: const TextStyle(
-                    color: Color(0xFFE4A46B),
+                  style: TextStyle(
+                    color: c.accent,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),

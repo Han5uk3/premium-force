@@ -56,6 +56,10 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The splash stays dark in both themes, and deliberately so: it is a
+    // full-bleed photograph with the logo reversed out of it, so there is
+    // nothing here for a palette to colour — only artwork. The status bar is
+    // pinned to light icons to match it, whichever theme the app then opens in.
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -63,6 +67,7 @@ class _SplashScreenState extends State<SplashScreen> {
         statusBarBrightness: Brightness.dark,
       ),
       child: Scaffold(
+        backgroundColor: Colors.black,
         body: Stack(
           children: [
             Container(

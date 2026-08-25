@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:premium_force_main/api/review_api_v2.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/models/v2/review_v2.dart';
@@ -88,6 +89,7 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
 
     return Padding(
       // Lift the sheet above the keyboard while the comment field has focus.
@@ -95,9 +97,9 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1E1105),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: c.sheet,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -120,21 +122,17 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
                   Expanded(
                     child: Text(
                       loc.rateYourDriver,
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
+                      style: TextStyle(color: c.textPrimary, fontSize: 18),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+                    child: Icon(Icons.close, color: c.icon, size: 24),
                   ),
                 ],
               ),
             ),
-            const Divider(color: Colors.white, thickness: 1),
+            Divider(color: c.divider, thickness: 1),
             const SizedBox(height: 24),
 
             Padding(
@@ -145,7 +143,7 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
                 children: [
                  
 
-                  _buildStars(),
+                  _buildStars(c),
                   const SizedBox(height: 20),
 
                   TextField(
@@ -153,28 +151,30 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
                     maxLines: 3,
                     maxLength: 500,
                     enabled: !_isSubmitting,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                    cursorColor: const Color(0xFFE4A46B),
+                    style: TextStyle(color: c.textPrimary, fontSize: 13),
+                    // The one field in the app with a gold cursor, which is why
+                    // it is set here rather than left to the theme.
+                    cursorColor: c.accent,
                     decoration: InputDecoration(
                       hintText: loc.addAnOptionalReview,
-                      hintStyle: const TextStyle(
-                        color: Colors.white38,
+                      hintStyle: TextStyle(
+                        color: c.textTertiary,
                         fontSize: 13,
                       ),
-                      counterStyle: const TextStyle(color: Colors.white24),
+                      counterStyle: TextStyle(color: c.textTertiary),
                       filled: true,
-                      fillColor: Colors.black,
+                      fillColor: c.field,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade800),
+                        borderSide: BorderSide(color: c.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade800),
+                        borderSide: BorderSide(color: c.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE4A46B)),
+                        borderSide: BorderSide(color: c.accent),
                       ),
                     ),
                   ),
@@ -185,7 +185,6 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
                     text: loc.submit,
                     showLoader: _isSubmitting,
                     enabled: _rating > 0,
-                    textColor: Colors.black,
                     onTap: _submit,
                   ),
                 ],
@@ -197,7 +196,7 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
     );
   }
 
-  Widget _buildStars() {
+  Widget _buildStars(AppPalette c) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(5, (index) {
@@ -210,7 +209,7 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
               : () => setState(() => _rating = star),
           icon: Icon(
             isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
-            color: isFilled ? const Color(0xFFE4A46B) : Colors.white24,
+            color: isFilled ? c.accent : c.border,
             size: 40,
           ),
         );

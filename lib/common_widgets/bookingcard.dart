@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Bidi;
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/utils/booking_status_display.dart';
 import 'package:premium_force_main/utils/date_display.dart';
 
@@ -83,20 +84,23 @@ class Bookingcard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return Container(
       padding: EdgeInsets.all(1),
       decoration: BoxDecoration(
+        // The review card wears a plain grey rim; a real booking wears the
+        // gold one. The 1px padding below is what turns either into a hairline.
         gradient: LinearGradient(
           colors: isFromReviewAndConfirm
-              ? [Colors.grey.shade800, Colors.grey.shade700]
-              : [Color(0xFF60350F), Color(0xFFE4A46B), Color(0xFF60350F)],
+              ? [c.divider, c.border]
+              : [c.goldGradient.last, c.goldGradient[1], c.goldGradient.last],
         ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: c.surfaceDeep,
           borderRadius: BorderRadius.circular(12),
         ),
         width: MediaQuery.of(context).size.width,
@@ -118,7 +122,7 @@ class Bookingcard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: Colors.white,
+                            color: c.textPrimary,
                           ),
                         ),
                         SizedBox(height: 5),
@@ -128,7 +132,7 @@ class Bookingcard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: c.textPrimary,
                         ),
                       ),
                       if (bookingNumber?.trim().isNotEmpty ?? false) ...[
@@ -143,7 +147,7 @@ class Bookingcard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
-                            color: Colors.white.withAlpha(150),
+                            color: c.textTertiary,
                           ),
                         ),
                       ],
@@ -152,7 +156,7 @@ class Bookingcard extends StatelessWidget {
                 ),
                 if (!isFromReviewAndConfirm) ...[
                   SizedBox(width: 8),
-                  buildContainerText(true, false, loc),
+                  buildContainerText(c, true, false, loc),
                 ] else if (durationLabel?.trim().isNotEmpty ?? false) ...[
                   SizedBox(width: 8),
                   // Mirrors the service block opposite it, so the two headings
@@ -166,7 +170,7 @@ class Bookingcard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white,
+                          color: c.textPrimary,
                         ),
                       ),
                       SizedBox(height: 5),
@@ -175,7 +179,7 @@ class Bookingcard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: c.textPrimary,
                         ),
                       ),
                     ],
@@ -187,7 +191,7 @@ class Bookingcard extends StatelessWidget {
             isFromReviewAndConfirm
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: [Divider(color: Colors.grey.shade700, height: 5)],
+                    children: [Divider(color: c.divider, height: 5)],
                   )
                 : SizedBox.shrink(),
 
@@ -198,7 +202,7 @@ class Bookingcard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      buildContainerText(true, true, loc),
+                      buildContainerText(c, true, true, loc),
                       SizedBox(height: 8),
                       Text(
                         maxLines: 2,
@@ -207,7 +211,7 @@ class Bookingcard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: c.textPrimary,
                         ),
                       ),
                     ],
@@ -217,10 +221,8 @@ class Bookingcard extends StatelessWidget {
                 isChauffeur
                     ? SizedBox.shrink()
                     : CircleAvatar(
-                        backgroundColor: Colors.grey.shade900.withValues(
-                          alpha: 0.6,
-                        ),
-                        child: Icon(Icons.arrow_forward, color: Colors.white),
+                        backgroundColor: c.surfaceAlt,
+                        child: Icon(Icons.arrow_forward, color: c.icon),
                       ),
                 isChauffeur ? SizedBox.shrink() : SizedBox(width: 8),
                 isChauffeur
@@ -230,7 +232,7 @@ class Bookingcard extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            buildContainerText(false, true, loc),
+                            buildContainerText(c, false, true, loc),
                             SizedBox(height: 8),
                             Text(
                               maxLines: 2,
@@ -239,7 +241,7 @@ class Bookingcard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                                color: c.textPrimary,
                               ),
                             ),
                           ],
@@ -248,13 +250,13 @@ class Bookingcard extends StatelessWidget {
               ],
             ),
 
-            !isFromReviewAndConfirm ? Divider(color: Colors.white) : SizedBox(),
+            !isFromReviewAndConfirm ? Divider(color: c.dividerStrong) : SizedBox(),
 
             Container(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Color(0xFF332627),
+                color: c.stripSurface,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -264,7 +266,7 @@ class Bookingcard extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.calendar_today_outlined,
-                        color: Colors.white,
+                        color: c.textPrimary,
                         size: 16,
                       ),
                       SizedBox(width: 5),
@@ -273,18 +275,18 @@ class Bookingcard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: c.textPrimary,
                         ),
                       ),
                     ],
                   ),
-                  Container(height: 20, width: 1, color: Colors.white),
+                  Container(height: 20, width: 1, color: c.dividerStrong),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.access_time_outlined,
-                        color: Colors.white,
+                        color: c.textPrimary,
                         size: 16,
                       ),
                       SizedBox(width: 5),
@@ -293,18 +295,18 @@ class Bookingcard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: c.textPrimary,
                         ),
                       ),
                     ],
                   ),
-                  Container(height: 20, width: 1, color: Colors.white),
+                  Container(height: 20, width: 1, color: c.dividerStrong),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.drive_eta_outlined,
-                        color: Colors.white,
+                        color: c.textPrimary,
                         size: 16,
                       ),
                       SizedBox(width: 5),
@@ -313,7 +315,7 @@ class Bookingcard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: c.textPrimary,
                         ),
                       ),
                     ],
@@ -321,11 +323,11 @@ class Bookingcard extends StatelessWidget {
                 ],
               ),
             ),
-            if (_hasCancellationNote) _buildCancellationNote(loc),
+            if (_hasCancellationNote) _buildCancellationNote(c, loc),
 
             Column(
               children: [
-                Divider(color: Colors.grey.shade700, height: 5),
+                Divider(color: c.divider, height: 5),
                 SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -336,7 +338,7 @@ class Bookingcard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                        color: c.textPrimary,
                       ),
                     ),
                     Text(
@@ -346,7 +348,7 @@ class Bookingcard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                        color: c.textPrimary,
                       ),
                     ),
                   ],
@@ -366,19 +368,19 @@ class Bookingcard extends StatelessWidget {
       cancellationNote?.trim().isNotEmpty ?? false;
 
   /// The cancellation note the API attached to a cancelled booking.
-  Widget _buildCancellationNote(AppLocalizations loc) {
+  Widget _buildCancellationNote(AppPalette c, AppLocalizations loc) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.red.withValues(alpha: 0.12),
-        border: Border.all(color: Colors.red.shade900),
+        color: c.errorSurface,
+        border: Border.all(color: c.errorBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, color: Colors.red.shade300, size: 14),
+          Icon(Icons.info_outline, color: c.error, size: 14),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -389,16 +391,16 @@ class Bookingcard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Colors.red.shade300,
+                    color: c.error,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   cancellationNote!.trim(),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white,
+                    color: c.textPrimary,
                   ),
                 ),
               ],
@@ -423,13 +425,20 @@ class Bookingcard extends StatelessWidget {
     return loc.notAssigned;
   }
 
-  Widget buildContainerText(bool isPickup, bool isGrey, AppLocalizations loc) {
+  /// A small pill: either a neutral "Pickup" / "Drop-off" tag ([isGrey]) or the
+  /// booking's status chip.
+  Widget buildContainerText(
+    AppPalette c,
+    bool isPickup,
+    bool isGrey,
+    AppLocalizations loc,
+  ) {
     final stage = status ?? BookingStatusV2.unknown;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isGrey ? Colors.grey.shade800 : bookingStatusColor(stage),
+        color: isGrey ? c.surfaceAlt : bookingStatusColor(c, stage),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -441,7 +450,10 @@ class Bookingcard extends StatelessWidget {
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          // The neutral tag sits on a page surface and takes the page's ink;
+          // the status chip sits on its own saturated fill and needs the ink
+          // that reads on *that*.
+          color: isGrey ? c.textPrimary : onBookingStatusColor(c, stage),
         ),
       ),
     );

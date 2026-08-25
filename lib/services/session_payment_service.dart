@@ -12,6 +12,7 @@ import 'package:flutter_paytabs_bridge/flutter_paytabs_bridge.dart';
 import 'package:premium_force_main/models/payment_model.dart';
 import 'package:premium_force_main/models/v2/checkout_models.dart';
 import 'package:premium_force_main/utils/paytabs_config.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/utils/paytabs_theme.dart';
 
 /// Launches the PayTabs SDK using gateway parameters issued by the backend.
@@ -95,11 +96,17 @@ class SessionPaymentService {
   }
 
   /// Present the card payment sheet for [config].
+  ///
+  /// [palette] is the theme the app is currently in. The gateway sheet is drawn
+  /// by the native SDK, which cannot read the app's theme itself, so the caller
+  /// hands it down — otherwise a customer using the light app would be dropped
+  /// onto a black checkout.
   Future<PaymentResult> startCardPayment({
     required PaytabsSessionConfig config,
     required String customerName,
     required String customerEmail,
     required String customerPhone,
+    required AppPalette palette,
     String merchantCountryCode = 'SA',
   }) {
     return _start(
@@ -108,6 +115,7 @@ class SessionPaymentService {
       customerEmail: customerEmail,
       customerPhone: customerPhone,
       merchantCountryCode: merchantCountryCode,
+      palette: palette,
       useApplePay: false,
     );
   }
@@ -118,6 +126,7 @@ class SessionPaymentService {
     required String customerName,
     required String customerEmail,
     required String customerPhone,
+    required AppPalette palette,
     String merchantCountryCode = 'SA',
   }) {
     if (!Platform.isIOS) {
@@ -137,6 +146,7 @@ class SessionPaymentService {
       customerEmail: customerEmail,
       customerPhone: customerPhone,
       merchantCountryCode: merchantCountryCode,
+      palette: palette,
       useApplePay: true,
     );
   }
@@ -147,6 +157,7 @@ class SessionPaymentService {
     required String customerEmail,
     required String customerPhone,
     required String merchantCountryCode,
+    required AppPalette palette,
     required bool useApplePay,
   }) async {
     final completer = Completer<PaymentResult>();
@@ -199,7 +210,7 @@ class SessionPaymentService {
             : null,
       );
 
-      configuration.iOSThemeConfigurations = buildPremiumForceTheme();
+      configuration.iOSThemeConfigurations = buildPremiumForceTheme(palette);
 
       void onEvent(dynamic event) {
         // The SDK callback is the only record of what the gateway decided, so

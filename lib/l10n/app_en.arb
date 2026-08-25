@@ -454,5 +454,18 @@
   "arrived": "Arrived",
   "failedToDeleteAccount": "Failed to delete account. Please try again.",
   "cannotMakePhoneCalls": "Cannot make phone calls on this device.",
-  "couldNotPlayAudio": "Could not play the voice note."
+  "couldNotPlayAudio": "Could not play the voice note.",
+  "appearance": "Appearance",
+  "theme": "Theme",
+  "darkMode": "Dark",
+  "lightMode": "Light",
+  "systemMode": "System",
+  "systemModeDescription": "Follow your device's display setting",
+  "mapStyle": "Map style",
+  "mapStyleMatchApp": "Match app",
+  "mapStyleLight": "Day",
+  "mapStyleDark": "Night",
+  "mapStyleDescription": "Used on the driver tracking map",
+  "switchToLightMap": "Switch to the day map",
+  "switchToDarkMap": "Switch to the night map"
 }

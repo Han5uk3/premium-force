@@ -13,7 +13,9 @@ import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:premium_force_main/common_widgets/country_picker_theme.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class SignUpPage extends StatefulWidget {
   final String countryCode;
@@ -124,17 +126,20 @@ class _SignUpPageState extends State<SignUpPage>
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          decoration: const BoxDecoration(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(20),
+            ),
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF3E230A), Color(0xFF141313)],
+              colors: c.sheetGradient,
             ),
           ),
           child: SafeArea(
@@ -148,7 +153,7 @@ class _SignUpPageState extends State<SignUpPage>
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(60),
+                      color: c.borderStrong,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -156,7 +161,7 @@ class _SignUpPageState extends State<SignUpPage>
                   Text(
                     loc.chooseProfilePicture,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: c.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -218,6 +223,7 @@ class _SignUpPageState extends State<SignUpPage>
     required String label,
     required VoidCallback onTap,
   }) {
+    final c = context.colors;
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -227,12 +233,8 @@ class _SignUpPageState extends State<SignUpPage>
             width: 70,
             height: 70,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF49280B),
-                  Color(0xFFE4A46B),
-                  Color(0xFF60350F),
-                ],
+              gradient: LinearGradient(
+                colors: c.goldGradient,
               ),
               borderRadius: BorderRadius.circular(16),
             ),
@@ -241,18 +243,18 @@ class _SignUpPageState extends State<SignUpPage>
                 width: 68,
                 height: 68,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D0A08),
+                  color: c.surfaceDeep,
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: Icon(icon, color: const Color(0xFFE4A46B), size: 30),
+                child: Icon(icon, color: c.accent, size: 30),
               ),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: c.textPrimary,
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -418,17 +420,13 @@ class _SignUpPageState extends State<SignUpPage>
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1105),
-            Color(0xFF1E1105),
-            Color.fromARGB(255, 26, 23, 23),
-            Color.fromARGB(255, 26, 23, 23),
-          ],
+          colors: c.pageGradient,
         ),
       ),
       child: Scaffold(
@@ -462,14 +460,10 @@ class _SignUpPageState extends State<SignUpPage>
                                   height: 116,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    gradient: const LinearGradient(
+                                    gradient: LinearGradient(
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
-                                      colors: [
-                                        Color(0xFF49280B),
-                                        Color(0xFFE4A46B),
-                                        Color(0xFF60350F),
-                                      ],
+                                      colors: c.goldGradient,
                                     ),
                                   ),
                                   child: Center(
@@ -478,7 +472,7 @@ class _SignUpPageState extends State<SignUpPage>
                                       height: 112,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: const Color(0xFF0D0A08),
+                                        color: c.surfaceDeep,
                                       ),
                                       child: _profileImage != null
                                           ? ClipOval(
@@ -492,12 +486,8 @@ class _SignUpPageState extends State<SignUpPage>
                                           : Center(
                                               child: ShaderMask(
                                                 shaderCallback: (Rect bounds) {
-                                                  return const LinearGradient(
-                                                    colors: [
-                                                      Color(0xFF49280B),
-                                                      Color(0xFFE4A46B),
-                                                      Color(0xFF60350F),
-                                                    ],
+                                                  return LinearGradient(
+                                                    colors: c.goldIconGradient,
                                                   ).createShader(bounds);
                                                 },
                                                 child: const Icon(
@@ -519,24 +509,22 @@ class _SignUpPageState extends State<SignUpPage>
                                     height: 34,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF49280B),
-                                          Color(0xFFE4A46B),
-                                          Color(0xFF60350F),
-                                        ],
+                                      gradient: LinearGradient(
+                                        colors: c.goldGradient,
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withAlpha(100),
+                                          color: c.shadow,
                                           blurRadius: 6,
                                           offset: const Offset(0, 2),
                                         ),
                                       ],
                                     ),
-                                    child: const Icon(
+                                    // On the gold badge, so it takes the ink
+                                    // that reads on the gradient.
+                                    child: Icon(
                                       Icons.camera_alt_rounded,
-                                      color: Colors.black,
+                                      color: c.onGold,
                                       size: 18,
                                     ),
                                   ),
@@ -550,7 +538,7 @@ class _SignUpPageState extends State<SignUpPage>
                           child: Text(
                             AppLocalizations.of(context)!.tapToAddPhotoOptional,
                             style: TextStyle(
-                              color: Colors.white.withAlpha(100),
+                              color: c.textTertiary,
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
                             ),
@@ -577,12 +565,8 @@ class _SignUpPageState extends State<SignUpPage>
                               _nameController.text.isNotEmpty,
                           prefixIcon: ShaderMask(
                             shaderCallback: (Rect bounds) {
-                              return const LinearGradient(
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
-                                ],
+                              return LinearGradient(
+                                colors: c.goldIconGradient,
                               ).createShader(bounds);
                             },
                             child: const Icon(
@@ -626,54 +610,8 @@ class _SignUpPageState extends State<SignUpPage>
                                 showPhoneCode: true,
                                 customFlagBuilder: (context) =>
                                     const SizedBox.shrink(),
-                                countryListTheme: CountryListThemeData(
-                                  backgroundColor: const Color(0xFF141313),
-                                  textStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                  searchTextStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                  ),
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(30),
-                                    topRight: Radius.circular(30),
-                                  ),
-                                  inputDecoration: InputDecoration(
-                                    hintText: AppLocalizations.of(
-                                      context,
-                                    )!.search,
-                                    hintStyle: TextStyle(
-                                      color: Colors.white.withAlpha(180),
-                                    ),
-                                    prefixIcon: const Icon(
-                                      Icons.search,
-                                      color: Colors.white,
-                                    ),
-                                    filled: true,
-                                    fillColor: const Color(0xFF1A1410),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade800,
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade800,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFE4A46B),
-                                      ),
-                                    ),
-                                  ),
-                                  bottomSheetHeight:
-                                      MediaQuery.of(context).size.height * 0.75,
+                                countryListTheme: buildCountryListTheme(
+                                  context,
                                 ),
                                 onSelect: (Country country) {
                                   setState(() {
@@ -696,14 +634,14 @@ class _SignUpPageState extends State<SignUpPage>
                                   Text(
                                     '+$_selectedCountryCode',
                                     textDirection: TextDirection.ltr,
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: c.textPrimary,
                                       fontSize: 14,
                                     ),
                                   ),
-                                  const Icon(
+                                  Icon(
                                     Icons.arrow_drop_down,
-                                    color: Colors.white,
+                                    color: c.icon,
                                   ),
                                   Container(
                                     margin: const EdgeInsets.symmetric(
@@ -711,7 +649,7 @@ class _SignUpPageState extends State<SignUpPage>
                                     ),
                                     height: 24,
                                     width: 1,
-                                    color: Colors.grey,
+                                    color: c.border,
                                   ),
                                 ],
                               ),
@@ -752,12 +690,8 @@ class _SignUpPageState extends State<SignUpPage>
                               _emailController.text.isNotEmpty,
                           prefixIcon: ShaderMask(
                             shaderCallback: (Rect bounds) {
-                              return const LinearGradient(
-                                colors: [
-                                  Color(0xFF49280B),
-                                  Color(0xFFE4A46B),
-                                  Color(0xFF60350F),
-                                ],
+                              return LinearGradient(
+                                colors: c.goldIconGradient,
                               ).createShader(bounds);
                             },
                             child: const Icon(
@@ -796,12 +730,9 @@ class _SignUpPageState extends State<SignUpPage>
                             vertical: 12,
                           ),
                           decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.white.withAlpha(60),
-                              width: 1,
-                            ),
+                            border: Border.all(color: c.border, width: 1),
                             borderRadius: BorderRadius.circular(12),
-                            color: const Color(0xFF0D0A08),
+                            color: c.surfaceDeep,
                           ),
                           child: Row(
                             children: [
@@ -818,20 +749,20 @@ class _SignUpPageState extends State<SignUpPage>
                                   decoration: BoxDecoration(
                                     border: Border.all(
                                       color: _isCorporateEmployee
-                                          ? const Color(0xFFE4A46B)
-                                          : Colors.white.withAlpha(100),
+                                          ? c.accent
+                                          : c.borderStrong,
                                       width: 2,
                                     ),
                                     borderRadius: BorderRadius.circular(4),
                                     color: _isCorporateEmployee
-                                        ? const Color(0xFFE4A46B)
+                                        ? c.accent
                                         : Colors.transparent,
                                   ),
                                   child: _isCorporateEmployee
-                                      ? const Icon(
+                                      ? Icon(
                                           Icons.check,
                                           size: 14,
-                                          color: Color(0xFF0D0A08),
+                                          color: c.onAccent,
                                         )
                                       : null,
                                 ),
@@ -842,8 +773,8 @@ class _SignUpPageState extends State<SignUpPage>
                                   AppLocalizations.of(
                                     context,
                                   )!.iAmACorporateEmployee,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: c.textPrimary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -867,12 +798,8 @@ class _SignUpPageState extends State<SignUpPage>
                             enabled: !_isPromoValid,
                             prefixIcon: ShaderMask(
                               shaderCallback: (Rect bounds) {
-                                return const LinearGradient(
-                                  colors: [
-                                    Color(0xFF49280B),
-                                    Color(0xFFE4A46B),
-                                    Color(0xFF60350F),
-                                  ],
+                                return LinearGradient(
+                                  colors: c.goldIconGradient,
                                 ).createShader(bounds);
                               },
                               child: const Icon(
@@ -904,12 +831,8 @@ class _SignUpPageState extends State<SignUpPage>
                                   enabled: !_isPromoValid,
                                   prefixIcon: ShaderMask(
                                     shaderCallback: (Rect bounds) {
-                                      return const LinearGradient(
-                                        colors: [
-                                          Color(0xFF49280B),
-                                          Color(0xFFE4A46B),
-                                          Color(0xFF60350F),
-                                        ],
+                                      return LinearGradient(
+                                        colors: c.goldIconGradient,
                                       ).createShader(bounds);
                                     },
                                     child: const Icon(
@@ -942,11 +865,10 @@ class _SignUpPageState extends State<SignUpPage>
                                       text: _isPromoValid
                                           ? AppLocalizations.of(context)!.remove
                                           : AppLocalizations.of(context)!.apply,
+                                      // A "Remove" button is destructive, so
+                                      // it drops the gold for the error tone.
                                       gradient: _isPromoValid
-                                          ? [
-                                              Colors.red.shade800,
-                                              Colors.red.shade400,
-                                            ]
+                                          ? [c.error, c.error]
                                           : null,
                                       onTap: _isCheckingPromo
                                           ? () {}
@@ -968,9 +890,9 @@ class _SignUpPageState extends State<SignUpPage>
                               ),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
-                                color: Colors.green.withAlpha(30),
+                                color: c.successSurface,
                                 border: Border.all(
-                                  color: Colors.green.shade400,
+                                  color: c.successBorder,
                                   width: 1,
                                 ),
                               ),
@@ -981,7 +903,7 @@ class _SignUpPageState extends State<SignUpPage>
                                     children: [
                                       Icon(
                                         Icons.check_circle,
-                                        color: Colors.green.shade400,
+                                        color: c.success,
                                         size: 18,
                                       ),
                                       const SizedBox(width: 8),
@@ -992,7 +914,7 @@ class _SignUpPageState extends State<SignUpPage>
                                                 context,
                                               )!.promoCodeAppliedSuccessfully,
                                           style: TextStyle(
-                                            color: Colors.green.shade300,
+                                            color: c.success,
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -1001,23 +923,20 @@ class _SignUpPageState extends State<SignUpPage>
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  const Divider(
-                                    color: Colors.white24,
-                                    height: 1,
-                                  ),
+                                  Divider(color: c.divider, height: 1),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
                                       Icon(
                                         Icons.hourglass_empty,
-                                        color: Colors.orange.shade400,
+                                        color: c.warning,
                                         size: 16,
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
                                         "Status: ",
                                         style: TextStyle(
-                                          color: Colors.white70,
+                                          color: c.textSecondary,
                                           fontSize: 12,
                                           fontWeight: FontWeight.w400,
                                         ),
@@ -1025,7 +944,7 @@ class _SignUpPageState extends State<SignUpPage>
                                       Text(
                                         "Verification Pending",
                                         style: TextStyle(
-                                          color: Colors.orange.shade400,
+                                          color: c.warning,
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -1065,6 +984,7 @@ class _SignUpPageState extends State<SignUpPage>
   }
 
   Widget _buildLocationField() {
+    final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -1072,7 +992,7 @@ class _SignUpPageState extends State<SignUpPage>
         Text(
           AppLocalizations.of(context)!.location,
           style: TextStyle(
-            color: Colors.white,
+            color: c.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.w400,
           ),
@@ -1084,20 +1004,16 @@ class _SignUpPageState extends State<SignUpPage>
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D0A08),
+              color: c.field,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF1A1410), width: 1),
+              border: Border.all(color: c.field, width: 1),
             ),
             child: Row(
               children: [
                 ShaderMask(
                   shaderCallback: (Rect bounds) {
-                    return const LinearGradient(
-                      colors: [
-                        Color(0xFF49280B),
-                        Color(0xFFE4A46B),
-                        Color(0xFF60350F),
-                      ],
+                    return LinearGradient(
+                      colors: c.goldIconGradient,
                     ).createShader(bounds);
                   },
                   child: const Icon(
@@ -1114,8 +1030,8 @@ class _SignUpPageState extends State<SignUpPage>
                         : _locationController.text,
                     style: TextStyle(
                       color: _locationController.text.isEmpty
-                          ? Colors.white.withAlpha(180)
-                          : Colors.white,
+                          ? c.textTertiary
+                          : c.textPrimary,
                       fontSize: 13,
                     ),
                     maxLines: 2,
@@ -1125,12 +1041,8 @@ class _SignUpPageState extends State<SignUpPage>
                 const SizedBox(width: 8),
                 ShaderMask(
                   shaderCallback: (Rect bounds) {
-                    return const LinearGradient(
-                      colors: [
-                        Color(0xFF49280B),
-                        Color(0xFFE4A46B),
-                        Color(0xFF60350F),
-                      ],
+                    return LinearGradient(
+                      colors: c.goldIconGradient,
                     ).createShader(bounds);
                   },
                   child: const Icon(
@@ -1148,6 +1060,7 @@ class _SignUpPageState extends State<SignUpPage>
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final c = context.colors;
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: Container(
@@ -1155,7 +1068,7 @@ class _SignUpPageState extends State<SignUpPage>
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(150), Colors.transparent],
+            colors: c.appBarScrim,
           ),
         ),
         child: AppBar(
@@ -1164,14 +1077,14 @@ class _SignUpPageState extends State<SignUpPage>
             AppLocalizations.of(context)!.createAccount,
             style: TextStyle(
               fontSize: 18,
-              color: Colors.white,
+              color: c.textPrimary,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
             ),
           ),
           backgroundColor: Colors.transparent,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back, color: c.icon),
             onPressed: () => Navigator.pop(context),
           ),
         ),

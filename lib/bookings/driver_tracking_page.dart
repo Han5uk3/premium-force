@@ -8,6 +8,11 @@ import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/services/driver_location_service.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
+import 'package:premium_force_main/theme/app_theme.dart';
+import 'package:premium_force_main/theme/map_style.dart';
+import 'package:premium_force_main/theme/theme_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:premium_force_main/utils/screen_logger.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:dio/dio.dart';
@@ -57,7 +62,6 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
   /// to this, so only the map rebuilds.
   final ValueNotifier<Set<Marker>> _mapMarkers = ValueNotifier({});
 
-  Set<Polyline> _polylines = {};
   BitmapDescriptor? _driverIcon;
 
   /// The pin drawn at the pickup and drop-off points.
@@ -497,23 +501,44 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     return _pinIcon!;
   }
 
-  /// The route: one black line.
+  /// Remember the points the route is drawn from.
   ///
-  /// Replaces four stacked translucent polylines that faked a glow for the old
-  /// dark map. On the default light map a plain dark line is both what reads
-  /// best and a quarter of the geometry to push across the platform channel
-  /// every time the route is redrawn.
-  void _addRoutePolyline(List<LatLng> points) {
+  /// The [Polyline]s themselves are built in [_routePolylines] at paint time
+  /// rather than stored here, because their colour depends on which skin the
+  /// map is wearing — and that can change while the route is on screen.
+  void _setDrawnRoute(List<LatLng> points) {
     _drawnPoints = points;
-    _polylines = {
+  }
+
+  /// The route, as the map wants it: a casing line with the route line over it.
+  ///
+  /// Two lines rather than one because the route has to read on tiles of
+  /// unpredictable tone. The casing is the opposite of the line and a couple of
+  /// pixels wider, so where the route crosses a road of nearly its own colour
+  /// there is still an edge between them. It replaces four stacked translucent
+  /// polylines that faked a glow for the old night map.
+  Set<Polyline> _routePolylines(MapSkin skin) {
+    if (_drawnPoints.isEmpty) return const {};
+    return {
+      Polyline(
+        polylineId: const PolylineId('route_casing'),
+        points: _drawnPoints,
+        color: MapStyle.routeLineCasing(skin),
+        width: _routeWidth + 4,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+        zIndex: 0,
+      ),
       Polyline(
         polylineId: const PolylineId('route'),
-        points: points,
-        color: Colors.black,
+        points: _drawnPoints,
+        color: MapStyle.routeLine(skin),
         width: _routeWidth,
         startCap: Cap.roundCap,
         endCap: Cap.roundCap,
         jointType: JointType.round,
+        zIndex: 1,
       ),
     };
   }
@@ -542,10 +567,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     final width = _routeWidthFor(zoom);
     if (width == _routeWidth) return;
 
-    setState(() {
-      _routeWidth = width;
-      if (_drawnPoints.isNotEmpty) _addRoutePolyline(_drawnPoints);
-    });
+    // The line is rebuilt from [_drawnPoints] on the next paint, so the width
+    // is all that has to change here.
+    setState(() => _routeWidth = width);
   }
 
   // --- RTDB Listeners ---
@@ -1045,7 +1069,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
 
     setState(() {
       _tripEnded = true;
-      _polylines = {};
+      _drawnPoints = const [];
       _currentEta = null;
       _currentDistance = null;
       // The feed is meant to have stopped now, so the stale banner would be
@@ -1063,7 +1087,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     _lastFetchAt = null;
     _directionsFailures = 0;
     _directionsRetryTimer?.cancel();
-    _polylines = {};
+    _drawnPoints = const [];
     _markers = {};
     _publishMarkers();
     _currentEta = null;
@@ -1430,8 +1454,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
         _directionsRetryTimer?.cancel();
         setState(() {
           _setRoute(polyPoints);
-          _polylines = {};
-          _addRoutePolyline(_routeFrom(_renderedAlong ?? 0));
+          _setDrawnRoute(_routeFrom(_renderedAlong ?? 0));
           _currentDistance = (dist / 1000).toStringAsFixed(1);
           _currentEta = _formatEta(dur);
         });
@@ -1523,25 +1546,33 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
+    // Two separate questions on this screen. The tiles, the route line and
+    // anything drawn straight onto them answer to the *map's* skin, which the
+    // customer sets from the control on the map itself. The driver card and the
+    // notices, which are opaque app surfaces laid over the map, answer to the
+    // app's theme like every other screen.
+    final mapSkin = context.watch<ThemeProvider>().mapSkinFor(context);
+    final onMap = MapStyle.onControlSurface(mapSkin);
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // Dark on light, since the bar floats over the map and the map is now
-        // Google's light one — the white these used to be is invisible on it.
-        // The status-bar icons have to flip with them for the same reason.
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        // The bar floats over the tiles with nothing behind it, so its title
+        // and arrow — and the status-bar icons above them — take their contrast
+        // from the map rather than from the app.
+        systemOverlayStyle: AppTheme.overlayStyle(
+          mapSkin.isDark ? Brightness.dark : Brightness.light,
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+          icon: Icon(Icons.arrow_back_ios_new, color: onMap),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           loc.trackYourDriver,
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: onMap, fontWeight: FontWeight.bold),
         ),
       ),
       body: Stack(
@@ -1551,7 +1582,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
           // be used for this: it fires for our own `animateCamera` calls too,
           // so following would switch itself off on the first fix.
           // Under the map until it has faded in, then dropped.
-          if (!_mapRevealed) const Positioned.fill(child: _MapSkeleton()),
+          if (!_mapRevealed)
+            Positioned.fill(child: _MapSkeleton(skin: mapSkin)),
 
           if (_mapOpenTarget != null)
           Listener(
@@ -1584,11 +1616,11 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                   target: _mapOpenTarget!,
                   zoom: _mapOpenZoom,
                 ),
-                // No `style`: Google's default light map. The dark style this
-                // used to carry buried the route and the pins in a near-black
-                // ground.
-                onMapCreated: (c) {
-                  _controller.complete(c);
+                // Both skins are the app's own, tuned so a route line, two
+                // pins and a car stay separable from the tiles under them.
+                style: MapStyle.forSkin(mapSkin),
+                onMapCreated: (controller) {
+                  _controller.complete(controller);
                   Future.delayed(const Duration(milliseconds: 500), () {
                     if (mounted) {
                       setState(() {
@@ -1605,7 +1637,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                 },
                 onCameraMove: (position) => _applyZoom(position.zoom),
                 markers: markers,
-                polylines: _polylines,
+                polylines: _routePolylines(mapSkin),
                 // Shows the customer's own position alongside the driver's,
                 // once they have granted permission.
                 myLocationEnabled: _locationPermissionGranted,
@@ -1634,6 +1666,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                   child: _routePoints.isEmpty
                       ? null
                       : _MapControl(
+                          skin: mapSkin,
                           icon: Icons.route,
                           tooltip: loc.showFullRoute,
                           onTap: _showFullRoute,
@@ -1649,6 +1682,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                             !_tripEnded &&
                             _driverLocation != null)
                         ? _MapControl(
+                            skin: mapSkin,
                             label: loc.recenterMap,
                             icon: Icons.navigation_rounded,
                             onTap: _recentreOnDriver,
@@ -1660,6 +1694,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                   width: _mapControlSize,
                   child: _locationPermissionGranted
                       ? _MapControl(
+                          skin: mapSkin,
                           icon: Icons.my_location,
                           tooltip: loc.myLocation,
                           isBusy: _isLocatingCustomer,
@@ -1668,6 +1703,31 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                       : null,
                 ),
               ],
+            ),
+          ),
+
+          // The map's own day / night switch, stacked above the controls row on
+          // the trailing edge.
+          //
+          // It lives here rather than only in the appearance settings because
+          // this is the one screen where the choice is visible: a customer
+          // squinting at a route in bright sun, or at a white map at night, is
+          // looking at the map when they want it changed. The choice is
+          // persisted, so it holds for the next trip too.
+          PositionedDirectional(
+            end: 20,
+            bottom: 190 + _mapControlSize + 12,
+            child: _MapControl(
+              skin: mapSkin,
+              icon: mapSkin.isDark
+                  ? Icons.light_mode_rounded
+                  : Icons.dark_mode_rounded,
+              tooltip: mapSkin.isDark
+                  ? loc.switchToLightMap
+                  : loc.switchToDarkMap,
+              onTap: () => context.read<ThemeProvider>().toggleMapSkin(
+                Theme.of(context).brightness,
+              ),
             ),
           ),
 
@@ -1686,26 +1746,19 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
+                  color: c.warningSurface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withAlpha(120)),
+                  border: Border.all(color: c.warningBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.cloud_off_outlined,
-                      color: Colors.orange,
-                      size: 16,
-                    ),
+                    Icon(Icons.cloud_off_outlined, color: c.warning, size: 16),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
                         loc.liveLocationPaused,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: c.textPrimary, fontSize: 12),
                       ),
                     ),
                   ],
@@ -1720,23 +1773,23 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
+                color: c.surfaceElevated,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withAlpha(150),
+                    color: c.shadow,
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
                 ],
-                border: Border.all(color: Colors.white.withAlpha(30)),
+                border: Border.all(color: c.border),
               ),
               child: Row(
                 children: [
                   // Driver Profile Pic or First Letter
                   CircleAvatar(
                     radius: 26,
-                    backgroundColor: const Color(0xFFE4A46B),
+                    backgroundColor: c.accent,
                     child:
                         widget.booking.driver?.avatar != null &&
                             widget.booking.driver!.avatar!.isNotEmpty
@@ -1749,11 +1802,11 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                               height: 52,
                               // 52pt avatar at 3x.
                               memCacheWidth: 160,
-                              errorWidget: (c, u, e) => Text(
+                              errorWidget: (_, _, _) => Text(
                                 (widget.booking.driver?.name ?? "D")[0]
                                     .toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.black,
+                                style: TextStyle(
+                                  color: c.onAccent,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
                                 ),
@@ -1763,8 +1816,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                         : Text(
                             (widget.booking.driver?.name ?? "D")[0]
                                 .toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.black,
+                            style: TextStyle(
+                              color: c.onAccent,
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
                             ),
@@ -1783,8 +1836,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                               child: Text(
                                 widget.booking.driver?.name ?? "Driver",
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: c.textPrimary,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
@@ -1792,18 +1845,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                             ),
                             if (widget.booking.driver?.rating != null) ...[
                               const SizedBox(width: 6),
-                              const Icon(
-                                Icons.star_rounded,
-                                color: Color(0xFFE4A46B),
-                                size: 14,
-                              ),
+                              Icon(Icons.star_rounded, color: c.accent, size: 14),
                               const SizedBox(width: 2),
                               Text(
                                 widget.booking.driver!.rating!.toStringAsFixed(
                                   1,
                                 ),
-                                style: const TextStyle(
-                                  color: Color(0xFFE4A46B),
+                                style: TextStyle(
+                                  color: c.accent,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -1819,8 +1868,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                             _vehicleLine,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white70,
+                            style: TextStyle(
+                              color: c.textSecondary,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1834,7 +1883,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                               children: [
                                 Icon(
                                   Icons.timer_outlined,
-                                  color: Colors.white.withAlpha(150),
+                                  color: c.textTertiary,
                                   size: 14,
                                 ),
                                 const SizedBox(width: 4),
@@ -1850,7 +1899,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                                         ? loc.calculatingEta
                                         : loc.etaApprox(_currentEta!),
                                     style: TextStyle(
-                                      color: Colors.white.withAlpha(150),
+                                      color: c.textTertiary,
                                       fontSize: 12,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -1863,7 +1912,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                               children: [
                                 Icon(
                                   Icons.location_on_outlined,
-                                  color: Colors.white.withAlpha(150),
+                                  color: c.textTertiary,
                                   size: 14,
                                 ),
                                 const SizedBox(width: 4),
@@ -1875,7 +1924,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                                         ? loc.calculatingEta
                                         : loc.distanceKm(_currentDistance!),
                                     style: TextStyle(
-                                      color: Colors.white.withAlpha(150),
+                                      color: c.textTertiary,
                                       fontSize: 12,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -1890,14 +1939,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                   ),
                   // Call Button
                   Material(
-                    color: const Color(0xFFE4A46B),
+                    color: c.accent,
                     shape: const CircleBorder(),
                     child: InkWell(
                       onTap: () => _makePhoneCall(widget.booking.driver?.phone),
                       borderRadius: BorderRadius.circular(25),
-                      child: const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Icon(Icons.phone, color: Colors.black, size: 24),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Icon(Icons.phone, color: c.onAccent, size: 24),
                       ),
                     ),
                   ),
@@ -1918,12 +1967,20 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
 /// locate button — share one shape language without a second widget.
 class _MapControl extends StatelessWidget {
   const _MapControl({
+    required this.skin,
     required this.icon,
     required this.onTap,
     this.label,
     this.tooltip,
     this.isBusy = false,
   });
+
+  /// Which skin the map underneath is wearing.
+  ///
+  /// The control inverts against it — a near-black pill on the day map, a
+  /// near-white one on the night map — because it has to be legible on the
+  /// tiles, not on the app.
+  final MapSkin skin;
 
   final IconData icon;
   final VoidCallback onTap;
@@ -1941,6 +1998,8 @@ class _MapControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasLabel = label != null;
+    final surface = MapStyle.controlSurface(skin);
+    final ink = MapStyle.onControlSurface(skin);
     final shape = hasLabel
         ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))
         : const CircleBorder();
@@ -1949,17 +2008,14 @@ class _MapControl extends StatelessWidget {
         ? SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.white.withAlpha(220),
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2, color: ink),
           )
-        : Icon(icon, color: Colors.white.withAlpha(220), size: 20);
+        : Icon(icon, color: ink, size: 20);
 
     return Tooltip(
       message: tooltip ?? label ?? '',
       child: Material(
-        color: const Color(0xFF1E1E1E),
+        color: surface,
         shape: shape,
         elevation: 4,
         shadowColor: Colors.black54,
@@ -1978,8 +2034,8 @@ class _MapControl extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     label!,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: ink,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1997,22 +2053,25 @@ class _MapControl extends StatelessWidget {
 /// Placeholder shown while the map waits for the driver's first position.
 ///
 /// Deliberately map-shaped rather than a spinner: it holds the same ground the
-/// map is about to occupy, in the same light tone, with a few abstract streets
-/// running through it — so the real map resolving over it reads as the screen
-/// arriving rather than one thing being swapped for another.
+/// map is about to occupy, in the same tone, with a few abstract streets running
+/// through it — so the real map resolving over it reads as the screen arriving
+/// rather than one thing being swapped for another.
 class _MapSkeleton extends StatelessWidget {
-  const _MapSkeleton();
+  const _MapSkeleton({required this.skin});
+
+  /// The skin the map will arrive in, so the placeholder is already that
+  /// colour and the fade has nothing to travel.
+  final MapSkin skin;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      // The light map's own ground colour, so the fade has nothing to travel.
-      color: const Color(0xFFE8EAED),
+      color: MapStyle.ground(skin),
       child: Shimmer.fromColors(
-        baseColor: const Color(0xFFE8EAED),
-        highlightColor: const Color(0xFFF6F7F9),
+        baseColor: MapStyle.ground(skin),
+        highlightColor: MapStyle.groundHighlight(skin),
         child: CustomPaint(
-          painter: _StreetsPainter(),
+          painter: _StreetsPainter(MapStyle.skeletonStreet(skin)),
           child: const SizedBox.expand(),
         ),
       ),
@@ -2023,15 +2082,20 @@ class _MapSkeleton extends StatelessWidget {
 /// A handful of streets and a block or two — enough to read as a map without
 /// pretending to be one anywhere in particular.
 class _StreetsPainter extends CustomPainter {
+  const _StreetsPainter(this.street);
+
+  /// The tone the stand-in streets are drawn in, set by the map's skin.
+  final Color street;
+
   @override
   void paint(Canvas canvas, Size size) {
     final road = Paint()
-      ..color = Colors.white
+      ..color = street
       ..strokeWidth = 14
       ..strokeCap = StrokeCap.round;
 
     final minor = Paint()
-      ..color = Colors.white
+      ..color = street
       ..strokeWidth = 7
       ..strokeCap = StrokeCap.round;
 
@@ -2061,7 +2125,7 @@ class _StreetsPainter extends CustomPainter {
     );
 
     // A couple of blocks between them.
-    final block = Paint()..color = Colors.white.withAlpha(140);
+    final block = Paint()..color = street.withAlpha(140);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(size.width * 0.08, size.height * 0.56, 90, 62),
@@ -2079,5 +2143,6 @@ class _StreetsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _StreetsPainter oldDelegate) =>
+      oldDelegate.street != street;
 }

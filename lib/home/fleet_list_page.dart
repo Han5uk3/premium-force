@@ -3,6 +3,7 @@ import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/common_widgets/fleet_list_card.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 
 class FleetListPage extends StatefulWidget {
@@ -204,17 +205,13 @@ class _FleetListPageState extends State<FleetListPage> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1105),
-            Color(0xFF1E1105),
-            Color.fromARGB(255, 26, 23, 23),
-            Color.fromARGB(255, 26, 23, 23),
-          ],
+          colors: c.pageGradient,
         ),
       ),
       child: Scaffold(
@@ -226,7 +223,7 @@ class _FleetListPageState extends State<FleetListPage> {
             ? Center(
                 child: Text(
                   loc.noCarsAvailable,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: c.textPrimary),
                 ),
               )
             : ListView.builder(
@@ -256,6 +253,7 @@ class _FleetListPageState extends State<FleetListPage> {
   }
 
   Widget _buildLoadingGrid() {
+    final c = context.colors;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: 6,
@@ -265,12 +263,10 @@ class _FleetListPageState extends State<FleetListPage> {
           aspectRatio: 2.2,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.grey[900],
+              color: c.skeleton,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Center(
-              child: PremiumLoader(size: 32, color: Color(0xFFE4A46B)),
-            ),
+            child: const Center(child: PremiumLoader(size: 32)),
           ),
         ),
       ),
@@ -279,6 +275,7 @@ class _FleetListPageState extends State<FleetListPage> {
 
   PreferredSizeWidget buildAppBar(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return PreferredSize(
       preferredSize: Size.fromHeight(kToolbarHeight),
       child: Container(
@@ -286,7 +283,7 @@ class _FleetListPageState extends State<FleetListPage> {
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(100), Colors.transparent],
+            colors: c.appBarScrim,
           ),
         ),
         child: AppBar(
@@ -296,7 +293,7 @@ class _FleetListPageState extends State<FleetListPage> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
-              color: Colors.white,
+              color: c.textPrimary,
               letterSpacing: 0.5,
             ),
           ),
@@ -304,7 +301,7 @@ class _FleetListPageState extends State<FleetListPage> {
           automaticallyImplyLeading: false,
           leading: IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: Icon(Icons.arrow_back_ios, size: 16, color: Colors.white),
+            icon: Icon(Icons.arrow_back_ios, size: 16, color: c.icon),
           ),
         ),
       ),

@@ -41,6 +41,8 @@ class UserLocalStorage {
   static const String _socialIdTokenKey = 'social_id_token';
   static const String _fleetCarsKey = 'fleet_cars';
   static const String _languageKey = 'app_language';
+  static const String _themeModeKey = 'app_theme_mode';
+  static const String _mapThemeKey = 'map_theme_preference';
 
   static late Box<dynamic> _box;
 
@@ -213,6 +215,34 @@ class UserLocalStorage {
   /// Retrieve the persisted language code, defaults to 'ar'.
   static String getLanguage() {
     return _box.get(_languageKey, defaultValue: 'ar') as String;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Appearance Persistence
+  // ---------------------------------------------------------------------------
+
+  /// Persist the chosen app theme: `'light'`, `'dark'` or `'system'`.
+  static Future<void> saveThemeMode(String mode) async {
+    await _box.put(_themeModeKey, mode);
+  }
+
+  /// The stored theme choice, or `null` if the customer has never made one.
+  ///
+  /// Null is meaningful and is not defaulted here: the caller distinguishes
+  /// "never chose" from "chose dark", and only the former should follow the
+  /// app's shipped default.
+  static String? getThemeMode() {
+    return _box.get(_themeModeKey) as String?;
+  }
+
+  /// Persist the map skin preference: `'matchApp'`, `'light'` or `'dark'`.
+  static Future<void> saveMapThemePreference(String preference) async {
+    await _box.put(_mapThemeKey, preference);
+  }
+
+  /// The stored map skin preference, or `null` if never set.
+  static String? getMapThemePreference() {
+    return _box.get(_mapThemeKey) as String?;
   }
 
   // ---------------------------------------------------------------------------

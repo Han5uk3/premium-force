@@ -7,6 +7,7 @@ import 'package:premium_force_main/account/account.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/home/homepage.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key, this.isfromSuccessPage = false});
@@ -48,29 +49,30 @@ class _HomeState extends State<Home> {
 
   Future<bool?> _showExitDialog(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xff1a1a1a),
+        backgroundColor: c.surfaceElevated,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Color(0xff1a1a1a)),
+          side: BorderSide(color: c.border),
         ),
         title: Text(
           loc.exitApp,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: c.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
           loc.exitAppConfirm,
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: c.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.cancel, style: const TextStyle(color: Colors.grey)),
+            child: Text(loc.cancel, style: TextStyle(color: c.textSecondary)),
           ),
           SizedBox(
             height: 45,

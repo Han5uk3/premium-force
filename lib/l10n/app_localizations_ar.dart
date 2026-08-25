@@ -1295,4 +1295,43 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get couldNotPlayAudio => 'تعذر تشغيل الملاحظة الصوتية.';
+
+  @override
+  String get appearance => 'المظهر';
+
+  @override
+  String get theme => 'السمة';
+
+  @override
+  String get darkMode => 'داكن';
+
+  @override
+  String get lightMode => 'فاتح';
+
+  @override
+  String get systemMode => 'النظام';
+
+  @override
+  String get systemModeDescription => 'اتباع إعداد العرض في جهازك';
+
+  @override
+  String get mapStyle => 'نمط الخريطة';
+
+  @override
+  String get mapStyleMatchApp => 'مطابقة التطبيق';
+
+  @override
+  String get mapStyleLight => 'نهاري';
+
+  @override
+  String get mapStyleDark => 'ليلي';
+
+  @override
+  String get mapStyleDescription => 'يُستخدم في خريطة تتبع السائق';
+
+  @override
+  String get switchToLightMap => 'التبديل إلى الخريطة النهارية';
+
+  @override
+  String get switchToDarkMap => 'التبديل إلى الخريطة الليلية';
 }

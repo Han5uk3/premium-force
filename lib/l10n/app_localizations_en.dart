@@ -1307,4 +1307,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get couldNotPlayAudio => 'Could not play the voice note.';
+
+  @override
+  String get appearance => 'Appearance';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get darkMode => 'Dark';
+
+  @override
+  String get lightMode => 'Light';
+
+  @override
+  String get systemMode => 'System';
+
+  @override
+  String get systemModeDescription => 'Follow your device\'s display setting';
+
+  @override
+  String get mapStyle => 'Map style';
+
+  @override
+  String get mapStyleMatchApp => 'Match app';
+
+  @override
+  String get mapStyleLight => 'Day';
+
+  @override
+  String get mapStyleDark => 'Night';
+
+  @override
+  String get mapStyleDescription => 'Used on the driver tracking map';
+
+  @override
+  String get switchToLightMap => 'Switch to the day map';
+
+  @override
+  String get switchToDarkMap => 'Switch to the night map';
 }

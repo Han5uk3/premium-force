@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:shimmer/shimmer.dart';
 
 /// Full-page skeleton for the booking details screen while its booking loads.
@@ -11,7 +12,7 @@ import 'package:shimmer/shimmer.dart';
 /// screen is there from the first frame and the real content lands on top of
 /// it.
 ///
-/// Two rules keep it honest:
+/// Three rules keep it honest:
 ///
 /// * **Chrome outside the shimmer, content inside.** [Shimmer.fromColors]
 ///   masks every opaque pixel of its child, so a card background placed inside
@@ -24,6 +25,10 @@ import 'package:shimmer/shimmer.dart';
 ///   make the skeleton shorter than nearly every real page. The genuinely
 ///   conditional notices — cancellation, refund, special requests — are left
 ///   out, since drawing those would overstate the page more often than not.
+/// * **The palette is threaded, not read.** These builders are static, so they
+///   have no [BuildContext] of their own; [build] resolves the palette once and
+///   passes it down. Only the parts drawn *outside* a shimmer take it — inside,
+///   the sweep replaces every colour anyway.
 class BookingDetailsShimmer extends StatelessWidget {
   const BookingDetailsShimmer({super.key});
 
@@ -32,6 +37,7 @@ class BookingDetailsShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return SingleChildScrollView(
       // The real page scrolls and its content runs past a phone screen; without
       // this the skeleton overflows on short devices. It does not scroll under
@@ -41,36 +47,36 @@ class BookingDetailsShimmer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Status strip — a solid full-bleed bar, outside the gutter.
-          Container(height: 30, color: Colors.grey.shade800),
+          Container(height: 30, color: c.skeleton),
           const SizedBox(height: 16),
 
-          Padding(padding: _gutter, child: _bookingCard()),
+          Padding(padding: _gutter, child: _bookingCard(c)),
           const SizedBox(height: 12),
 
-          _vehicleImage(),
+          _vehicleImage(c),
 
           const SizedBox(height: 24),
-          _sectionLabel(width: 70),
+          _sectionLabel(c, width: 70),
           const SizedBox(height: 12),
-          Padding(padding: _gutter, child: _driverCard()),
+          Padding(padding: _gutter, child: _driverCard(c)),
 
           const SizedBox(height: 24),
-          _sectionLabel(width: 84),
+          _sectionLabel(c, width: 84),
           const SizedBox(height: 12),
-          Padding(padding: _gutter, child: _timelineCard()),
+          Padding(padding: _gutter, child: _timelineCard(c)),
 
           const SizedBox(height: 24),
-          _sectionLabel(width: 108),
+          _sectionLabel(c, width: 108),
           const SizedBox(height: 12),
-          Padding(padding: _gutter, child: _paymentCard()),
+          Padding(padding: _gutter, child: _paymentCard(c)),
 
           const SizedBox(height: 24),
-          _sectionLabel(width: 120),
+          _sectionLabel(c, width: 120),
           const SizedBox(height: 12),
-          Padding(padding: _gutter, child: _transactionCard()),
+          Padding(padding: _gutter, child: _transactionCard(c)),
 
           const SizedBox(height: 24),
-          Padding(padding: _gutter, child: _button()),
+          Padding(padding: _gutter, child: _button(c)),
 
           const SizedBox(height: 80),
         ],
@@ -107,24 +113,25 @@ class BookingDetailsShimmer extends StatelessWidget {
   }
 
   /// Wrap a panel's contents in the sweep, leaving its chrome untouched.
-  static Widget _shimmer(Widget child) {
+  static Widget _shimmer(AppPalette c, Widget child) {
     return Shimmer.fromColors(
-      baseColor: Colors.grey.shade900,
-      highlightColor: Colors.grey.shade800,
+      baseColor: c.shimmerBase,
+      highlightColor: c.shimmerHighlight,
       child: child,
     );
   }
 
   /// The heading above each section, which is 12pt text at the shared gutter.
-  static Widget _sectionLabel({required double width}) {
+  static Widget _sectionLabel(AppPalette c, {required double width}) {
     return Padding(
       padding: _gutter,
-      child: _shimmer(_bar(width: width, height: 12)),
+      child: _shimmer(c, _bar(width: width, height: 12)),
     );
   }
 
-  /// The bordered black panel every section below the booking card is built on.
-  static Widget _cardShell({
+  /// The bordered panel every section below the booking card is built on.
+  static Widget _cardShell(
+    AppPalette c, {
     required Widget child,
     EdgeInsets padding = const EdgeInsets.all(16),
     double radius = 12,
@@ -134,11 +141,11 @@ class BookingDetailsShimmer extends StatelessWidget {
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: c.surfaceDeep,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: borderColor ?? Colors.grey.shade700),
+        border: Border.all(color: borderColor ?? c.border),
       ),
-      child: _shimmer(child),
+      child: _shimmer(c, child),
     );
   }
 
@@ -146,25 +153,24 @@ class BookingDetailsShimmer extends StatelessWidget {
   // Sections
   // ---------------------------------------------------------------------------
 
-  /// Mirrors the booking card in its review form: a 1px grey gradient rim
-  /// around a black body, its rows spaced 10 apart.
-  static Widget _bookingCard() {
+  /// Mirrors the booking card in its review form: a 1px rim around the card
+  /// body, its rows spaced 10 apart.
+  static Widget _bookingCard(AppPalette c) {
     return Container(
       padding: const EdgeInsets.all(1),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.grey.shade800, Colors.grey.shade700],
-        ),
+        gradient: LinearGradient(colors: [c.divider, c.border]),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: c.surfaceDeep,
           borderRadius: BorderRadius.circular(12),
         ),
         child: _shimmer(
+          c,
           Column(
             spacing: 10,
             children: [
@@ -195,7 +201,7 @@ class BookingDetailsShimmer extends StatelessWidget {
                   ),
                 ],
               ),
-              Divider(color: Colors.grey.shade700, height: 5),
+              const Divider(color: Colors.white24, height: 5),
 
               // Pickup and drop-off, with the arrow between them.
               Row(
@@ -209,7 +215,9 @@ class BookingDetailsShimmer extends StatelessWidget {
               ),
 
               // The date / passengers / vehicle strip, which keeps its own fill
-              // in the real card.
+              // in the real card. Inside the sweep, so this is an alpha stencil
+              // rather than a colour — half-strength, to read as a filled band
+              // behind the bars rather than as another bar.
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -217,7 +225,7 @@ class BookingDetailsShimmer extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  color: const Color(0xFF332627),
+                  color: Colors.white.withValues(alpha: 0.5),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -234,7 +242,7 @@ class BookingDetailsShimmer extends StatelessWidget {
               // Passengers row under the closing rule.
               Column(
                 children: [
-                  Divider(color: Colors.grey.shade700, height: 5),
+                  const Divider(color: Colors.white24, height: 5),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -280,7 +288,7 @@ class BookingDetailsShimmer extends StatelessWidget {
   }
 
   /// The 1.7 aspect-ratio vehicle photo, at the gutter with its 12pt lead-in.
-  static Widget _vehicleImage() {
+  static Widget _vehicleImage(AppPalette c) {
     return Padding(
       padding: _gutter,
       child: Column(
@@ -290,6 +298,7 @@ class BookingDetailsShimmer extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: _shimmer(
+              c,
               AspectRatio(
                 aspectRatio: 1.7,
                 child: Container(color: Colors.white),
@@ -302,10 +311,11 @@ class BookingDetailsShimmer extends StatelessWidget {
   }
 
   /// Avatar, name, rating and plate, and the round call button.
-  static Widget _driverCard() {
+  static Widget _driverCard(AppPalette c) {
     return _cardShell(
+      c,
       radius: 16,
-      borderColor: Colors.grey.shade800,
+      borderColor: c.divider,
       child: Row(
         children: [
           _dot(50),
@@ -330,8 +340,9 @@ class BookingDetailsShimmer extends StatelessWidget {
   }
 
   /// Four progress steps, each a node and connector beside two lines of text.
-  static Widget _timelineCard() {
+  static Widget _timelineCard(AppPalette c) {
     return _cardShell(
+      c,
       child: Column(
         children: [for (var i = 0; i < 4; i++) _timelineStep(isLast: i == 3)],
       ),
@@ -376,8 +387,9 @@ class BookingDetailsShimmer extends StatelessWidget {
   }
 
   /// Three charge lines, the rule, and the bolder total.
-  static Widget _paymentCard() {
+  static Widget _paymentCard(AppPalette c) {
     return _cardShell(
+      c,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,8 +419,9 @@ class BookingDetailsShimmer extends StatelessWidget {
   }
 
   /// Order and transaction references, each with its copy button.
-  static Widget _transactionCard() {
+  static Widget _transactionCard(AppPalette c) {
     return _cardShell(
+      c,
       child: Column(
         children: [
           _transactionRow(),
@@ -439,7 +452,7 @@ class BookingDetailsShimmer extends StatelessWidget {
   }
 
   /// One action button, at the height the page's buttons render.
-  static Widget _button() {
-    return _shimmer(_bar(height: 45, radius: 8));
+  static Widget _button(AppPalette c) {
+    return _shimmer(c, _bar(height: 45, radius: 8));
   }
 }

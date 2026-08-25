@@ -18,6 +18,7 @@ import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/models/v2/review_v2.dart';
 import 'package:premium_force_main/services/invoice_service.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/utils/booking_status_display.dart';
 import 'package:premium_force_main/utils/date_display.dart';
 import 'package:premium_force_main/utils/screen_logger.dart';
@@ -57,19 +58,17 @@ class _CancelBookingDialogState extends State<_CancelBookingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return AlertDialog(
-      backgroundColor: const Color(0xff1a1a1a),
+      backgroundColor: c.surfaceElevated,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xff1a1a1a)),
+        side: BorderSide(color: c.border),
       ),
       scrollable: true,
       title: Text(
         widget.title,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: c.textPrimary, fontWeight: FontWeight.bold),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -77,7 +76,7 @@ class _CancelBookingDialogState extends State<_CancelBookingDialog> {
         children: [
           Text(
             widget.confirmationText,
-            style: const TextStyle(color: Colors.white70),
+            style: TextStyle(color: c.textSecondary),
           ),
           const SizedBox(height: 16),
           PremiumTextField(
@@ -98,7 +97,7 @@ class _CancelBookingDialogState extends State<_CancelBookingDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(
             widget.cancelText,
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(color: c.textSecondary),
           ),
         ),
         SizedBox(
@@ -236,7 +235,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF1E1105),
+        backgroundColor: context.colors.sheet,
         appBar: buidAppBar(context),
         body: _isLoading
             ? const BookingDetailsShimmer()
@@ -259,18 +258,19 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Widget _buildErrorState(AppLocalizations loc) {
+    final c = context.colors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: Colors.white24, size: 56),
+            Icon(Icons.error_outline, color: c.iconMuted, size: 56),
             const SizedBox(height: 16),
             Text(
               _errorMessage ?? loc.somethingWentWrong,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              style: TextStyle(color: c.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -293,6 +293,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     AppLocalizations loc,
     BookingV2 booking,
   ) {
+    final c = context.colors;
     final pickup = formatPickupDisplay(context, [booking.route]);
     _logPickup(booking, pickup);
 
@@ -302,8 +303,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
     return RefreshIndicator(
       onRefresh: _loadBooking,
-      color: const Color(0xFFE4A46B),
-      backgroundColor: Colors.black,
+      color: c.accent,
+      backgroundColor: c.surface,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
@@ -311,12 +312,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           children: [
             Container(
               height: 30,
-              color: getStatusLabelColor(booking.status),
+              color: bookingStatusColor(c, booking.status),
               child: Center(
                 child: Text(
                   getBookingStatusText(booking.status),
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: onBookingStatusColor(c, booking.status),
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -397,7 +398,6 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   fontsize: 12,
                   text: loc.viewInvoice,
                   showLoader: _isOpeningInvoice,
-                  textColor: Colors.black,
                   onTap: _isOpeningInvoice ? () {} : _openInvoice,
                 ),
               ),
@@ -414,7 +414,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   fontsize: 12,
                   text: loc.cancelBookingButton,
                   showLoader: _isCancelling,
-                  gradient: [Colors.red, Colors.red.shade900],
+                  // Destructive, so it drops the gold for the error tone.
+                  gradient: [c.error, c.error],
                   textColor: Colors.white,
                   onTap: _isCancelling
                       ? () {}
@@ -435,8 +436,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: context.colors.textPrimary,
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -445,6 +446,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Widget _buildVehicleImage(BookingV2 booking) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -454,7 +456,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              color: Colors.black,
+              color: c.skeleton,
               width: double.infinity,
               child: AspectRatio(
                 aspectRatio: 1.7,
@@ -463,21 +465,21 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   fit: BoxFit.cover,
                   memCacheWidth: 1080,
                   placeholder: (context, url) => Shimmer.fromColors(
-                    baseColor: Colors.white.withAlpha(5),
-                    highlightColor: Colors.white.withAlpha(15),
+                    baseColor: c.shimmerBase,
+                    highlightColor: c.shimmerHighlight,
                     child: Container(
                       width: double.infinity,
                       height: double.infinity,
                       decoration: BoxDecoration(
-                        color: Colors.black,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
-                  errorWidget: (context, url, error) => const Icon(
+                  errorWidget: (context, url, error) => Icon(
                     Icons.directions_car,
                     size: 50,
-                    color: Colors.white24,
+                    color: c.iconMuted,
                   ),
                 ),
               ),
@@ -486,8 +488,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           const SizedBox(height: 8),
           Text(
             booking.vehicleLabel,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: c.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
@@ -503,6 +505,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   /// The backend decides which steps exist and which is current, so a
   /// cancelled booking shows its own terminal step without special-casing here.
   Widget _buildTimeline(BookingV2 booking, AppLocalizations loc) {
+    final c = context.colors;
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final steps = booking.timeline;
 
@@ -517,9 +520,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: c.surfaceDeep,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade700),
+              border: Border.all(color: c.border),
             ),
             child: Column(
               children: [
@@ -546,13 +549,14 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     // marks the stage the booking has reached as both. Reading `isCurrent`
     // first painted a step that was already done — a driver who had been
     // assigned — in the in-progress gold instead of green.
+    final c = context.colors;
     final Color color = step.isCancelled
-        ? Colors.red
+        ? c.error
         : step.isCompleted
-        ? Colors.green
+        ? c.success
         : step.isCurrent
-        ? const Color(0xFFE4A46B)
-        : Colors.white24;
+        ? c.accent
+        : c.border;
 
     return IntrinsicHeight(
       child: Row(
@@ -576,7 +580,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   child: Container(
                     width: 2,
                     margin: const EdgeInsets.symmetric(vertical: 2),
-                    color: step.isCompleted ? Colors.green : Colors.white12,
+                    color: step.isCompleted ? c.success : c.divider,
                   ),
                 ),
             ],
@@ -592,8 +596,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     step.displayLabel(isArabic),
                     style: TextStyle(
                       color: step.isCompleted || step.isCurrent
-                          ? Colors.white
-                          : Colors.white38,
+                          ? c.textPrimary
+                          : c.textDisabled,
                       fontSize: 13,
                       fontWeight: step.isCurrent
                           ? FontWeight.bold
@@ -605,10 +609,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     Text(
                       '${Bookingcard.formatDate(context, step.timestamp)} · '
                       '${Bookingcard.formatTime(context, step.timestamp)}',
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(110),
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: c.textTertiary, fontSize: 11),
                     ),
                   ],
                 ],
@@ -626,6 +627,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   /// Either one alone is enough to show the section: a booking can carry a
   /// voice note with no text at all.
   Widget _buildRideNotes(BookingV2 booking, AppLocalizations loc) {
+    final c = context.colors;
     final notes = booking.rideNotes?.trim();
     final hasNotes = notes != null && notes.isNotEmpty;
     if (!hasNotes && !booking.hasVoiceNote) return const SizedBox.shrink();
@@ -641,9 +643,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: c.surfaceDeep,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade700),
+              border: Border.all(color: c.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,8 +654,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 if (hasNotes)
                   Text(
                     notes,
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: c.textSecondary,
                       fontSize: 14,
                       height: 1.4,
                     ),
@@ -680,6 +682,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     AppLocalizations loc,
     BookingV2 booking,
   ) {
+    final c = context.colors;
     final pricing = booking.pricing;
     final extraCharges = booking.extraCharges;
     if (pricing == null) return const SizedBox.shrink();
@@ -696,9 +699,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: c.surfaceDeep,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade700),
+              border: Border.all(color: c.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -713,8 +716,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                         coupon != null
                             ? '${loc.discount} (${coupon.code})'
                             : loc.discount,
-                        style: const TextStyle(
-                          color: Colors.green,
+                        style: TextStyle(
+                          color: c.success,
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
                         ),
@@ -723,12 +726,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                         mainAxisSize: MainAxisSize.min,
                         textDirection: TextDirection.ltr,
                         children: [
-                          const RiyalSymbol(color: Colors.green, size: 13),
+                          RiyalSymbol(color: c.success, size: 13),
                           const SizedBox(width: 4),
                           Text(
                             pricing.discounts.totalDiscount.toStringAsFixed(2),
-                            style: const TextStyle(
-                              color: Colors.green,
+                            style: TextStyle(
+                              color: c.success,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -754,8 +757,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     children: [
                       Text(
                         AppLocalizations.of(context)!.extraCharges,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: c.textPrimary,
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
                         ),
@@ -764,12 +767,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                         mainAxisSize: MainAxisSize.min,
                         textDirection: TextDirection.ltr,
                         children: [
-                          const RiyalSymbol(color: Colors.white, size: 13),
+                          RiyalSymbol(color: c.textPrimary, size: 13),
                           const SizedBox(width: 4),
                           Text(
                             extraCharges.amount.toStringAsFixed(2),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: c.textPrimary,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -782,8 +785,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     const SizedBox(height: 4),
                     Text(
                       '• ${extraCharges.notes}',
-                      style: const TextStyle(
-                        color: Colors.white54,
+                      style: TextStyle(
+                        color: c.textTertiary,
                         fontSize: 11,
                         fontStyle: FontStyle.italic,
                       ),
@@ -791,13 +794,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   ],
                 ],
                 const SizedBox(height: 8),
-                const Divider(color: Colors.white24),
+                Divider(color: c.divider),
                 const SizedBox(height: 16),
                 _buildSummaryRow(
                   loc.total,
                   pricing.totalAmount + (extraCharges?.amount ?? 0),
                   isBold: true,
-                  color: const Color(0xFFE4A46B),
+                  color: c.accent,
                 ),
               ],
             ),
@@ -808,6 +811,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Widget _buildTransactionDetails(BookingV2 booking, AppLocalizations loc) {
+    final c = context.colors;
     final transactionRef = booking.payment?.transactionRef;
     final bookingNumber = booking.bookingNumber;
 
@@ -826,16 +830,16 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.black,
+              color: c.surfaceDeep,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade700),
+              border: Border.all(color: c.border),
             ),
             child: Column(
               children: [
                 if (bookingNumber.isNotEmpty)
                   _buildTransactionRow(loc.orderIDLabel, bookingNumber),
                 if (bookingNumber.isNotEmpty && transactionRef != null)
-                  const Divider(color: Colors.white10, height: 24),
+                  Divider(color: c.divider, height: 24),
                 if (transactionRef != null)
                   _buildTransactionRow(loc.transactionIDLabel, transactionRef),
               ],
@@ -852,20 +856,21 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   /// the refund but not the note, so this only appears once the booking has
   /// been re-read.
   Widget _buildCancellationNotice(BookingV2 booking, AppLocalizations loc) {
+    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.red.withAlpha(20),
+          color: c.errorSurface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.shade700, width: 0.5),
+          border: Border.all(color: c.errorBorder, width: 0.5),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.cancel_outlined, color: Colors.red, size: 20),
+            Icon(Icons.cancel_outlined, color: c.error, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -873,8 +878,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 children: [
                   Text(
                     loc.cancellationNote,
-                    style: const TextStyle(
-                      color: Colors.red,
+                    style: TextStyle(
+                      color: c.error,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
@@ -882,8 +887,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   const SizedBox(height: 4),
                   Text(
                     booking.cancellationNote!.trim(),
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: c.textSecondary,
                       fontSize: 12,
                       height: 1.4,
                     ),
@@ -903,6 +908,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   /// acknowledgement so the customer is told about the refund immediately
   /// rather than only after the record catches up.
   Widget _buildRefundNotice(BookingV2 booking, AppLocalizations loc) {
+    final c = context.colors;
     final refund = booking.refund;
     final amount = refund?.amount ?? _cancellation?.refundAmount;
     final reference = refund?.reference ?? _cancellation?.refundNumber;
@@ -912,16 +918,16 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.green.withAlpha(20),
+          color: c.successSurface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green.shade700, width: 0.5),
+          border: Border.all(color: c.successBorder, width: 0.5),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
+            Icon(
               Icons.replay_circle_filled_outlined,
-              color: Colors.green,
+              color: c.success,
               size: 20,
             ),
             const SizedBox(width: 12),
@@ -931,8 +937,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 children: [
                   Text(
                     loc.refundProcessed,
-                    style: const TextStyle(
-                      color: Colors.green,
+                    style: TextStyle(
+                      color: c.success,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
@@ -943,12 +949,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       mainAxisSize: MainAxisSize.min,
                       textDirection: TextDirection.ltr,
                       children: [
-                        const RiyalSymbol(color: Colors.white70, size: 12),
+                        RiyalSymbol(color: c.textSecondary, size: 12),
                         const SizedBox(width: 4),
                         Text(
                           amount.toStringAsFixed(2),
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: c.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -959,16 +965,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     const SizedBox(height: 4),
                     Text(
                       '${loc.refundReference}: $reference',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: c.textSecondary, fontSize: 12),
                     ),
                   ],
                   const SizedBox(height: 6),
                   Text(
                     loc.refundBusinessDaysNote,
-                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    style: TextStyle(color: c.textTertiary, fontSize: 11),
                   ),
                 ],
               ),
@@ -980,6 +983,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   }
 
   Widget _buildTransactionRow(String label, String value) {
+    final c = context.colors;
     return Row(
       children: [
         Expanded(
@@ -988,10 +992,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  color: Colors.white.withAlpha(128),
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: c.textTertiary, fontSize: 12),
               ),
               const SizedBox(height: 4),
               Text(
@@ -1000,8 +1001,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 // main.dart. It was 'monospace' to keep reference digits
                 // aligned; naming the family here instead would just be a
                 // second place to update the next time it changes.
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: c.textPrimary,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1011,7 +1012,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
         ),
         const SizedBox(width: 12),
         Material(
-          color: const Color(0xFFE4A46B),
+          color: c.accent,
           borderRadius: BorderRadius.circular(8),
           child: InkWell(
             onTap: () {
@@ -1023,9 +1024,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
               );
             },
             borderRadius: BorderRadius.circular(8),
-            child: const Padding(
-              padding: EdgeInsets.all(10.0),
-              child: Icon(Icons.copy_rounded, color: Colors.black, size: 20),
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Icon(Icons.copy_rounded, color: c.onAccent, size: 20),
             ),
           ),
         ),
@@ -1039,13 +1040,14 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     bool isBold = false,
     Color? color,
   }) {
+    final c = context.colors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: TextStyle(
-            color: Colors.white,
+            color: c.textPrimary,
             fontSize: 13,
             fontWeight: isBold ? FontWeight.bold : FontWeight.w400,
           ),
@@ -1054,12 +1056,12 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           mainAxisSize: MainAxisSize.min,
           textDirection: TextDirection.ltr,
           children: [
-            RiyalSymbol(color: color ?? Colors.white, size: 13),
+            RiyalSymbol(color: color ?? c.textPrimary, size: 13),
             const SizedBox(width: 4),
             Text(
               amount.toStringAsFixed(2),
               style: TextStyle(
-                color: color ?? Colors.white,
+                color: color ?? c.textPrimary,
                 fontSize: 13,
                 fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               ),
@@ -1072,6 +1074,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
   Widget _buildDriverCard(BookingV2 booking) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     final driver = booking.driver!;
     final plate = booking.fleet?.licensePlate;
 
@@ -1096,9 +1099,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: c.surfaceDeep,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade800),
+        border: Border.all(color: c.divider),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1109,29 +1112,27 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 child: Container(
                   width: 50,
                   height: 50,
-                  color: const Color(0xFF49280B),
+                  color: c.accentSurface,
                   child: (driver.avatar != null && driver.avatar!.isNotEmpty)
                       ? CachedNetworkImage(
                           imageUrl: driver.avatar!,
                           fit: BoxFit.cover,
                           // 50pt avatar at 3x.
                           memCacheWidth: 150,
-                          placeholder: (context, url) => const Center(
+                          placeholder: (context, url) => Center(
                             child: SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
-                                color: Color(0xFFE4A46B),
+                                color: c.accent,
                                 strokeWidth: 2,
                               ),
                             ),
                           ),
-                          errorWidget: (context, url, error) => const Icon(
-                            Icons.person,
-                            color: Color(0xFFE4A46B),
-                          ),
+                          errorWidget: (context, url, error) =>
+                              Icon(Icons.person, color: c.accent),
                         )
-                      : const Icon(Icons.person, color: Color(0xFFE4A46B)),
+                      : Icon(Icons.person, color: c.accent),
                 ),
               ),
               const SizedBox(width: 16),
@@ -1142,8 +1143,8 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                   children: [
                     Text(
                       driver.name ?? '',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: c.textPrimary,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -1153,34 +1154,24 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     Row(
                       children: [
                         if (driver.rating != null) ...[
-                          const Icon(
-                            Icons.star,
-                            color: Color(0xFFE4A46B),
-                            size: 12,
-                          ),
+                          Icon(Icons.star, color: c.accent, size: 12),
                           const SizedBox(width: 2),
                           Text(
                             driver.rating!.toStringAsFixed(1),
-                            style: TextStyle(
-                              color: Colors.white.withAlpha(153),
-                              fontSize: 12,
-                            ),
+                            style: TextStyle(color: c.textSecondary, fontSize: 12),
                           ),
                         ],
                         if (driver.rating != null && plate != null)
                           Text(
                             '  ·  ',
-                            style: TextStyle(
-                              color: Colors.white.withAlpha(90),
-                              fontSize: 12,
-                            ),
+                            style: TextStyle(color: c.textTertiary, fontSize: 12),
                           ),
                         if (plate != null)
                           Flexible(
                             child: Text(
                               plate,
                               style: TextStyle(
-                                color: Colors.white.withAlpha(153),
+                                color: c.textSecondary,
                                 fontSize: 12,
                               ),
                               maxLines: 1,
@@ -1192,10 +1183,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     if (canCall) ...[
                       Text(
                         phone,
-                        style: TextStyle(
-                          color: Colors.white.withAlpha(153),
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: c.textSecondary, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1207,13 +1195,11 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                 IconButton.filled(
                   onPressed: () => _makePhoneCall(phone),
                   icon: const Icon(Icons.phone, size: 18),
-                  color: const Color(0xFFE4A46B),
+                  color: c.accent,
                   padding: const EdgeInsets.all(20),
                   style: ButtonStyle(
-                    backgroundColor: WidgetStatePropertyAll(
-                      Colors.grey.shade900,
-                    ),
-                    shape: WidgetStatePropertyAll(CircleBorder()),
+                    backgroundColor: WidgetStatePropertyAll(c.surfaceAlt),
+                    shape: const WidgetStatePropertyAll(CircleBorder()),
                   ),
                   tooltip: AppLocalizations.of(context)!.phoneNumber,
                   visualDensity: VisualDensity.compact,
@@ -1223,7 +1209,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
           if (canTrack || canRate) ...[
             const SizedBox(height: 14),
-            Divider(color: Colors.grey.shade800, height: 1),
+            Divider(color: c.divider, height: 1),
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
@@ -1232,7 +1218,6 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                       fontsize: 12,
                       text: loc.trackDriver,
                       showLoader: false,
-                      textColor: Colors.black,
                       onTap: () {
                         logScreen(
                           _log,
@@ -1431,12 +1416,13 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
   /// already supplies the black panel and its border. Wrapping it in a second
   /// identical one drew a border inside a border.
   Widget _buildSubmittedReview(AppLocalizations loc, ReviewV2 review) {
+    final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           loc.yourReview,
-          style: TextStyle(color: Colors.white.withAlpha(153), fontSize: 12),
+          style: TextStyle(color: c.textSecondary, fontSize: 12),
         ),
         const SizedBox(height: 8),
         Row(
@@ -1444,7 +1430,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
             final isFilled = index < review.rate;
             return Icon(
               isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
-              color: isFilled ? const Color(0xFFE4A46B) : Colors.white24,
+              color: isFilled ? c.accent : c.border,
               size: 18,
             );
           }),
@@ -1453,7 +1439,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           const SizedBox(height: 8),
           Text(
             review.reviewText!,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(color: c.textSecondary, fontSize: 12),
           ),
         ],
       ],
@@ -1475,6 +1461,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
 
   PreferredSizeWidget buidAppBar(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: Container(
@@ -1482,25 +1469,21 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(100), Colors.transparent],
+            colors: c.appBarScrim,
           ),
         ),
         child: AppBar(
           leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Colors.white,
-              size: 16,
-            ),
+            icon: Icon(Icons.arrow_back_ios_new, color: c.icon, size: 16),
             onPressed: () => Navigator.pop(context, _didChange),
           ),
           centerTitle: true,
           title: Text(
             loc.bookingTimeline,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
-              color: Colors.white,
+              color: c.textPrimary,
               letterSpacing: 0.5,
             ),
           ),
@@ -1510,11 +1493,6 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
       ),
     );
   }
-
-  /// The banner colour, taken from the same mapping as the card's chip so
-  /// one booking never shows two colours for one status.
-  Color getStatusLabelColor(BookingStatusV2 status) =>
-      bookingStatusColor(status);
 
   /// Full-sentence wording for the banner across the top of the page.
   ///

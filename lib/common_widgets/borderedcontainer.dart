@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class PremiumContainer extends StatelessWidget {
   const PremiumContainer({
@@ -14,21 +15,22 @@ class PremiumContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       height: height,
       width: width,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF49280B), Color(0xFFE4A46B), Color(0xFF60350F)],
-        ),
+        gradient: LinearGradient(colors: c.goldGradient),
         borderRadius: BorderRadius.circular(12),
       ),
+      // The 1px margin is what turns the gradient behind it into a hairline
+      // frame; the fill has to be opaque or the gold shows through the middle.
       child: Container(
         margin: EdgeInsets.all(1),
         height: height,
         width: width,
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: c.surfaceDeep,
           borderRadius: BorderRadius.circular(12),
         ),
         child: child,

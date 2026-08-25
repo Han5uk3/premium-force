@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class FleetListCard extends StatefulWidget {
   const FleetListCard({
@@ -52,7 +53,12 @@ class _FleetListCardState extends State<FleetListCard>
   Widget build(BuildContext context) {
     super.build(context);
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
 
+    // As on the carousel card, the badge and the caption below are drawn over
+    // the vehicle photo and so keep fixed colours: they answer to the
+    // photograph, not to the app's palette. Only the placeholders that stand in
+    // *for* the photo follow the theme.
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: AspectRatio(
@@ -63,11 +69,11 @@ class _FleetListCardState extends State<FleetListCard>
             // Base image
             widget.image.isEmpty
                 ? Container(
-                    color: Colors.grey[800],
+                    color: c.skeleton,
                     child: Center(
                       child: Icon(
                         Icons.directions_car,
-                        color: Colors.grey[600],
+                        color: c.iconMuted,
                         size: 60,
                       ),
                     ),
@@ -77,20 +83,15 @@ class _FleetListCardState extends State<FleetListCard>
                     fit: BoxFit.cover,
                     memCacheWidth: 720,
                     placeholder: (context, url) => Container(
-                      color: Colors.grey[800],
-                      child: Center(
-                        child: PremiumLoader(
-                          size: 24,
-                          color: Colors.grey[600]!,
-                        ),
-                      ),
+                      color: c.skeleton,
+                      child: const Center(child: PremiumLoader(size: 24)),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[800],
+                      color: c.skeleton,
                       child: Center(
                         child: Icon(
                           Icons.image_not_supported,
-                          color: Colors.grey[600],
+                          color: c.iconMuted,
                           size: 40,
                         ),
                       ),
@@ -140,12 +141,10 @@ class _FleetListCardState extends State<FleetListCard>
                                         fit: BoxFit.fill,
                                         // 44pt badge at 3x.
                                         memCacheWidth: 150,
-                                        placeholder: (context, url) => Center(
-                                          child: PremiumLoader(
-                                            size: 16,
-                                            color: Color(0xFFE4A46B),
-                                          ),
-                                        ),
+                                        placeholder: (context, url) =>
+                                            const Center(
+                                              child: PremiumLoader(size: 16),
+                                            ),
                                       )
                                     : const Icon(
                                         Icons.directions_car,

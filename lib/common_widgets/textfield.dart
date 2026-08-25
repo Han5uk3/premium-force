@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:premium_force_main/storage/helpers.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 
 class PremiumTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -72,6 +73,12 @@ class PremiumTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    // [blackbg] asks for the higher-contrast fill: black on the dark theme,
+    // white on the light one. Named for what it does rather than for the
+    // colour it used to be.
+    final fill = blackbg ? c.fieldStrong : c.field;
+
     return FormField<String>(
       initialValue: controller.text,
       validator: validator != null ? (_) => validator!(controller.text) : null,
@@ -86,7 +93,7 @@ class PremiumTextField extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: c.textPrimary,
                   fontSize: fontsize,
                   fontWeight: titleFontWeight,
                 ),
@@ -100,14 +107,17 @@ class PremiumTextField extends StatelessWidget {
                 onTap: onTap,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: blackbg ? Colors.black : const Color(0xFF1A1410),
+                    color: fill,
                     borderRadius: BorderRadius.circular(borderRadius),
                     border: Border.all(
+                      // Without [needBorder] the outline matches the fill, so
+                      // the field reads as borderless while an error still has
+                      // somewhere to draw its red.
                       color: hasError
-                          ? const Color(0xFFCF6679)
+                          ? c.error
                           : needBorder
-                          ? Colors.grey.shade800
-                          : const Color(0xFF1A1410),
+                          ? c.border
+                          : fill,
                       width: 1,
                     ),
                   ),
@@ -161,25 +171,32 @@ class PremiumTextField extends StatelessWidget {
                           maxLines: maxLines,
                           onTap: onTap,
                           style: TextStyle(
-                            color: enabled
-                                ? Colors.white
-                                : Colors.white.withAlpha(120),
+                            color: enabled ? c.textPrimary : c.textDisabled,
                             fontSize: fontsize,
                           ),
                           decoration: InputDecoration(
                             suffix: suffix,
                             hintText: hintText,
                             hintStyle: TextStyle(
-                              color: Colors.white.withAlpha(180),
+                              color: c.textTertiary,
                               fontSize: fontsize,
                             ),
+                            // Every border slot is pinned to none, not just
+                            // [border]: the ambient InputDecorationTheme fills
+                            // in whichever of them is left null, and this field
+                            // draws its own container.
                             border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                               vertical: 18,
                             ),
                             suffixIcon: maxLines > 1 ? null : suffixIcon,
                           ),
-                          cursorColor: Colors.white,
+                          cursorColor: c.textPrimary,
                         ),
                       ),
                       if (maxLines > 1 && suffixIcon != null) ...[
@@ -203,8 +220,8 @@ class PremiumTextField extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 6, left: 4),
                 child: Text(
                   fieldState.errorText!,
-                  style: const TextStyle(
-                    color: Color(0xFFCF6679),
+                  style: TextStyle(
+                    color: c.error,
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
                   ),

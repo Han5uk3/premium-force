@@ -10,6 +10,9 @@ import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/authentication/login.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
+import 'package:premium_force_main/common_widgets/gold_icon.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
+import 'package:premium_force_main/theme/theme_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AccountPage extends StatefulWidget {
@@ -24,23 +27,21 @@ class _AccountPageState extends State<AccountPage> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1105),
-            Color(0xFF1E1105),
-            Color.fromARGB(255, 26, 23, 23),
-            Color.fromARGB(255, 26, 23, 23),
-          ],
+          colors: c.pageGradient,
         ),
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: buidAppBar(context, loc),
-        body: Padding(
+        // The list outgrew the screen once appearance joined it, so it scrolls
+        // rather than overflowing on a short device.
+        body: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             children: [
@@ -59,6 +60,15 @@ class _AccountPageState extends State<AccountPage> {
                   icon: Icons.person,
                   isSvg: true,
                   svgPath: "assets/icons/person.svg",
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _showAppearanceSheet(context, loc),
+                child: ProfileTile(
+                  loc: loc,
+                  isAppearance: true,
+                  title: loc.appearance,
+                  icon: Icons.dark_mode_outlined,
                 ),
               ),
               GestureDetector(
@@ -172,6 +182,7 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   PreferredSizeWidget buidAppBar(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     return PreferredSize(
       preferredSize: Size.fromHeight(kToolbarHeight),
       child: Container(
@@ -179,7 +190,7 @@ class _AccountPageState extends State<AccountPage> {
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Colors.black.withAlpha(100), Colors.transparent],
+            colors: c.appBarScrim,
           ),
         ),
         child: AppBar(
@@ -189,7 +200,7 @@ class _AccountPageState extends State<AccountPage> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
-              color: Colors.white,
+              color: c.textPrimary,
               letterSpacing: 0.5,
             ),
           ),
@@ -209,36 +220,38 @@ class _AccountPageState extends State<AccountPage> {
     bool isLogout = false,
     bool isNotification = false,
     bool isLanguage = false,
+    bool isAppearance = false,
     bool isLast = false,
     String? svgPath,
   }) {
+    final c = context.colors;
     return ListTile(
       shape: Border(
-        bottom: BorderSide(
-          color: isLast
-              ? Colors.transparent
-              : Colors.grey.shade800.withAlpha(160),
-        ),
+        bottom: BorderSide(color: isLast ? Colors.transparent : c.divider),
       ),
       minTileHeight: 80,
       leading: isSvg
-          ? SvgPicture.asset(svgPath!, width: 20, height: 20)
+          // The SVG carries the gold gradient baked in, so [GoldIcon] repaints
+          // it with the ramp that reads on the theme in force.
+          ? GoldIcon(asset: svgPath!, size: 20)
           : ShaderMask(
               shaderCallback: (Rect bounds) {
-                return const LinearGradient(
+                return LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
-                  colors: [
-                    Color(0xFF49280B),
-                    Color(0xFFE4A46B),
-                    Color(0xFF60350F),
-                  ],
+                  colors: c.goldIconGradient,
                 ).createShader(bounds);
               },
               child: Icon(icon, color: Colors.white),
             ),
       trailing: !(isDelete || isLogout)
-          ? isLanguage
+          ? isAppearance
+                // Says which mode is on without opening the sheet.
+                ? Text(
+                    _themeLabel(loc),
+                    style: TextStyle(color: c.accent, fontSize: 13),
+                  )
+                : isLanguage
                 // Flag of the language currently in use, matching the switch in
                 // the home appbar. The tile itself handles the tap.
                 //
@@ -273,9 +286,9 @@ class _AccountPageState extends State<AccountPage> {
                       width: 70,
                       height: 26,
                       decoration: BoxDecoration(
-                        color: Colors.black,
+                        color: c.surfaceDeep,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.black),
+                        border: Border.all(color: c.surfaceDeep),
                       ),
                       child: Stack(
                         children: [
@@ -290,12 +303,12 @@ class _AccountPageState extends State<AccountPage> {
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: notificationActive
-                                    ? const Color(0xFFE4A46B)
-                                    : Colors.grey,
+                                    ? c.accent
+                                    : c.textTertiary,
                                 borderRadius: BorderRadius.circular(4),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withAlpha(80),
+                                    color: c.shadow,
                                     blurRadius: 2,
                                     offset: const Offset(0, 1),
                                   ),
@@ -303,8 +316,8 @@ class _AccountPageState extends State<AccountPage> {
                               ),
                               child: Text(
                                 notificationActive ? loc.on : loc.off,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: c.onAccent,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
@@ -317,16 +330,17 @@ class _AccountPageState extends State<AccountPage> {
                   )
                 : ShaderMask(
                     shaderCallback: (Rect bounds) {
-                      return const LinearGradient(
+                      return LinearGradient(
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,
-                        colors: [
-                          Color(0xFF49280B),
-                          Color(0xFFE4A46B),
-                          Color(0xFF60350F),
-                        ],
+                        colors: c.goldIconGradient,
                       ).createShader(bounds);
                     },
+                    // White, and it has to be: [ShaderMask] defaults to
+                    // `BlendMode.modulate`, which *multiplies* the child by the
+                    // shader. White is the multiplicative identity, so the
+                    // gradient comes through unchanged; any other ink would
+                    // darken it.
                     child: Icon(
                       Icons.arrow_forward_ios,
                       color: Colors.white,
@@ -334,11 +348,250 @@ class _AccountPageState extends State<AccountPage> {
                     ),
                   )
           : null,
-      title: Text(title, style: TextStyle(color: Colors.white, fontSize: 14)),
+      title: Text(title, style: TextStyle(color: c.textPrimary, fontSize: 14)),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Appearance
+  // ---------------------------------------------------------------------------
+
+  /// The current theme choice, for the appearance row's trailing label.
+  String _themeLabel(AppLocalizations loc) {
+    // Watched, not read: picking "System" while the device is already dark
+    // changes the mode without changing a single colour, so nothing else on
+    // this page would rebuild and the label would keep naming the old choice.
+    return switch (context.watch<ThemeProvider>().themeMode) {
+      ThemeMode.light => loc.lightMode,
+      ThemeMode.dark => loc.darkMode,
+      ThemeMode.system => loc.systemMode,
+    };
+  }
+
+  /// Where the customer chooses how the app looks, and how its maps look.
+  ///
+  /// The two are separate choices on purpose. Someone reading a light app in
+  /// daylight may still want the night map — dark tiles make a gold car and its
+  /// route line pop — and the reverse holds too, so the map is not simply
+  /// chained to the app.
+  void _showAppearanceSheet(BuildContext context, AppLocalizations loc) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        // Reads the palette from the sheet's own context, so the sheet repaints
+        // itself the moment a mode is picked rather than showing the old one
+        // until it is dismissed.
+        return Consumer<ThemeProvider>(
+          builder: (context, themeProvider, _) {
+            final c = context.colors;
+            return Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: c.sheet,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: 24,
+                      bottom: 12,
+                      left: 24,
+                      right: 24,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            loc.appearance,
+                            style: TextStyle(
+                              color: c.textPrimary,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(sheetContext),
+                          child: Icon(Icons.close, color: c.icon, size: 24),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(color: c.divider, thickness: 1),
+                  const SizedBox(height: 20),
+
+                  _sectionHeading(c, loc.theme),
+                  const SizedBox(height: 10),
+                  _segmentedRow(
+                    c: c,
+                    options: [
+                      _Segment(
+                        label: loc.lightMode,
+                        icon: Icons.light_mode_outlined,
+                        selected: themeProvider.themeMode == ThemeMode.light,
+                        onTap: () =>
+                            themeProvider.setThemeMode(ThemeMode.light),
+                      ),
+                      _Segment(
+                        label: loc.darkMode,
+                        icon: Icons.dark_mode_outlined,
+                        selected: themeProvider.themeMode == ThemeMode.dark,
+                        onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
+                      ),
+                      _Segment(
+                        label: loc.systemMode,
+                        icon: Icons.phone_iphone_rounded,
+                        selected: themeProvider.themeMode == ThemeMode.system,
+                        onTap: () =>
+                            themeProvider.setThemeMode(ThemeMode.system),
+                      ),
+                    ],
+                  ),
+                  _sectionNote(c, loc.systemModeDescription),
+
+                  const SizedBox(height: 24),
+                  _sectionHeading(c, loc.mapStyle),
+                  const SizedBox(height: 10),
+                  _segmentedRow(
+                    c: c,
+                    options: [
+                      _Segment(
+                        label: loc.mapStyleMatchApp,
+                        icon: Icons.auto_awesome_outlined,
+                        selected:
+                            themeProvider.mapPreference ==
+                            MapThemePreference.matchApp,
+                        onTap: () => themeProvider.setMapPreference(
+                          MapThemePreference.matchApp,
+                        ),
+                      ),
+                      _Segment(
+                        label: loc.mapStyleLight,
+                        icon: Icons.wb_sunny_outlined,
+                        selected:
+                            themeProvider.mapPreference ==
+                            MapThemePreference.light,
+                        onTap: () => themeProvider.setMapPreference(
+                          MapThemePreference.light,
+                        ),
+                      ),
+                      _Segment(
+                        label: loc.mapStyleDark,
+                        icon: Icons.nightlight_round,
+                        selected:
+                            themeProvider.mapPreference ==
+                            MapThemePreference.dark,
+                        onTap: () => themeProvider.setMapPreference(
+                          MapThemePreference.dark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  _sectionNote(c, loc.mapStyleDescription),
+
+                  SizedBox(
+                    height: MediaQuery.of(sheetContext).padding.bottom + 28,
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _sectionHeading(AppPalette c, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: c.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionNote(AppPalette c, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, left: 24, right: 24),
+      child: Text(text, style: TextStyle(color: c.textTertiary, fontSize: 12)),
+    );
+  }
+
+  /// Three equal-width choices, one of them selected.
+  ///
+  /// A row of pills rather than a list of radio rows: there are only three of
+  /// each, and seeing all three side by side is what makes the choice obvious
+  /// at a glance.
+  Widget _segmentedRow({
+    required AppPalette c,
+    required List<_Segment> options,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          for (final option in options) ...[
+            Expanded(
+              child: GestureDetector(
+                onTap: option.onTap,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: option.selected ? c.accentSurface : c.surfaceAlt,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: option.selected ? c.accent : c.border,
+                      width: option.selected ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        option.icon,
+                        size: 20,
+                        color: option.selected ? c.accent : c.iconMuted,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        option.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: option.selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: option.selected ? c.accent : c.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (option != options.last) const SizedBox(width: 10),
+          ],
+        ],
+      ),
     );
   }
 
   void _showLogoutBottomSheet(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     showModalBottomSheet(
       context: context,
       isDismissible: false,
@@ -346,9 +599,9 @@ class _AccountPageState extends State<AccountPage> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1E1105),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: c.sheet,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
 
           child: Column(
@@ -381,27 +634,27 @@ class _AccountPageState extends State<AccountPage> {
                     Expanded(
                       child: Text(
                         loc.logout,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: c.textPrimary,
                           fontSize: 18,
                         ),
                       ),
                     ),
                     GestureDetector(
                       onTap: () => Navigator.pop(sheetContext),
-                      child: Icon(Icons.close, color: Colors.white, size: 24),
+                      child: Icon(Icons.close, color: c.icon, size: 24),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: Colors.white, thickness: 1),
+              Divider(color: c.divider, thickness: 1),
               const SizedBox(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   loc.logoutConfirm,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: c.textSecondary, fontSize: 14),
                 ),
               ),
               Padding(
@@ -409,7 +662,7 @@ class _AccountPageState extends State<AccountPage> {
                 child: Text(
                   loc.loginAgainMessage,
                   textAlign: TextAlign.start,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: c.textSecondary, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 80),
@@ -425,13 +678,13 @@ class _AccountPageState extends State<AccountPage> {
                           decoration: BoxDecoration(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade600),
+                            border: Border.all(color: c.borderStrong),
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             loc.cancel,
                             style: TextStyle(
-                              color: Colors.white,
+                              color: c.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -482,6 +735,7 @@ class _AccountPageState extends State<AccountPage> {
     BuildContext context,
     AppLocalizations loc,
   ) {
+    final c = context.colors;
     showModalBottomSheet(
       context: context,
       isDismissible: false,
@@ -489,9 +743,9 @@ class _AccountPageState extends State<AccountPage> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1E1105),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: c.sheet,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -509,27 +763,27 @@ class _AccountPageState extends State<AccountPage> {
                     Expanded(
                       child: Text(
                         loc.deleteAccount,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: c.textPrimary,
                           fontSize: 18,
                         ),
                       ),
                     ),
                     GestureDetector(
                       onTap: () => Navigator.pop(sheetContext),
-                      child: Icon(Icons.close, color: Colors.white, size: 24),
+                      child: Icon(Icons.close, color: c.icon, size: 24),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: Colors.white, thickness: 1),
+              Divider(color: c.divider, thickness: 1),
               const SizedBox(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   loc.deleteAccountConfirm,
                   textAlign: TextAlign.start,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: c.textSecondary, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 12),
@@ -538,7 +792,7 @@ class _AccountPageState extends State<AccountPage> {
                 child: Text(
                   loc.deleteAccountMessage,
                   textAlign: TextAlign.start,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: c.textSecondary, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 80),
@@ -554,13 +808,13 @@ class _AccountPageState extends State<AccountPage> {
                           decoration: BoxDecoration(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade600),
+                            border: Border.all(color: c.borderStrong),
                           ),
                           alignment: Alignment.center,
                           child: Text(
                             loc.cancel,
                             style: TextStyle(
-                              color: Colors.white,
+                              color: c.textPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -620,6 +874,7 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   void _showContactUsBottomSheet(BuildContext context, AppLocalizations loc) {
+    final c = context.colors;
     showModalBottomSheet(
       context: context,
       isDismissible: true,
@@ -627,9 +882,9 @@ class _AccountPageState extends State<AccountPage> {
       backgroundColor: Colors.transparent,
       builder: (BuildContext sheetContext) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1E1105),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: c.sheet,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -647,27 +902,27 @@ class _AccountPageState extends State<AccountPage> {
                     Expanded(
                       child: Text(
                         loc.contactUs,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: c.textPrimary,
                           fontSize: 18,
                         ),
                       ),
                     ),
                     GestureDetector(
                       onTap: () => Navigator.pop(sheetContext),
-                      child: Icon(Icons.close, color: Colors.white, size: 24),
+                      child: Icon(Icons.close, color: c.icon, size: 24),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: Colors.white, thickness: 1),
+              Divider(color: c.divider, thickness: 1),
               const SizedBox(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   loc.selectContactMethod,
                   textAlign: TextAlign.start,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: c.textSecondary, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 24),
@@ -715,4 +970,19 @@ class _AccountPageState extends State<AccountPage> {
       },
     );
   }
+}
+
+/// One choice in an appearance segmented row.
+class _Segment {
+  const _Segment({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
 }

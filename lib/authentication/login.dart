@@ -3,6 +3,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:premium_force_main/common_widgets/country_picker_theme.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
+import 'package:premium_force_main/theme/app_theme.dart';
 import 'package:premium_force_main/main.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/authentication/blocked_page.dart';
@@ -156,15 +159,14 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
+    // The status bar sits over the logo plate, which is dark in both themes, so
+    // its icons are pinned light rather than following the app's brightness.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-      ),
+      value: AppTheme.overlayStyle(Brightness.dark),
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        backgroundColor: const Color(0xFF1E1105),
+        backgroundColor: c.brandCanvas,
         body: Consumer<AuthProvider>(
           builder: (context, authProvider, _) {
             final bool isAnyLoading =
@@ -231,13 +233,13 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                           right: 0,
                           bottom: -formSlideUp,
                           child: Container(
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [Color(0xFF3E230A), Color(0xFF141313)],
+                                colors: c.sheetGradient,
                               ),
-                              borderRadius: BorderRadius.only(
+                              borderRadius: const BorderRadius.only(
                                 topLeft: Radius.circular(30),
                                 topRight: Radius.circular(30),
                               ),
@@ -263,8 +265,8 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                       children: [
                                         Text(
                                           AppLocalizations.of(context)!.signIn,
-                                          style: const TextStyle(
-                                            color: Colors.white,
+                                          style: TextStyle(
+                                            color: c.textPrimary,
                                             fontSize: 26,
                                             fontWeight: FontWeight.w600,
                                             letterSpacing: 1.2,
@@ -352,83 +354,8 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                             showPhoneCode: true,
                                             customFlagBuilder: (context) =>
                                                 const SizedBox.shrink(),
-                                            countryListTheme: CountryListThemeData(
-                                              backgroundColor: const Color(
-                                                0xFF141313,
-                                              ),
-                                              textStyle: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14,
-                                              ),
-                                              searchTextStyle: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 14,
-                                              ),
-                                              borderRadius:
-                                                  const BorderRadius.only(
-                                                    topLeft: Radius.circular(
-                                                      30,
-                                                    ),
-                                                    topRight: Radius.circular(
-                                                      30,
-                                                    ),
-                                                  ),
-                                              inputDecoration: InputDecoration(
-                                                hintText: AppLocalizations.of(
-                                                  context,
-                                                )!.search,
-                                                hintStyle: TextStyle(
-                                                  color: Colors.white.withAlpha(
-                                                    180,
-                                                  ),
-                                                ),
-                                                prefixIcon: const Icon(
-                                                  Icons.search,
-                                                  color: Colors.white,
-                                                ),
-                                                filled: true,
-                                                fillColor: const Color(
-                                                  0xFF1A1410,
-                                                ),
-                                                border: OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  borderSide: BorderSide(
-                                                    color: Colors.grey.shade800,
-                                                  ),
-                                                ),
-                                                enabledBorder:
-                                                    OutlineInputBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            12,
-                                                          ),
-                                                      borderSide: BorderSide(
-                                                        color: Colors
-                                                            .grey
-                                                            .shade800,
-                                                      ),
-                                                    ),
-                                                focusedBorder:
-                                                    OutlineInputBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            12,
-                                                          ),
-                                                      borderSide:
-                                                          const BorderSide(
-                                                            color: Color(
-                                                              0xFFE4A46B,
-                                                            ),
-                                                          ),
-                                                    ),
-                                              ),
-                                              bottomSheetHeight:
-                                                  MediaQuery.of(
-                                                    context,
-                                                  ).size.height *
-                                                  0.75,
-                                            ),
+                                            countryListTheme:
+                                                buildCountryListTheme(context),
                                             onSelect: (Country country) {
                                               setState(() {
                                                 _selectedCountryCode =
@@ -452,14 +379,14 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                 '+$_selectedCountryCode',
                                                 textDirection:
                                                     TextDirection.ltr,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
+                                                style: TextStyle(
+                                                  color: c.textPrimary,
                                                   fontSize: 14,
                                                 ),
                                               ),
-                                              const Icon(
+                                              Icon(
                                                 Icons.arrow_drop_down,
-                                                color: Colors.white,
+                                                color: c.icon,
                                               ),
                                               Container(
                                                 margin:
@@ -468,7 +395,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                     ),
                                                 height: 24,
                                                 width: 1,
-                                                color: Colors.grey,
+                                                color: c.border,
                                               ),
                                             ],
                                           ),
@@ -498,7 +425,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                           child: RichText(
                                             text: TextSpan(
                                               style: TextStyle(
-                                                color: Color(0xFFB0B0B0),
+                                                color: c.textSecondary,
                                                 fontSize: 11,
                                                 height: 1.4,
                                               ),
@@ -508,7 +435,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                     context,
                                                   )!.byClickingContinueButton,
                                                   style: TextStyle(
-                                                    color: Colors.white,
+                                                    color: c.textPrimary,
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w500,
                                                     decoration:
@@ -532,7 +459,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                       } catch (e) {}
                                                     },
                                                   style: TextStyle(
-                                                    color: Colors.white,
+                                                    color: c.textPrimary,
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w900,
                                                     decoration:
@@ -543,7 +470,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                   text:
                                                       " ${AppLocalizations.of(context)!.and} ",
                                                   style: TextStyle(
-                                                    color: Colors.white,
+                                                    color: c.textPrimary,
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w500,
                                                     decoration:
@@ -568,7 +495,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                       } catch (e) {}
                                                     },
                                                   style: TextStyle(
-                                                    color: Colors.white,
+                                                    color: c.textPrimary,
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.w900,
                                                     decoration:
@@ -656,7 +583,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                               gradient: LinearGradient(
                                                 colors: [
                                                   Colors.transparent,
-                                                  Colors.white.withAlpha(60),
+                                                  c.divider,
                                                 ],
                                               ),
                                             ),
@@ -669,9 +596,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                           child: Text(
                                             AppLocalizations.of(context)!.or,
                                             style: TextStyle(
-                                              color: Colors.white.withAlpha(
-                                                150,
-                                              ),
+                                              color: c.textTertiary,
                                               fontSize: 12,
                                               fontWeight: FontWeight.w500,
                                               letterSpacing: 1.5,
@@ -684,7 +609,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                             decoration: BoxDecoration(
                                               gradient: LinearGradient(
                                                 colors: [
-                                                  Colors.white.withAlpha(60),
+                                                  c.divider,
                                                   Colors.transparent,
                                                 ],
                                               ),
@@ -741,29 +666,30 @@ class _GoogleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(40), width: 1),
-        color: const Color(0xFF0D0A08),
+        border: Border.all(color: c.border, width: 1),
+        color: c.surfaceDeep,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: isLoading ? null : onTap,
           borderRadius: BorderRadius.circular(12),
-          splashColor: Colors.white.withAlpha(20),
-          highlightColor: Colors.white.withAlpha(10),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (isLoading)
-                  const PremiumLoader(size: 24, color: Color(0xFFE4A46B))
+                  const PremiumLoader(size: 24)
                 else ...[
+                  // Google's mark keeps its own four colours in both themes —
+                  // recolouring it is against their brand guidelines.
                   SvgPicture.asset(
                     'assets/icons/google_logo.svg',
                     width: 24,
@@ -773,7 +699,7 @@ class _GoogleSignInButton extends StatelessWidget {
                   Text(
                     AppLocalizations.of(context)!.continueWithGoogle,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: c.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
@@ -798,35 +724,34 @@ class _AppleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     return Container(
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(40), width: 1),
-        color: const Color(0xFF0D0A08),
+        border: Border.all(color: c.border, width: 1),
+        color: c.surfaceDeep,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: isLoading ? null : onTap,
           borderRadius: BorderRadius.circular(12),
-          splashColor: Colors.white.withAlpha(20),
-          highlightColor: Colors.white.withAlpha(10),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (isLoading)
-                  const PremiumLoader(size: 24, color: Color(0xFFE4A46B))
+                  const PremiumLoader(size: 24)
                 else ...[
-                  const Icon(Icons.apple, color: Colors.white, size: 24),
+                  Icon(Icons.apple, color: c.icon, size: 24),
                   const SizedBox(width: 14),
                   Text(
                     AppLocalizations.of(context)!.continueWithApple,
                     style: TextStyle(
-                      color: Colors.white,
+                      color: c.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,

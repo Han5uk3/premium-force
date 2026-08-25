@@ -3,6 +3,7 @@ import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/theme/app_palette.dart';
 import 'dart:io';
 import 'dart:async';
 
@@ -145,11 +146,12 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final c = context.colors;
     return Dialog(
-      backgroundColor: const Color(0xFF141313),
+      backgroundColor: c.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Colors.white24),
+        side: BorderSide(color: c.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -162,15 +164,15 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
               children: [
                 Text(
                   loc.voiceNote,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: c.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.close, color: Colors.white60),
+                  child: Icon(Icons.close, color: c.iconMuted),
                 ),
               ],
             ),
@@ -180,9 +182,9 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: c.field,
                 borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white24),
+                border: Border.all(color: c.border),
               ),
               child: Row(
                 children: [
@@ -191,7 +193,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                       onTap: _playPauseAudio,
                       child: Icon(
                         _isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: const Color(0xFFE4A46B),
+                        color: c.accent,
                         size: 28,
                       ),
                     ),
@@ -207,8 +209,8 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                           ),
                         ),
                         child: Slider(
-                          activeColor: const Color(0xFFE4A46B),
-                          inactiveColor: Colors.white24,
+                          activeColor: c.accent,
+                          inactiveColor: c.border,
                           value: _audioPosition.inMilliseconds.toDouble().clamp(
                             0.0,
                             _audioDuration.inMilliseconds > 0
@@ -230,28 +232,27 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                       _audioDuration.inMilliseconds > 0
                           ? _formatDuration(_audioPosition.inSeconds)
                           : _formatDuration(_recordDuration),
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: c.textTertiary, fontSize: 11),
                     ),
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: _deleteRecording,
-                      child: const Icon(
+                      child: Icon(
                         Icons.delete_outline,
-                        color: Color(0xFFCF6679),
+                        color: c.error,
                         size: 24,
                       ),
                     ),
                   ] else if (_isRecording) ...[
                     const SizedBox(width: 12),
-                    const Icon(Icons.mic, color: Color(0xFFCF6679), size: 16),
+                    // The live-recording dot, in the error tone because it is
+                    // the one control here that is actively consuming.
+                    Icon(Icons.mic, color: c.error, size: 16),
                     const SizedBox(width: 8),
                     Text(
                       _formatDuration(_recordDuration),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: c.textPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -262,15 +263,11 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                       child: Container(
                         height: 36,
                         width: 36,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE4A46B),
+                        decoration: BoxDecoration(
+                          color: c.accent,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.stop,
-                          color: Colors.black,
-                          size: 20,
-                        ),
+                        child: Icon(Icons.stop, color: c.onAccent, size: 20),
                       ),
                     ),
                   ] else ...[
@@ -279,10 +276,7 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                         padding: const EdgeInsets.only(left: 8.0),
                         child: Text(
                           loc.recordVoiceNote,
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: c.textTertiary, fontSize: 12),
                         ),
                       ),
                     ),
@@ -291,15 +285,11 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                       child: Container(
                         height: 36,
                         width: 36,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE4A46B),
+                        decoration: BoxDecoration(
+                          color: c.accent,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.mic,
-                          color: Colors.black,
-                          size: 20,
-                        ),
+                        child: Icon(Icons.mic, color: c.onAccent, size: 20),
                       ),
                     ),
                   ],
@@ -315,8 +305,8 @@ class _VoiceNoteDialogState extends State<VoiceNoteDialog> {
                   Navigator.pop(context, _audioPath);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE4A46B),
-                  foregroundColor: Colors.black,
+                  backgroundColor: c.accent,
+                  foregroundColor: c.onAccent,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
