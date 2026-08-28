@@ -168,8 +168,30 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
   ///
   /// Cleared the moment the customer pans or zooms: re-centring under their
   /// finger every time a fix arrives made the map impossible to read ahead on.
-  /// The recentre button puts it back.
+  /// The recentre button puts it back — and so does letting go of the map, see
+  /// [_resumeFollowAfter].
   bool _followDriver = true;
+
+  /// Whether following was dropped by the customer's own hand on the map,
+  /// rather than by a button asking for a particular view.
+  ///
+  /// Only a gesture arms the auto-resume below. Someone who tapped "show full
+  /// route" is reading the whole journey, and pulling the camera back onto the
+  /// car five seconds later would take it away mid-look; someone who nudged the
+  /// map is glancing, and expects it to settle back on the car by itself.
+  bool _followSuspendedByGesture = false;
+
+  /// The pending return to the car. Restarted while the map is still moving, so
+  /// it measures the quiet *after* the pan rather than the time since it began.
+  Timer? _followResumeTimer;
+
+  /// Fingers currently down on the map. The auto-resume is not armed while any
+  /// remain — a customer holding still mid-drag has not finished.
+  int _mapPointers = 0;
+
+  /// How long the map must sit untouched before it goes back to following the
+  /// car of its own accord.
+  static const Duration _resumeFollowAfter = Duration(seconds: 5);
 
   /// Zoom the two locate buttons settle on — close enough to read the street
   /// the car is on, which is the question either of them is asked.
@@ -284,6 +306,7 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     _freshnessTimer?.cancel();
     _directionsRetryTimer?.cancel();
     _openFallbackTimer?.cancel();
+    _followResumeTimer?.cancel();
     _markerController.dispose();
     _mapMarkers.dispose();
     super.dispose();
@@ -1309,12 +1332,65 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     } catch (e) {}
   }
 
+  /// Drop any pending auto-resume.
+  ///
+  /// Called wherever the customer has just said what they want the camera to
+  /// do — the recentre button, the route button, the locate button — so a timer
+  /// armed by an earlier pan cannot fire on top of that a moment later.
+  void _cancelFollowResume() {
+    _followResumeTimer?.cancel();
+    _followResumeTimer = null;
+  }
+
+  /// Arm the return to the car, or push it back if it is already armed.
+  ///
+  /// Driven from both ends of the gesture — the last finger lifting, and every
+  /// frame the camera moves — so the wait is measured from the map coming to
+  /// rest rather than from the touch that started it. A fling that coasts for a
+  /// second therefore still gets its full [_resumeFollowAfter] of stillness.
+  void _scheduleFollowResume() {
+    _followResumeTimer?.cancel();
+    _followResumeTimer = null;
+
+    // Already following, or the camera was put here by a button rather than by
+    // hand — neither is something to undo.
+    if (_followDriver || !_followSuspendedByGesture) return;
+    // A finger is still down: this pan is not over.
+    if (_mapPointers > 0) return;
+    // Nothing left to go back to.
+    if (_tripEnded || _driverLocation == null) return;
+
+    _followResumeTimer = Timer(_resumeFollowAfter, () {
+      if (!mounted) return;
+      if (_followDriver || !_followSuspendedByGesture) return;
+      if (_tripEnded || _driverLocation == null) return;
+      _recentreOnDriver();
+    });
+  }
+
+  /// A finger has left the map.
+  ///
+  /// A cancel counts as a lift: it arrives in place of the up when the touch is
+  /// taken over rather than finished, and either way there is no longer a hand
+  /// on the map for this screen's purposes. Missing it would leave the count
+  /// stuck above zero and the auto-resume armed but never firing.
+  void _onMapPointerLifted() {
+    if (_mapPointers > 0) _mapPointers--;
+    if (_mapPointers == 0) _scheduleFollowResume();
+  }
+
   /// Resume following, and bring the camera back onto the car.
   ///
   /// Zooms in as well as re-centring: the customer reaches for this after
   /// panning or pinching out to see the whole route, so restoring the position
   /// without the zoom would leave them looking at a car three streets wide.
+  ///
+  /// Also where the map lands on its own once it has been left alone for
+  /// [_resumeFollowAfter], so a hands-off return is the same view as a tapped
+  /// one rather than a second, subtly different one.
   Future<void> _recentreOnDriver() async {
+    _cancelFollowResume();
+    _followSuspendedByGesture = false;
     setState(() => _followDriver = true);
 
     final target = _renderedDriverLocation ?? _driverLocation;
@@ -1348,7 +1424,10 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     if (points.isEmpty) return;
 
     // Same reasoning as the locate button: this is the customer choosing a
-    // view, so the next fix must not drag the camera off it.
+    // view, so the next fix must not drag the camera off it — and neither must
+    // the auto-resume, which is why this is not marked as a gesture.
+    _cancelFollowResume();
+    _followSuspendedByGesture = false;
     setState(() => _followDriver = false);
 
     var minLat = points.first.latitude;
@@ -1394,6 +1473,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
   /// camera straight back off the customer's own position.
   Future<void> _goToCustomerLocation() async {
     if (_isLocatingCustomer) return;
+    _cancelFollowResume();
+    _followSuspendedByGesture = false;
     setState(() {
       _isLocatingCustomer = true;
       _followDriver = false;
@@ -1670,8 +1751,16 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
           if (_mapOpenTarget != null)
           Listener(
             onPointerDown: (_) {
+              _mapPointers++;
+              _cancelFollowResume();
+              // Marked as a gesture even when following is already off, so a
+              // pan made after the route or locate button still earns the
+              // hands-off return that those buttons deliberately do not.
+              _followSuspendedByGesture = true;
               if (_followDriver) setState(() => _followDriver = false);
             },
+            onPointerUp: (_) => _onMapPointerLifted(),
+            onPointerCancel: (_) => _onMapPointerLifted(),
             // Only this subtree rebuilds when the car moves. The map keeps its
             // own texture and camera across a rebuild — the plugin diffs the
             // marker set and sends just what changed — so the car slides while
@@ -1717,7 +1806,14 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                     }
                   });
                 },
-                onCameraMove: (position) => _applyZoom(position.zoom),
+                onCameraMove: (position) {
+                  _applyZoom(position.zoom);
+                  // The map is still under the customer's control here — while
+                  // following is off nothing else drives the camera — so every
+                  // frame of the pan, and of the inertia after it, pushes the
+                  // return back out to a full five seconds of stillness.
+                  _scheduleFollowResume();
+                },
                 markers: markers,
                 polylines: _polylines,
                 // Shows the customer's own position alongside the driver's,
@@ -2007,7 +2103,8 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
                     color: const Color(0xFFE4A46B),
                     shape: const CircleBorder(),
                     child: InkWell(
-                      onTap: () => _makePhoneCall(widget.booking.driver?.phone),
+                      onTap: () =>
+                          _makePhoneCall(widget.booking.driver?.fullPhone),
                       borderRadius: BorderRadius.circular(25),
                       child: const Padding(
                         padding: EdgeInsets.all(12),
