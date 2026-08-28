@@ -1159,6 +1159,12 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
             // the new destination is very likely off screen.
             _hasCentredOnDriver = false;
             _followDriver = true;
+            // The leg change has overridden whatever the customer had done to
+            // the camera, so the pan that turned following off is spent. Left
+            // set, it would keep claiming a gesture is outstanding long after
+            // the view it applied to was replaced.
+            _followSuspendedByGesture = false;
+            _cancelFollowResume();
           }
 
           if (_isChauffeur &&
@@ -1185,6 +1191,9 @@ class _DriverTrackingPageState extends State<DriverTrackingPage>
     _routeRefreshTimer?.cancel();
     _freshnessTimer?.cancel();
     _directionsRetryTimer?.cancel();
+    // A pan in the last few seconds of the ride leaves this armed; there is no
+    // longer a moving car to go back to.
+    _cancelFollowResume();
     // Otherwise the marker keeps sliding towards a fix that is now final.
     _markerController.stop();
 
