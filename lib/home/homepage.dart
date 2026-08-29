@@ -455,7 +455,7 @@ class _HomepageState extends State<Homepage>
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildAppbar(context, loc),
-              SizedBox(height: 8),
+              // SizedBox(height: 8),
               _buildBookService(context, loc),
               Consumer<BookingProvider>(
                 builder: (context, bookingProvider, child) {
@@ -854,184 +854,192 @@ class _HomepageState extends State<Homepage>
     // icons over it their only contrast. Everything drawn on it therefore keeps
     // the fixed white it needs against the picture.
     return Container(
-      height: 301,
-      padding: const EdgeInsets.only(top: 50),
+      height: 300,
+
       decoration: BoxDecoration(
         image: DecorationImage(
-          colorFilter: ColorFilter.mode(
-            const Color(0xFF1E1105).withAlpha(120),
-            BlendMode.srcATop,
-          ),
           image: AssetImage(
             context.colors.brightness == Brightness.light
                 ? 'assets/images/homeappbarlight.png'
-                : 'assets/images/homeappbar.jpeg',
+                : 'assets/images/homeappbar.png',
           ),
-          fit: BoxFit.none,
+          fit: BoxFit.fitHeight,
         ),
       ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        loc.welcomeBack,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.white,
+      child: Container(
+        padding: const EdgeInsets.only(top: 50),
+        decoration: BoxDecoration(
+          color: context.colors.brightness == Brightness.light
+              ? context.colors.accentSurface.withValues(alpha: 0.9)
+              : const Color(0xFF1E1105).withAlpha(120),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          loc.welcomeBack,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: context.colors.textPrimary,
+                          ),
                         ),
-                      ),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final auth = Provider.of<AuthProvider>(context);
-                          String name =
-                              auth.user?.username ??
-                              (auth.status == AuthStatus.loading
-                                  ? "..."
-                                  : "User");
-                          final style = const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          );
-
-                          String fittedName = name;
-                          final textPainter = TextPainter(
-                            text: TextSpan(text: fittedName, style: style),
-                            maxLines: 1,
-                            textDirection: Directionality.of(context),
-                          )..layout(maxWidth: double.infinity);
-
-                          if (textPainter.width > constraints.maxWidth) {
-                            List<String> words = name.trim().split(
-                              RegExp(r'\s+'),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final auth = Provider.of<AuthProvider>(context);
+                            String name =
+                                auth.user?.username ??
+                                (auth.status == AuthStatus.loading
+                                    ? "..."
+                                    : "User");
+                            final style = TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: context.colors.textPrimary,
                             );
-                            while (words.length > 1) {
-                              words.removeLast();
-                              fittedName = words.join(' ');
-                              textPainter.text = TextSpan(
-                                text: fittedName,
-                                style: style,
+
+                            String fittedName = name;
+                            final textPainter = TextPainter(
+                              text: TextSpan(text: fittedName, style: style),
+                              maxLines: 1,
+                              textDirection: Directionality.of(context),
+                            )..layout(maxWidth: double.infinity);
+
+                            if (textPainter.width > constraints.maxWidth) {
+                              List<String> words = name.trim().split(
+                                RegExp(r'\s+'),
                               );
-                              textPainter.layout(maxWidth: double.infinity);
-                              if (textPainter.width <= constraints.maxWidth) {
-                                break;
+                              while (words.length > 1) {
+                                words.removeLast();
+                                fittedName = words.join(' ');
+                                textPainter.text = TextSpan(
+                                  text: fittedName,
+                                  style: style,
+                                );
+                                textPainter.layout(maxWidth: double.infinity);
+                                if (textPainter.width <= constraints.maxWidth) {
+                                  break;
+                                }
                               }
                             }
-                          }
 
-                          return Text(
-                            fittedName,
-                            style: style,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // The badge tracks the server-side unread count, which is
-                // what the notification centre reconciles read state against.
-                Consumer<NotificationProvider>(
-                  builder: (context, notificationProvider, child) {
-                    final unreadCount = notificationProvider.unreadCount;
-                    return Stack(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.notifications_none_rounded,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const NotificationScreen(),
-                              ),
+                            return Text(
+                              fittedName,
+                              style: style,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             );
                           },
                         ),
-                        if (unreadCount > 0)
-                          Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.redAccent,
-                                shape: BoxShape.circle,
-                              ),
-                              constraints: const BoxConstraints(
-                                minWidth: 16,
-                                minHeight: 16,
-                              ),
-                              child: Text(
-                                textDirection: TextDirection.ltr,
-                                unreadCount > 9 ? '9+' : '$unreadCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
                       ],
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  radius: 16,
-                  child: Material(
-                    borderRadius: BorderRadius.circular(100),
-
-                    child: ClipRRect(
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // The badge tracks the server-side unread count, which is
+                  // what the notification centre reconciles read state against.
+                  Consumer<NotificationProvider>(
+                    builder: (context, notificationProvider, child) {
+                      final unreadCount = notificationProvider.unreadCount;
+                      return CircleAvatar(
+                        backgroundColor: context.colors.textInverse,
+                        child: Stack(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.notifications_none_rounded,
+                                color: context.colors.textPrimary,
+                                size: 25,
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const NotificationScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            if (unreadCount > 0)
+                              Positioned.directional(
+                                textDirection: TextDirection.ltr,
+                                end: 0,
+                                top: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.redAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 16,
+                                    minHeight: 16,
+                                  ),
+                                  child: Text(
+                                    textDirection: TextDirection.ltr,
+                                    unreadCount > 9 ? '9+' : '$unreadCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    radius: 16,
+                    child: Material(
                       borderRadius: BorderRadius.circular(100),
-                      child: InkWell(
-                        splashColor: Colors.grey.withAlpha(200),
+
+                      child: ClipRRect(
                         borderRadius: BorderRadius.circular(100),
-                        onTap: () {
-                          bool isCurrentlyEnglish =
-                              Localizations.localeOf(context).languageCode ==
-                              'en';
-                          MainApp.setLocale(
-                            context,
-                            Locale(isCurrentlyEnglish ? 'ar' : 'en'),
-                          );
-                        },
-                        child: SvgPicture.asset(
-                          Localizations.localeOf(context).languageCode == 'en'
-                              ? 'assets/flags/en.svg'
-                              : 'assets/flags/ar.svg',
-                          fit: BoxFit.fill,
+                        child: InkWell(
+                          splashColor: Colors.grey.withAlpha(200),
+                          borderRadius: BorderRadius.circular(100),
+                          onTap: () {
+                            bool isCurrentlyEnglish =
+                                Localizations.localeOf(context).languageCode ==
+                                'en';
+                            MainApp.setLocale(
+                              context,
+                              Locale(isCurrentlyEnglish ? 'ar' : 'en'),
+                            );
+                          },
+                          child: SvgPicture.asset(
+                            Localizations.localeOf(context).languageCode == 'en'
+                                ? 'assets/flags/en.svg'
+                                : 'assets/flags/ar.svg',
+                            fit: BoxFit.fill,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          SizedBox(height: 10),
-          const InfiniteScrollBanner(),
-        ],
+            SizedBox(height: 10),
+            const InfiniteScrollBanner(),
+          ],
+        ),
       ),
     );
   }
