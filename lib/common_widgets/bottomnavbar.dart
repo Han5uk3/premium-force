@@ -153,7 +153,7 @@ class _MenuIconState extends State<MenuIcon>
     // on flat gold rather than on a ramp.
     final selectedFill = LinearGradient(
       colors: [
-        c.goldGradient.last,
+        c.goldGradient[1],
         c.goldGradient[1],
         c.goldGradient[1],
         c.goldGradient[1],
