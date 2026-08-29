@@ -854,7 +854,7 @@ class _HomepageState extends State<Homepage>
     // icons over it their only contrast. Everything drawn on it therefore keeps
     // the fixed white it needs against the picture.
     return Container(
-      height: 300,
+      height: 301,
 
       decoration: BoxDecoration(
         image: DecorationImage(
