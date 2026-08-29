@@ -862,7 +862,11 @@ class _HomepageState extends State<Homepage>
             const Color(0xFF1E1105).withAlpha(120),
             BlendMode.srcATop,
           ),
-          image: const AssetImage('assets/images/homeappbar.jpeg'),
+          image: AssetImage(
+            context.colors.brightness == Brightness.light
+                ? 'assets/images/homeappbarlight.png'
+                : 'assets/images/homeappbar.jpeg',
+          ),
           fit: BoxFit.none,
         ),
       ),

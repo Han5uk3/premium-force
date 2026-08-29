@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
@@ -148,18 +148,31 @@ class _MenuIconState extends State<MenuIcon>
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    // The selected pill is a gold wash that starts dark and settles: one deep
-    // stop, then the accent held across the rest of the width so the label sits
-    // on flat gold rather than on a ramp.
+    final isDark = c.brightness == Brightness.dark;
+
+    // Multi-stop metallic gold gradient:
+    // runs diagonally from topEnd to bottomStart with a warm, non-white
+    // golden reflective sheen centered across the button.
+    // In dark mode, uses deeper satin bronze/gold tones to prevent harsh brightness.
     final selectedFill = LinearGradient(
-      colors: [
-        c.goldGradient[1],
-        c.goldGradient[1],
-        c.goldGradient[1],
-        c.goldGradient[1],
-        c.goldGradient[1],
-        c.goldGradient[1],
-      ],
+      begin: AlignmentDirectional.topEnd,
+      end: AlignmentDirectional.bottomStart,
+      colors: isDark
+          ? const [
+              Color(0xFF6E3E12), // Deep warm bronze at top-end
+              Color(0xFFB57D3E), // Muted luxury gold
+              Color(0xFFDDA663), // Soft satin gold highlight (subdued, elegant)
+              Color(0xFFB57D3E), // Muted luxury gold
+              Color(0xFF5A300A), // Deep contour at bottom-start
+            ]
+          : const [
+              Color(0xFFB06F27), // Deep luxury gold/bronze at top-end
+              Color(0xFFE4A46B), // Signature warm brand gold
+              Color(0xFFF7D990), // Warm reflective gold sheen (centered, reduced whiteness)
+              Color(0xFFE4A46B), // Signature warm brand gold
+              Color(0xFF9E5C1A), // Deep warm contour at bottom-start
+            ],
+      stops: const [0.0, 0.28, 0.50, 0.72, 1.0],
     );
 
     return Expanded(
@@ -174,12 +187,34 @@ class _MenuIconState extends State<MenuIcon>
             curve: Curves.easeInOut,
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              gradient: widget.isSelected
-                  ? selectedFill
-                  : const LinearGradient(
-                      colors: [Colors.transparent, Colors.transparent],
-                    ),
+              gradient: widget.isSelected ? selectedFill : null,
               borderRadius: const BorderRadius.all(Radius.circular(16)),
+              border: Border.all(
+                color: widget.isSelected
+                    ? (isDark
+                        ? const Color(0xFFDDA663).withValues(alpha: 0.30)
+                        : const Color(0xFFF7D990).withValues(alpha: 0.45))
+                    : Colors.transparent,
+                width: 1,
+              ),
+              boxShadow: widget.isSelected
+                  ? [
+                      BoxShadow(
+                        color: (isDark
+                                ? const Color(0xFFB57D3E)
+                                : const Color(0xFFE4A46B))
+                            .withValues(alpha: isDark ? 0.25 : 0.35),
+                        blurRadius: isDark ? 8 : 12,
+                        offset: Offset(0, isDark ? 2 : 3),
+                      ),
+                      if (!isDark)
+                        BoxShadow(
+                          color: const Color(0xFFF7D990).withValues(alpha: 0.20),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                    ]
+                  : null,
             ),
             height: 50,
             child: Row(
@@ -192,9 +227,11 @@ class _MenuIconState extends State<MenuIcon>
                   child: Icon(
                     widget.icon,
                     key: ValueKey(widget.isSelected),
-                    // Selected sits on gold and takes the on-gold ink;
+                    // Selected sits on shining gold and takes the deep espresso ink;
                     // unselected sits on the frosted bar and takes the page's.
-                    color: widget.isSelected ? c.onGold : c.textPrimary,
+                    color: widget.isSelected
+                        ? const Color(0xFF231405)
+                        : c.textPrimary,
                     size: 20,
                   ),
                 ),
@@ -214,10 +251,11 @@ class _MenuIconState extends State<MenuIcon>
                                   widget.label,
                                   maxLines: 1,
                                   overflow: TextOverflow.clip,
-                                  style: TextStyle(
-                                    color: c.onGold,
+                                  style: const TextStyle(
+                                    color: Color(0xFF231405),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.2,
                                   ),
                                 ),
                               ),
