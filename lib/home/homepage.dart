@@ -22,6 +22,7 @@ import 'package:premium_force_main/common_widgets/bookingcard.dart';
 import 'package:premium_force_main/utils/date_display.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/models/v2/booking_service_type.dart';
+import 'package:premium_force_main/api/booking_api_v2.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/models/v2/geo_models.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
@@ -39,8 +40,6 @@ class _HomepageState extends State<Homepage>
     with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   List<Map<String, dynamic>> _fleetCars = [];
   List<Map<String, dynamic>> _apiCities = [];
-  List<Map<String, dynamic>> _apiAirports = [];
-  List<Map<String, dynamic>> _apiTerminals = [];
   final ValueNotifier<bool> _isLoadingLocations = ValueNotifier(false);
   bool _isLoadingCars = false;
 
@@ -59,10 +58,6 @@ class _HomepageState extends State<Homepage>
     WidgetsBinding.instance.addObserver(this);
     // Load from cache first for zero-latency UI
     _loadCachedFleet();
-    // Fetch fresh data in the background
-    _fetchLocationData();
-    _fetchFleetCars();
-    _fetchFleetCars();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         Provider.of<BookingProvider>(context, listen: false).fetchBookings();
@@ -163,91 +158,34 @@ class _HomepageState extends State<Homepage>
   }
 
   Future<void> _handleRefresh() async {
-    // Force reload everything
-    await Future.wait([
-      _fetchLocationData(),
-      _fetchFleetCars(),
-      Provider.of<BookingProvider>(context, listen: false).fetchBookings(),
-    ]);
+    await Provider.of<BookingProvider>(context, listen: false).fetchBookings();
   }
 
-  Future<void> _fetchLocationData() async {
+  Future<void> _fetchLocationData({bool? hasAirports}) async {
     if (mounted) {
       _isLoadingLocations.value = true;
     }
     try {
-      final api = ApiService();
-
-      // Fetch everything in parallel for a smoother experience later
-      final results =
-          await Future.wait([
-            api.getCities(),
-            api.getAirports(),
-            api.getTerminals(),
-          ]).catchError((e) {
-            return <Map<String, dynamic>>[{}, {}, {}];
-          });
+      final apiV2 = BookingApiV2();
+      final result = await apiV2.getCities(hasAirports: hasAirports);
 
       if (mounted) {
-        setState(() {
-          // Helper to extract list data from various response formats
-          List<Map<String, dynamic>> extractListData(
-            Map<String, dynamic> response,
-            List<String> possibleKeys,
-          ) {
-            if (response['success'] != true) {
-              return [];
-            }
+        if (result.success && result.data != null) {
+          final sorted = result.data!.where((c) => c.isActive).toList()
+            ..sort(
+              (a, b) => (a.sortOrder ?? 999).compareTo(b.sortOrder ?? 999),
+            );
 
-            // Try each possible key
-            for (String key in possibleKeys) {
-              if (response.containsKey(key)) {
-                dynamic data = response[key];
-                return rawDataToList(data);
-              }
-            }
-
-            // If none of the known keys work, search for any array in the response
-
-            for (MapEntry<String, dynamic> entry in response.entries) {
-              if (entry.value is List) {
-                return rawDataToList(entry.value);
-              }
-            }
-
-            return [];
-          }
-
-          // Process Airports
-          _apiAirports = extractListData(results[1], [
-            'airports',
-            'data',
-            'result',
-          ]);
-
-          // Process Terminals
-          _apiTerminals = extractListData(results[2], [
-            'terminals',
-            'data',
-            'result',
-          ]);
-
-          // Process Cities - only include cities that are active
-          _apiCities = extractListData(results[0], ['cities', 'data', 'result'])
-              .where((c) {
-                final active = c['isActive'];
-                return active == true ||
-                    active == 1 ||
-                    active.toString() == 'true';
-              })
-              .toList();
-        });
+          setState(() {
+            _apiCities = sorted.map((c) => c.toJson()).toList();
+          });
+        }
       }
     } catch (e) {
     } finally {
       if (mounted) {
         _isLoadingLocations.value = false;
-        setState(() {}); // Still call setState for other data (cities/airports)
+        setState(() {});
       }
     }
   }
@@ -711,13 +649,14 @@ class _HomepageState extends State<Homepage>
                   ),
                 ),
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const FleetListPage(),
                       ),
                     );
+                    _loadCachedFleet();
                   },
                   child: Text(
                     loc.showMore,
@@ -1073,10 +1012,11 @@ class _HomepageState extends State<Homepage>
                                 minHeight: 16,
                               ),
                               child: Text(
+                                textDirection: TextDirection.ltr,
                                 unreadCount > 9 ? '9+' : '$unreadCount',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
+                                  fontSize: 8,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 textAlign: TextAlign.center,
@@ -1132,9 +1072,8 @@ class _HomepageState extends State<Homepage>
     AppLocalizations loc,
     int catcode,
   ) {
-    if (catcode == 0 || catcode == 1) {
-      _fetchLocationData();
-    }
+    final bool isAirportService = (catcode == 0 || catcode == 1);
+    _fetchLocationData(hasAirports: isAirportService ? true : null);
     bool isEnglish = Localizations.localeOf(context).languageCode == 'en';
     int selectedCityIndex = 0; // default to Riyadh
 
@@ -1269,17 +1208,22 @@ class _HomepageState extends State<Homepage>
                                                     city['cityNameAr'] ??
                                                     cityName;
 
-                                                // API image handling - the 'image' field is a Map containing 'url'
+                                                // API image handling - check 'imageUrl', 'image', or map with 'url'
                                                 String? imageUrl;
-                                                if (city['image'] != null) {
-                                                  if (city['image'] is String) {
-                                                    imageUrl = city['image'];
-                                                  } else if (city['image']
-                                                          is Map &&
-                                                      city['image']['url'] !=
-                                                          null) {
-                                                    imageUrl =
-                                                        city['image']['url'];
+                                                final rawImg =
+                                                    city['imageUrl'] ??
+                                                    city['image'];
+                                                if (rawImg != null) {
+                                                  if (rawImg is String &&
+                                                      rawImg
+                                                          .trim()
+                                                          .isNotEmpty) {
+                                                    imageUrl = rawImg.trim();
+                                                  } else if (rawImg is Map &&
+                                                      rawImg['url'] != null) {
+                                                    imageUrl = rawImg['url']
+                                                        ?.toString()
+                                                        .trim();
                                                   }
                                                 }
 
@@ -1365,8 +1309,6 @@ class _HomepageState extends State<Homepage>
                                     citycode: selectedCityIndex,
                                     cityId: cityId,
                                     preloadedCities: _apiCities,
-                                    preloadedAirports: _apiAirports,
-                                    preloadedTerminals: _apiTerminals,
                                     // Lets the booking screen open on the first
                                     // bookable pickup time straight away.
                                     bookingBufferHours: bookingBufferHoursOf(
@@ -1392,34 +1334,18 @@ class _HomepageState extends State<Homepage>
   }
 
   List<Map<String, dynamic>> _getFilteredCities(int catcode) {
-    return _apiCities.where((c) {
-      // Basic active check
+    final list = _apiCities.where((c) {
       final active = c['isActive'];
-      final bool cityActive =
-          active == true || active == 1 || active.toString() == 'true';
-      if (!cityActive) return false;
-
-      // Check 1: If Airport service, also check for at least one active airport
-      if (catcode == 0 || catcode == 1) {
-        final cityId = (c['_id'] ?? c['id'])?.toString();
-        if (cityId == null) return false;
-
-        return _apiAirports.any((a) {
-          var aCityId = a['cityID'] ?? a['cityId'] ?? a['city_id'];
-          if (aCityId is Map) {
-            aCityId = aCityId['_id'] ?? aCityId['id'];
-          }
-          final aCityIdStr = aCityId?.toString();
-
-          // Use robust isActive check (not explicitly false)
-          final bool isAirportActive = a['isActive'] != false;
-
-          return aCityIdStr == cityId && isAirportActive;
-        });
-      }
-
-      return true;
+      return active == true || active == 1 || active.toString() == 'true';
     }).toList();
+
+    list.sort((a, b) {
+      final aOrder = (a['sortOrder'] as num?)?.toInt() ?? 999;
+      final bOrder = (b['sortOrder'] as num?)?.toInt() ?? 999;
+      return aOrder.compareTo(bOrder);
+    });
+
+    return list;
   }
 
   Widget _buildCityGridShimmer(double maxWidth, {int count = 6}) {
@@ -1495,9 +1421,9 @@ class _HomepageState extends State<Homepage>
                             ),
                           ),
                         ),
-                        errorWidget: (context, url, error) => const Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey,
+                        errorWidget: (context, url, error) => Image.asset(
+                          'assets/images/riyadh.png',
+                          fit: BoxFit.cover,
                         ),
                       )
                     : Image.asset(image, fit: BoxFit.cover),

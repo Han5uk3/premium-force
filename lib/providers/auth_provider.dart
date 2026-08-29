@@ -317,8 +317,8 @@ class AuthProvider extends ChangeNotifier {
         return true;
       } else {
         String msg = result['message'] as String? ?? 'Failed to send OTP';
-        if (msg.contains("Invalid 'To' Phone Number")) {
-          msg = "invalid phone number or country code";
+        if (_isInvalidPhoneNumberError(result)) {
+          msg = "please check entered phone number";
         }
         _errorMessage = msg;
         _status = AuthStatus.failure;
@@ -461,14 +461,33 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } else {
       String msg = result['message'] as String? ?? 'Failed to resend OTP';
-      if (msg.contains("Invalid 'To' Phone Number")) {
-        msg = "invalid phone number or country code";
+      if (_isInvalidPhoneNumberError(result)) {
+        msg = "please check entered phone number";
       }
       _errorMessage = msg;
       _status = AuthStatus.failure;
       notifyListeners();
       return false;
     }
+  }
+
+  /// Checks whether an OTP API response indicates an invalid destination phone number.
+  bool _isInvalidPhoneNumberError(Map<String, dynamic> result) {
+    final error = (result['error']?.toString() ?? '').toLowerCase();
+    final message = (result['message']?.toString() ?? '').toLowerCase();
+    final combined = '$error $message';
+
+    return combined.contains('invalid parameter `to`') ||
+        combined.contains("invalid parameter 'to'") ||
+        combined.contains('invalid parameter "to"') ||
+        combined.contains("invalid 'to' phone number") ||
+        combined.contains('invalid `to` phone number') ||
+        combined.contains('invalid phone number') ||
+        (combined.contains('invalid') &&
+            (combined.contains('`to`') ||
+                combined.contains("'to'") ||
+                combined.contains('"to"') ||
+                combined.contains('to phone number')));
   }
 
   // ---------------------------------------------------------------------------

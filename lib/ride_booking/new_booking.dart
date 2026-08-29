@@ -198,6 +198,7 @@ class _NewBookingState extends State<NewBooking> {
             'isActive': city.isActive,
             'lat': city.lat,
             'long': city.lng,
+            if (city.sortOrder != null) 'sortOrder': city.sortOrder,
           },
       ],
       // Kept so airports/terminals can be read from the nested payload when the

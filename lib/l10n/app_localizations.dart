@@ -1517,8 +1517,14 @@ abstract class AppLocalizations {
   /// No description provided for @invalidPhoneNumberOrCountryCode.
   ///
   /// In en, this message translates to:
-  /// **'invalid phone number or country code'**
+  /// **'Please check entered phone number'**
   String get invalidPhoneNumberOrCountryCode;
+
+  /// No description provided for @pleaseCheckEnteredPhoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check entered phone number'**
+  String get pleaseCheckEnteredPhoneNumber;
 
   /// No description provided for @pleaseEnterAValidOtp.
   ///

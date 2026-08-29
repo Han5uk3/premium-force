@@ -70,14 +70,28 @@ class BookingApiV2 extends V2ApiClient {
   // ---------------------------------------------------------------------------
 
   /// All bookable cities.
-  Future<ApiResult<List<CityV2>>> getCities() {
+  ///
+  /// Pass [hasAirports] (e.g. `true`) for airport services to fetch only cities
+  /// that have airports. Cities are sorted by [CityV2.sortOrder].
+  Future<ApiResult<List<CityV2>>> getCities({bool? hasAirports}) {
     return request(
-      () => dio.get('cities'),
-      parse: (payload) => V2ApiClient.listOf(payload, const [
+      () => dio.get(
         'cities',
-        'data',
-        'items',
-      ]).map(CityV2.fromJson).toList(),
+        queryParameters: {
+          if (hasAirports != null) 'hasAirports': hasAirports,
+        },
+      ),
+      parse: (payload) {
+        final list = V2ApiClient.listOf(payload, const [
+          'cities',
+          'data',
+          'items',
+        ]).map(CityV2.fromJson).toList();
+        list.sort(
+          (a, b) => (a.sortOrder ?? 999).compareTo(b.sortOrder ?? 999),
+        );
+        return list;
+      },
     );
   }
 
