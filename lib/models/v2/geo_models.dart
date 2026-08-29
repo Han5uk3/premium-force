@@ -37,6 +37,8 @@ class CityV2 {
     this.isActive = true,
     this.lat,
     this.lng,
+    this.imageUrl,
+    this.sortOrder,
     this.airports = const [],
   });
 
@@ -53,6 +55,8 @@ class CityV2 {
   final bool isActive;
   final double? lat;
   final double? lng;
+  final String? imageUrl;
+  final int? sortOrder;
   final List<AirportV2> airports;
 
   factory CityV2.fromJson(Map<String, dynamic> json) {
@@ -64,10 +68,39 @@ class CityV2 {
       isActive: pickBool(json, const ['isActive', 'active']) ?? true,
       lat: pickDouble(json, const ['lat', 'latitude']),
       lng: pickDouble(json, const ['lng', 'long', 'longitude']),
+      imageUrl: pickString(json, const ['imageUrl', 'image_url', 'image']),
+      sortOrder: pickInt(json, const ['sortOrder', 'sort_order', 'order']),
       airports: pickMapList(json, const [
         'airports',
       ]).map(AirportV2.fromJson).toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'id': id,
+      'cityName': name,
+      'name': name,
+      if (nameAr != null) 'cityNameAr': nameAr,
+      if (nameAr != null) 'nameAr': nameAr,
+      if (bookingBufferHours != null) 'bookingBufferHours': bookingBufferHours,
+      'isActive': isActive,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'long': lng,
+      if (lng != null) 'lng': lng,
+      if (imageUrl != null) 'imageUrl': imageUrl,
+      if (imageUrl != null) 'image': imageUrl,
+      if (sortOrder != null) 'sortOrder': sortOrder,
+      'airports': airports.map((a) => {
+        '_id': a.id,
+        'id': a.id,
+        'airportName': a.name,
+        'name': a.name,
+        'cityID': a.cityId,
+        'isActive': a.isActive,
+      }).toList(),
+    };
   }
 
   /// Localised display name — falls back to English when Arabic is absent.

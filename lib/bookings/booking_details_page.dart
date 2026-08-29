@@ -1124,7 +1124,10 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     // button. Treated as "no phone at all" rather than as a separate flag, so
     // the two stay in step: the button is the only thing that dials, and it
     // reads the same value the row renders.
-    final phone = booking.status.isConcluded ? null : driver.phone?.trim();
+    // `fullPhone`, not `phone`: the payload sends the dialling prefix in its
+    // own field, so the bare number would both read wrong and dial wrong for a
+    // driver whose country is not the customer's.
+    final phone = booking.status.isConcluded ? null : driver.fullPhone;
     final canCall = phone != null && phone.isNotEmpty;
 
     // Rating belongs to the driver, so it sits in their card rather than in
@@ -1224,6 +1227,17 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                     if (canCall) ...[
                       Text(
                         phone,
+                        // A number is read left to right in every language, but
+                        // the bidi algorithm does not know that: in Arabic the
+                        // leading `+` is a neutral character with an RTL run on
+                        // one side and digits on the other, so it is reordered
+                        // to the far end and `+966…` renders as `966…+` — a
+                        // number nobody can dial. Pinning the direction keeps
+                        // the digits and their prefix in the order they were
+                        // written. Where the row *sits* still follows the
+                        // page's own direction; only the run inside it is
+                        // fixed.
+                        textDirection: TextDirection.ltr,
                         style: TextStyle(color: c.textSecondary, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

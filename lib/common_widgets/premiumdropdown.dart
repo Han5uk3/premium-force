@@ -18,6 +18,13 @@ class PremiumDropDown extends StatefulWidget {
   final String? hint;
   final Map<String, String>? itemImages;
 
+  /// Optional display text per item, keyed by the item's own value.
+  ///
+  /// [items] stay the identity the caller filters and compares on (the
+  /// English class name); this only changes what is drawn. An item with no
+  /// entry renders as itself, so a partial map is safe.
+  final Map<String, String>? itemLabels;
+
   const PremiumDropDown({
     super.key,
     required this.title,
@@ -26,6 +33,7 @@ class PremiumDropDown extends StatefulWidget {
     this.onChanged,
     this.hint,
     this.itemImages,
+    this.itemLabels,
   });
 
   @override
@@ -55,6 +63,9 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
       _selectedValue = widget.value;
     }
   }
+
+  /// What an item is drawn as 2014 its label when one is supplied, else itself.
+  String _labelFor(String item) => widget.itemLabels?[item] ?? item;
 
   void _select(String item) {
     setState(() => _selectedValue = item);
@@ -156,7 +167,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
               ],
               Expanded(
                 child: Text(
-                  selected ?? widget.hint ?? '',
+                  selected == null ? (widget.hint ?? '') : _labelFor(selected),
                   style: TextStyle(
                     // Nothing picked yet reads as a hint, not as an answer.
                     color: selected == null ? c.textTertiary : c.textPrimary,
@@ -198,7 +209,7 @@ class _PremiumDropDownState extends State<PremiumDropDown> {
             ],
             Expanded(
               child: Text(
-                item,
+                _labelFor(item),
                 style: TextStyle(color: c.textPrimary, fontSize: 14),
               ),
             ),

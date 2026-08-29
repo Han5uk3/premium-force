@@ -188,30 +188,32 @@ class NotificationService {
     // feed so both the list and the unread badge pick it up.
     onMessageReceived?.call(message);
 
-    await _localPlugin.show(
-      // Use hashCode so successive notifications don't overwrite each other
-      message.hashCode,
-      notification.title,
-      notification.body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _highImportanceChannel.id,
-          _highImportanceChannel.name,
-          channelDescription: _highImportanceChannel.description,
-          icon: '@mipmap/ic_launcher',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
+    // On iOS, `setForegroundNotificationPresentationOptions(alert: true)`
+    // already tells the system to display the banner for every foreground FCM
+    // message.  Calling `_localPlugin.show()` on top of that creates a second,
+    // duplicate notification.  Android has no equivalent auto-display API, so
+    // the manual local notification is still needed there.
+    if (Platform.isAndroid) {
+      await _localPlugin.show(
+        // Use hashCode so successive notifications don't overwrite each other
+        message.hashCode,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _highImportanceChannel.id,
+            _highImportanceChannel.name,
+            channelDescription: _highImportanceChannel.description,
+            icon: '@mipmap/ic_launcher',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+          ),
         ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      // Serialise the full message so we can reconstruct it on tap
-      payload: jsonEncode(message.toMap()),
-    );
+        // Serialise the full message so we can reconstruct it on tap
+        payload: jsonEncode(message.toMap()),
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------

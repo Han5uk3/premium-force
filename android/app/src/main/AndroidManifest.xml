@@ -56,6 +56,25 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Android App Links.
+                 `autoVerify` makes Android fetch /.well-known/assetlinks.json
+                 from both hosts at install time; until that check passes the
+                 link still opens in the browser rather than here, which is why
+                 the file has to be live before a release ships.
+                 Scoped to /booking/ so the app never offers itself as a
+                 handler for the marketing site's own pages. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"
+                    android:host="premiumforcegroup.com"
+                    android:pathPrefix="/booking/"/>
+                <data android:scheme="https"
+                    android:host="www.premiumforcegroup.com"
+                    android:pathPrefix="/booking/"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

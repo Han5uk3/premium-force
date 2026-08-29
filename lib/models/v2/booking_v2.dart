@@ -155,6 +155,7 @@ class DriverV2 {
   const DriverV2({
     required this.id,
     this.name,
+    this.countryCode,
     this.phone,
     this.rating,
     this.avatar,
@@ -162,14 +163,49 @@ class DriverV2 {
 
   final String id;
   final String? name;
+
+  /// Dialling prefix for [phone], as the payload sends it — `"+91"`.
+  ///
+  /// Kept apart from the number because that is how the backend stores it, and
+  /// because either half can be absent: an older booking carries no prefix at
+  /// all. [fullPhone] is what anything user-facing should read.
+  final String? countryCode;
+
+  /// The subscriber number, without its prefix.
   final String? phone;
   final double? rating;
   final String? avatar;
+
+  /// The number to show and to dial — `"+919847801552"`.
+  ///
+  /// Null when there is no number at all. The prefix is joined on only when it
+  /// adds something: a payload that already sends a fully qualified number, or
+  /// one repeating the prefix inside [phone], must not come out as `+91+91…`
+  /// or `+9191…`, either of which is a number that does not ring.
+  String? get fullPhone {
+    final number = phone?.trim();
+    if (number == null || number.isEmpty) return null;
+
+    final code = countryCode?.trim();
+    if (code == null || code.isEmpty) return number;
+    if (number.startsWith('+')) return number;
+
+    final digits = code.startsWith('+') ? code.substring(1) : code;
+    if (digits.isEmpty) return number;
+    if (number.startsWith(digits)) return '+$number';
+
+    return '+$digits$number';
+  }
 
   factory DriverV2.fromJson(Map<String, dynamic> json) {
     return DriverV2(
       id: pickId(json, const ['_id', 'id', 'driverId']) ?? '',
       name: pickString(json, const ['name', 'driverName', 'fullName']),
+      countryCode: pickString(json, const [
+        'countryCode',
+        'dialCode',
+        'phoneCode',
+      ]),
       phone: pickString(json, const ['phone', 'phoneNumber', 'mobile']),
       rating: pickDouble(json, const ['rating', 'rate']),
       avatar: pickString(json, const ['avatar', 'image', 'profileImage']),

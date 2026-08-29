@@ -76,6 +76,14 @@
           }
         },
         {
+          "client_id": "265361809546-ov16vhtgbnoib2cf8ao1t06v00d8m034.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.brandbik.premiumforcedriver",
+            "certificate_hash": "1f41cff8d224a7698a2031797b0b2e19a1a08560"
+          }
+        },
+        {
           "client_id": "265361809546-rqr3th8836vq6ochnlk32h6vmfe5a9ha.apps.googleusercontent.com",
           "client_type": 3
         }

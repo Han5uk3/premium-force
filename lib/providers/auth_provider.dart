@@ -8,6 +8,7 @@ import 'package:premium_force_main/models/user.dart';
 import 'package:premium_force_main/services/apple_sign_in_service.dart';
 import 'package:premium_force_main/services/google_sign_in_service.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+import 'package:premium_force_main/services/deep_link_service.dart';
 import 'package:premium_force_main/main.dart'
     show bookingProvider, notificationProvider;
 import 'package:premium_force_main/storage/user_local_storage.dart';
@@ -316,8 +317,8 @@ class AuthProvider extends ChangeNotifier {
         return true;
       } else {
         String msg = result['message'] as String? ?? 'Failed to send OTP';
-        if (msg.contains("Invalid 'To' Phone Number")) {
-          msg = "invalid phone number or country code";
+        if (_isInvalidPhoneNumberError(result)) {
+          msg = "please check entered phone number";
         }
         _errorMessage = msg;
         _status = AuthStatus.failure;
@@ -460,14 +461,33 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } else {
       String msg = result['message'] as String? ?? 'Failed to resend OTP';
-      if (msg.contains("Invalid 'To' Phone Number")) {
-        msg = "invalid phone number or country code";
+      if (_isInvalidPhoneNumberError(result)) {
+        msg = "please check entered phone number";
       }
       _errorMessage = msg;
       _status = AuthStatus.failure;
       notifyListeners();
       return false;
     }
+  }
+
+  /// Checks whether an OTP API response indicates an invalid destination phone number.
+  bool _isInvalidPhoneNumberError(Map<String, dynamic> result) {
+    final error = (result['error']?.toString() ?? '').toLowerCase();
+    final message = (result['message']?.toString() ?? '').toLowerCase();
+    final combined = '$error $message';
+
+    return combined.contains('invalid parameter `to`') ||
+        combined.contains("invalid parameter 'to'") ||
+        combined.contains('invalid parameter "to"') ||
+        combined.contains("invalid 'to' phone number") ||
+        combined.contains('invalid `to` phone number') ||
+        combined.contains('invalid phone number') ||
+        (combined.contains('invalid') &&
+            (combined.contains('`to`') ||
+                combined.contains("'to'") ||
+                combined.contains('"to"') ||
+                combined.contains('to phone number')));
   }
 
   // ---------------------------------------------------------------------------
@@ -863,6 +883,10 @@ class AuthProvider extends ChangeNotifier {
       // sign-in starts from an empty inbox and an empty booking list.
       notificationProvider.reset();
       bookingProvider.reset();
+
+      // A link held across startup belongs to the account that was signed in
+      // when it arrived; drop it so it cannot open for the next one.
+      DeepLinkService.instance.clearPending();
 
       _cancelResendTimer();
       _user = null;

@@ -37,6 +37,7 @@ import 'package:premium_force_main/services/service_availability_service.dart';
 import 'package:premium_force_main/services/session_payment_service.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/utils/date_display.dart';
+import 'package:premium_force_main/utils/pickup_window.dart';
 import 'package:provider/provider.dart';
 
 class NewBooking extends StatefulWidget {
@@ -199,6 +200,7 @@ class _NewBookingState extends State<NewBooking> {
             'isActive': city.isActive,
             'lat': city.lat,
             'long': city.lng,
+            if (city.sortOrder != null) 'sortOrder': city.sortOrder,
           },
       ],
       // Kept so airports/terminals can be read from the nested payload when the
@@ -379,19 +381,14 @@ class _NewBookingState extends State<NewBooking> {
 
   /// The earliest pickup the customer may choose: now plus the city buffer.
   ///
-  /// Seconds are dropped so it can be compared against a [TimeOfDay]-derived
-  /// selection without the leftover seconds rejecting the very minute the
-  /// pickers offer.
-  DateTime get _earliestPickupInstant {
-    final raw = DateTime.now().add(Duration(hours: _bookingBufferHours));
-    return DateTime(raw.year, raw.month, raw.day, raw.hour, raw.minute);
-  }
+  /// The arithmetic lives in [earliestPickupInstant] so it can be tested at
+  /// hours that are awkward to reach live — the ones that cross midnight.
+  DateTime get _earliestPickupInstant =>
+      earliestPickupInstant(DateTime.now(), _bookingBufferHours);
 
   /// Midnight on the first bookable day — the date picker's lower bound.
-  DateTime get _earliestPickupDate {
-    final earliest = _earliestPickupInstant;
-    return DateTime(earliest.year, earliest.month, earliest.day);
-  }
+  DateTime get _earliestPickupDate =>
+      earliestPickupDate(DateTime.now(), _bookingBufferHours);
 
   /// What the pickers are prefilled with: [_earliestPickupInstant] rounded up
   /// to the next quarter hour.
@@ -399,12 +396,40 @@ class _NewBookingState extends State<NewBooking> {
   /// Rounding buys the customer a few minutes to finish the form before the
   /// buffer overtakes the default, and reads as a pickup time rather than as
   /// the exact minute the screen happened to open.
-  DateTime get _defaultPickupInstant {
-    final earliest = _earliestPickupInstant;
-    final overshoot = earliest.minute % 15;
-    return overshoot == 0
-        ? earliest
-        : earliest.add(Duration(minutes: 15 - overshoot));
+  DateTime get _defaultPickupInstant =>
+      defaultPickupInstant(DateTime.now(), _bookingBufferHours);
+
+  /// Report which city's buffer the prefill used and what it produced.
+  ///
+  /// The default pickup is decided before the customer touches anything, so
+  /// none of the picker logs cover it — and when the default looks wrong the
+  /// question is always the same: which city was read, and what buffer did it
+  /// carry. Both are printed here rather than inferred from the result.
+  void _logPrefill(String where, DateTime target) {
+    final city =
+        (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length)
+        ? _apiCities[_selectedCityCode]
+        : null;
+    final cityName = (city?['cityName'] ?? city?['name'] ?? '?').toString();
+    final cityId = (city?['_id'] ?? city?['id'])?.toString();
+
+    logScreen(_log, 'prefill pickup ($where)');
+    logScreenDetail(
+      _log,
+      'city[$_selectedCityCode]="$cityName" id=$cityId '
+      'matchesRequested=${cityId == widget.cityId}',
+    );
+    logScreenDetail(
+      _log,
+      'buffer=$_bookingBufferHours h '
+      '(city=${city == null ? 'null' : bookingBufferHoursOf(city)}, '
+      'widget=${widget.bookingBufferHours})',
+    );
+    logScreenDetail(
+      _log,
+      'now=${DateTime.now()} earliest=$_earliestPickupInstant '
+      'default=$target',
+    );
   }
 
   /// Point the pickup pickers at the first bookable slot.
@@ -415,11 +440,12 @@ class _NewBookingState extends State<NewBooking> {
   /// a time the customer picked for themselves is otherwise left alone.
   ///
   /// Callers own the [setState]; this only writes the fields.
-  void _prefillPickupToEarliest() {
+  void _prefillPickupToEarliest(String where) {
     final current = _pickupInstant;
     if (current != null && !current.isBefore(_earliestPickupInstant)) return;
 
     final target = _defaultPickupInstant;
+    _logPrefill(where, target);
     final date = DateTime(target.year, target.month, target.day);
     final time = TimeOfDay.fromDateTime(target);
     if (_usesPickupFields) {
@@ -1276,7 +1302,7 @@ class _NewBookingState extends State<NewBooking> {
 
     // Open on the first bookable slot. The buffer is only final once the
     // cities have loaded, so _loadCarData runs this again.
-    _prefillPickupToEarliest();
+    _prefillPickupToEarliest('screen open');
 
     // Set initial class based on catcode
     if (_selectedCatCode == 2) {
@@ -1400,7 +1426,7 @@ class _NewBookingState extends State<NewBooking> {
 
         // The city — and with it the buffer — is only settled here, so the
         // prefill is redone against the buffer that actually applies.
-        _prefillPickupToEarliest();
+        _prefillPickupToEarliest('cities loaded');
       });
     } catch (e) {}
   }
@@ -1768,7 +1794,11 @@ class _NewBookingState extends State<NewBooking> {
                                     // Move the pickers onto the first slot that
                                     // is still bookable, so the customer can
                                     // see what changed and continue.
-                                    setState(_prefillPickupToEarliest);
+                                    setState(
+                                      () => _prefillPickupToEarliest(
+                                        'buffer re-check on continue',
+                                      ),
+                                    );
                                     return;
                                   }
 
@@ -2765,6 +2795,28 @@ class _NewBookingState extends State<NewBooking> {
     return ordered.isNotEmpty ? ordered : withVehicles.toList();
   }
 
+  /// Arabic labels for the class picker, keyed by the English class name.
+  ///
+  /// The picker's items stay English because that string is the identity the
+  /// rest of the screen filters on — [_getAvailableBrands],
+  /// [_getAvailableModels] and [_syncSelectionToSupportedCars] all match
+  /// vehicles by it, and swapping the Arabic name in would break vehicle
+  /// selection rather than translate it. Only the drawn text changes.
+  ///
+  /// Empty in English, and empty for any category the backend has not sent an
+  /// Arabic name for, which leaves those rows reading as before.
+  Map<String, String> _vehicleClassLabels(bool isArabic) {
+    if (!isArabic) return const {};
+
+    return {
+      for (final category in _apiCategories)
+        if ((category['name'] ?? '').toString().trim().isNotEmpty &&
+            (category['nameAr'] ?? '').toString().trim().isNotEmpty)
+          (category['name'] as String).trim(): (category['nameAr'] as String)
+              .trim(),
+    };
+  }
+
   Widget buildVehicleClassSelector(BuildContext context, AppLocalizations loc) {
     // Get available classes from API or fallback to hardcoded
     final availableClasses = _getAvailableVehicleClasses();
@@ -2804,6 +2856,9 @@ class _NewBookingState extends State<NewBooking> {
         children: [
           PremiumDropDown(
             value: displayClass,
+            itemLabels: _vehicleClassLabels(
+              Localizations.localeOf(context).languageCode == 'ar',
+            ),
             onChanged: (value) {
               if (value != null) {
                 setState(() {
@@ -3762,7 +3817,6 @@ class _NewBookingState extends State<NewBooking> {
                         FocusScope.of(context).requestFocus(FocusNode());
                         // Nothing before the buffer is bookable, so the picker
                         // does not open on it and cannot reach it.
-                        final earliest = _earliestPickupInstant;
                         final firstDate = _earliestPickupDate;
                         final currentDate = isPickup
                             ? _selectedPickupDate
@@ -3791,8 +3845,15 @@ class _NewBookingState extends State<NewBooking> {
                           // Moving back onto the first bookable day can leave
                           // the kept time below the buffer; it is pushed up to
                           // the earliest instead of being cleared.
+                          //
+                          // The replacement is taken as a whole instant, date
+                          // included. Reading only its time-of-day would put
+                          // the customer on the right clock face and the wrong
+                          // day whenever the default has rolled past midnight
+                          // — picking a day near midnight would then land them
+                          // in the past.
                           final combined = keptTime == null
-                              ? null
+                              ? _defaultPickupInstant
                               : DateTime(
                                   picked.year,
                                   picked.month,
@@ -3800,18 +3861,25 @@ class _NewBookingState extends State<NewBooking> {
                                   keptTime.hour,
                                   keptTime.minute,
                                 );
-                          final needsBump =
-                              combined == null || combined.isBefore(earliest);
-                          final resolvedTime = needsBump
-                              ? TimeOfDay.fromDateTime(_defaultPickupInstant)
-                              : keptTime;
+                          final resolved = bumpedToBookable(
+                            combined,
+                            DateTime.now(),
+                            _bookingBufferHours,
+                          );
+                          final needsBump = resolved != combined;
+                          final resolvedDate = DateTime(
+                            resolved.year,
+                            resolved.month,
+                            resolved.day,
+                          );
+                          final resolvedTime = TimeOfDay.fromDateTime(resolved);
 
                           setState(() {
                             if (isPickup) {
-                              _selectedPickupDate = picked;
+                              _selectedPickupDate = resolvedDate;
                               _selectedPickupTime = resolvedTime;
                             } else {
-                              _selectedDate = picked;
+                              _selectedDate = resolvedDate;
                               _selectedTime = resolvedTime;
                             }
                           });

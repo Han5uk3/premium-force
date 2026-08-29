@@ -340,12 +340,15 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
                                     );
                                   } else {
                                     final error = authProvider.errorMessage;
-                                    final message =
+                                    final isInvalidPhone =
                                         error ==
-                                            "invalid phone number or country code"
+                                            "invalid phone number or country code" ||
+                                        error ==
+                                            "please check entered phone number";
+                                    final message = isInvalidPhone
                                         ? AppLocalizations.of(
                                             context,
-                                          )!.invalidPhoneNumberOrCountryCode
+                                          )!.pleaseCheckEnteredPhoneNumber
                                         : (error ??
                                               AppLocalizations.of(
                                                 context,

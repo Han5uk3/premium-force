@@ -1214,20 +1214,27 @@ class CityDetails {
   final String cityName;
   final String? imageUrl;
   final bool isActive;
+  final int? sortOrder;
 
   CityDetails({
     required this.id,
     required this.cityName,
     this.imageUrl,
     this.isActive = true,
+    this.sortOrder,
   });
 
   factory CityDetails.fromJson(Map<String, dynamic> json) {
     return CityDetails(
-      id: json['_id'] ?? '',
-      cityName: json['cityName'] ?? '',
-      imageUrl: json['image'] is Map ? json['image']['url'] : null,
+      id: json['_id'] ?? json['id'] ?? '',
+      cityName: json['cityName'] ?? json['name'] ?? '',
+      imageUrl: json['image'] is Map
+          ? json['image']['url']
+          : json['imageUrl']?.toString(),
       isActive: json['isActive'] ?? true,
+      sortOrder: json['sortOrder'] is num
+          ? (json['sortOrder'] as num).toInt()
+          : int.tryParse(json['sortOrder']?.toString() ?? ''),
     );
   }
 }

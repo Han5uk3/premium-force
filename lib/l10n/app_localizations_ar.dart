@@ -742,7 +742,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get invalidPhoneNumberOrCountryCode =>
-      'رقم الهاتف أو رمز الدولة غير صحيح';
+      'يرجى التحقق من رقم الهاتف المدخل';
+
+  @override
+  String get pleaseCheckEnteredPhoneNumber =>
+      'يرجى التحقق من رقم الهاتف المدخل';
 
   @override
   String get pleaseEnterAValidOtp => 'يرجى إدخال رمز تحقق صحيح';

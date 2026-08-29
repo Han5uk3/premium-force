@@ -748,7 +748,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get invalidPhoneNumberOrCountryCode =>
-      'invalid phone number or country code';
+      'Please check entered phone number';
+
+  @override
+  String get pleaseCheckEnteredPhoneNumber =>
+      'Please check entered phone number';
 
   @override
   String get pleaseEnterAValidOtp => 'Please enter a valid OTP';
