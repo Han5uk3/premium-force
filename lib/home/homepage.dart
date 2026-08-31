@@ -54,6 +54,7 @@ class _HomepageState extends State<Homepage>
     WidgetsBinding.instance.addObserver(this);
     // Load from cache first for zero-latency UI
     _loadCachedFleet();
+    _fetchFleetCars();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         Provider.of<BookingProvider>(context, listen: false).fetchBookings();
@@ -154,7 +155,10 @@ class _HomepageState extends State<Homepage>
   }
 
   Future<void> _handleRefresh() async {
-    await Provider.of<BookingProvider>(context, listen: false).fetchBookings();
+    await Future.wait([
+      Provider.of<BookingProvider>(context, listen: false).fetchBookings(),
+      _fetchFleetCars(),
+    ]);
   }
 
   Future<void> _fetchLocationData({bool? hasAirports}) async {
@@ -205,7 +209,9 @@ class _HomepageState extends State<Homepage>
   }
 
   Future<void> _fetchFleetCars() async {
-    if (mounted) setState(() => _isLoadingCars = true);
+    if (mounted && _fleetCars.isEmpty) {
+      setState(() => _isLoadingCars = true);
+    }
     try {
       final api = ApiService();
       final response = await api.getCars().catchError((e) {
@@ -411,7 +417,7 @@ class _HomepageState extends State<Homepage>
             }
 
             if (logoUrl != null && logoUrl.isNotEmpty) {
-              if (mounted) {
+              if (mounted && i < _fleetCars.length) {
                 setState(() {
                   _fleetCars[i]['brandLogoUrl'] = logoUrl;
                 });
@@ -493,7 +499,12 @@ class _HomepageState extends State<Homepage>
               Flexible(child: _buildRecentBookings(context, loc)),
               // Runs the recent-bookings band on past the last card, so the
               // floating nav bar sits over that band rather than over a seam.
-              Container(height: 130, color: c.surfaceAlt),
+              Container(
+                height: 130,
+                color: c.brightness == Brightness.light
+                    ? c.accentSurface
+                    : c.surfaceAlt,
+              ),
             ],
           ),
         ),
@@ -506,7 +517,9 @@ class _HomepageState extends State<Homepage>
     return Consumer<BookingProvider>(
       builder: (context, bookingProvider, child) {
         return Container(
-          color: c.surfaceAlt,
+          color: c.brightness == Brightness.light
+              ? c.accentSurface
+              : c.surfaceAlt,
           width: MediaQuery.of(context).size.width,
           padding: const EdgeInsets.only(left: 24, right: 24, top: 12),
           child: Column(
@@ -624,6 +637,8 @@ class _HomepageState extends State<Homepage>
 
   Widget _buildPremiumFleet(BuildContext context, AppLocalizations loc) {
     final c = context.colors;
+    final displayCount = _fleetCars.length > 5 ? 5 : _fleetCars.length;
+
     return Container(
       height: 230,
       color: c.scaffold,
@@ -671,7 +686,7 @@ class _HomepageState extends State<Homepage>
           SizedBox(height: 8),
           SizedBox(
             height: 150,
-            child: _isLoadingCars
+            child: (_isLoadingCars && _fleetCars.isEmpty)
                 ? ListView.builder(
                     itemCount: 3,
                     scrollDirection: Axis.horizontal,
@@ -693,14 +708,14 @@ class _HomepageState extends State<Homepage>
                     ),
                   )
                 : ListView.builder(
-                    itemCount: 5,
+                    itemCount: displayCount,
                     scrollDirection: Axis.horizontal,
                     cacheExtent: 1000,
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: EdgeInsetsDirectional.only(
                           start: index == 0 ? 24 : 6,
-                          end: index == _fleetCars.length - 1 ? 24 : 6,
+                          end: index == displayCount - 1 ? 24 : 6,
                         ),
                         child: Premuimfleetcard(
                           brand: _fleetCars[index]["brand"],
@@ -869,9 +884,20 @@ class _HomepageState extends State<Homepage>
       child: Container(
         padding: const EdgeInsets.only(top: 50),
         decoration: BoxDecoration(
-          color: context.colors.brightness == Brightness.light
-              ? context.colors.accentSurface.withValues(alpha: 0.9)
-              : const Color(0xFF1E1105).withAlpha(120),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              context.colors.brightness == Brightness.light
+                  ? context.colors.accentSurface.withValues(alpha: 0.7)
+                  : const Color(0xFF1E1105).withValues(alpha: 0.7),
+              context.colors.brightness == Brightness.light
+                  ? context.colors.accentSurface
+                  : context.colors.accentSurface.withValues(alpha: 0.9),
+              context.colors.accentSurface,
+            ],
+            stops: [0.3, 0.9, 1.0],
+          ),
         ),
         child: Column(
           children: [
@@ -1118,7 +1144,8 @@ class _HomepageState extends State<Homepage>
                           ],
                         ),
                       ),
-                      Divider(color: c.divider, thickness: 1),
+                      const SizedBox(height: 8),
+                      Divider(color: c.textPrimary, thickness: 0.5),
                       const SizedBox(height: 8),
                       LayoutBuilder(
                         builder: (context, constraints) {
@@ -1518,7 +1545,9 @@ class _HomepageState extends State<Homepage>
                     ],
                   ),
                 ),
-                Divider(color: c.divider),
+                const SizedBox(height: 8),
+                Divider(color: c.textPrimary, thickness: 0.5),
+                const SizedBox(height: 8),
 
                 Padding(
                   padding: const EdgeInsets.only(left: 24, right: 24, top: 24),

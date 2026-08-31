@@ -24,12 +24,12 @@ class BottomNavBar extends StatelessWidget {
       // by a shadow. On the dark theme that shadow all but vanishes against
       // black — which is fine, the frost already separates it. On the light one
       // it is what stops a white bar dissolving into a near-white page.
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.all(Radius.circular(16)),
-        boxShadow: [
-          BoxShadow(color: c.shadow, blurRadius: 20, offset: const Offset(0, 6)),
-        ],
-      ),
+      // decoration: BoxDecoration(
+      //   borderRadius: const BorderRadius.all(Radius.circular(16)),
+      //   boxShadow: [
+      //     BoxShadow(color: c.shadow, blurRadius: 20, offset: const Offset(0, 6)),
+      //   ],
+      // ),
       child: ClipRRect(
         borderRadius: const BorderRadius.all(Radius.circular(16)),
         child: BackdropFilter(

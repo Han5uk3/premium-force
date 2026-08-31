@@ -33,6 +33,35 @@ class PremiumButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final isDark = c.brightness == Brightness.dark;
+    final premiumColors = isDark
+        ? const [
+            Color(0xFF6E3E12), // Deep warm bronze at top-end
+            Color(0xFFB57D3E), // Muted luxury gold
+            Color(0xFFDDA663), // Soft satin gold highlight (subdued, elegant)
+            Color(0xFFB57D3E), // Muted luxury gold
+            Color(0xFF5A300A), // Deep contour at bottom-start
+          ]
+        : const [
+            Color(0xFFB06F27), // Deep luxury gold/bronze at top-end
+            Color(0xFFE4A46B), // Signature warm brand gold
+            Color(
+              0xFFF7D990,
+            ), // Warm reflective gold sheen (centered, reduced whiteness)
+            Color(0xFFE4A46B), // Signature warm brand gold
+            Color(0xFF9E5C1A), // Deep warm contour at bottom-start
+          ];
+
+    // Multi-stop metallic gold gradient:
+    // runs diagonally from topEnd to bottomStart with a warm, non-white
+    // golden reflective sheen centered across the button.
+    // In dark mode, uses deeper satin bronze/gold tones to prevent harsh brightness.
+    final selectedFill = LinearGradient(
+      begin: AlignmentDirectional.topEnd,
+      end: AlignmentDirectional.bottomStart,
+      colors: premiumColors,
+      stops: const [0.0, 0.28, 0.50, 0.72, 1.0],
+    );
 
     // A button mid-save is still "enabled" — it just isn't tappable yet.
     final canTap = enabled && !showLoader;
@@ -41,7 +70,7 @@ class PremiumButton extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
       width: double.infinity,
-      height: 56,
+      height: 48,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
@@ -51,12 +80,10 @@ class PremiumButton extends StatelessWidget {
           // the disabled stand-in has to change, since a dark grey that says
           // "off" on black says "on" on ivory.
           colors: enabled
-              ? (gradient ?? c.goldGradient)
+              ? (gradient ?? premiumColors)
               : c.goldDisabledGradient,
         ),
-        boxShadow: [
-          BoxShadow(color: c.shadow, blurRadius: 8, spreadRadius: 3),
-        ],
+       
         borderRadius: BorderRadius.circular(borderRadius ?? 12),
       ),
       child: Material(
@@ -72,7 +99,7 @@ class PremiumButton extends StatelessWidget {
             child: showLoader
                 // Black, not the accent: the loader spins on the gold fill, so
                 // it takes the same colour the label would.
-                ? const PremiumLoader(size: 28, color: Colors.black)
+                ? const PremiumLoader(size: 23, color: Colors.black)
                 : Text(
                     text,
                     style: TextStyle(

@@ -3682,7 +3682,7 @@ class _NewBookingState extends State<NewBooking> {
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: c.field,
+                      color: c.mainColor,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: state.hasError ? c.error : c.border,
@@ -3717,8 +3717,14 @@ class _NewBookingState extends State<NewBooking> {
                         SizedBox(width: 20),
                         Icon(
                           Icons.location_on_outlined,
-                          color: c.textPrimary,
-                          size: 28,
+                          color:
+                              (isDropLocation
+                                      ? _dropAddress
+                                      : _pickupAddress) !=
+                                  null
+                              ? c.textPrimary
+                              : c.textTertiary,
+                          size: 24,
                         ),
                       ],
                     ),
@@ -3801,11 +3807,11 @@ class _NewBookingState extends State<NewBooking> {
             SizedBox(height: 8),
 
             Container(
-              height: 60,
+          
               margin: EdgeInsets.symmetric(horizontal: 24),
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: c.field,
+                color: c.mainColor,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: state.hasError ? c.error : c.border),
               ),
@@ -3900,7 +3906,7 @@ class _NewBookingState extends State<NewBooking> {
                         padding: EdgeInsets.symmetric(vertical: 8),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: c.surfaceAlt,
+                          color: c.field,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -4114,7 +4120,7 @@ class _NewBookingState extends State<NewBooking> {
                         padding: EdgeInsets.symmetric(vertical: 8),
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: c.surfaceAlt,
+                          color: c.field,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -4218,7 +4224,7 @@ class _NewBookingState extends State<NewBooking> {
     bool isPassActiveOrPassed = showPassenger || showReviewAndConfirm;
 
     return Container(
-      decoration: BoxDecoration(color: c.surfaceAlt),
+      decoration: BoxDecoration(color: c.field),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
         child: Row(

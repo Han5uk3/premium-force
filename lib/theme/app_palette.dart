@@ -77,6 +77,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.scrim,
     required this.shadow,
     required this.mapPlaceholder,
+    required this.mainColor,
     required this.mapPlaceholderHighlight,
   });
 
@@ -261,6 +262,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color success;
   final Color successSurface;
   final Color successBorder;
+  final Color mainColor;
 
   final Color error;
   final Color errorSurface;
@@ -322,6 +324,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       Color(0xFF1A1717),
       Color(0xFF1A1717),
     ],
+    mainColor: Colors.black,
     appBarScrim: [Color(0x64000000), Color(0x00000000)],
     surface: Color(0xFF141313),
     surfaceAlt: Color(0xFF1A1A1A),
@@ -423,6 +426,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     navBar: Color(0xE6FFFFFF),
     inverseSurface: Color(0xFF17140F),
     brandCanvas: Color(0xFF1E1105),
+    mainColor: Colors.white,
 
     textPrimary: Color(0xFF17140F),
     textSecondary: Color(0xFF5E574E),
@@ -542,6 +546,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     return AppPalette(
       brightness: brightness ?? this.brightness,
       scaffold: scaffold ?? this.scaffold,
+      mainColor: mainColor,
       pageGradient: pageGradient ?? this.pageGradient,
       appBarScrim: appBarScrim ?? this.appBarScrim,
       surface: surface ?? this.surface,
@@ -616,6 +621,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       // branching on it agrees with what is actually on screen.
       brightness: t < 0.5 ? brightness : other.brightness,
       scaffold: c(scaffold, other.scaffold),
+      mainColor: c(mainColor, other.mainColor),
       pageGradient: g(pageGradient, other.pageGradient),
       appBarScrim: g(appBarScrim, other.appBarScrim),
       surface: c(surface, other.surface),
@@ -648,10 +654,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       accentBorder: c(accentBorder, other.accentBorder),
       goldGradient: g(goldGradient, other.goldGradient),
       goldIconGradient: g(goldIconGradient, other.goldIconGradient),
-      goldDisabledGradient: g(
-        goldDisabledGradient,
-        other.goldDisabledGradient,
-      ),
+      goldDisabledGradient: g(goldDisabledGradient, other.goldDisabledGradient),
       divider: c(divider, other.divider),
       dividerStrong: c(dividerStrong, other.dividerStrong),
       border: c(border, other.border),
