@@ -320,6 +320,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                     const SizedBox(height: 32),
 
                                     PremiumTextField(
+                                      needBorder: true,
                                       isPhoneNumber: true,
                                       focusNode: _mobileFocusNode,
                                       title: AppLocalizations.of(
@@ -384,9 +385,14 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                   fontSize: 14,
                                                 ),
                                               ),
-                                              Icon(
-                                                Icons.arrow_drop_down,
-                                                color: c.icon,
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 3,
+                                                ),
+                                                child: Icon(
+                                                  Icons.arrow_drop_down,
+                                                  color: c.icon,
+                                                ),
                                               ),
                                               Container(
                                                 margin:
@@ -576,7 +582,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
                                     const SizedBox(height: 24),
 
-                                    // â”€â”€ OR divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                    // OR divider
                                     Row(
                                       children: [
                                         Expanded(
@@ -624,7 +630,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
 
                                     const SizedBox(height: 24),
 
-                                    // â”€â”€ Google Sign-In button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                    // Google Sign-In button
                                     _GoogleSignInButton(
                                       isLoading: authProvider.isGoogleLoading,
                                       onTap: _handleGoogleSignIn,
@@ -633,7 +639,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                     if (!Platform.isAndroid) ...[
                                       const SizedBox(height: 12),
 
-                                      // â”€â”€ Apple Sign-In button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                                      // Apple Sign-In button
                                       _AppleSignInButton(
                                         isLoading: authProvider.isAppleLoading,
                                         onTap: _handleAppleSignIn,

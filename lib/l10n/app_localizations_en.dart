@@ -158,7 +158,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yourJourneyIsSecuredWeLlNotifyYouOnceYourChauffeurIsAssigned =>
-      'Your journey is secured. We’ll notify you once your chauffeur is assigned.';
+      'Your journey is secured. We will notify you once your chauffeur is assigned.';
 
   @override
   String get convertible => 'Convertible';

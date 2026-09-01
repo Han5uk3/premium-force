@@ -195,11 +195,11 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
         fontWeight: FontWeight.w600,
       ),
       decoration: BoxDecoration(
-        color: c.field,
+        color: c.mainColor,
         borderRadius: BorderRadius.circular(12),
         // Matches the fill, so an unfocused box reads as borderless while the
         // focused theme below still has an edge to draw on.
-        border: Border.all(color: c.field),
+        border: Border.all(color: c.border),
       ),
     );
 

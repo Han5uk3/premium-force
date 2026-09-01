@@ -60,8 +60,9 @@ class CityV2 {
   final List<AirportV2> airports;
 
   factory CityV2.fromJson(Map<String, dynamic> json) {
+    final cityId = pickId(json, const ['_id', 'id', 'cityId', 'cityID']) ?? '';
     return CityV2(
-      id: pickId(json, const ['_id', 'id', 'cityId', 'cityID']) ?? '',
+      id: cityId,
       name: pickString(json, const ['cityName', 'name', 'city']) ?? '',
       nameAr: pickString(json, const ['cityNameAr', 'nameAr', 'name_ar']),
       bookingBufferHours: bookingBufferHoursOf(json),
@@ -72,7 +73,7 @@ class CityV2 {
       sortOrder: pickInt(json, const ['sortOrder', 'sort_order', 'order']),
       airports: pickMapList(json, const [
         'airports',
-      ]).map(AirportV2.fromJson).toList(),
+      ]).map((m) => AirportV2.fromJson(m, parentCityId: cityId)).toList(),
     );
   }
 
@@ -92,14 +93,7 @@ class CityV2 {
       if (imageUrl != null) 'imageUrl': imageUrl,
       if (imageUrl != null) 'image': imageUrl,
       if (sortOrder != null) 'sortOrder': sortOrder,
-      'airports': airports.map((a) => {
-        '_id': a.id,
-        'id': a.id,
-        'airportName': a.name,
-        'name': a.name,
-        'cityID': a.cityId,
-        'isActive': a.isActive,
-      }).toList(),
+      'airports': airports.map((a) => a.toJson()).toList(),
     };
   }
 
@@ -130,19 +124,44 @@ class AirportV2 {
   final bool isActive;
   final List<TerminalV2> terminals;
 
-  factory AirportV2.fromJson(Map<String, dynamic> json) {
+  factory AirportV2.fromJson(
+    Map<String, dynamic> json, {
+    String? parentCityId,
+  }) {
+    final airportId =
+        pickId(json, const ['_id', 'id', 'airportId', 'airportID']) ?? '';
+    final cityId =
+        pickId(json, const ['cityID', 'cityId', 'city']) ?? parentCityId;
     return AirportV2(
-      id: pickId(json, const ['_id', 'id', 'airportId', 'airportID']) ?? '',
+      id: airportId,
       name: pickString(json, const ['airportName', 'name']) ?? '',
       nameAr: pickString(json, const ['airportNameAr', 'nameAr', 'name_ar']),
-      cityId: pickId(json, const ['cityID', 'cityId', 'city']),
+      cityId: cityId,
       lat: pickDouble(json, const ['lat', 'latitude']),
       lng: pickDouble(json, const ['lng', 'long', 'longitude']),
       isActive: pickBool(json, const ['isActive', 'active']) ?? true,
       terminals: pickMapList(json, const [
         'terminals',
-      ]).map(TerminalV2.fromJson).toList(),
+      ]).map((m) => TerminalV2.fromJson(m, parentAirportId: airportId)).toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'id': id,
+      'airportName': name,
+      'name': name,
+      if (nameAr != null) 'airportNameAr': nameAr,
+      if (nameAr != null) 'nameAr': nameAr,
+      if (cityId != null) 'cityID': cityId,
+      if (cityId != null) 'cityId': cityId,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'long': lng,
+      if (lng != null) 'lng': lng,
+      'isActive': isActive,
+      'terminals': terminals.map((t) => t.toJson()).toList(),
+    };
   }
 
   String displayName(bool isArabic) =>
@@ -165,14 +184,33 @@ class TerminalV2 {
   final String? airportId;
   final bool isActive;
 
-  factory TerminalV2.fromJson(Map<String, dynamic> json) {
+  factory TerminalV2.fromJson(
+    Map<String, dynamic> json, {
+    String? parentAirportId,
+  }) {
     return TerminalV2(
       id: pickId(json, const ['_id', 'id', 'terminalId', 'terminalID']) ?? '',
       name: pickString(json, const ['terminalName', 'name']) ?? '',
       nameAr: pickString(json, const ['terminalNameAr', 'nameAr', 'name_ar']),
-      airportId: pickId(json, const ['airportID', 'airportId', 'airport']),
+      airportId:
+          pickId(json, const ['airportID', 'airportId', 'airport']) ??
+          parentAirportId,
       isActive: pickBool(json, const ['isActive', 'active']) ?? true,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'id': id,
+      'terminalName': name,
+      'name': name,
+      if (nameAr != null) 'terminalNameAr': nameAr,
+      if (nameAr != null) 'nameAr': nameAr,
+      if (airportId != null) 'airportID': airportId,
+      if (airportId != null) 'airportId': airportId,
+      'isActive': isActive,
+    };
   }
 
   String displayName(bool isArabic) =>

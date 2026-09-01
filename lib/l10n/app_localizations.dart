@@ -395,7 +395,7 @@ abstract class AppLocalizations {
   /// No description provided for @yourJourneyIsSecuredWeLlNotifyYouOnceYourChauffeurIsAssigned.
   ///
   /// In en, this message translates to:
-  /// **'Your journey is secured. We’ll notify you once your chauffeur is assigned.'**
+  /// **'Your journey is secured. We will notify you once your chauffeur is assigned.'**
   String get yourJourneyIsSecuredWeLlNotifyYouOnceYourChauffeurIsAssigned;
 
   /// No description provided for @convertible.

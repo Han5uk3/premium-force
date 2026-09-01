@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:premium_force_main/splashscreen/splashscreen.dart';
 import 'package:provider/provider.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
@@ -274,7 +275,9 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
                 GlobalCupertinoLocalizations.delegate,
               ],
               supportedLocales: AppLocalizations.supportedLocales,
-              home: SplashScreen(),
+              home:
+                   SuccessPage(),
+                  // SplashScreen(),
             ),
           ),
         ),

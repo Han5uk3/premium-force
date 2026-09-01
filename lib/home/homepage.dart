@@ -1301,6 +1301,53 @@ class _HomepageState extends State<Homepage>
                                 (selectedCity['_id'] ?? selectedCity['id'])
                                     ?.toString();
 
+                            final extractedAirports = <Map<String, dynamic>>[];
+                            final extractedTerminals = <Map<String, dynamic>>[];
+                            for (final city in _apiCities) {
+                              final cId =
+                                  (city['_id'] ?? city['id'])?.toString();
+                              final airportsRaw = city['airports'];
+                              if (airportsRaw is List) {
+                                for (final a in airportsRaw) {
+                                  if (a is Map) {
+                                    final aMap = Map<String, dynamic>.from(a);
+                                    final aId =
+                                        (aMap['_id'] ?? aMap['id'])?.toString() ??
+                                        '';
+                                    final aCityId =
+                                        (aMap['cityID'] ??
+                                                aMap['cityId'] ??
+                                                cId)
+                                            ?.toString();
+                                    aMap['cityID'] = aCityId;
+                                    aMap['cityId'] = aCityId;
+                                    if (aMap['isActive'] != false) {
+                                      extractedAirports.add(aMap);
+                                    }
+                                    final terminalsRaw = aMap['terminals'];
+                                    if (terminalsRaw is List) {
+                                      for (final t in terminalsRaw) {
+                                        if (t is Map) {
+                                          final tMap =
+                                              Map<String, dynamic>.from(t);
+                                          final tAirportId =
+                                              (tMap['airportID'] ??
+                                                      tMap['airportId'] ??
+                                                      aId)
+                                                  ?.toString();
+                                          tMap['airportID'] = tAirportId;
+                                          tMap['airportId'] = tAirportId;
+                                          if (tMap['isActive'] != false) {
+                                            extractedTerminals.add(tMap);
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+
                             // Chauffeur pricing is no longer prefetched:
                             // v2 prices vehicles per session, so there is
                             // nothing useful to fetch before the booking
@@ -1313,6 +1360,12 @@ class _HomepageState extends State<Homepage>
                                     citycode: selectedCityIndex,
                                     cityId: cityId,
                                     preloadedCities: _apiCities,
+                                    preloadedAirports: extractedAirports.isNotEmpty
+                                        ? extractedAirports
+                                        : null,
+                                    preloadedTerminals: extractedTerminals.isNotEmpty
+                                        ? extractedTerminals
+                                        : null,
                                     // Lets the booking screen open on the first
                                     // bookable pickup time straight away.
                                     bookingBufferHours: bookingBufferHoursOf(

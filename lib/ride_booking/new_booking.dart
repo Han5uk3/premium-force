@@ -181,8 +181,15 @@ class _NewBookingState extends State<NewBooking> {
   /// The trip-info form reads untyped maps keyed by the legacy field names, so
   /// the typed model is flattened back to that shape rather than rewriting the
   /// form. Inactive cities are dropped — they are not bookable.
+  /// Cities from the v2 API, reshaped for the existing dropdowns.
+  ///
+  /// The trip-info form reads untyped maps keyed by the legacy field names, so
+  /// the typed model is flattened back to that shape rather than rewriting the
+  /// form. Inactive cities are dropped — they are not bookable.
   Future<Map<String, dynamic>> _fetchCitiesV2() async {
-    final result = await _apiV2.getCities();
+    final result = await _apiV2.getCities(
+      hasAirports: _serviceType.isAirport ? true : null,
+    );
     final cities = result.data;
     if (cities == null) {
       return {'success': false, 'message': result.message};
@@ -192,21 +199,112 @@ class _NewBookingState extends State<NewBooking> {
       'success': true,
       'data': [
         for (final city in cities.where((c) => c.isActive))
-          {
-            '_id': city.id,
-            'cityName': city.name,
-            'cityNameAr': city.nameAr,
-            'bookingBufferHours': city.bookingBufferHours,
-            'isActive': city.isActive,
-            'lat': city.lat,
-            'long': city.lng,
-            if (city.sortOrder != null) 'sortOrder': city.sortOrder,
-          },
+          city.toJson(),
       ],
       // Kept so airports/terminals can be read from the nested payload when the
       // backend returns them that way.
       'cities': cities,
     };
+  }
+
+  /// Extracts flattened airport maps from raw city maps.
+  static List<Map<String, dynamic>> _extractAirportsFromCityMaps(
+    List<Map<String, dynamic>> cityMaps,
+  ) {
+    final List<Map<String, dynamic>> airports = [];
+    for (final city in cityMaps) {
+      final cityId = (city['_id'] ?? city['id'])?.toString();
+      final airportsRaw = city['airports'];
+      if (airportsRaw is List) {
+        for (final a in airportsRaw) {
+          if (a is Map) {
+            final aMap = Map<String, dynamic>.from(a);
+            final aCityId = (aMap['cityID'] ?? aMap['cityId'] ?? cityId)
+                ?.toString();
+            aMap['cityID'] = aCityId;
+            aMap['cityId'] = aCityId;
+            if (aMap['isActive'] != false) {
+              airports.add(aMap);
+            }
+          }
+        }
+      }
+    }
+    return airports;
+  }
+
+  /// Extracts flattened terminal maps from raw city maps.
+  static List<Map<String, dynamic>> _extractTerminalsFromCityMaps(
+    List<Map<String, dynamic>> cityMaps,
+  ) {
+    final List<Map<String, dynamic>> terminals = [];
+    for (final city in cityMaps) {
+      final airportsRaw = city['airports'];
+      if (airportsRaw is List) {
+        for (final a in airportsRaw) {
+          if (a is Map) {
+            final aId = (a['_id'] ?? a['id'])?.toString() ?? '';
+            final terminalsRaw = a['terminals'];
+            if (terminalsRaw is List) {
+              for (final t in terminalsRaw) {
+                if (t is Map) {
+                  final tMap = Map<String, dynamic>.from(t);
+                  final tAirportId =
+                      (tMap['airportID'] ?? tMap['airportId'] ?? aId)
+                          ?.toString();
+                  tMap['airportID'] = tAirportId;
+                  tMap['airportId'] = tAirportId;
+                  if (tMap['isActive'] != false) {
+                    terminals.add(tMap);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return terminals;
+  }
+
+  /// Populate [_apiAirports] and [_apiTerminals] from nested city data if empty.
+  void _extractNestedAirportsAndTerminalsFromCities({
+    List<CityV2>? citiesFromV2,
+  }) {
+    if (citiesFromV2 != null && citiesFromV2.isNotEmpty) {
+      final nestedAirports = [
+        for (final city in citiesFromV2)
+          for (final airport in city.airports)
+            if (airport.isActive) airport.toJson(),
+      ];
+      final nestedTerminals = [
+        for (final city in citiesFromV2)
+          for (final airport in city.airports)
+            for (final terminal in airport.terminals)
+              if (terminal.isActive) terminal.toJson(),
+      ];
+      if (_apiAirports.isEmpty && nestedAirports.isNotEmpty) {
+        _apiAirports = nestedAirports;
+      }
+      if (_apiTerminals.isEmpty && nestedTerminals.isNotEmpty) {
+        _apiTerminals = nestedTerminals;
+      }
+    }
+
+    if (_apiCities.isNotEmpty) {
+      if (_apiAirports.isEmpty) {
+        final extractedAirports = _extractAirportsFromCityMaps(_apiCities);
+        if (extractedAirports.isNotEmpty) {
+          _apiAirports = extractedAirports;
+        }
+      }
+      if (_apiTerminals.isEmpty) {
+        final extractedTerminals = _extractTerminalsFromCityMaps(_apiCities);
+        if (extractedTerminals.isNotEmpty) {
+          _apiTerminals = extractedTerminals;
+        }
+      }
+    }
   }
 
   /// Airports for the dropdowns, preferring any nested in the cities payload.
@@ -220,18 +318,12 @@ class _NewBookingState extends State<NewBooking> {
     final nested = [
       for (final city in citiesFromV2)
         for (final airport in city.airports)
-          if (airport.isActive)
-            {
-              '_id': airport.id,
-              'airportName': airport.name,
-              'airportNameAr': airport.nameAr,
-              'cityID': airport.cityId ?? city.id,
-              'lat': airport.lat,
-              'long': airport.lng,
-              'isActive': airport.isActive,
-            },
+          if (airport.isActive) airport.toJson(),
     ];
     if (nested.isNotEmpty) return {'success': true, 'data': nested};
+
+    final fromMaps = _extractAirportsFromCityMaps(_apiCities);
+    if (fromMaps.isNotEmpty) return {'success': true, 'data': fromMaps};
 
     final result = await _apiV2.getAirports();
     final airports = result.data;
@@ -243,15 +335,7 @@ class _NewBookingState extends State<NewBooking> {
       'success': true,
       'data': [
         for (final airport in airports.where((a) => a.isActive))
-          {
-            '_id': airport.id,
-            'airportName': airport.name,
-            'airportNameAr': airport.nameAr,
-            'cityID': airport.cityId,
-            'lat': airport.lat,
-            'long': airport.lng,
-            'isActive': airport.isActive,
-          },
+          airport.toJson(),
       ],
     };
   }
@@ -264,16 +348,12 @@ class _NewBookingState extends State<NewBooking> {
       for (final city in citiesFromV2)
         for (final airport in city.airports)
           for (final terminal in airport.terminals)
-            if (terminal.isActive)
-              {
-                '_id': terminal.id,
-                'terminalName': terminal.name,
-                'terminalNameAr': terminal.nameAr,
-                'airportID': terminal.airportId ?? airport.id,
-                'isActive': terminal.isActive,
-              },
+            if (terminal.isActive) terminal.toJson(),
     ];
     if (nested.isNotEmpty) return {'success': true, 'data': nested};
+
+    final fromMaps = _extractTerminalsFromCityMaps(_apiCities);
+    if (fromMaps.isNotEmpty) return {'success': true, 'data': fromMaps};
 
     final result = await _apiV2.getTerminals();
     final terminals = result.data;
@@ -285,13 +365,7 @@ class _NewBookingState extends State<NewBooking> {
       'success': true,
       'data': [
         for (final terminal in terminals.where((t) => t.isActive))
-          {
-            '_id': terminal.id,
-            'terminalName': terminal.name,
-            'terminalNameAr': terminal.nameAr,
-            'airportID': terminal.airportId,
-            'isActive': terminal.isActive,
-          },
+          terminal.toJson(),
       ],
     };
   }
@@ -1298,6 +1372,8 @@ class _NewBookingState extends State<NewBooking> {
     _apiAirports = widget.preloadedAirports ?? [];
     _apiTerminals = widget.preloadedTerminals ?? [];
 
+    _extractNestedAirportsAndTerminalsFromCities();
+
     _syncCityIndexFromId();
 
     // Open on the first bookable slot. The buffer is only final once the
@@ -1382,6 +1458,16 @@ class _NewBookingState extends State<NewBooking> {
       final citiesFromV2 =
           (citiesResponse['cities'] as List<CityV2>?) ?? const <CityV2>[];
 
+      if (_apiCities.isEmpty && citiesResponse['success'] == true) {
+        final citiesData = citiesResponse['data'];
+        if (citiesData is List) {
+          _apiCities = rawDataToList(citiesData);
+          _syncCityIndexFromId();
+        }
+      }
+
+      _extractNestedAirportsAndTerminalsFromCities(citiesFromV2: citiesFromV2);
+
       final results =
           await Future.wait<Map<String, dynamic>>([
             _apiAirports.isEmpty
@@ -1400,12 +1486,10 @@ class _NewBookingState extends State<NewBooking> {
       final terminalsResult = results[1];
 
       setState(() {
-        if (citiesResponse['success'] == true) {
+        if (citiesResponse['success'] == true && _apiCities.isEmpty) {
           final citiesData = citiesResponse['data'];
           if (citiesData is List) {
             _apiCities = rawDataToList(citiesData);
-            // Nothing was preloaded, so initState had no list to resolve
-            // widget.cityId against.
             _syncCityIndexFromId();
           }
         }
@@ -1413,16 +1497,22 @@ class _NewBookingState extends State<NewBooking> {
         if (airportsResult['success'] == true) {
           final airportsData =
               airportsResult['data'] ?? airportsResult['airports'];
-          if (airportsData is List) _apiAirports = rawDataToList(airportsData);
+          if (airportsData is List && airportsData.isNotEmpty) {
+            _apiAirports = rawDataToList(airportsData);
+          }
         }
 
         if (terminalsResult['success'] == true) {
           final terminalsData =
               terminalsResult['data'] ?? terminalsResult['terminals'];
-          if (terminalsData is List) {
+          if (terminalsData is List && terminalsData.isNotEmpty) {
             _apiTerminals = rawDataToList(terminalsData);
           }
         }
+
+        _extractNestedAirportsAndTerminalsFromCities(
+          citiesFromV2: citiesFromV2,
+        );
 
         // The city — and with it the buffer — is only settled here, so the
         // prefill is redone against the buffer that actually applies.
@@ -1682,7 +1772,7 @@ class _NewBookingState extends State<NewBooking> {
         child: AbsorbPointer(
           absorbing: _isBooking,
           child: Scaffold(
-            appBar: buidAppBar(context),
+            appBar: buildAppBar(context),
             backgroundColor: Colors.transparent,
             body: SingleChildScrollView(
               controller: _scrollController,
@@ -1751,7 +1841,11 @@ class _NewBookingState extends State<NewBooking> {
                   ),
                   SizedBox(height: 32),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.only(
+                      bottom: 24,
+                      left: 24,
+                      right: 24,
+                    ),
                     child: PremiumButton(
                       text:
                           (_isCalculatingDistance ||
@@ -1958,7 +2052,7 @@ class _NewBookingState extends State<NewBooking> {
                           _isCheckingRoute,
                     ),
                   ),
-                  SizedBox(height: 32),
+                
                 ],
               ),
             ),
@@ -3237,6 +3331,7 @@ class _NewBookingState extends State<NewBooking> {
     final terminals = _getAvailableTerminals(context);
     final airports = _getAvailableAirports(context);
     final bool showTerminals = airports.isNotEmpty;
+    final bool hasValidTerms = _hasValidTerminals(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3248,19 +3343,20 @@ class _NewBookingState extends State<NewBooking> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: PremiumDropDown(
               title: loc.terminal,
-              value: terminals.isNotEmpty
+              hint: loc.noTerminals,
+              value: hasValidTerms
                   ? (_selectedTerminalCode < terminals.length
                         ? terminals[_selectedTerminalCode]
                         : terminals.first)
-                  : "",
+                  : null,
               onChanged: (val) {
-                if (val != null) {
+                if (val != null && hasValidTerms) {
                   setState(() {
                     _selectedTerminalCode = terminals.indexOf(val);
                   });
                 }
               },
-              items: terminals,
+              items: hasValidTerms ? terminals : const [],
             ),
           ),
         ],
@@ -3297,6 +3393,7 @@ class _NewBookingState extends State<NewBooking> {
     final terminals = _getAvailableTerminals(context);
     final airports = _getAvailableAirports(context);
     final bool showTerminals = airports.isNotEmpty;
+    final bool hasValidTerms = _hasValidTerminals(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3310,19 +3407,20 @@ class _NewBookingState extends State<NewBooking> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: PremiumDropDown(
               title: loc.terminal,
-              value: terminals.isNotEmpty
+              hint: loc.noTerminals,
+              value: hasValidTerms
                   ? (_selectedTerminalCode < terminals.length
                         ? terminals[_selectedTerminalCode]
                         : terminals.first)
-                  : "",
+                  : null,
               onChanged: (val) {
-                if (val != null) {
+                if (val != null && hasValidTerms) {
                   setState(() {
                     _selectedTerminalCode = terminals.indexOf(val);
                   });
                 }
               },
-              items: terminals,
+              items: hasValidTerms ? terminals : const [],
             ),
           ),
         ],
@@ -4176,7 +4274,7 @@ class _NewBookingState extends State<NewBooking> {
     );
   }
 
-  PreferredSizeWidget buidAppBar(BuildContext context) {
+  PreferredSizeWidget buildAppBar(BuildContext context) {
     final c = context.colors;
     final loc = AppLocalizations.of(context)!;
     return PreferredSize(
@@ -4385,51 +4483,42 @@ class _NewBookingState extends State<NewBooking> {
     return const [];
   }
 
+  bool _hasValidTerminals(BuildContext context) {
+    final terminals = _getAvailableTerminals(context);
+    final noTerminalsText = AppLocalizations.of(context)!.noTerminals;
+    return terminals.isNotEmpty &&
+        !(terminals.length == 1 && terminals.first == noTerminalsText);
+  }
+
   /// Get terminals based on selected airport, named in the app's language.
   List<String> _getAvailableTerminals(BuildContext context) {
     final isArabic = _isArabic(context);
-    if (_apiAirports.isNotEmpty && _apiTerminals.isNotEmpty) {
+    final airportId = _getSelectedAirportId();
+    if (airportId != null && airportId.isNotEmpty && _apiTerminals.isNotEmpty) {
       try {
-        final airportNames = _getAvailableAirports(context);
-        if (airportNames.isNotEmpty) {
-          // Find the selected airport object to get its ID
-          final selectedAirportName =
-              airportNames[_selectedAirportCode < airportNames.length
-                  ? _selectedAirportCode
-                  : 0];
+        final filtered = _apiTerminals
+            .where((t) {
+              var tAirportId =
+                  t['airportID'] ?? t['airportId'] ?? t['airport_id'];
+              if (tAirportId is Map) {
+                tAirportId = tAirportId['_id'] ?? tAirportId['id'];
+              }
+              final tAirportIdStr = tAirportId?.toString();
+              // Active unless explicitly set false — same rule the airport
+              // filter uses, and the default TerminalV2 itself applies. A
+              // stricter test would drop every terminal from a payload that
+              // omits the flag, and session init requires a terminalId.
+              final bool isActive = t['isActive'] != false;
+              return tAirportIdStr != null &&
+                  tAirportIdStr == airportId &&
+                  isActive;
+            })
+            .map((t) => _terminalDisplayName(t, isArabic))
+            .where((name) => name.trim().isNotEmpty)
+            .toSet()
+            .toList();
 
-          final airport = _apiAirports.firstWhere(
-            (a) => _airportDisplayName(a, isArabic) == selectedAirportName,
-            orElse: () => {},
-          );
-
-          if (airport.isNotEmpty) {
-            final airportId = (airport['_id'] ?? airport['id'])?.toString();
-
-            final filtered = _apiTerminals
-                .where((t) {
-                  var tAirportId =
-                      t['airportID'] ?? t['airportId'] ?? t['airport_id'];
-                  if (tAirportId is Map) {
-                    tAirportId = tAirportId['_id'] ?? tAirportId['id'];
-                  }
-                  final tAirportIdStr = tAirportId?.toString();
-                  // Active unless explicitly set false — same rule the airport
-                  // filter uses, and the default TerminalV2 itself applies. A
-                  // stricter test would drop every terminal from a payload that
-                  // omits the flag, and session init requires a terminalId.
-                  final bool isActive = t['isActive'] != false;
-                  return tAirportIdStr != null &&
-                      tAirportIdStr == airportId &&
-                      isActive;
-                })
-                .map((t) => _terminalDisplayName(t, isArabic))
-                .toSet()
-                .toList();
-
-            if (filtered.isNotEmpty) return filtered;
-          }
-        }
+        if (filtered.isNotEmpty) return filtered;
       } catch (e) {}
     }
     // A placeholder row rather than an empty dropdown, so the field still
@@ -4440,11 +4529,13 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   String? _getSelectedTerminalName(BuildContext context) {
-    final terminals = _getAvailableTerminals(context);
-    if (terminals.isNotEmpty) {
-      return terminals[_selectedTerminalCode < terminals.length
-          ? _selectedTerminalCode
-          : 0];
+    if (_hasValidTerminals(context)) {
+      final terminals = _getAvailableTerminals(context);
+      if (terminals.isNotEmpty) {
+        return terminals[_selectedTerminalCode < terminals.length
+            ? _selectedTerminalCode
+            : 0];
+      }
     }
     return "";
   }
@@ -4469,8 +4560,24 @@ class _NewBookingState extends State<NewBooking> {
                 : 0];
         try {
           final isArabic = _isArabic(context);
+          final city =
+              (_apiCities.isNotEmpty && _selectedCityCode < _apiCities.length)
+              ? _apiCities[_selectedCityCode]
+              : null;
+          final cityId = (city?['_id'] ?? city?['id'])?.toString();
+
           final airport = _apiAirports.firstWhere(
-            (a) => _airportDisplayName(a, isArabic) == selectedAirportName,
+            (a) {
+            final matchName =
+                _airportDisplayName(a, isArabic) == selectedAirportName;
+            if (!matchName) return false;
+            if (cityId != null && cityId.isNotEmpty) {
+              var aCityId = a['cityID'] ?? a['cityId'] ?? a['city_id'];
+              if (aCityId is Map) aCityId = aCityId['_id'] ?? aCityId['id'];
+              return aCityId?.toString() == cityId;
+            }
+            return true;
+          },
             orElse: () => {},
           );
           return (airport['_id'] ?? airport['id'])?.toString();
@@ -4483,6 +4590,9 @@ class _NewBookingState extends State<NewBooking> {
   }
 
   String? _getSelectedTerminalId() {
+    final airportId = _getSelectedAirportId();
+    if (airportId == null || airportId.isEmpty) return null;
+
     if (_apiTerminals.isNotEmpty) {
       final terminalNames = _getAvailableTerminals(context);
       if (terminalNames.isNotEmpty) {
@@ -4493,7 +4603,16 @@ class _NewBookingState extends State<NewBooking> {
         try {
           final isArabic = _isArabic(context);
           final terminal = _apiTerminals.firstWhere(
-            (t) => _terminalDisplayName(t, isArabic) == selectedTerminalName,
+            (t) {
+            var tAirportId =
+                t['airportID'] ?? t['airportId'] ?? t['airport_id'];
+            if (tAirportId is Map) {
+              tAirportId = tAirportId['_id'] ?? tAirportId['id'];
+            }
+            final tAirportIdStr = tAirportId?.toString();
+            return tAirportIdStr == airportId &&
+                _terminalDisplayName(t, isArabic) == selectedTerminalName;
+          },
             orElse: () => {},
           );
           return (terminal['_id'] ?? terminal['id'])?.toString();
