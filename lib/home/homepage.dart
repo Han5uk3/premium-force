@@ -875,8 +875,8 @@ class _HomepageState extends State<Homepage>
         image: DecorationImage(
           image: AssetImage(
             context.colors.brightness == Brightness.light
-                ? 'assets/images/homeappbarlight.png'
-                : 'assets/images/homeappbar.png',
+                ? 'assets/images/homeappbarlight.jpeg'
+                : 'assets/images/homeappbar.jpeg',
           ),
           fit: BoxFit.fitHeight,
         ),
@@ -1250,7 +1250,7 @@ class _HomepageState extends State<Homepage>
 
                                                 final String displayImage =
                                                     imageUrl ??
-                                                    'assets/images/riyadh.png';
+                                                    'assets/images/riyadh.jpeg';
 
                                                 return SizedBox(
                                                   width:
@@ -1479,7 +1479,7 @@ class _HomepageState extends State<Homepage>
                           child: const Center(child: PremiumLoader(size: 20)),
                         ),
                         errorWidget: (context, url, error) => Image.asset(
-                          'assets/images/riyadh.png',
+                          'assets/images/riyadh.jpeg',
                           fit: BoxFit.cover,
                         ),
                       )

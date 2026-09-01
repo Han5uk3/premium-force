@@ -89,8 +89,8 @@ class _PaymentCancelledPageState extends State<PaymentCancelledPage>
                     image: DecorationImage(
                       image: AssetImage(
                         c.brightness == Brightness.dark
-                            ? "assets/images/homeappbar.png"
-                            : "assets/images/homeappbarlight.png",
+                            ? "assets/images/homeappbar.jpeg"
+                            : "assets/images/homeappbarlight.jpeg",
                       ),
                       fit: BoxFit.cover,
                     ),
