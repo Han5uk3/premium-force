@@ -1338,4 +1338,37 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get switchToDarkMap => 'التبديل إلى الخريطة الليلية';
+
+  @override
+  String get paymentCancelled => 'تم إلغاء الدفع';
+
+  @override
+  String get paymentCancelledDescription =>
+      'تم إلغاء عملية الدفع. لم يتم خصم أي رسوم من حسابك.';
+
+  @override
+  String get tryAgain => 'إعادة المحاولة';
+
+  @override
+  String get paymentRejected => 'تم رفض الدفع';
+
+  @override
+  String get paymentSomethingWentWrong =>
+      'حدث خطأ ما أثناء الدفع. يرجى المحاولة مرة أخرى أو استخدام طريقة دفع مختلفة.';
+
+  @override
+  String get paymentSecurityVerificationFailed =>
+      'فشل التحقق الأمني. يرجى التأكد من صحة بيانات بطاقتك أو تجربة طريقة دفع مختلفة.';
+
+  @override
+  String get paymentInsufficientFunds =>
+      'تم رفض المعاملة لعدم كفاية الرصيد. يرجى التحقق من حسابك أو استخدام بطاقة أخرى.';
+
+  @override
+  String get paymentCardDeclined =>
+      'تم رفض بطاقتك من قِبل جهة الإصدار. يرجى الاتصال بالمصرف الذي تتعامل معه أو استخدام طريقة دفع مختلفة.';
+
+  @override
+  String get paymentCardExpired =>
+      'البطاقة المستخدمة منتهية الصلاحية. يرجى تقديم بطاقة صالحة والمحاولة مرة أخرى.';
 }

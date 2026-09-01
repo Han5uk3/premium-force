@@ -468,5 +468,14 @@
   "mapStyleDark": "Night",
   "mapStyleDescription": "Used on the driver tracking map",
   "switchToLightMap": "Switch to the day map",
-  "switchToDarkMap": "Switch to the night map"
+  "switchToDarkMap": "Switch to the night map",
+  "paymentCancelled": "Payment Cancelled",
+  "paymentCancelledDescription": "The payment process was cancelled. No charges were made to your account.",
+  "tryAgain": "Try Again",
+  "paymentRejected": "Payment Rejected",
+  "paymentSomethingWentWrong": "Something went wrong with your payment. Please try again or use a different payment method.",
+  "paymentSecurityVerificationFailed": "Security verification failed. Please ensure your card details are correct or try a different payment method.",
+  "paymentInsufficientFunds": "The transaction was declined due to insufficient funds. Please check your account or use another card.",
+  "paymentCardDeclined": "Your card was declined by the issuer. Please contact your bank or use a different payment method.",
+  "paymentCardExpired": "The card used has expired. Please provide a valid card and try again."
 }

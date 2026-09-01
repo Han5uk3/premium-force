@@ -344,7 +344,6 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                         context,
                                       )!.enterMobileNumber,
                                       fontsize: 14,
-
                                       keyboardType: TextInputType.phone,
                                       needTitle: true,
                                       obscureText: false,
@@ -366,15 +365,13 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                           );
                                         },
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8,
-                                          ),
                                           decoration: const BoxDecoration(
                                             color: Colors.transparent,
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
                                             children: [
                                               Text(
                                                 '+$_selectedCountryCode',
@@ -392,13 +389,11 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                 child: Icon(
                                                   Icons.arrow_drop_down,
                                                   color: c.icon,
+                                                  size: 20,
                                                 ),
                                               ),
+                                              const SizedBox(width: 4),
                                               Container(
-                                                margin:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                    ),
                                                 height: 24,
                                                 width: 1,
                                                 color: c.border,

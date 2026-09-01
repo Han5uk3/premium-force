@@ -621,15 +621,12 @@ class _SignUpPageState extends State<SignUpPage>
                               );
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
                               decoration: const BoxDecoration(
                                 color: Colors.transparent,
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Text(
                                     '+$_selectedCountryCode',
@@ -639,14 +636,16 @@ class _SignUpPageState extends State<SignUpPage>
                                       fontSize: 14,
                                     ),
                                   ),
-                                  Icon(
-                                    Icons.arrow_drop_down,
-                                    color: c.icon,
-                                  ),
-                                  Container(
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 8,
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 3),
+                                    child: Icon(
+                                      Icons.arrow_drop_down,
+                                      color: c.icon,
+                                      size: 20,
                                     ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Container(
                                     height: 24,
                                     width: 1,
                                     color: c.border,

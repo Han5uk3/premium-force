@@ -63,10 +63,7 @@ class _PaymentCancelledPageState extends State<PaymentCancelledPage>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final l10n = AppLocalizations.of(context)!;
-    // Fixed rather than read from the context: this screen overrides the theme
-    // for its whole subtree just below, so the palette it paints with is the
-    // dark one whatever the app is set to.
-    const c = AppPalette.dark;
+    final c = context.colors;
 
     return PopScope(
       canPop: false,
@@ -74,239 +71,240 @@ class _PaymentCancelledPageState extends State<PaymentCancelledPage>
         if (didPop) return;
         Navigator.pop(context);
       },
-      // Pinned to the dark theme in both modes.
-      //
-      // This screen is a brand moment rather than a page of content: a dark
-      // photograph fading into the ground, with the outcome mark reversed out
-      // of it. A light theme with a dark full-screen takeover is the look here,
-      // the same call the splash screen and the home header make. Wrapping the
-      // subtree rather than hard-coding colours is what keeps the shared button
-      // and container inside it consistent with the screen.
-      child: Theme(
-        data: AppTheme.dark,
-        child: AnnotatedRegion<SystemUiOverlayStyle>(
-          value: AppTheme.overlayStyle(Brightness.dark),
-          child: Scaffold(
-            backgroundColor: c.scaffold,
-            body: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Background Gradient/Image
-                Positioned(
-                  top: -8,
-                  left: 0,
-                  right: 0,
-                  height: size.height * 0.45,
-                  child: ShaderMask(
-                    // A dstIn mask, so only the *alpha* of the stops below is
-                    // read: the photograph is opaque at the top, fades out
-                    // through the middle and returns at the bottom. Their
-                    // colours never reach the screen, which is why they stay
-                    // fixed while the rest of the page follows the theme.
-                    shaderCallback: (rect) {
-                      return LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.8),
-                          Colors.transparent,
-                          Colors.black,
-                        ],
-                        stops: const [0.0, 0.5, 1.0],
-                      ).createShader(rect);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: Image.asset(
-                      "assets/images/homeappbar.jpeg",
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppTheme.overlayStyle(c.brightness),
+        child: Scaffold(
+          backgroundColor: c.accentSurface,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background Gradient/Image
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: size.height * 0.45,
+                child: Container(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(
+                        c.brightness == Brightness.dark
+                            ? "assets/images/homeappbar.png"
+                            : "assets/images/homeappbarlight.png",
+                      ),
                       fit: BoxFit.cover,
                     ),
                   ),
                 ),
-
-                // Main Content
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Spacer(),
-
-                        // Animated Cancel Icon
-                        ScaleTransition(
-                          scale: _scaleAnimation,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Subtle outer glow
-                              AnimatedBuilder(
-                                animation: _scaleAnimation,
-                                builder: (context, child) {
-                                  return Container(
-                                    width: size.width * 0.45,
-                                    height: size.width * 0.45,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: c.textPrimary.withValues(
-                                        alpha: 0.05 * _scaleAnimation.value,
-                                      ),
-                                      border: Border.all(
-                                        color: c.textPrimary.withValues(
-                                          alpha: 0.1 * _scaleAnimation.value,
-                                        ),
-                                        width: 1,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              Container(
-                                width: size.width * 0.35,
-                                height: size.width * 0.35,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: RadialGradient(
-                                    colors: [
-                                      c.textPrimary.withValues(alpha: 0.1),
-                                      Colors.transparent,
-                                    ],
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.cancel_outlined,
-                                  color: c.textTertiary,
-                                  size: 80,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 40),
-
-                        // Animated Text Title
-                        FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: AnimatedBuilder(
-                            animation: _slideAnimation,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(
-                                  0,
-                                  30 * (1 - _slideAnimation.value),
-                                ),
-                                child: child,
-                              );
-                            },
-                            child: Text(
-                              "Payment Cancelled",
-                              style: TextStyle(
-                                color: c.textPrimary,
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Animated Description
-                        FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: AnimatedBuilder(
-                            animation: _slideAnimation,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(
-                                  0,
-                                  40 * (1 - _slideAnimation.value),
-                                ),
-                                child: child,
-                              );
-                            },
-                            child: Text(
-                              "The payment process was cancelled. No charges were made to your account.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: c.textSecondary,
-                                fontSize: 14,
-                                height: 1.5,
-                                fontWeight: FontWeight.w300,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const Spacer(flex: 2),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: size.height * 0.45,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        c.brightness == Brightness.light
+                            ? c.accentSurface.withValues(alpha: 0.7)
+                            : const Color(0xFF1E1105).withValues(alpha: 0.7),
+                        c.brightness == Brightness.light
+                            ? c.accentSurface
+                            : c.accentSurface.withValues(alpha: 0.9),
+                        c.accentSurface,
                       ],
+                      stops: const [0.3, 0.9, 1.0],
                     ),
                   ),
                 ),
-              ],
-            ),
-            bottomNavigationBar: FadeTransition(
-              opacity: _buttonAnimation,
-              child: AnimatedBuilder(
-                animation: _buttonAnimation,
-                builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(0, 50 * (1 - _buttonAnimation.value)),
-                    child: child,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.only(
-                    left: 24,
-                    right: 24,
-                    bottom: 40,
-                    top: 12,
-                  ),
-                  color: Colors.transparent,
-                  child: Row(
+              ),
+
+              // Main Content
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const Home(isfromSuccessPage: false),
+                      const Spacer(),
+
+                      // Animated Cancel Icon
+                      ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Subtle outer glow
+                            AnimatedBuilder(
+                              animation: _scaleAnimation,
+                              builder: (context, child) {
+                                return Container(
+                                  width: size.width * 0.45,
+                                  height: size.width * 0.45,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: c.error.withValues(
+                                      alpha: 0.05 * _scaleAnimation.value,
+                                    ),
+                                    border: Border.all(
+                                      color: c.error.withValues(
+                                        alpha: 0.1 * _scaleAnimation.value,
+                                      ),
+                                      width: 1,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            Container(
+                              width: size.width * 0.35,
+                              height: size.width * 0.35,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  colors: [
+                                    c.error.withValues(alpha: 0.1),
+                                    Colors.transparent,
+                                  ],
+                                ),
                               ),
-                              (route) => false,
+                              child: Icon(
+                                Icons.cancel_outlined,
+                                color: c.error,
+                                size: 100,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Animated Text Title
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: AnimatedBuilder(
+                          animation: _slideAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(
+                                0,
+                                30 * (1 - _slideAnimation.value),
+                              ),
+                              child: child,
                             );
                           },
-                          child: PremiumContainer(
-                            height: 60,
-                            width: size.width,
-                            child: Center(
-                              child: Text(
-                                l10n.backToHome,
-                                style: TextStyle(
-                                  color: c.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                          child: Text(
+                            l10n.paymentCancelled,
+                            style: TextStyle(
+                              color: c.textPrimary,
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Animated Description
+                      FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: AnimatedBuilder(
+                          animation: _slideAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(
+                                0,
+                                40 * (1 - _slideAnimation.value),
+                              ),
+                              child: child,
+                            );
+                          },
+                          child: Text(
+                            l10n.paymentCancelledDescription,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: c.textSecondary,
+                              fontSize: 14,
+                              height: 1.5,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const Spacer(flex: 2),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          bottomNavigationBar: FadeTransition(
+            opacity: _buttonAnimation,
+            child: AnimatedBuilder(
+              animation: _buttonAnimation,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, 50 * (1 - _buttonAnimation.value)),
+                  child: child,
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.only(
+                  left: 24,
+                  right: 24,
+                  bottom: 24,
+                  top: 12,
+                ),
+                color: Colors.transparent,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const Home(isfromSuccessPage: false),
+                            ),
+                            (route) => false,
+                          );
+                        },
+                        child: PremiumContainer(
+                          height: 48,
+                          width: size.width,
+                          child: Center(
+                            child: Text(
+                              l10n.backToHome,
+                              style: TextStyle(
+                                color: c.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: PremiumButton(
-                          text: "Try Again",
-                          onTap: () {
-                            Navigator.pop(context);
-                          },
-                          fontsize: 14,
-                          showLoader: false,
-                        ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: PremiumButton(
+                        text: l10n.tryAgain,
+                        onTap: () {
+                          Navigator.pop(context);
+                        },
+                        fontsize: 14,
+                        showLoader: false,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),

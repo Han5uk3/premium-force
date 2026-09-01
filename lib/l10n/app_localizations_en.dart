@@ -1350,4 +1350,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get switchToDarkMap => 'Switch to the night map';
+
+  @override
+  String get paymentCancelled => 'Payment Cancelled';
+
+  @override
+  String get paymentCancelledDescription =>
+      'The payment process was cancelled. No charges were made to your account.';
+
+  @override
+  String get tryAgain => 'Try Again';
+
+  @override
+  String get paymentRejected => 'Payment Rejected';
+
+  @override
+  String get paymentSomethingWentWrong =>
+      'Something went wrong with your payment. Please try again or use a different payment method.';
+
+  @override
+  String get paymentSecurityVerificationFailed =>
+      'Security verification failed. Please ensure your card details are correct or try a different payment method.';
+
+  @override
+  String get paymentInsufficientFunds =>
+      'The transaction was declined due to insufficient funds. Please check your account or use another card.';
+
+  @override
+  String get paymentCardDeclined =>
+      'Your card was declined by the issuer. Please contact your bank or use a different payment method.';
+
+  @override
+  String get paymentCardExpired =>
+      'The card used has expired. Please provide a valid card and try again.';
 }

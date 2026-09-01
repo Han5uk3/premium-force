@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:premium_force_main/ride_booking/payment_cancelled_page.dart';
+import 'package:premium_force_main/ride_booking/payment_rejected_page.dart';
 import 'package:premium_force_main/ride_booking/success_page.dart';
 import 'package:premium_force_main/splashscreen/splashscreen.dart';
 import 'package:provider/provider.dart';
@@ -256,7 +258,8 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
               // tree paints itself in whichever one is in force.
               theme: AppTheme.light,
               darkTheme: AppTheme.dark,
-              themeMode: themeProvider.themeMode,
+              themeMode: ThemeMode.dark,
+              //  themeProvider.themeMode,
               // The status and navigation bars belong to the OS, not to any
               // widget, so nothing in the tree updates them on a theme change.
               // Stamping the style here covers every screen; a screen that floats
@@ -275,9 +278,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
                 GlobalCupertinoLocalizations.delegate,
               ],
               supportedLocales: AppLocalizations.supportedLocales,
-              home:
-                   SuccessPage(),
-                  // SplashScreen(),
+              home: SplashScreen(),
             ),
           ),
         ),

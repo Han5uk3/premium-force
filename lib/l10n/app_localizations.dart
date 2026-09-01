@@ -2617,6 +2617,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Switch to the night map'**
   String get switchToDarkMap;
+
+  /// No description provided for @paymentCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Cancelled'**
+  String get paymentCancelled;
+
+  /// No description provided for @paymentCancelledDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The payment process was cancelled. No charges were made to your account.'**
+  String get paymentCancelledDescription;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Again'**
+  String get tryAgain;
+
+  /// No description provided for @paymentRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Rejected'**
+  String get paymentRejected;
+
+  /// No description provided for @paymentSomethingWentWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong with your payment. Please try again or use a different payment method.'**
+  String get paymentSomethingWentWrong;
+
+  /// No description provided for @paymentSecurityVerificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Security verification failed. Please ensure your card details are correct or try a different payment method.'**
+  String get paymentSecurityVerificationFailed;
+
+  /// No description provided for @paymentInsufficientFunds.
+  ///
+  /// In en, this message translates to:
+  /// **'The transaction was declined due to insufficient funds. Please check your account or use another card.'**
+  String get paymentInsufficientFunds;
+
+  /// No description provided for @paymentCardDeclined.
+  ///
+  /// In en, this message translates to:
+  /// **'Your card was declined by the issuer. Please contact your bank or use a different payment method.'**
+  String get paymentCardDeclined;
+
+  /// No description provided for @paymentCardExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The card used has expired. Please provide a valid card and try again.'**
+  String get paymentCardExpired;
 }
 
 class _AppLocalizationsDelegate

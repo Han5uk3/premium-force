@@ -163,6 +163,9 @@ class PremiumTextField extends StatelessWidget {
                                     ? TextAlign.right
                                     : TextAlign.left)
                               : TextAlign.start,
+                          textAlignVertical: maxLines > 1
+                              ? TextAlignVertical.top
+                              : TextAlignVertical.center,
                           keyboardType: keyboardType,
                           focusNode: focusNode,
                           obscureText: obscureText,
@@ -175,6 +178,7 @@ class PremiumTextField extends StatelessWidget {
                             fontSize: fontsize,
                           ),
                           decoration: InputDecoration(
+                            isDense: true,
                             suffix: suffix,
                             hintText: hintText,
                             hintStyle: TextStyle(
