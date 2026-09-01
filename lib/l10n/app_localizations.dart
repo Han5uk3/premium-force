@@ -818,6 +818,12 @@ abstract class AppLocalizations {
   /// **'Preferences'**
   String get preferences;
 
+  /// No description provided for @appTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'App Theme'**
+  String get appTheme;
+
   /// No description provided for @assigned.
   ///
   /// In en, this message translates to:
@@ -2573,7 +2579,7 @@ abstract class AppLocalizations {
   /// No description provided for @systemModeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Follow your device\'s display setting'**
+  /// **'Set the app\'s theme'**
   String get systemModeDescription;
 
   /// No description provided for @mapStyle.
@@ -2603,7 +2609,7 @@ abstract class AppLocalizations {
   /// No description provided for @mapStyleDescription.
   ///
   /// In en, this message translates to:
-  /// **'Used on the driver tracking map'**
+  /// **'Set the map style'**
   String get mapStyleDescription;
 
   /// No description provided for @switchToLightMap.

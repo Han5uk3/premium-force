@@ -376,6 +376,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get preferences => 'التفضيلات';
 
   @override
+  String get appTheme => 'سمة التطبيق';
+
+  @override
   String get assigned => 'تم التعيين';
 
   @override
@@ -1316,7 +1319,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get systemMode => 'النظام';
 
   @override
-  String get systemModeDescription => 'اتباع إعداد العرض في جهازك';
+  String get systemModeDescription => 'تعيين مظهر التطبيق';
 
   @override
   String get mapStyle => 'نمط الخريطة';
@@ -1331,7 +1334,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get mapStyleDark => 'ليلي';
 
   @override
-  String get mapStyleDescription => 'يُستخدم في خريطة تتبع السائق';
+  String get mapStyleDescription => 'تعيين نمط الخريطة';
 
   @override
   String get switchToLightMap => 'التبديل إلى الخريطة النهارية';

@@ -377,6 +377,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preferences => 'Preferences';
 
   @override
+  String get appTheme => 'App Theme';
+
+  @override
   String get assigned => 'Assigned';
 
   @override
@@ -1328,7 +1331,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get systemMode => 'System';
 
   @override
-  String get systemModeDescription => 'Follow your device\'s display setting';
+  String get systemModeDescription => 'Set the app\'s theme';
 
   @override
   String get mapStyle => 'Map style';
@@ -1343,7 +1346,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mapStyleDark => 'Night';
 
   @override
-  String get mapStyleDescription => 'Used on the driver tracking map';
+  String get mapStyleDescription => 'Set the map style';
 
   @override
   String get switchToLightMap => 'Switch to the day map';

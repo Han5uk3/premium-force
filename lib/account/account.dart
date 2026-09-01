@@ -426,11 +426,21 @@ class _AccountPageState extends State<AccountPage> {
                   Divider(color: c.divider, thickness: 1),
                   const SizedBox(height: 20),
 
-                  _sectionHeading(c, loc.theme),
+                  _sectionHeading(c, loc.appTheme),
+                  const SizedBox(height: 4),
+                  _sectionNote(c, loc.systemModeDescription),
+
                   const SizedBox(height: 10),
                   _segmentedRow(
                     c: c,
                     options: [
+                      _Segment(
+                        label: loc.systemMode,
+                        icon: Icons.phone_iphone_rounded,
+                        selected: themeProvider.themeMode == ThemeMode.system,
+                        onTap: () =>
+                            themeProvider.setThemeMode(ThemeMode.system),
+                      ),
                       _Segment(
                         label: loc.lightMode,
                         icon: Icons.light_mode_outlined,
@@ -444,19 +454,16 @@ class _AccountPageState extends State<AccountPage> {
                         selected: themeProvider.themeMode == ThemeMode.dark,
                         onTap: () => themeProvider.setThemeMode(ThemeMode.dark),
                       ),
-                      _Segment(
-                        label: loc.systemMode,
-                        icon: Icons.phone_iphone_rounded,
-                        selected: themeProvider.themeMode == ThemeMode.system,
-                        onTap: () =>
-                            themeProvider.setThemeMode(ThemeMode.system),
-                      ),
+                     
                     ],
                   ),
-                  _sectionNote(c, loc.systemModeDescription),
 
                   const SizedBox(height: 24),
                   _sectionHeading(c, loc.mapStyle),
+                  const SizedBox(height: 4),
+
+                  _sectionNote(c, loc.mapStyleDescription),
+
                   const SizedBox(height: 10),
                   _segmentedRow(
                     c: c,
@@ -472,7 +479,7 @@ class _AccountPageState extends State<AccountPage> {
                         ),
                       ),
                       _Segment(
-                        label: loc.mapStyleLight,
+                        label: loc.lightMode,
                         icon: Icons.wb_sunny_outlined,
                         selected:
                             themeProvider.mapPreference ==
@@ -482,7 +489,7 @@ class _AccountPageState extends State<AccountPage> {
                         ),
                       ),
                       _Segment(
-                        label: loc.mapStyleDark,
+                        label: loc.darkMode,
                         icon: Icons.nightlight_round,
                         selected:
                             themeProvider.mapPreference ==
@@ -493,7 +500,6 @@ class _AccountPageState extends State<AccountPage> {
                       ),
                     ],
                   ),
-                  _sectionNote(c, loc.mapStyleDescription),
 
                   SizedBox(
                     height: MediaQuery.of(sheetContext).padding.bottom + 28,

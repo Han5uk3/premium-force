@@ -25,7 +25,7 @@ enum MapThemePreference {
   static MapThemePreference fromStorage(String? value) {
     return MapThemePreference.values.firstWhere(
       (mode) => mode.name == value,
-      orElse: () => MapThemePreference.matchApp,
+      orElse: () => MapThemePreference.light,
     );
   }
 }
