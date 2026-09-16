@@ -7,6 +7,9 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+    // Uploads the mapping files that turn obfuscated release stack traces back
+    // into readable ones in the Crashlytics console.
+    id("com.google.firebase.crashlytics")
 }
 
 val keystoreProperties = Properties()

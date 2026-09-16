@@ -478,5 +478,11 @@
   "paymentSecurityVerificationFailed": "Security verification failed. Please ensure your card details are correct or try a different payment method.",
   "paymentInsufficientFunds": "The transaction was declined due to insufficient funds. Please check your account or use another card.",
   "paymentCardDeclined": "Your card was declined by the issuer. Please contact your bank or use a different payment method.",
-  "paymentCardExpired": "The card used has expired. Please provide a valid card and try again."
+  "paymentCardExpired": "The card used has expired. Please provide a valid card and try again.",
+  "updateRequiredTitle": "Update required",
+  "updateRequiredMessage": "This version of the app is no longer supported. Please update to the latest version to continue.",
+  "updateAvailableTitle": "Update available",
+  "updateAvailableMessage": "A new version of the app is available with the latest improvements.",
+  "updateNow": "Update now",
+  "updateLater": "Later"
 }

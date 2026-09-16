@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:premium_force_main/app_update/app_update_prompts.dart';
 import 'package:premium_force_main/authentication/blocked_page.dart';
 import 'package:premium_force_main/authentication/login.dart';
 import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
+import 'package:premium_force_main/services/app_update_service.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -26,11 +28,37 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateAfterSplash() async {
-    // Show splash for at least 3 seconds while checking auth in parallel
+    // Show splash for at least 3 seconds while checking auth and the minimum
+    // supported build in parallel
     final authCheck = context.read<AuthProvider>().checkAuth();
-    await Future.wait([authCheck, Future.delayed(const Duration(seconds: 3))]);
+    final updateCheck = AppUpdateService.check();
+    await Future.wait([
+      authCheck,
+      updateCheck,
+      Future.delayed(const Duration(seconds: 3)),
+    ]);
+
+    // Already settled by the wait above; read before the mounted check so no
+    // async gap sits between it and the navigation below.
+    final updateStatus = await updateCheck;
 
     if (!mounted) return;
+
+    switch (updateStatus) {
+      case AppUpdateStatus.required:
+        // Ahead of the auth routing: an unsupported build must not reach Home
+        // or Login, whatever state the account is in.
+        Navigator.pushReplacement(
+          context,
+          SmoothNavigation.route(const UpdateRequiredPage()),
+        );
+        return;
+      case AppUpdateStatus.optional:
+        await showUpdateAvailableDialog(context);
+        if (!mounted) return;
+      case AppUpdateStatus.upToDate:
+        break;
+    }
 
     final authProvider = context.read<AuthProvider>();
 

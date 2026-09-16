@@ -1374,4 +1374,24 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get paymentCardExpired =>
       'البطاقة المستخدمة منتهية الصلاحية. يرجى تقديم بطاقة صالحة والمحاولة مرة أخرى.';
+
+  @override
+  String get updateRequiredTitle => 'التحديث مطلوب';
+
+  @override
+  String get updateRequiredMessage =>
+      'لم يعد هذا الإصدار من التطبيق مدعومًا. يرجى التحديث إلى أحدث إصدار للمتابعة.';
+
+  @override
+  String get updateAvailableTitle => 'يتوفر تحديث';
+
+  @override
+  String get updateAvailableMessage =>
+      'يتوفر إصدار جديد من التطبيق يتضمن أحدث التحسينات.';
+
+  @override
+  String get updateNow => 'حدّث الآن';
+
+  @override
+  String get updateLater => 'لاحقًا';
 }

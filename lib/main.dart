@@ -16,6 +16,7 @@ import 'package:premium_force_main/firebase_options.dart';
 import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
+import 'package:premium_force_main/services/crash_reporting.dart';
 import 'package:premium_force_main/services/deep_link_service.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/theme/app_theme.dart';
@@ -50,6 +51,20 @@ final BookingProvider bookingProvider = BookingProvider();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Firebase comes first so Crashlytics is catching errors before any of the
+  // rest of startup runs — a crash in there would otherwise go unreported.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    if (e.toString().contains('duplicate-app')) {
+    } else {
+      rethrow;
+    }
+  }
+  await CrashReporting.init();
+
   // Flutter defaults the decoded-image cache to 100 MiB, which is larger than
   // the whole heap budget on low-RAM Android devices. Cap it so heavy fleet /
   // banner scrolling evicts instead of pushing the app into an OOM kill.
@@ -77,17 +92,11 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: "lib/.env");
 
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    if (e.toString().contains('duplicate-app')) {
-    } else {
-      rethrow;
-    }
-  }
   await UserLocalStorage.init();
+
+  // A customer who is already signed in never passes through
+  // `saveUserCredentials` again, so tag their reports from the stored id.
+  CrashReporting.setUser(UserLocalStorage.getUserId());
 
   // Initialise push notifications
   await NotificationService.instance.init();
@@ -212,10 +221,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final double bottomPadding = MediaQueryData.fromView(
-      View.of(context),
-    ).padding.bottom;
-    final bool isThickNavBar = bottomPadding >= 24.0;
+  
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _authProvider),
@@ -244,7 +250,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
           color: _palette(themeProvider).scaffold,
           child: SafeArea(
             top: false,
-            bottom: Platform.isAndroid ? isThickNavBar : false,
+            bottom: Platform.isAndroid ? true : false,
             child: MaterialApp(
               title: "Premium Force",
               debugShowCheckedModeBanner: false,
