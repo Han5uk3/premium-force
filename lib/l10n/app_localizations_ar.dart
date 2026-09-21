@@ -87,10 +87,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bookServices => 'حجز الخدمات';
 
   @override
-  String get airportArrival => 'وصول المطار';
+  String get airportArrival => 'استقبال من المطار';
 
   @override
-  String get airportDeparture => 'مغادرة المطار';
+  String get airportDeparture => 'توصيل إلى المطار';
 
   @override
   String get airportServices => 'خدمات المطار';
@@ -825,10 +825,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get trackYourDriver => 'تتبع سائقك';
 
   @override
-  String get airportArrivalSubtitle => 'وصول المطار - السائق في الطريق إليك';
+  String get airportArrivalSubtitle =>
+      'استقبال من المطار - السائق في الطريق إليك';
 
   @override
-  String get airportDepartureSubtitle => 'مغادرة المطار - السائق قادم للاستلام';
+  String get airportDepartureSubtitle =>
+      'توصيل إلى المطار - السائق قادم للاستلام';
 
   @override
   String get chauffeurServiceSubtitle =>

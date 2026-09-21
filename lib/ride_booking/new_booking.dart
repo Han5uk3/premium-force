@@ -1419,10 +1419,13 @@ class _NewBookingState extends State<NewBooking> {
     final options = result.data;
 
     setState(() {
-      _chauffeurOptions = (options != null && options.hasBookableDurations)
+      // Packages are the only thing the picker offers, so a payload carrying
+      // nothing but hourly bounds is no more use here than a failed call —
+      // both fall back rather than leave the picker empty.
+      _chauffeurOptions = (options != null && options.packages.isNotEmpty)
           ? options
           : _fallbackChauffeurOptions;
-      // Nothing can have been picked yet, but the pickers read both of these,
+      // Nothing can have been picked yet, but the picker reads both of these,
       // so neither is left pointing at a duration that is no longer offered.
       _selectedChauffeurType = null;
       _selectedEstimatedHours = 0;
@@ -3474,16 +3477,15 @@ class _NewBookingState extends State<NewBooking> {
     );
   }
 
-  /// The chauffeur duration pickers.
+  /// The chauffeur duration picker.
   ///
-  /// The first chooses the product — hourly hire, when the backend has it
-  /// enabled, followed by each fixed package. A package carries its own
-  /// duration, so only hourly reveals the second picker.
+  /// Only the fixed packages are offered. Hourly hire is not sold from the app
+  /// at the moment, so `hourly` in the options payload is ignored and no second
+  /// picker is ever shown — a package carries its own duration.
   Widget buildHoursDataSelectors(BuildContext context, AppLocalizations loc) {
     // Null until the options call lands, so the placeholder is all that is
     // offered while it is in flight.
     final options = _chauffeurOptions;
-    final hourlyAvailable = options?.hourly.available ?? false;
 
     // The labels are localised — and in Arabic not always numeric — so the hour
     // behind the chosen label is looked up rather than parsed back out of it.
@@ -3492,81 +3494,27 @@ class _NewBookingState extends State<NewBooking> {
         _getServiceDurationLabel(loc, h): h,
     };
 
-    final items = [if (hourlyAvailable) loc.hourly, ...packagesByLabel.keys];
-
-    // A package shows its own duration; hourly stays on its label whatever hour
-    // the second picker is on. Null leaves the field on its placeholder, which
-    // is a hint rather than a row the user could pick.
-    final currentLabel = switch (_selectedChauffeurType) {
-      ChauffeurType.hourly => loc.hourly,
-      ChauffeurType.package => _getServiceDurationLabel(
-        loc,
-        _selectedEstimatedHours,
-      ),
-      null => null,
-    };
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: PremiumDropDown(
-            title: loc.serviceDuration,
-            hint: loc.selectDuration,
-            value: currentLabel,
-            items: items,
-            onChanged: (val) {
-              if (val == null) return;
-              setState(() {
-                final packageHours = packagesByLabel[val];
-                if (packageHours != null) {
-                  _selectedChauffeurType = ChauffeurType.package;
-                  _selectedEstimatedHours = packageHours;
-                } else if (hourlyAvailable && val == loc.hourly) {
-                  // Hours come from the second picker, which starts unset.
-                  _selectedChauffeurType = ChauffeurType.hourly;
-                  _selectedEstimatedHours = 0;
-                }
-              });
-            },
-          ),
-        ),
-        if (options != null &&
-            _selectedChauffeurType == ChauffeurType.hourly) ...[
-          SizedBox(height: 16),
-          buildHourlyHoursSelector(context, loc, options.hourly),
-        ],
-      ],
-    );
-  }
-
-  /// Hour picker for hourly hire, listing every hour the backend allows.
-  Widget buildHourlyHoursSelector(
-    BuildContext context,
-    AppLocalizations loc,
-    HourlyChauffeurOption hourly,
-  ) {
-    final hoursByLabel = {
-      for (final h in hourly.range) _getServiceDurationLabel(loc, h): h,
-    };
-
-    final items = hoursByLabel.keys.toList();
-
-    // Null until an hour is picked, which shows the placeholder as a hint.
-    final currentLabel = _selectedEstimatedHours == 0
+    // Null leaves the field on its placeholder, which is a hint rather than a
+    // row the user could pick.
+    final currentLabel = _selectedChauffeurType == null
         ? null
         : _getServiceDurationLabel(loc, _selectedEstimatedHours);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: PremiumDropDown(
-        title: loc.duration,
+        title: loc.serviceDuration,
         hint: loc.selectDuration,
         value: currentLabel,
-        items: items,
+        items: packagesByLabel.keys.toList(),
         onChanged: (val) {
           if (val == null) return;
-          setState(() => _selectedEstimatedHours = hoursByLabel[val] ?? 0);
+          final packageHours = packagesByLabel[val];
+          if (packageHours == null) return;
+          setState(() {
+            _selectedChauffeurType = ChauffeurType.package;
+            _selectedEstimatedHours = packageHours;
+          });
         },
       ),
     );
