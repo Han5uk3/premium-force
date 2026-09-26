@@ -52,6 +52,13 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- App Links are handled by DeepLinkService (app_links). Flutter's
+                 own deep linking would also push the link's path as a named
+                 route, and with no route table MaterialApp crashes in
+                 _onUnknownRoute. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
