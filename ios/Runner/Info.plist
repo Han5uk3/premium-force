@@ -98,6 +98,8 @@
 	</array>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
+	<key>FirebaseAutomaticScreenReportingEnabled</key>
+	<false/>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>

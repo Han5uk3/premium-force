@@ -9,6 +9,7 @@ import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/models/v2/notification_v2.dart';
 import 'package:premium_force_main/providers/notification_provider.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
+import 'package:premium_force_main/services/analytics.dart';
 
 /// The in-app notification centre, backed by `GET /notifications`.
 ///
@@ -65,6 +66,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
+        settings: const RouteSettings(name: Screens.bookingDetails),
         builder: (context) => BookingDetailsPage(bookingId: bookingId),
       ),
     );

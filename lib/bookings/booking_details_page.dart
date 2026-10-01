@@ -20,6 +20,7 @@ import 'package:premium_force_main/models/v2/booking_service_type.dart';
 import 'package:premium_force_main/models/v2/booking_v2.dart';
 import 'package:premium_force_main/models/v2/review_v2.dart';
 import 'package:premium_force_main/services/invoice_service.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/utils/booking_status_display.dart';
 import 'package:premium_force_main/utils/date_display.dart';
@@ -1282,6 +1283,9 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
+                            settings: const RouteSettings(
+                              name: Screens.driverTracking,
+                            ),
                             builder: (context) =>
                                 DriverTrackingPage(booking: booking),
                           ),
@@ -1372,6 +1376,7 @@ class _BookingDetailsPageState extends State<BookingDetailsPage> {
     }
 
     _didChange = true;
+    Analytics.logBookingCancelled();
     final cancellation = result.data;
     logScreen(
       _log,

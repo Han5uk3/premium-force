@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/common_widgets/fleet_list_card.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
@@ -232,7 +233,7 @@ class _FleetListPageState extends State<FleetListPage> {
                   vertical: 12,
                 ),
 
-                cacheExtent: 1000,
+                scrollCacheExtent: ScrollCacheExtent.viewport(2.0),
                 itemCount: _allFleetCars.length,
                 itemBuilder: (context, index) {
                   final car = _allFleetCars[index];

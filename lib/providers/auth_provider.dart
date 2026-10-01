@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:premium_force_main/api/apis.dart';
 import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/models/user.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/services/apple_sign_in_service.dart';
 import 'package:premium_force_main/services/google_sign_in_service.dart';
 import 'package:premium_force_main/services/notification_service.dart';
@@ -403,6 +404,7 @@ class AuthProvider extends ChangeNotifier {
         _status = AuthStatus.authenticated;
         _phoneNumber = phoneNumber;
         _resendCountdown = 0;
+        Analytics.logLogin('phone');
 
         // Sync FCM token with backend after successful login
         unawaited(NotificationService.instance.syncTokenWithBackend());
@@ -580,6 +582,7 @@ class AuthProvider extends ChangeNotifier {
         }
 
         _status = AuthStatus.authenticated;
+        Analytics.logSignUp(UserLocalStorage.getLoginProvider() ?? 'phone');
 
         // Sync FCM token with backend after successful signup
         unawaited(NotificationService.instance.syncTokenWithBackend());
@@ -733,6 +736,7 @@ class AuthProvider extends ChangeNotifier {
               await UserLocalStorage.saveUserData(userData);
 
               _status = AuthStatus.authenticated;
+              Analytics.logLogin('google');
 
               // Sync FCM token after successful Google login
               unawaited(NotificationService.instance.syncTokenWithBackend());
@@ -829,6 +833,7 @@ class AuthProvider extends ChangeNotifier {
               await UserLocalStorage.saveUserData(userData);
 
               _status = AuthStatus.authenticated;
+              Analytics.logLogin('apple');
 
               // Sync FCM token after successful Apple login
               unawaited(NotificationService.instance.syncTokenWithBackend());
@@ -922,6 +927,9 @@ class AuthProvider extends ChangeNotifier {
         // Delete user on the backend
         await _api.deleteUser(userid: id, token: token);
       }
+
+      // Before logout, which detaches the user id the event belongs to.
+      Analytics.logAccountDeleted();
 
       // Cleanup local state (this is what the user meant: delete first, then cleanup)
       await logout();

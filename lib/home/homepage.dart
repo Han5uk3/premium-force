@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:premium_force_main/common_widgets/fleet_card_shimmer.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,7 @@ import 'package:premium_force_main/home/fleet_list_page.dart';
 import 'package:premium_force_main/common_widgets/tracking_card.dart';
 import 'package:premium_force_main/common_widgets/gold_icon.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
+import 'package:premium_force_main/services/analytics.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -601,6 +603,9 @@ class _HomepageState extends State<Homepage>
                           final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
+                              settings: const RouteSettings(
+                                name: Screens.bookingDetails,
+                              ),
                               builder: (context) =>
                                   BookingDetailsPage(bookingId: booking.id),
                             ),
@@ -666,6 +671,7 @@ class _HomepageState extends State<Homepage>
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
+                        settings: const RouteSettings(name: Screens.fleetList),
                         builder: (context) => const FleetListPage(),
                       ),
                     );
@@ -710,7 +716,7 @@ class _HomepageState extends State<Homepage>
                 : ListView.builder(
                     itemCount: displayCount,
                     scrollDirection: Axis.horizontal,
-                    cacheExtent: 1000,
+                    scrollCacheExtent: ScrollCacheExtent.viewport(2.0),
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: EdgeInsetsDirectional.only(
@@ -991,6 +997,9 @@ class _HomepageState extends State<Homepage>
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
+                                    settings: const RouteSettings(
+                                      name: Screens.notifications,
+                                    ),
                                     builder: (context) =>
                                         const NotificationScreen(),
                                   ),
@@ -1355,6 +1364,9 @@ class _HomepageState extends State<Homepage>
                             if (context.mounted) {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
+                                  settings: const RouteSettings(
+                                    name: Screens.newBooking,
+                                  ),
                                   builder: (context) => NewBooking(
                                     catcode: catcode,
                                     citycode: selectedCityIndex,

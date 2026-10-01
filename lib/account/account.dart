@@ -13,6 +13,7 @@ import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/common_widgets/gold_icon.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/theme/theme_provider.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AccountPage extends StatefulWidget {
@@ -50,6 +51,9 @@ class _AccountPageState extends State<AccountPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
+                      settings: const RouteSettings(
+                        name: Screens.manageProfile,
+                      ),
                       builder: (context) => const ManageProfilePage(),
                     ),
                   );
@@ -714,6 +718,7 @@ class _AccountPageState extends State<AccountPage> {
                                   context,
                                   SmoothNavigation.route(
                                     const PremiumForceLoginPage(),
+                                    name: Screens.login,
                                   ),
                                   (route) => false,
                                 );
@@ -848,6 +853,7 @@ class _AccountPageState extends State<AccountPage> {
                                     context,
                                     SmoothNavigation.route(
                                       const PremiumForceLoginPage(),
+                                      name: Screens.login,
                                     ),
                                     (route) => false,
                                   );

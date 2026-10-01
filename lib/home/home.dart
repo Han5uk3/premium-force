@@ -7,6 +7,7 @@ import 'package:premium_force_main/account/account.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/home/homepage.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/services/deep_link_service.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 
@@ -24,6 +25,13 @@ class _HomeState extends State<Home> {
 
   /// Index of the bookings tab within the `PageView`.
   static const int _bookingsPage = 1;
+
+  /// What each tab is reported to Analytics as, in `PageView` order.
+  static const List<String> _tabScreens = [
+    Screens.home,
+    Screens.bookings,
+    Screens.account,
+  ];
 
   @override
   void initState() {
@@ -131,9 +139,15 @@ class _HomeState extends State<Home> {
         ),
 
         resizeToAvoidBottomInset: true,
-        bottomNavigationBar: BottomNavBar(
-          selectedIndex: _selectedIndex,
-          onIndexChanged: _onNavTapped,
+        // Home is pushed without a route name, so the tab is what Analytics
+        // reports as the screen. The bar is the natural place to hang that off:
+        // it is what shows which tab is selected.
+        bottomNavigationBar: ScreenReporter(
+          screen: _tabScreens[_selectedIndex],
+          child: BottomNavBar(
+            selectedIndex: _selectedIndex,
+            onIndexChanged: _onNavTapped,
+          ),
         ),
       ),
     );

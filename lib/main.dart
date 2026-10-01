@@ -17,6 +17,7 @@ import 'package:premium_force_main/api/user_api_v2.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/services/notification_service.dart';
 import 'package:premium_force_main/services/crash_reporting.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/services/deep_link_service.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/theme/app_theme.dart';
@@ -64,6 +65,7 @@ void main() async {
     }
   }
   await CrashReporting.init();
+  await Analytics.init();
 
   // Flutter defaults the decoded-image cache to 100 MiB, which is larger than
   // the whole heap budget on low-RAM Android devices. Cap it so heavy fleet /
@@ -97,6 +99,8 @@ void main() async {
   // A customer who is already signed in never passes through
   // `saveUserCredentials` again, so tag their reports from the stored id.
   CrashReporting.setUser(UserLocalStorage.getUserId());
+  Analytics.setUser(UserLocalStorage.getUserId());
+  Analytics.setLanguage(UserLocalStorage.getLanguage());
 
   // Initialise push notifications
   await NotificationService.instance.init();
@@ -129,7 +133,10 @@ void main() async {
 void _handleNotificationTap(RemoteMessage message) {
   // Navigate to the notifications screen
   navigatorKey.currentState?.push(
-    MaterialPageRoute(builder: (context) => const NotificationScreen()),
+    MaterialPageRoute(
+      settings: const RouteSettings(name: Screens.notifications),
+      builder: (context) => const NotificationScreen(),
+    ),
   );
 }
 
@@ -201,6 +208,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     });
     // Persist the selected language to Hive
     UserLocalStorage.saveLanguage(locale.languageCode);
+    Analytics.setLanguage(locale.languageCode);
     _syncLocaleWithBackend(locale.languageCode);
   }
 
@@ -255,6 +263,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
               title: "Premium Force",
               debugShowCheckedModeBanner: false,
               navigatorKey: navigatorKey,
+              navigatorObservers: [Analytics.screens],
               locale: _locale,
               // Two full themes and the mode that picks between them. Every
               // colour either carries comes from [AppPalette], so the same widget

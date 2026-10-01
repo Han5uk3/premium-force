@@ -21,6 +21,7 @@ import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:premium_force_main/common_widgets/premiumloader.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PremiumForceLoginPage extends StatefulWidget {
@@ -85,7 +86,10 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
         );
       } else {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const BlockedPage()),
+          MaterialPageRoute(
+            settings: const RouteSettings(name: Screens.blocked),
+            builder: (context) => const BlockedPage(),
+          ),
           (route) => false,
         );
       }
@@ -101,6 +105,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
             googleDisplayName: googleResult?.displayName,
             googlePhotoUrl: googleResult?.photoUrl,
           ),
+          name: Screens.signUp,
         ),
       );
     } else if (authProvider.status == AuthStatus.failure &&
@@ -134,7 +139,10 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
         );
       } else {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const BlockedPage()),
+          MaterialPageRoute(
+            settings: const RouteSettings(name: Screens.blocked),
+            builder: (context) => const BlockedPage(),
+          ),
           (route) => false,
         );
       }
@@ -149,6 +157,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
             appleEmail: appleResult?.email,
             appleDisplayName: appleResult?.displayName,
           ),
+          name: Screens.signUp,
         ),
       );
     } else if (authProvider.status == AuthStatus.failure &&
@@ -545,6 +554,7 @@ class _PremiumForceLoginPageState extends State<PremiumForceLoginPage> {
                                                       .text
                                                       .trim(),
                                                 ),
+                                                name: Screens.otp,
                                               ),
                                             );
                                           } else {

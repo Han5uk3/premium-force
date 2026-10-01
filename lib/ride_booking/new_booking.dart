@@ -33,6 +33,7 @@ import 'package:premium_force_main/models/v2/checkout_models.dart';
 import 'package:premium_force_main/models/v2/geo_models.dart';
 import 'package:premium_force_main/models/v2/session_models.dart';
 import 'package:premium_force_main/providers/booking_session_provider.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/services/service_availability_service.dart';
 import 'package:premium_force_main/services/session_payment_service.dart';
 import 'package:premium_force_main/providers/booking_provider.dart';
@@ -822,6 +823,7 @@ class _NewBookingState extends State<NewBooking> {
     }
 
     _adoptCheckoutPricing();
+    Analytics.logBeginCheckout(_analyticsCart);
     return true;
   }
 
@@ -973,6 +975,21 @@ class _NewBookingState extends State<NewBooking> {
   SelectedVehicle? get _reviewVehicle =>
       _checkoutSummary?.selectedVehicle ?? _session.session?.selectedVehicle;
 
+  /// The booking as the Analytics checkout funnel reports it, priced from the
+  /// server's breakdown so the value is what the gateway charges.
+  BookingCart get _analyticsCart {
+    final type = _reviewServiceType;
+    return (
+      serviceType: type.transferSubType ?? type.serviceType,
+      vehicleId: _reviewVehicle?.vehicleId,
+      vehicleName: _reviewVehicle?.name,
+      vehicleClass: _reviewVehicleClass(false),
+      value: _summaryTotal,
+      currency: _serverPricing?.currency ?? 'SAR',
+      coupon: _appliedCoupon?.code,
+    );
+  }
+
   /// The same vehicle as step 2 listed it, matched by id.
   ///
   /// The session echoes only a thin stub — often just id, name and capacity —
@@ -1098,8 +1115,12 @@ class _NewBookingState extends State<NewBooking> {
       }
       bookingCreated = true;
 
+      final transactionId =
+          confirmation.bookingNumber ?? confirmation.bookingId;
+
       // A fully-discounted booking is already confirmed; no gateway involved.
       if (!confirmation.paymentRequired) {
+        Analytics.logPurchase(_analyticsCart, transactionId: transactionId);
         _goToSuccess(loc);
         return;
       }
@@ -1107,6 +1128,7 @@ class _NewBookingState extends State<NewBooking> {
       final config = confirmation.paytabsConfig!;
       final method = await _choosePaymentMethod(loc);
       if (method == null) return;
+      Analytics.logAddPaymentInfo(_analyticsCart, paymentType: method);
 
       final userData = UserLocalStorage.getUserData();
       final customerName =
@@ -1147,6 +1169,7 @@ class _NewBookingState extends State<NewBooking> {
 
       switch (verification?.outcome) {
         case PaymentVerificationOutcome.confirmed:
+          Analytics.logPurchase(_analyticsCart, transactionId: transactionId);
           _goToSuccess(loc);
 
         case PaymentVerificationOutcome.failed:
@@ -1234,7 +1257,10 @@ class _NewBookingState extends State<NewBooking> {
     _showCustomSnackBar(loc.bookingConfirmedSuccessfully, 'S');
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const SuccessPage()),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: Screens.bookingSuccess),
+        builder: (context) => const SuccessPage(),
+      ),
       (route) => false,
     );
   }
@@ -1246,10 +1272,15 @@ class _NewBookingState extends State<NewBooking> {
   /// success but the backend's verification says the charge failed.
   void _goToPaymentFailure(PaymentResult result, {String? message}) {
     if (!mounted) return;
+    final cancelled = isUserCancellation(result);
+    Analytics.logPaymentFailed(cancelled ? 'cancelled' : 'declined');
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => isUserCancellation(result)
+        settings: RouteSettings(
+          name: cancelled ? Screens.paymentCancelled : Screens.paymentRejected,
+        ),
+        builder: (context) => cancelled
             ? const PaymentCancelledPage()
             : PaymentRejectedPage(
                 errorMessage: message ?? result.responseMessage,
@@ -3628,6 +3659,9 @@ class _NewBookingState extends State<NewBooking> {
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
+                      settings: const RouteSettings(
+                        name: Screens.locationPicker,
+                      ),
                       builder: (context) => LocationPickerPage(
                         initialLat: initLat,
                         initialLng: initLng,

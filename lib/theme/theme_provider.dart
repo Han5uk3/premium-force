@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/storage/user_local_storage.dart';
 import 'package:premium_force_main/theme/map_style.dart';
 
@@ -41,7 +42,9 @@ class ThemeProvider extends ChangeNotifier {
     : _themeMode = _readThemeMode(),
       _mapPreference = MapThemePreference.fromStorage(
         UserLocalStorage.getMapThemePreference(),
-      );
+      ) {
+    Analytics.setTheme(_themeMode.name);
+  }
 
   ThemeMode _themeMode;
   MapThemePreference _mapPreference;
@@ -99,6 +102,7 @@ class ThemeProvider extends ChangeNotifier {
     if (mode == _themeMode) return;
     _themeMode = mode;
     notifyListeners();
+    Analytics.setTheme(mode.name);
     await UserLocalStorage.saveThemeMode(_storageValueOf(mode));
   }
 

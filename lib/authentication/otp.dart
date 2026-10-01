@@ -14,6 +14,7 @@ import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/authentication/blocked_page.dart';
+import 'package:premium_force_main/services/analytics.dart';
 
 class OTPVerificationPage extends StatefulWidget {
   final String countryCode;
@@ -129,7 +130,10 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
         );
       } else {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const BlockedPage()),
+          MaterialPageRoute(
+            settings: const RouteSettings(name: Screens.blocked),
+            builder: (context) => const BlockedPage(),
+          ),
           (route) => false,
         );
       }
@@ -141,6 +145,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
             countryCode: widget.countryCode,
             phoneNumber: widget.phoneNumber,
           ),
+          name: Screens.signUp,
         ),
       );
     } else if (authProvider.status == AuthStatus.failure &&

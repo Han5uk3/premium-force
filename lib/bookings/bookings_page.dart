@@ -11,6 +11,7 @@ import 'package:premium_force_main/providers/booking_provider.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:premium_force_main/utils/date_display.dart';
 import 'package:premium_force_main/utils/screen_logger.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:provider/provider.dart';
 
 class BookingsPage extends StatefulWidget {
@@ -251,6 +252,9 @@ class _BookingsPageState extends State<BookingsPage>
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
+                      settings: const RouteSettings(
+                        name: Screens.bookingDetails,
+                      ),
                       builder: (context) =>
                           BookingDetailsPage(bookingId: booking.id),
                     ),

@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:premium_force_main/bookings/booking_details_page.dart';
 import 'package:premium_force_main/main.dart' show navigatorKey;
 import 'package:premium_force_main/utils/screen_logger.dart';
+import 'package:premium_force_main/services/analytics.dart';
 
 /// Console tag prefixing this service's log lines.
 const String _log = 'deep-link';
@@ -168,6 +169,7 @@ class DeepLinkService {
     logScreen(_log, 'opening booking $bookingId');
     navigator.push(
       MaterialPageRoute(
+        settings: const RouteSettings(name: Screens.bookingDetails),
         builder: (_) => BookingDetailsPage(bookingId: bookingId),
       ),
     );

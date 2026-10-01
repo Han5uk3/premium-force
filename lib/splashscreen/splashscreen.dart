@@ -7,6 +7,7 @@ import 'package:premium_force_main/authentication/login.dart';
 import 'package:premium_force_main/home/home.dart';
 import 'package:premium_force_main/providers/auth_provider.dart';
 import 'package:premium_force_main/services/app_update_service.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/utils/smooth_navigation.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -50,7 +51,10 @@ class _SplashScreenState extends State<SplashScreen> {
         // or Login, whatever state the account is in.
         Navigator.pushReplacement(
           context,
-          SmoothNavigation.route(const UpdateRequiredPage()),
+          SmoothNavigation.route(
+            const UpdateRequiredPage(),
+            name: Screens.updateRequired,
+          ),
         );
         return;
       case AppUpdateStatus.optional:
@@ -70,14 +74,20 @@ class _SplashScreenState extends State<SplashScreen> {
       } else {
         Navigator.pushReplacement(
           context,
-          SmoothNavigation.route(const BlockedPage()),
+          SmoothNavigation.route(
+            const BlockedPage(),
+            name: Screens.blocked,
+          ),
         );
       }
     } else {
       // Not logged in or fetch failed → go to Login
       Navigator.pushReplacement(
         context,
-        SmoothNavigation.route(const PremiumForceLoginPage()),
+        SmoothNavigation.route(
+          const PremiumForceLoginPage(),
+          name: Screens.login,
+        ),
       );
     }
   }

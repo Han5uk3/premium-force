@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:premium_force_main/api/review_api_v2.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/common_widgets/button.dart';
 import 'package:premium_force_main/common_widgets/snackbar.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
@@ -83,6 +84,7 @@ class _RateBookingSheetState extends State<RateBookingSheet> {
       return;
     }
 
+    Analytics.logBookingRated(_rating);
     Navigator.pop(context, result.data);
   }
 

@@ -3,6 +3,10 @@ platform :ios, '15.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# Firebase Analytics without the IDFA. The app shows no ads, and leaving
+# AdSupport out keeps App Tracking Transparency out of the picture.
+$FirebaseAnalyticsWithoutAdIdSupport = true
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,

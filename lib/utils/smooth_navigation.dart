@@ -4,11 +4,14 @@ class SmoothNavigation extends StatefulWidget {
   final Widget child;
   const SmoothNavigation({super.key, required this.child});
 
+  /// [name] is what Analytics reports the page as — see `Screens`.
   static Route route(
     Widget page, {
+    String? name,
     Duration duration = const Duration(milliseconds: 800),
   }) {
     return PageRouteBuilder(
+      settings: RouteSettings(name: name),
       transitionDuration: duration,
       reverseTransitionDuration: duration,
       pageBuilder: (context, animation, secondaryAnimation) => page,

@@ -16,6 +16,14 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
 
+    <!-- Firebase Analytics merges in the Advertising ID permission, and the
+         Privacy Sandbox ones it uses for ad attribution. This app shows no ads
+         and never reads the ID, so drop them — otherwise Play requires the
+         Advertising ID declaration to say the app uses it. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID" tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION" tools:node="remove"/>
+
     <application
         android:label="Premium Force"
         android:name="${applicationName}"
@@ -36,6 +44,16 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="premium_force_high_importance"/>
+
+        <!-- Firebase Analytics. No advertising ID (see the permission above),
+             and no automatic screen views: natively every screen is the one
+             MainActivity, so screens are reported from Dart by route name. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_automatic_screen_reporting_enabled"
+            android:value="false" />
 
         <activity
             android:name=".MainActivity"

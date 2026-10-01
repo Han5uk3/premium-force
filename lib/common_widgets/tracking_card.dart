@@ -6,6 +6,7 @@ import 'package:premium_force_main/l10n/app_localizations.dart';
 import 'package:premium_force_main/bookings/driver_tracking_page.dart';
 import 'package:premium_force_main/services/address_geocoding_service.dart';
 import 'package:premium_force_main/services/driver_location_service.dart';
+import 'package:premium_force_main/services/analytics.dart';
 import 'package:premium_force_main/theme/app_palette.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -456,6 +457,7 @@ class _TrackingCardState extends State<TrackingCard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
+                    settings: const RouteSettings(name: Screens.driverTracking),
                     builder: (context) => DriverTrackingPage(booking: booking),
                   ),
                 );
